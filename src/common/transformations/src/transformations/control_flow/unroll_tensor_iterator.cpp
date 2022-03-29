@@ -139,7 +139,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                         std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<Node>& target_inp) {
                             return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
                         });
-                    if (is_connected_to_result) {
+                    if (is_connected_to_result || target_inputs.empty()) {
                         concat->output(0).get_tensor().set_name(
                             op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
                     }
@@ -162,7 +162,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                             return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
                         });
 
-                    if (is_connected_to_result) {
+                    if (is_connected_to_result || target_inputs.empty()) {
                         input_to_res.get_tensor().set_name(
                             op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
                     }
@@ -188,7 +188,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                         return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
                     });
 
-                if (is_connected_to_result) {
+                if (is_connected_to_result || target_inputs.empty()) {
                     in_value.get_tensor().set_name(
                         op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
                 }
