@@ -19,31 +19,6 @@ endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"
                "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" @ONLY)
 
-# ie_cpack_add_component(model_optimizer)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION tools/mo
-        USE_SOURCE_PERMISSIONS
-        COMPONENT tests
-        EXCLUDE_FROM_ALL
-        PATTERN ".*" EXCLUDE
-        PATTERN "automation" EXCLUDE
-        PATTERN "requirements_dev.txt" EXCLUDE
-        PATTERN "README.md" EXCLUDE
-        PATTERN "CMakeLists.txt" EXCLUDE
-
-        PATTERN "openvino/tools/mo/front/caffe/CustomLayersMapping.xml" EXCLUDE
-        PATTERN "openvino/tools/mo/utils/convert.py" EXCLUDE
-        PATTERN "unit_tests" EXCLUDE
-        PATTERN "openvino_mo.egg-info" EXCLUDE
-        PATTERN "build" EXCLUDE
-
-        REGEX ".*__pycache__.*" EXCLUDE
-        REGEX ".*\\.pyc$" EXCLUDE
-        REGEX ".*\\.swp" EXCLUDE
-        REGEX ".*\\.DS_Store$" EXCLUDE
-        REGEX ".*_test\.py$" EXCLUDE)
-
 install(FILES requirements_dev.txt
         DESTINATION tests/mo
         COMPONENT tests
