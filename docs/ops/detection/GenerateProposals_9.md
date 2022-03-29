@@ -114,19 +114,19 @@ The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are t
             <dim>3</dim>
         </port>
         <port id="1">
-            <dim>3</dim>
             <dim>50</dim>
             <dim>84</dim>
+            <dim>3</dim>
             <dim>4</dim>
         </port>
         <port id="2">
             <dim>8</dim>
-            <dim>12</dim>            
+            <dim>12</dim>
             <dim>50</dim>
             <dim>84</dim>
         </port>
         <port id="3">
-            <dim>8</dim>        
+            <dim>8</dim>
             <dim>3</dim>
             <dim>50</dim>
             <dim>84</dim>
@@ -134,15 +134,15 @@ The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are t
     </input>
     <output>
         <port id="4" precision="FP32">
-            <dim>1000</dim>
+            <dim>-1</dim>
             <dim>4</dim>
         </port>
         <port id="5" precision="FP32">
-            <dim>1000</dim>
+            <dim>-1</dim>
         </port>
-        <port id="6" precision="I64">
+        <port id="6" precision="I32">
             <dim>8</dim>
-        </port>        
+        </port>
     </output>
 </layer>
 ```
