@@ -137,7 +137,7 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
 
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
+if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
     # Debian packages are enabled on Ubuntu systems
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
 
@@ -154,11 +154,12 @@ if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
     unset(TBB_DIR)
     unset(TBB_FOUND)
     unset(TBB_IMPORTED_TARGETS)
+    unset(TBB_VERSION)
 else()
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB" OFF)
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
