@@ -175,6 +175,12 @@ void erase(T port) {
 }  // namespace
 }  // namespace ric_attr
 
+namespace {
+    std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t> &values) {
+        return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+    }
+} // namespace
+
 namespace init {
 class SplitConcat : public ngraph::pass::MatcherPass {
 public:
@@ -287,11 +293,6 @@ public:
 }  // namespace init
 
 namespace prop {
-namespace {
-std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
-    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
-}  // namespace
 
 class Binary : public ngraph::pass::MatcherPass {
 public:
@@ -409,7 +410,6 @@ public:
             if (ric.get_axis() != 1)
                 return false;
 
-            ric.set_is_final(true);
             ric.set_callback([](Input<Node> input, const ric_attr::Attribute& attr) {
                 const auto output_channel_index = 1;
                 auto order = attr.get_order();
@@ -426,17 +426,7 @@ public:
                 // TODO: copy runtime info from RIC sub-graph
             });
 
-            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
-                // Set final RIC attr to the first FQ input
-                ric_attr::set(fq->input(0), ric);
-
-                // Apply Binary transformation for FQ to handle 1..5 inputs
-                ric.set_is_final(false);
-                ric_attr::set(fq->input_value(0), ric);  // set ric attr to simulate propagation flow
-                Binary().apply(fq);
-            } else {
-                ric_attr::set(conv->input(1), ric);
-            }
+            ric_attr::set(conv->input(1), ric);
             return true;
         };
 
@@ -683,11 +673,6 @@ public:
 }  // namespace fuse
 
 namespace back_prop {
-namespace {
-std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
-    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
-}  // namespace
 class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
@@ -708,19 +693,12 @@ public:
                 }
             }
 
-            if (attrs.empty())
-                return false;
-
             // Check that all RIC attrs can be merged and then merge them
             auto ric = attrs[0];
             auto rank = root->get_output_partial_shape(0).rank();
             if (rank.is_dynamic())
                 return false;
             auto data_rank = rank.get_length();
-            const auto& output_rank = root->get_output_partial_shape(0).rank();
-            if (!(output_rank.is_static() && output_rank.get_length() == data_rank)) {
-                return false;
-            }
 
             for (const auto& item : attrs) {
                 if (ric.can_be_merged_with(item)) {
@@ -730,7 +708,7 @@ public:
                 }
             }
 
-            for (const auto& input : inputs) {
+            for (const auto& input : root->inputs()) {
                 auto const_output = input.get_source_output();
                 const auto& shape = const_output.get_shape();
                 const int64_t& shape_rank = static_cast<int64_t>(shape.size());
@@ -804,6 +782,16 @@ public:
         MATCHER_SCOPE(Unsupported);
         auto pattern_root = pattern::wrap_type<opset8::Constant>();
         auto callback = [=](pattern::Matcher& m) {
+            auto inputs = m.get_match_value().get_target_inputs();
+            for (const auto& input : inputs) {
+                if (ric_attr::has(input)) {
+                    auto ric = ric_attr::get(input);
+                    ric.set_is_final(true);
+                    ric_attr::set(input, ric);
+                } else {
+                    return false;
+                }
+            }
             return true;
         };
 
