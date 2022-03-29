@@ -325,3 +325,54 @@ TYPED_TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores) {
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 1}));
     EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({Dimension::dynamic()}));
 }
+
+TEST(type_prop2, multiclass_nms_dynamic_boxes_and_scores) {
+    const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto roisnum = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+
+    const auto nms =
+        make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 1}));
+    EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({Dimension::dynamic()}));
+}
+
+TYPED_TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores2) {
+    const auto boxes =
+        make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic(), Dimension::dynamic(), 4}));
+    const auto scores =
+        make_shared<op::Parameter>(element::f32,
+                                   PartialShape({Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+
+    const auto nms = make_shared<TypeParam>(boxes, scores, ov::op::util::MulticlassNmsBase::Attributes());
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 1}));
+    EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({Dimension::dynamic()}));
+}
+
+TEST(type_prop2, multiclass_nms_dynamic_boxes_and_scores2) {
+    const auto boxes =
+        make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic(), Dimension::dynamic(), 4}));
+    const auto scores =
+        make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic(), Dimension::dynamic()}));
+    const auto roisnum = make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic()}));
+
+    const auto nms =
+        make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension::dynamic(), 1}));
+    EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({Dimension::dynamic()}));
+}

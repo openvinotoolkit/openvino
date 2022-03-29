@@ -195,28 +195,31 @@ void op::v9::MulticlassNms::validate_and_infer_types() {
 
     const auto validated = validate();
 
-    if (validated) {  //  ready for static shape infer
+    if (validated) {  //  rank of inputs now are static, but dims maybe not.
         const bool shared = (scores_ps.rank().get_length() == 3);
-
-        const auto num_boxes = shared ? boxes_ps[1].get_length() : boxes_ps[1].get_length();
-        const auto num_classes = shared ? scores_ps[1].get_length() : boxes_ps[0].get_length();
-        auto num_images = scores_ps[0].get_length();  // default shared
+        ov::PartialShape roisnum_ps;
         if (!shared) {
-            const auto roisnum_ps = get_input_partial_shape(2);
-            num_images = roisnum_ps[0].get_length();
+            roisnum_ps = get_input_partial_shape(2);
         }
 
-        int64_t max_output_boxes_per_class = 0;
-        if (m_nms_top_k >= 0)
-            max_output_boxes_per_class = std::min(num_boxes, (int64_t)m_nms_top_k);
-        else
-            max_output_boxes_per_class = num_boxes;
+        if ((shared && boxes_ps[1].is_static() && scores_ps[1].is_static() && scores_ps[0].is_static()) ||
+            (!shared && boxes_ps[1].is_static() && boxes_ps[0].is_static() && roisnum_ps[0].is_static())) {
+            const auto num_boxes = shared ? boxes_ps[1].get_length() : boxes_ps[1].get_length();
+            const auto num_classes = shared ? scores_ps[1].get_length() : boxes_ps[0].get_length();
+            auto num_images = shared ? scores_ps[0].get_length() : roisnum_ps[0].get_length();
 
-        auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-        if (m_keep_top_k >= 0)
-            max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
+            int64_t max_output_boxes_per_class = 0;
+            if (m_nms_top_k >= 0)
+                max_output_boxes_per_class = std::min(num_boxes, (int64_t)m_nms_top_k);
+            else
+                max_output_boxes_per_class = num_boxes;
 
-        first_dim_shape = Dimension(0, max_output_boxes_per_batch * num_images);
+            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
+            if (m_keep_top_k >= 0)
+                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
+
+            first_dim_shape = Dimension(0, max_output_boxes_per_batch * num_images);
+        }
     }
 
     // 'selected_outputs' have the following format:
