@@ -32,6 +32,7 @@ class InferRequest;
 
 /**
  * @brief This class represents a compiled model.
+ * @ingroup ov_runtime_cpp_api
  * A model is compiled by a specific device by applying multiple optimization
  * transformations, then mapping to compute kernels.
  */
