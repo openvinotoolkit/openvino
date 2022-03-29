@@ -584,6 +584,7 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
