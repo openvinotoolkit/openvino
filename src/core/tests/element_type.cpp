@@ -64,3 +64,21 @@ TEST(element_type, merge_both_static_unequal) {
     ASSERT_TRUE(t.is_static());
     ASSERT_EQ(t, element::f32);
 }
+
+struct ObjectWithType {
+    ObjectWithType(const element::Type& type_) : type{type_} {}
+    ~ObjectWithType() {
+        EXPECT_NO_THROW(type.bitwidth()) << "Could not access type information in global scope";
+    }
+    element::Type type;
+};
+
+using ObjectWithTypeParams = std::tuple<ObjectWithType>;
+
+class ObjectWithTypeTests : public testing::WithParamInterface<ObjectWithTypeParams>, public ::testing::Test {};
+
+TEST_P(ObjectWithTypeTests, construct_and_destroy_in_global_scope) {
+    ASSERT_EQ(element::f32, std::get<0>(GetParam()).type);
+}
+
+INSTANTIATE_TEST_SUITE_P(f32_test_parameter, ObjectWithTypeTests, ::testing::Values(element::f32));
