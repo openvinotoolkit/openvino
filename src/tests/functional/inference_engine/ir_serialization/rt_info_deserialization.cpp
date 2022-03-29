@@ -16,7 +16,7 @@
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
 #include "openvino/frontend/manager.hpp"
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ie_precision.hpp"
 #include "ngraph/node.hpp"

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;

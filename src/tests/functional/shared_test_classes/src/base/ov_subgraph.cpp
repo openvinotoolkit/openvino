@@ -13,7 +13,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 

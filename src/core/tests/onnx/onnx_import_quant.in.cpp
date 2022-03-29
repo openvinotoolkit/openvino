@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"

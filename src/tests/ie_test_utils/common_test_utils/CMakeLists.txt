@@ -17,7 +17,6 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     gtest
                     gtest_main
-                    ngraph_test_util
                     ngraphFunctions
                     openvino::runtime
                     openvino::runtime::dev

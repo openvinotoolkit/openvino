@@ -10,6 +10,7 @@
 #include "execute_tools.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "ngraph/util.hpp"
 
 namespace ngraph {
 namespace test {

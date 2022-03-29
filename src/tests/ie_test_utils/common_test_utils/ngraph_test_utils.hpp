@@ -23,7 +23,6 @@
 #include "test_common.hpp"
 
 #include "graph_comparator.hpp"
-#include "test_tools.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
 
@@ -95,3 +94,15 @@ private:
 void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
 
 void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
+
+template <typename T>
+size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {
+    size_t count = 0;
+    for (auto op : f->get_ops()) {
+        if (ngraph::is_type<T>(op)) {
+            count++;
+        }
+    }
+
+    return count;
+}
