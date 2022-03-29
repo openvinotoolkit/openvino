@@ -58,6 +58,7 @@ void regclass_Tensor(py::module m) {
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: openvino.runtime.Shape
+                :param type: Element type.
                 :type type: openvino.runtime.Type (optional).
 
                 :Example:
@@ -104,6 +105,7 @@ void regclass_Tensor(py::module m) {
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: list or tuple
+                :param type: Element type.
                 :type type: openvino.runtime.Type (optional).
 
                 :Example:
