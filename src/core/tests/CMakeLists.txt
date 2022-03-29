@@ -581,6 +581,7 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
