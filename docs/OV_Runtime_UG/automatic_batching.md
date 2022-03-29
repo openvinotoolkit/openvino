@@ -124,10 +124,20 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
  -  Overriding the strict rules of implicit reshaping by the batch dimension via the explicit device notion:
     - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
  -  Finally, overriding the automatically-deduced batch size as well:
-    - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+        - This example is also applicable to the CPU or any other device that generally supports the batched execution.  
     - notice that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. -d "BATCH:GPU(16)"
-
-The last example is also applicable to the CPU or any other device that generally supports the batched execution.  
+ 
+ Notice that the benchmark_app performs a warm-up run of a _single_ request. As the Auto-Batching requires significantly more requests to execute in batch, this warm up run hits the default timeout (1000 ms), which is reported as e.g.:
+  ```
+  [ INFO ] First inference took 1000.18ms 
+  ```
+This value also exposed as the final execution statistics on the `benchmark_app` exit: 
+  ```
+  [ INFO ] Latency: 
+  [ INFO ] 	Max:      1000.18 ms
+  ```
+This is NOT the actual latency of the batched execution, so please refer to other metrics in the same log, e.g. "Median" or "Average" execution. 
 
 ### See Also
 [Supported Devices](supported_plugins/Supported_Devices.md)
