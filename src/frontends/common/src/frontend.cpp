@@ -20,13 +20,13 @@ using namespace ov::frontend;
 std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                  const std::shared_ptr<void>& shared_object) {
     // Recreate ov::Model using main runtime, not FrontEnd's one
-    auto copy = std::make_shared<Model>(ov_model->get_results(),
-                                        ov_model->get_sinks(),
-                                        ov_model->get_parameters(),
-                                        ov_model->get_variables(),
-                                        ov_model->get_friendly_name());
+    // This affects read time performance: every node is created twice - on FrontEnd side and here
+    // TODO: this could be improved (for non-static builds) if frontends will not create Node via make_shared, but use a
+    // kind of static creators
+    auto copy = ov::clone_model(*ov_model);
     copy->m_shared_object = shared_object;
     copy->get_rt_info() = ov_model->get_rt_info();
+    // Hold FrontEnd object for each Constant, as real data may point to memory allocated by FrontEnd
     for (auto& op : copy->get_ordered_ops()) {
         if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
             c->m_shared_object = shared_object;
