@@ -12,7 +12,6 @@
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include "../../inference/src/cnn_network_ngraph_impl.hpp"
 #include "executable_network.hpp"
 #include "utils/log_util.hpp"
 
