@@ -35,15 +35,9 @@ Further documents cover the associated  _runtime_ performance optimizations topi
 
 * For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md)
 
-**Use-case specific optimizations** along with some implementation details:
- 
-* Optimizing for [throughput](./dldt_deployment_optimization_tput.md) and [latency](./dldt_deployment_optimization_latency.md)
- 
-* [OpenVINO's high-level performance hints](../OV_Runtime_UG/performance_hints.md) as the portable, future-proof approach for performance configuration, thar does not requires re-tuning when the model or device has changed.
-    * **If the performance portability is of concern, consider using the [hints](../OV_Runtime_UG/performance_hints.md) first.** 
+**Use-case specific optimizations** such as optimizing for [latency](./dldt_deployment_optimization_latency.md) or [throughput](./dldt_deployment_optimization_tput.md) 
 
-## Prefer Portable High-level Performance Hints
-
+## Writing Performance Portable Inference Application
 Each of the OpenVINO's [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers a bunch of low-level performance settings. 
 Tweaking this detailed configuration requires deep architecture understanding.
 

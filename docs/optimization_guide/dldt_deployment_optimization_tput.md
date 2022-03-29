@@ -12,7 +12,7 @@ With the OpenVINO there are two means of leveraging the throughput with the indi
 * **Basic (high-level)** flow with [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md) which is inherently **portable and future-proof**
 * **Advanced (low-level)** approach of explicit  **batching** and **streams**, explained in the separate [document](dldt_deployment_optimization_tput_advanced.md).
 
-In both cases application should be designed to execute multiple inference requests in parallel as described in next section, as detailed in the [next section](@ref throughput_app_design).
+In both cases application should be designed to execute multiple inference requests in parallel as detailed in the [next section](@ref throughput_app_design).
 
 Finally, consider the _automatic_ multi-device execution covered below.
 

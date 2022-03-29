@@ -13,12 +13,11 @@ This configurable mean of this device-side parallelism is commonly referred as *
 Few general considerations:
 * Using the streams does increase the latency of an individual request
    * When no number of streams is not specified, a device creates a bare minimum of streams (usually just one), as the latency-oriented case is default
-   * Please find for the optimal number of the streams [below](ref throughput_advanced)
+   * Please find further tips for the optimal number of the streams [below](@ref throughput_advanced)
 * Streams are memory-hungry, as every stream duplicates the intermediate buffers to do inference in parallel to the rest of streams
    * Always prefer streams over creating multiple `ov:Compiled_Model` instances for the same model, as weights memory is shared across streams, reducing the memory consumption
 * Notice that the streams also inflate the model load (compilation) time.
 
-### Further Details
 For efficient asynchronous execution, the streams are actually handling the inference with a special pool of the threads (a thread per stream).
 Each time you start inference requests (potentially from different application threads), they are actually muxed into a inference queue of the particular `ov:Compiled_Model`. 
 If there is a vacant stream, it pops the request from the queue and actually expedites that to the on-device execution.
