@@ -338,13 +338,13 @@ def test_clone_model():
     model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone_model()
 
-    # Make changes to the original model's inputs
+    # Make changes to the cloned models' inputs
     model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
 
-    original_model_shapes = [input_shape.get_shape() for input_shape in model_original.inputs]
-    model_copy1_shapes = [input_shape.get_shape() for input_shape in model_copy1.inputs]
-    model_copy2_shapes = [input_shape.get_shape() for input_shape in model_copy2.inputs]
+    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
+    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
+    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
 
     assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
