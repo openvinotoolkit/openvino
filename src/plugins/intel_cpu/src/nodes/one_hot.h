@@ -13,10 +13,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNOneHotNode : public MKLDNNNode {
+class OneHot : public Node {
 public:
-    MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    OneHot(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -35,7 +36,7 @@ private:
     typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;
 
     struct OneHotContext {
-        MKLDNNOneHotNode* nodePtr;
+        OneHot* nodePtr;
         size_t prefix_size;
         size_t suffix_size;
     };
@@ -63,5 +64,6 @@ private:
     void one_hot(size_t prefix_size, size_t suffix_size);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

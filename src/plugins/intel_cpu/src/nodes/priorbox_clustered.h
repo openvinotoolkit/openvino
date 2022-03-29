@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNPriorBoxClusteredNode : public MKLDNNNode {
+class PriorBoxClustered : public Node {
 public:
-    MKLDNNPriorBoxClusteredNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -44,5 +45,6 @@ private:
     int number_of_priors;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
