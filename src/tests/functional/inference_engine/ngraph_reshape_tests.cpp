@@ -930,6 +930,142 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage_opset6) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
+TEST_F(NGraphReshapeTests, ReshapeGenerateProposals) {
+    std::string model = R"V0G0N(
+<net name="GenerateProposals" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="8,3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>8</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="3,50,84,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>50</dim>
+                    <dim>84</dim>
+                    <dim>3</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="8,12,50,84" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>8</dim>
+                    <dim>12</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="3" version="opset1">
+            <data shape="8,3,50,84" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>8</dim>
+                    <dim>3</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="1133" type="GenerateProposals" version="opset9">
+            <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000" roi_num_type="i32"/>
+            <input>
+                <port id="0">
+                    <dim>8</dim>
+                    <dim>3</dim>
+                </port>
+                <port id="1">
+                    <dim>50</dim>
+                    <dim>84</dim>
+                    <dim>3</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="2">
+                    <dim>8</dim>
+                    <dim>12</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+                <port id="3">
+                    <dim>8</dim>
+                    <dim>3</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4" precision="FP32">
+                    <dim>-1</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="5" precision="FP32">
+                    <dim>-1</dim>
+                </port>
+                <port id="6" precision="I32">
+                    <dim>8</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="out_0" type="Result" id="5" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>-1</dim>
+                    <dim>4</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_1" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>-1</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_2" type="Result" id="7" version="opset1">
+            <input>
+                <port id="0" precision="I32">
+                    <dim>8</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
+        <edge from-layer="4" from-port="4" to-layer="5" to-port="0"/>
+        <edge from-layer="4" from-port="5" to-layer="6" to-port="0"/>
+        <edge from-layer="4" from-port="6" to-layer="7" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in1"] = {4, 100, 100, 4};
+    newShapes["in2"] = {8, 16, 100, 100};
+    newShapes["in3"] = {8, 4, 100, 100};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+
+    InferenceEngine::ICNNNetwork::InputShapes newShapes2;
+    newShapes2["in0"] = {2, 4};
+    newShapes2["in1"] = {4, 100, 100, 4};
+    newShapes2["in2"] = {2, 16, 100, 100};
+    newShapes2["in3"] = {2, 4, 100, 100};
+    ASSERT_NO_THROW(network.reshape(newShapes2));
+}
+
 TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronROIFeatureExtractor" version="10">

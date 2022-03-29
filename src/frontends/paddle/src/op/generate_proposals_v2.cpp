@@ -71,10 +71,10 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     //  2. scores: [proposals_num]
     //  3. roi_num: [N]
     auto proposal = std::make_shared<ov::op::v9::GenerateProposals>(im_info,
-                                                                               reshaped_anchors,
-                                                                               variances_bbox_deltas,
-                                                                               scores,
-                                                                               attrs);
+                                                                    reshaped_anchors,
+                                                                    variances_bbox_deltas,
+                                                                    scores,
+                                                                    attrs);
     proposal->set_roi_num_type(ov::element::i32);
 
     auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {1});

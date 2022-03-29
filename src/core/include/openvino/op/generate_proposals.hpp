@@ -49,11 +49,11 @@ public:
     /// \param attrs Operation attributes
     /// \param roi_num_type roi_num type
     GenerateProposals(const Output<Node>& im_info,
-                                 const Output<Node>& anchors,
-                                 const Output<Node>& deltas,
-                                 const Output<Node>& scores,
-                                 const Attributes& attrs,
-                                 const element::Type roi_num_type = element::i64);
+                      const Output<Node>& anchors,
+                      const Output<Node>& deltas,
+                      const Output<Node>& scores,
+                      const Attributes& attrs,
+                      const element::Type roi_num_type = element::i64);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

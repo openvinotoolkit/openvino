@@ -308,17 +308,17 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
 }
 
 void generate_proposals(const std::vector<float>& im_info,
-                                     const std::vector<float>& anchors,
-                                     const std::vector<float>& deltas,
-                                     const std::vector<float>& scores,
-                                     const op::v9::GenerateProposals::Attributes& attrs,
-                                     const Shape& im_info_shape,
-                                     const Shape& anchors_shape,
-                                     const Shape& deltas_shape,
-                                     const Shape& scores_shape,
-                                     std::vector<float>& output_rois,
-                                     std::vector<float>& output_scores,
-                                     std::vector<int64_t>& num_rois) {
+                        const std::vector<float>& anchors,
+                        const std::vector<float>& deltas,
+                        const std::vector<float>& scores,
+                        const op::v9::GenerateProposals::Attributes& attrs,
+                        const Shape& im_info_shape,
+                        const Shape& anchors_shape,
+                        const Shape& deltas_shape,
+                        const Shape& scores_shape,
+                        std::vector<float>& output_rois,
+                        std::vector<float>& output_scores,
+                        std::vector<int64_t>& num_rois) {
     const auto im_info_size =
         std::accumulate(im_info_shape.begin() + 1, im_info_shape.end(), 1, std::multiplies<size_t>());
     const auto deltas_size =
