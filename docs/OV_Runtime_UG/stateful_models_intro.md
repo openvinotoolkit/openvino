@@ -1,4 +1,4 @@
-Stateful models {#openvino_2_0_network_state_intro}
+Stateful models and State API {#openvino_docs_OV_UG_stateful_models_intro}
 ==============================
 
 @sphinxdirective
@@ -7,7 +7,7 @@ Stateful models {#openvino_2_0_network_state_intro}
     :maxdepth: 1
     :hidden:
 
-    openvino_2_0_ways_to_get_stateful_model
+    openvino_docs_OV_UG_ways_to_get_stateful_model
 
 @endsphinxdirective
 
@@ -55,7 +55,7 @@ You can find more details on these operations in [ReadValue specification](../op
    For testing purposes or for some specific cases, when the ways to get OpenVINO model with states described above are not enough for your purposes,
    you can use OpenVINO API and create `ov::opset8::ReadValue` and `ov::opset8::Assign` operations directly.
 
-## OpenVINO state API
+## OpenVINO State API
 
  Inference Engine has the `ov::InferRequest::query_state` method  to get the list of states from a network and `ov::VariableState` class to operate with states. 
  Below you can find brief description of methods and the workable example of how to use this interface.
