@@ -68,7 +68,7 @@ TEST(element_type, merge_both_static_unequal) {
 struct ObjectWithType {
     ObjectWithType(const element::Type& type_) : type{type_} {}
     ~ObjectWithType() {
-        EXPECT_NO_THROW(type.bitwidth()) << "Could not access type inforamation in global scope";
+        EXPECT_NO_THROW(type.bitwidth()) << "Could not access type information in global scope";
     }
     element::Type type;
 };

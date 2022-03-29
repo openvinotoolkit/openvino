@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regmodule_graph_passes(py::module m);
+void regclass_passes_GraphRewrite(py::module m);
