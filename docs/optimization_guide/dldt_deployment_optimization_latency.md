@@ -20,9 +20,9 @@ As expected, the easiest way to achieve the lowest latency is **running only one
 
 However, some conventional "root" devices (e.g. CPU or GPU) can be in fact internally composed of several "sub-devices".  In many cases letting the OpenVINO to transparently leverage the "sub-devices" helps to improve the application throughput (e.g. serve multiple clients simultaneously) without degrading the latency.  For example, multi-socket CPUs can deliver as high number of requests (at the same minimal latency) as there are NUMA nodes in the machine. Similarly, a multi-tile GPU (which is essentially multiple GPUs in a single package), can deliver a multi-tile scalability with the number of inference requests, while preserving the single-tile latency.
 
-Thus, human expertise is required to get more _throughput_ out of the device even in the inherently latency-oriented cases. OpenVINO can take this configuration burden via [high-level performance hints](../OV_Runtime_UG/performance_hints.md).
+Thus, human expertise is required to get more _throughput_ out of the device even in the inherently latency-oriented cases. OpenVINO can take this configuration burden via [high-level performance hints](../OV_Runtime_UG/performance_hints.md), via `ov::hint::PerformanceMode::LATENCY` specified for the `ov::hint::performance_mode` property for the compile_model.
 
-> **NOTE**: [OpenVINO performance hints](./dldt_deployment_optimization_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof.
+> **NOTE**: [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md) is a recommended way for performance configuration, which is both device-agnostic and future-proof.
 
 In the case when there are multiple models to be used simultaneously, consider using different devices for inferencing the different models. Finally, when multiple models are executed in parallel on the device, using additional `ov::hint::model_priority` may help to define relative priorities of the models (please refer to the documentation on the [matrix features support for OpenVINO devices](@ref features_support_matrix) to check for the support of the feature by the specific device).
 
