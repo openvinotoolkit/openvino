@@ -311,41 +311,52 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         AutoContext context;
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
-        // filter the device that supports filter configure
-        auto strDevices = GetDeviceList(fullConfig);
-        auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
-        if (supportDevicesByConfig.size() == 0) {
-             IE_THROW() << "There is no device support the configure";
+
+        bool isCumulative = false;
+        auto hintMode = fullConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
+        if (hintMode->second == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            isCumulative = true;
+            // if is cumulative_throughput, all devices performance_hint is throughput
+            hintMode->second = PluginConfigParams::THROUGHPUT;
         }
-        auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
-        // replace the configure with configure that auto want to pass to device
-        // and reset the strDevices to support devices
-        auto validConfigKey = PerfHintsConfig::SupportedKeys();
-        validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
-        validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-        strDevices = "";
-        for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
-             std::map<std::string, std::string> deviceConfig;
-             auto& configs = iter->config;
-             for (auto& config : configs) {
-                 if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
-                     deviceConfig.insert({config.first, config.second});
-                     LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
-                             config.first.c_str(), config.second.c_str());
-                 }
-             }
-             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
-                            });
-             if (tmpiter != fullConfig.end())
-                 deviceConfig.insert({tmpiter->first, tmpiter->second});
-             iter->config = deviceConfig;
-             strDevices += iter->deviceName;
-             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
-             LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+
+        if (!isCumulative) {
+            // filter the device that supports filter configure
+            auto strDevices = GetDeviceList(fullConfig);
+            auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
+            auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
+            if (supportDevicesByConfig.size() == 0) {
+                IE_THROW() << "There is no device support the configure";
+            }
+            auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+            // replace the configure with configure that auto want to pass to device
+            // and reset the strDevices to support devices
+            auto validConfigKey = PerfHintsConfig::SupportedKeys();
+            validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
+            validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+            strDevices = "";
+            for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
+                std::map<std::string, std::string> deviceConfig;
+                auto& configs = iter->config;
+                for (auto& config : configs) {
+                    if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
+                        deviceConfig.insert({config.first, config.second});
+                        LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
+                                config.first.c_str(), config.second.c_str());
+                    }
+                }
+                auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
+                                return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
+                                });
+                if (tmpiter != fullConfig.end())
+                    deviceConfig.insert({tmpiter->first, tmpiter->second});
+                iter->config = deviceConfig;
+                strDevices += iter->deviceName;
+                strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
+                LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+            }
+            return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
         }
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
