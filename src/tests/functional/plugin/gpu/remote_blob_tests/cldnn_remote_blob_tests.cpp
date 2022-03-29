@@ -379,8 +379,8 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
     auto in_dims = in_desc.getDims();
     auto out_dims = out_desc.getDims();
-    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
-    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+    size_t in_size = std::accumulate(in_dims.begin(), in_dims.end(), 1, std::multiplies<size_t>());
+    size_t out_size = std::accumulate(out_dims.begin(), out_dims.end(), 1, std::multiplies<size_t>()) * sizeof(float);
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks

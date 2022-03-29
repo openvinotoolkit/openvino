@@ -89,7 +89,9 @@ struct ViewTensor : public ITensor {
 
     void set_shape(const ov::Shape& new_shape) override {
         auto old_byte_size = get_byte_size();
-        OPENVINO_ASSERT(shape_size(new_shape) <= old_byte_size, "Could set new shape: ", new_shape);
+        OPENVINO_ASSERT(shape_size(new_shape) * get_element_type().size() <= old_byte_size,
+                        "Could set new shape: ",
+                        new_shape);
         shape = new_shape;
     }
 
@@ -154,7 +156,7 @@ struct AllocatedTensor : public ViewTensor {
     void set_shape(const ov::Shape& new_shape) override {
         auto old_byte_size = get_byte_size();
         shape = new_shape;
-        if (shape_size(new_shape) > old_byte_size) {
+        if (get_byte_size() > old_byte_size) {
             allocator.deallocate(ptr, old_byte_size);
             ptr = allocator.allocate(get_byte_size());
         }
