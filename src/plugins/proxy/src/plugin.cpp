@@ -91,6 +91,7 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
 
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
+    // TODO: recall plugin for supported metrics
     if (name == ov::supported_properties) {
         std::vector<ov::PropertyName> roProperties{
             RO_property(ov::supported_properties.name()),
@@ -120,15 +121,6 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         metrics.push_back("SUPPORTED_METRICS");
         metrics.push_back("FULL_DEVICE_NAME");
         return metrics;
-    } else if (name == ov::device::full_name) {
-        std::string deviceFullName = "";
-        if (device_id == "abc_a")
-            deviceFullName = "a";
-        else if (device_id == "abc_b")
-            deviceFullName = "b";
-        else if (device_id == "abc_c")
-            deviceFullName = "c";
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
         auto hidden_devices = get_hidden_devices();
         std::vector<std::string> availableDevices(hidden_devices.size());
@@ -146,6 +138,8 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
     const std::map<std::string, std::string>& config) {
+    // TODO:
+    // return GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), config);
     IE_THROW(NotImplemented);
 }
 
