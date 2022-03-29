@@ -1,27 +1,24 @@
 # High-level Performance Hints {#openvino_docs_OV_UG_Performance_Hints}
 
-Each of the OpenVINO's [supported devices](supported_plugins/Device_Plugins.md) offers low-level performance settings. Tweaking this detailed configuration requires deep architecture understanding.
+Each of OpenVINO's [supported devices](supported_plugins/Device_Plugins.md) offers low-level performance settings. Tweaking this detailed configuration requires deep architecture understanding.
 Also, while the performance may be optimal for the specific combination of the device and the inferred model, the resulting configuration is not necessarily optimal for another device or model.
-The OpenVINO performance hints are the new way to configure the performance with the _portability_ in mind. 
+The OpenVINO performance hints are the new way to configure the performance with _portability_ in mind. As the hints are supported by every OpenVINO device, this is a future-proof solution that is fully compatible with the [automatic device selection](./auto_device_selection.md).
 
 The hints also "reverse" the direction of the configuration in the right fashion: rather than map the application needs to the low-level performance settings, and keep an associated application logic to configure each possible device separately, the idea is to express a target scenario with a single config key and let the *device* to configure itself in response.
-As the hints are supported by every OpenVINO device, this is completely portable and future-proof solution. 
 
-Previously, certain level of automatic configuration was coming from the _default_ values of the parameters. For example, number of the CPU streams was deduced from the number of CPU cores, when the `ov::streams::AUTO` (`CPU_THROUGHPUT_AUTO` in the pre-OpenVINO 2.0 parlance) is set. However, the resulting number of streams didn't account for actual compute requirements of the model to be inferred.
-The hints, in contrast, respect the actual model, so the parameters for the optimal throughput are calculated for each model individually (based on it's compute versus memory bandwidth requirements and capabilities of the device).
+Previously, a certain level of automatic configuration was coming from the _default_ values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO` (`CPU_THROUGHPUT_AUTO` in the pre-OpenVINO 2.0 parlance) is set. However, the resulting number of streams didn't account for actual compute requirements of the model to be inferred.
+The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 ## Performance Hints: Latency and Throughput
-As discussed in the [Optimization Guide](../optimization_guide/dldt_optimization_guide.md) there are few different metrics associated with the inference speed.
-Throughput and latency are some of the most critical factors that influence the overall performance of an application.
+As discussed in the [Optimization Guide](../optimization_guide/dldt_optimization_guide.md) there are a few different metrics associated with inference speed.
+Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
-This is why, to ease the configuration of the device, the OpenVINO already offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
-Every OpenVINO device supports these, which makes the things portable and future-proof.
-The also allows to do a performance configuration that is fully compatible with the [automatic device selection](./auto_device_selection.md).
-A special `ov::hint::PerformanceMode::UNDEFINED` acts same just as specifying no hint.
+This is why, to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
+A special `ov::hint::PerformanceMode::UNDEFINED` acts the same as specifying no hint.
 
-Please also see the last section in the document on conducting the performance measurements with the `benchmark_app`.
+Please also see the last section in this document on conducting performance measurements with the benchmark_app`.
 
-Notice that if there are other performance factors (other than inference time) like memory footprint and model load/compilation time are of concern, a typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and then consume  much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`.  
+Note that a typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared with `ov::hint::PerformanceMode::LATENCY`.
 
 ## Performance Hints: How It Works?
 Internally, every device "translates" the value of the hint to the actual performance settings.
