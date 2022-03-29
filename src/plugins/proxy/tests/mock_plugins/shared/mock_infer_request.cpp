@@ -13,19 +13,15 @@ void MockInferRequest::allocate_blobs() {
     for (const auto& it : _networkInputs) {
         m_inputs[it.first] = make_blob_with_precision(it.second->getTensorDesc());
         m_inputs[it.first]->allocate();
-        std::cout << "AAAA " << it.first << std::endl;
     }
     for (const auto& it : _networkOutputs) {
         m_outputs[it.first] = make_blob_with_precision(it.second->getTensorDesc());
         m_outputs[it.first]->allocate();
-        std::cout << "BBBB " << it.first << std::endl;
     }
     for (const auto& input : m_compiled_model->m_model->inputs()) {
-        std::cout << "AAA " << ngraph::op::util::create_ie_output_name(input) << std::endl;
         OPENVINO_ASSERT(m_inputs.find(ngraph::op::util::create_ie_output_name(input)) != m_inputs.end());
     }
     for (const auto& output : m_compiled_model->m_model->outputs()) {
-        std::cout << "BBB " << ngraph::op::util::create_ie_output_name(output) << std::endl;
         OPENVINO_ASSERT(m_outputs.find(ngraph::op::util::create_ie_output_name(output.get_node()->input_value(0))) !=
                         m_outputs.end());
     }

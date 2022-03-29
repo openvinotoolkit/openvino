@@ -56,7 +56,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetwo
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
     auto dev_name = get_fallback_device(get_device_from_config(config));
-    std::cout << dev_name << std::endl;
     return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, config));
 }
 
