@@ -22,7 +22,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
         variances = node.get_input("Variances");  // [H，W，A，4] or [H * W * A, 4]
 
     // attribute
-    ov::op::v9::GenerateProposalsSingleImage::Attributes attrs;
+    ov::op::v9::GenerateProposals::Attributes attrs;
     float min_size = node.get_attribute<float>("min_size", 0.1);
     attrs.min_size = min_size < 1.0f ? 1.0f : min_size;
     attrs.nms_threshold = node.get_attribute<float>("nms_thresh", 0.5);
@@ -70,7 +70,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     //  1. rois: [proposals_num, 4]
     //  2. scores: [proposals_num]
     //  3. roi_num: [N]
-    auto proposal = std::make_shared<ov::op::v9::GenerateProposalsSingleImage>(im_info,
+    auto proposal = std::make_shared<ov::op::v9::GenerateProposals>(im_info,
                                                                                reshaped_anchors,
                                                                                variances_bbox_deltas,
                                                                                scores,

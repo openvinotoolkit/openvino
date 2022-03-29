@@ -10,7 +10,7 @@
 using namespace reference_tests;
 using namespace ov;
 
-using Attrs = op::v9::GenerateProposalsSingleImage::Attributes;
+using Attrs = op::v9::GenerateProposals::Attributes;
 
 namespace {
 struct GPParams {
@@ -88,7 +88,7 @@ private:
         const auto anchors = std::make_shared<op::v0::Parameter>(params.inType, params.anchorsShape);
         const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
         const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);
-        const auto GenerateProposal = std::make_shared<op::v9::GenerateProposalsSingleImage>(im_info,
+        const auto GenerateProposal = std::make_shared<op::v9::GenerateProposals>(im_info,
                                                                     anchors,
                                                                     deltas,
                                                                     scores,
@@ -323,6 +323,6 @@ std::vector<GPParams> generateGPCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GenerateProposalsSingleImage_With_Hardcoded_Refs, ReferenceGPLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GenerateProposals_With_Hardcoded_Refs, ReferenceGPLayerTest,
     testing::ValuesIn(generateGPCombinedParams()), ReferenceGPLayerTest::getTestCaseName);
 } // namespace

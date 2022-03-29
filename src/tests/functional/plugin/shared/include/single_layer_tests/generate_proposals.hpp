@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <shared_test_classes/single_layer/generate_proposals_single_image.hpp>
+#include <shared_test_classes/single_layer/generate_proposals.hpp>
 
 namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(GenerateProposalsSingleImageLayerTest, GenerateProposalsSingleImageLayerTests) {
+TEST_P(GenerateProposalsLayerTest, GenerateProposalsLayerTests) {
     run();
 }
 

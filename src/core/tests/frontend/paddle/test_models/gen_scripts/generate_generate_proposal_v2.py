@@ -62,31 +62,12 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
             fetch_list=[rois, roi_probs, rois_num],
             return_numpy=False)
 
-        #print("-----------------------------")
-        #print(outs[0])
-        print("-----------------------------")
-        print(outs[1])
-        print("-----------------------------")
-        #print(output_data['roi_probs'])
-        #print("-----------------------------")
-        #print(outs[2])
-        ##print(outs[0].__array__())
-        ##print(sys.modules[outs[0].__module__])
-        #print("-----------------------------")
-
         # Save inputs in order of ngraph function, to facilite Fuzzy test, 
         # which accepts inputs and outputs in this order as well. 
         saveModel(name, exe, feedkeys=['scores', 'bbox_deltas', 'im_shape', 'anchors', 'var'],
                   fetchlist=[rois, roi_probs, rois_num],
                   inputs=[scores_np, bbox_deltas_np, im_shape_np, anchors_np, variances_np],
                   outputs=outs, target_dir=sys.argv[1])
-        #test_data = dict()
-        #test_data['roi_probs'] = np.load("/tmp/generate_proposals_v2_0/output1.npy")
-        #print(np.load("/tmp/generate_proposals_v2/output0.npy"))
-        #print(test_data['roi_probs'].shape)
-        #print("-----------------------------")
-        #print(output_data['roi_probs'].shape)
-        #print(np.load("/tmp/generate_proposals_v2/output2.npy"))
 
 if __name__ == "__main__":
     input_data = dict()
@@ -107,54 +88,6 @@ if __name__ == "__main__":
     attr["min_size"] = 0
     attr["pixel_offset"] = False
 
-    load_from_local_1 = False
-    load_from_local_2 = False
-    if (load_from_local_1):
-        test_data = np.load('/home/iot/Downloads/tmp/gen.npy', allow_pickle=True)
-        output_data = dict()
-        test_arr = dict()
-        input_arr = test_data.item().get('input')
-        output_arr = test_data.item().get('output')
-        param_arr = test_data.item().get('param')
-        print(param_arr)
-        input_data["scores"] = input_arr['Scores']
-        input_data["anchors"] = input_arr['Anchors']
-        input_data["bbox_deltas"] = input_arr['BboxDeltas']
-        input_data["variances"] = input_arr['Variances']
-        input_data["im_shape"] = input_arr['ImShape']
-        print(input_data['scores'].shape)
-        print(input_data['anchors'].shape)
-        print(input_data['bbox_deltas'].shape)
-        print(input_data['variances'].shape)
-        print(input_data['im_shape'].shape)
-        output_data["rois"] = output_arr['rois']
-        output_data["roi_probs"] = output_arr['roi_probs']
-        output_data["rois_num"] = output_arr['rois_num']
-        print(output_data['rois'].shape)
-        print(output_data['roi_probs'].shape)
-        print(output_data['rois_num'].shape)
-        attr["pre_nms_top_n"] = param_arr['pre_nms_topN']
-        attr["post_nms_top_n"] = param_arr['post_nms_topN']
-        attr["nms_thresh"] = param_arr['nms_thresh']
-        attr["min_size"] = param_arr['min_size']
-        attr["pixel_offset"] = param_arr['pixel_offset']
-    elif (load_from_local_2):
-        test_data = np.load('/home/iot/Downloads/tmp/paddle.npy', allow_pickle=True)
-        input_data["scores"] = test_data.item().get('conv2d_100.tmp_1_slice_0')
-        input_data["bbox_deltas"] = test_data.item().get('conv2d_101.tmp_1_slice_0')
-        #input_data["anchors"] = np.reshape(test_data.item().get('reshape2_4.tmp_0'), [38, 38, 15, 4])
-        input_data["anchors"] = test_data.item().get('reshape2_4.tmp_0')
-        input_data["im_shape"] = test_data.item().get('im_shape_slice_0')
-        input_data["variances"] = test_data.item().get('full_like_0.tmp_0')
-        #input_data["variances"] = np.ones((38, 38, 15, 4)).astype('float32')
-        # A = 15, H = 38, W = 38
-        print(input_data["scores"].shape)
-        print(input_data["bbox_deltas"].shape)
-        print(input_data["anchors"].shape)
-        print(input_data["im_shape"].shape)
-        print(input_data["variances"].shape)
-        #print(input_data["bbox_deltas"])
-
     generate_proposals_v2(input_name, input_data, attr)
 
     # test case 1
@@ -173,22 +106,12 @@ if __name__ == "__main__":
     bbox_deltas0 = np.random.rand(1, 12, 1, 4).astype('float32')
     bbox_deltas1 = np.random.rand(1, 12, 2, 4).astype('float32')
     input_data["bbox_deltas"] = np.concatenate((bbox_deltas0, bbox_deltas0, bbox_deltas1), axis = 2)
-    #print(bbox_deltas0)
-    #print("----------------------------")
-    #print(bbox_deltas1)
-    #print("----------------------------")
-    #print(input_data["bbox_deltas"])
 
     anchors0 = np.reshape(np.arange(1 * 4 * 3 * 4),
                                     [1, 4, 3, 4]).astype('float32')
     anchors1 = np.reshape(np.arange(3 * 4 * 3 * 4),
                                     [3, 4, 3, 4]).astype('float32')
     input_data["anchors"] = np.concatenate((anchors0, anchors1), axis = 0)
-    #print(anchors0)
-    #print("----------------------------")
-    #print(anchors1)
-    #print("----------------------------")
-    #print(input_data["anchors"])
 
     attr["nms_thresh"] = 0.5
 

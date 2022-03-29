@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 namespace v9 {
-using ov::op::v9::GenerateProposalsSingleImage;
+using ov::op::v9::GenerateProposals;
 }  // namespace v9
 }  // namespace op
 }  // namespace ngraph

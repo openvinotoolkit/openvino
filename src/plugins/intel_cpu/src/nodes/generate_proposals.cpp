@@ -17,7 +17,7 @@
 #include <ngraph/op/generate_proposals.hpp>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
-#include "generate_proposals_single_image.h"
+#include "generate_proposals.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -275,10 +275,10 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 
 }  // namespace
 
-bool GenerateProposalsSingleImageNode::isSupportedOperation
+bool GenerateProposals::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposalsSingleImage>(op)) {
+        if (!ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op)) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
         }
@@ -288,7 +288,7 @@ bool GenerateProposalsSingleImageNode::isSupportedOperation
     return true;
 }
 
-GenerateProposalsSingleImageNode::GenerateProposalsSingleImageNode
+GenerateProposals::GenerateProposals
         (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                 WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
@@ -296,7 +296,7 @@ GenerateProposalsSingleImageNode::GenerateProposalsSingleImageNode
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposalsSingleImage>(op)) {
+    if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op)) {
         auto proposalAttrs = proposalOp->get_attrs();
 
         min_size_ = proposalAttrs.min_size;
@@ -309,7 +309,7 @@ GenerateProposalsSingleImageNode::GenerateProposalsSingleImageNode
     roi_indices_.resize(post_nms_topn_);
 }
 
-void GenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
+void GenerateProposals::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -324,11 +324,11 @@ void GenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
+void GenerateProposals::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
+void GenerateProposals::execute(mkldnn::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             IE_THROW() << "Incorrect number of input or output edges!";
@@ -466,15 +466,15 @@ void GenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool GenerateProposalsSingleImageNode::created() const {
-    return getType() == Type::GenerateProposalsSingleImage;
+bool GenerateProposals::created() const {
+    return getType() == Type::GenerateProposals;
 }
 
-bool GenerateProposalsSingleImageNode::needShapeInfer() const {
+bool GenerateProposals::needShapeInfer() const {
     return false;
 }
 
-bool GenerateProposalsSingleImageNode::needPrepareParams() const {
+bool GenerateProposals::needPrepareParams() const {
     return false;
 }
 

@@ -10,8 +10,8 @@
 
 using namespace ngraph;
 
-using GenerateProposals = op::v9::GenerateProposalsSingleImage;
-using Attrs = op::v9::GenerateProposalsSingleImage::Attributes;
+using GenerateProposals = op::v9::GenerateProposals;
+using Attrs = op::v9::GenerateProposals::Attributes;
 
 TEST(type_prop, generate_proposals) {
     Attrs attrs;

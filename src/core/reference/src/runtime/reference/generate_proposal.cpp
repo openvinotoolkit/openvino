@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/generate_proposal_single_image.hpp"
+#include "ngraph/runtime/reference/generate_proposal.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -97,8 +97,6 @@ static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
                 proposals[p_idx + 3] = y1;
                 proposals[p_idx + 4] = score;
                 proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
-                if (x0 - 24.9 < 0.1 && x0 - 24.9 > -0.1)
-                    std::cout << "indice" << std::endl;
 
                 a_idx += 4;
                 p_idx += 6;
@@ -211,18 +209,18 @@ static void generate_proposal_fill_output_blobs(const float* proposals,
 namespace ngraph {
 namespace runtime {
 namespace reference {
-static void generate_proposals_single_image_batch1(const std::vector<float>& im_info,
-                                                   const std::vector<float>& anchors,
-                                                   const std::vector<float>& deltas,
-                                                   const std::vector<float>& scores,
-                                                   const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
-                                                   const Shape& im_info_shape,
-                                                   const Shape& anchors_shape,
-                                                   const Shape& deltas_shape,
-                                                   const Shape& scores_shape,
-                                                   std::vector<float>& output_rois,
-                                                   std::vector<float>& output_scores,
-                                                   int64_t& num_rois) {
+static void generate_proposals_single_image(const std::vector<float>& im_info,
+                                            const std::vector<float>& anchors,
+                                            const std::vector<float>& deltas,
+                                            const std::vector<float>& scores,
+                                            const op::v9::GenerateProposals::Attributes& attrs,
+                                            const Shape& im_info_shape,
+                                            const Shape& anchors_shape,
+                                            const Shape& deltas_shape,
+                                            const Shape& scores_shape,
+                                            std::vector<float>& output_rois,
+                                            std::vector<float>& output_scores,
+                                            int64_t& num_rois) {
     const int64_t anchors_num = static_cast<int64_t>(scores_shape[1]);
 
     // bottom shape: batch x (num_anchors) x H x W
@@ -309,11 +307,11 @@ static void generate_proposals_single_image_batch1(const std::vector<float>& im_
                                         post_nms_topn);
 }
 
-void generate_proposals_single_image(const std::vector<float>& im_info,
+void generate_proposals(const std::vector<float>& im_info,
                                      const std::vector<float>& anchors,
                                      const std::vector<float>& deltas,
                                      const std::vector<float>& scores,
-                                     const op::v9::GenerateProposalsSingleImage::Attributes& attrs,
+                                     const op::v9::GenerateProposals::Attributes& attrs,
                                      const Shape& im_info_shape,
                                      const Shape& anchors_shape,
                                      const Shape& deltas_shape,
@@ -335,34 +333,34 @@ void generate_proposals_single_image(const std::vector<float>& im_info,
         std::vector<float> output_roi;
         std::vector<float> output_score;
         int64_t num_roi;
-        generate_proposals_single_image_batch1(cur_im_info,
-                                               anchors,
-                                               cur_deltas,
-                                               cur_scores,
-                                               attrs,
-                                               im_info_shape,
-                                               anchors_shape,
-                                               deltas_shape,
-                                               scores_shape,
-                                               output_roi,
-                                               output_score,
-                                               num_roi);
+        generate_proposals_single_image(cur_im_info,
+                                        anchors,
+                                        cur_deltas,
+                                        cur_scores,
+                                        attrs,
+                                        im_info_shape,
+                                        anchors_shape,
+                                        deltas_shape,
+                                        scores_shape,
+                                        output_roi,
+                                        output_score,
+                                        num_roi);
         output_rois.insert(output_rois.end(), output_roi.begin(), output_roi.end());
         output_scores.insert(output_scores.end(), output_score.begin(), output_score.end());
         num_rois.push_back(num_roi);
     }
 }
 
-void generate_proposals_single_image_postprocessing(void* prois,
-                                                    void* pscores,
-                                                    void* proi_num,
-                                                    const ngraph::element::Type output_type,
-                                                    const ngraph::element::Type roi_num_type,
-                                                    const std::vector<float>& output_rois,
-                                                    const std::vector<float>& output_scores,
-                                                    const std::vector<int64_t>& num_rois,
-                                                    const Shape& output_rois_shape,
-                                                    const Shape& output_scores_shape) {
+void generate_proposals_postprocessing(void* prois,
+                                       void* pscores,
+                                       void* proi_num,
+                                       const ngraph::element::Type output_type,
+                                       const ngraph::element::Type roi_num_type,
+                                       const std::vector<float>& output_rois,
+                                       const std::vector<float>& output_scores,
+                                       const std::vector<int64_t>& num_rois,
+                                       const Shape& output_rois_shape,
+                                       const Shape& output_scores_shape) {
     size_t rois_num = output_rois_shape[0];
 
     switch (output_type) {
@@ -396,7 +394,7 @@ void generate_proposals_single_image_postprocessing(void* prois,
     } break;
     default:;
         throw ngraph_error("Unsupported input data type: "
-                           "GenerateProposalsSingleImage operation"
+                           "GenerateProposals operation"
                            " supports only fp32, fp16, or bf16 data.");
     }
 

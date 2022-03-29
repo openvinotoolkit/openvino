@@ -11,9 +11,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class GenerateProposalsSingleImageNode : public Node {
+class GenerateProposals : public Node {
 public:
-    GenerateProposalsSingleImageNode(const std::shared_ptr<ngraph::Node>& op,
+    GenerateProposals(const std::shared_ptr<ngraph::Node>& op,
         const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};

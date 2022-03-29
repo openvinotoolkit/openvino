@@ -14,11 +14,11 @@
 namespace ov {
 namespace op {
 namespace v9 {
-/// \brief An operation GenerateProposalsSingleImage
+/// \brief An operation GenerateProposals
 /// computes ROIs and their scores based on input data.
-class OPENVINO_API GenerateProposalsSingleImage : public Op {
+class OPENVINO_API GenerateProposals : public Op {
 public:
-    OPENVINO_OP("GenerateProposalsSingleImage", "opset9", op::Op, 9);
+    OPENVINO_OP("GenerateProposals", "opset9", op::Op, 9);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
@@ -39,8 +39,8 @@ public:
         float nms_eta = 1.0;
     };
 
-    GenerateProposalsSingleImage() = default;
-    /// \brief Constructs a GenerateProposalsSingleImage operation.
+    GenerateProposals() = default;
+    /// \brief Constructs a GenerateProposals operation.
     ///
     /// \param im_info Input image info
     /// \param anchors Input anchors
@@ -48,7 +48,7 @@ public:
     /// \param scores Input scores
     /// \param attrs Operation attributes
     /// \param roi_num_type roi_num type
-    GenerateProposalsSingleImage(const Output<Node>& im_info,
+    GenerateProposals(const Output<Node>& im_info,
                                  const Output<Node>& anchors,
                                  const Output<Node>& deltas,
                                  const Output<Node>& scores,

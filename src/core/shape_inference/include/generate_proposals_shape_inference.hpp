@@ -11,7 +11,7 @@ namespace op {
 
 namespace v9 {
 template <class T>
-void shape_infer(const GenerateProposalsSingleImage* op,
+void shape_infer(const GenerateProposals* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);

@@ -41,7 +41,7 @@
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
-#include <ngraph/runtime/reference/generate_proposal_single_image.hpp>
+#include <ngraph/runtime/reference/generate_proposal.hpp>
 #include <ngraph/runtime/reference/greater.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/group_convolution.hpp>
@@ -3298,7 +3298,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
+bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
@@ -3306,7 +3306,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph_error("The attribute post_nms_count of the operation "
-                           "GenerateProposalsSingleImage must be a "
+                           "GenerateProposals must be a "
                            "nonnegative integer.");
     } else {
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
@@ -3328,18 +3328,18 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     std::vector<float> output_scores;
     std::vector<int64_t> output_num;
 
-    runtime::reference::generate_proposals_single_image(im_info_data,
-                                                        anchors_data,
-                                                        deltas_data,
-                                                        scores_data,
-                                                        attrs,
-                                                        im_info_shape,
-                                                        anchors_shape,
-                                                        deltas_shape,
-                                                        scores_shape,
-                                                        output_rois,
-                                                        output_scores,
-                                                        output_num);
+    runtime::reference::generate_proposals(im_info_data,
+                                           anchors_data,
+                                           deltas_data,
+                                           scores_data,
+                                           attrs,
+                                           im_info_shape,
+                                           anchors_shape,
+                                           deltas_shape,
+                                           scores_shape,
+                                           output_rois,
+                                           output_scores,
+                                           output_num);
 
     uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
@@ -3356,16 +3356,16 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposalsSingleImage>& op,
     outputs[2]->set_element_type(roi_num_type);
     outputs[2]->set_shape(output_roi_num_shape);
 
-    runtime::reference::generate_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
-                                                                       outputs[1]->get_data_ptr(),
-                                                                       outputs[2]->get_data_ptr(),
-                                                                       output_type,
-                                                                       roi_num_type,
-                                                                       output_rois,
-                                                                       output_scores,
-                                                                       output_num,
-                                                                       output_rois_shape,
-                                                                       output_scores_shape);
+    runtime::reference::generate_proposals_postprocessing(outputs[0]->get_data_ptr(),
+                                                          outputs[1]->get_data_ptr(),
+                                                          outputs[2]->get_data_ptr(),
+                                                          output_type,
+                                                          roi_num_type,
+                                                          output_rois,
+                                                          output_scores,
+                                                          output_num,
+                                                          output_rois_shape,
+                                                          output_scores_shape);
 
     return true;
 }

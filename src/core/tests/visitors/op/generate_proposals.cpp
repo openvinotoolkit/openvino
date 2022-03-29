@@ -15,8 +15,8 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-using GenerateProposals = opset9::GenerateProposalsSingleImage;
-using Attrs = opset9::GenerateProposalsSingleImage::Attributes;
+using GenerateProposals = opset9::GenerateProposals;
+using Attrs = opset9::GenerateProposals::Attributes;
 
 TEST(attributes, generate_proposals) {
     NodeBuilder::get_ops().register_factory<GenerateProposals>();

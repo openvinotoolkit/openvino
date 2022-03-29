@@ -20,17 +20,17 @@ typedef std::tuple<
         ElementType,                            // Network precision
         ElementType,                            // roi_num precision
         std::string                             // Device name>;
-> GenerateProposalsSingleImageTestParams;
+> GenerateProposalsTestParams;
 
-class GenerateProposalsSingleImageLayerTest :
-        public testing::WithParamInterface<GenerateProposalsSingleImageTestParams>,
+class GenerateProposalsLayerTest :
+        public testing::WithParamInterface<GenerateProposalsTestParams>,
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GenerateProposalsSingleImageTestParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GenerateProposalsTestParams>& obj);
 };
 } // namespace subgraph
 } // namespace test
