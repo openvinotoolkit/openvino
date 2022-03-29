@@ -210,6 +210,12 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
+            # Since version 2.2 TF can fail with internal error while loading graph from .meta file.
+            # It happens because some operation may has an _output_shapes attribute inconsistent with the GraphDef
+            # calculated value. To avoid this problem we must delete `_output_shapes` attributes from operations
+            for node in input_meta_graph_def.graph_def.node:
+                if '_output_shapes' in node.attr:
+                    del node.attr['_output_shapes']
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
