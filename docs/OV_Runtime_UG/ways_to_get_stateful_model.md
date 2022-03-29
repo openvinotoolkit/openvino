@@ -1,4 +1,4 @@
-Ways to get stateful models in OpenVINO  {#openvino_docs_OV_UG_ways_to_get_stateful_model}
+Ways to get stateful models in OpenVINO {#openvino_docs_OV_UG_ways_to_get_stateful_model}
 ==============================
 
 ## State related Transformations
