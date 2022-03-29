@@ -51,6 +51,15 @@ public:
         return rc;
     }
 
+    std::shared_ptr<PassBase> register_pass_instance(std::shared_ptr<PassBase> pass) {
+        pass->set_pass_config(m_pass_config);
+        m_pass_list.push_back(pass);
+        if (m_per_pass_validation) {
+            push_pass<Validate>();
+        }
+        return pass;
+    }
+
     void run_passes(std::shared_ptr<Model>);
 
     void set_pass_visualization(bool new_state) {
