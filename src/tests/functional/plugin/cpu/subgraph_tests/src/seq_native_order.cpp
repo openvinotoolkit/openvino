@@ -303,11 +303,11 @@ const std::vector<InputShapeParams> inShapeParams_static = {
                                                                                        TargetShapeParams{10, 2}}}
 };
 
-std::vector<std::vector<std::string>> activations_gru = {
+std::vector<std::vector<std::string>> activations_gru_support = {
     {"sigmoid", "tanh"}
 };
 
-std::vector<std::vector<std::string>> activations_lstm = {
+std::vector<std::vector<std::string>> activations_lstm_support = {
     {"sigmoid", "tanh", "tanh"}
 };
 
@@ -324,7 +324,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic, SequenceCPUTest,
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
                                ::testing::ValuesIn(inShapeParams_dynamic),
-                               ::testing::ValuesIn(activations_lstm),
+                               ::testing::ValuesIn(activations_lstm_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
@@ -337,7 +337,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru, SequenceCPUTest,
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
                                ::testing::ValuesIn(inShapeParams_static),
-                               ::testing::ValuesIn(activations_gru),
+                               ::testing::ValuesIn(activations_gru_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
@@ -350,7 +350,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm, SequenceCPUTest,
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
                                ::testing::ValuesIn(inShapeParams_static),
-                               ::testing::ValuesIn(activations_lstm),
+                               ::testing::ValuesIn(activations_lstm_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
