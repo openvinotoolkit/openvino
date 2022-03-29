@@ -63,7 +63,7 @@ public:
     constexpr Type(const Type_t t) : m_type{t} {}
     Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
     Type& operator=(const Type&) = default;
-    const std::string& c_type_string() const;
+    std::string c_type_string() const;
     size_t size() const;
     size_t hash() const;
     bool is_static() const;
@@ -81,7 +81,7 @@ public:
     bool is_quantized() const;
     size_t bitwidth() const;
     // The name of this type, the enum name of this type
-    const std::string& get_type_name() const;
+    std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
     static std::vector<const Type*> get_known_types();
 
