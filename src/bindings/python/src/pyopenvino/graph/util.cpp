@@ -3,10 +3,10 @@
 //
 
 #include "pyopenvino/graph/util.hpp"
-#include "openvino/core/graph_util.hpp"
 
 #include <pybind11/numpy.h>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 
 namespace py = pybind11;
@@ -32,12 +32,13 @@ void regmodule_graph_util(py::module m) {
                          from the resulting bound, otherwise Null.
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
-    mod.def("clone_model",
-            [](ov::Model& model){
-                return ov::clone_model(model);
-            },
-            py::arg("model"),
-            R"(
+    mod.def(
+        "clone_model",
+        [](ov::Model& model) {
+            return ov::clone_model(model);
+        },
+        py::arg("model"),
+        R"(
                 Creates a copy of a model object.
 
                 :param model: Model to copy.

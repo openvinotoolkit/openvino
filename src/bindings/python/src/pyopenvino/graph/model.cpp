@@ -7,11 +7,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -663,10 +663,9 @@ void regclass_graph_Model(py::module m) {
             :rtype: bool
         )");
 
-
     function.def(
         "clone_model",
-        [](ov::Model& self){
+        [](ov::Model& self) {
             return ov::clone_model(self);
         },
         R"(
@@ -674,7 +673,6 @@ void regclass_graph_Model(py::module m) {
             :return: A copy of self.
             :rtype: openvino.runtime.Model
         )");
-
 
     function.def("__repr__", [](const ov::Model& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
