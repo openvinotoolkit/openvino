@@ -154,6 +154,20 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
     ASSERT_EQ(model_clone->get_friendly_name(), "mock1_model");
 }
 
+TEST(FrontEndManagerTest, testFEMDestroy_NodeHolder) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        nodes = model->get_ordered_ops();
+    }
+    for (auto& node : nodes) {
+        EXPECT_NE(node->get_friendly_name(), std::string{});
+    }
+}
+
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     FrontEnd::Ptr fe;

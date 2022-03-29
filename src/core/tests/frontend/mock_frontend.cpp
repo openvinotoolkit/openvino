@@ -33,9 +33,16 @@ public:
         auto shape = Shape{1, 2, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         std::vector<float> data(ov::shape_size(shape), 1.f);
-        auto constant = ov::opset8::Constant::create(ov::element::f32, shape, data);
+        auto aligned_weights_buffer =
+            std::make_shared<ngraph::runtime::AlignedBuffer>(shape_size(shape) * ::element::f32.size());
+        auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+            aligned_weights_buffer->get_ptr<char>(),
+            aligned_weights_buffer->size(),
+            aligned_weights_buffer);
+        auto constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, shape, weights);
         auto op = std::make_shared<ov::opset8::Add>(param, constant);
-        auto res = std::make_shared<ov::opset8::Result>(op);
+        auto op1 = std::make_shared<ov::opset8::Abs>(op);
+        auto res = std::make_shared<ov::opset8::Result>(op1);
         auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
         return ov_model;
