@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
 ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
@@ -25,20 +25,32 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulti
             return false;
         }
 
+        const auto new_args = nms->input_values();
+
         // if input shape is dynamic force the output shape must be dynamic too
         if (nms->get_input_partial_shape(0).is_dynamic() || nms->get_input_partial_shape(1).is_dynamic()) {
             return false;
         }
+        if (new_args.size() > 2) {
+            if (nms->get_input_partial_shape(2).is_dynamic()) {
+                return false;
+            }
+        }
 
-        const auto new_args = nms->input_values();
         // vector of new nGraph operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
 
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset9::MulticlassNms>>(new_args.at(0),
-                                                                                                       new_args.at(1),
-                                                                                                       attrs);
+        std::shared_ptr<op::internal::MulticlassNmsIEInternal> nms_new;
+        if (new_args.size() > 2) {
+            nms_new = std::make_shared<op::internal::MulticlassNmsIEInternal>(new_args.at(0),
+                                                                              new_args.at(1),
+                                                                              new_args.at(2),
+                                                                              attrs);
+        } else {
+            nms_new = std::make_shared<op::internal::MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), attrs);
+        }
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);

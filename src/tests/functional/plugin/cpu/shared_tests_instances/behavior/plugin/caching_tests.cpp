@@ -5,6 +5,7 @@
 #include "behavior/plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
+#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -61,9 +62,9 @@ namespace {
     static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        ov::op::v8::MulticlassNms::Attributes attr;
+        ov::op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>>(boxes, scores, attr);
+        auto nms = std::make_shared<op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ngraph::opset6::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
@@ -73,7 +74,7 @@ namespace {
         std::vector<nGraphFunctionWithName> funcs = {
             nGraphFunctionWithName { simple_function_non_max_supression_internal, "NonMaxSuppressionIEInternal"},
             nGraphFunctionWithName { simple_function_matrix_nms_internal, "NmsStaticShapeIE_MatrixNms"},
-            nGraphFunctionWithName { simple_function_multiclass_nms_internal, "NmsStaticShapeIE_MulticlassNms"},
+            nGraphFunctionWithName { simple_function_multiclass_nms_internal, "MulticlassNmsIEInternal"},
         };
         return funcs;
     }

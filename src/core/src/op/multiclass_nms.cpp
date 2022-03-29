@@ -52,12 +52,12 @@ std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputV
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
-    switch (new_args.size()) {
-    case 3:
+    if (new_args.size() == 3) {
         return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
-    default:
+    } else if (new_args.size() == 2) {
         return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
     }
+    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 namespace {

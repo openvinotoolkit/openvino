@@ -30,7 +30,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
         if (!one_of(op->get_type_info(),
                 ngraph::op::v9::MulticlassNms::get_type_info_static(),
                 ngraph::op::v8::MulticlassNms::get_type_info_static())) {
-            errorMessage = "Node is not an instance of MulticlassNms form the operation set v9 or v8.";
+            errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }
     } catch (...) {

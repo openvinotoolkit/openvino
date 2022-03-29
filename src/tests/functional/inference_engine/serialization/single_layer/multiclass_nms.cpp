@@ -30,6 +30,7 @@ const std::vector<std::vector<ov::test::InputShape>> shapeParams1 = {
 
 /* input format #2 with 3 inputs: bboxes C, M, 4, scores C, M, roisnum N */
 const std::vector<std::vector<ov::test::InputShape>> shapeParams2 = {
+    /*0*/
     // bboxes
     {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), 4},
         {{1, 10, 4}, {2, 100, 4}}},
@@ -39,12 +40,20 @@ const std::vector<std::vector<ov::test::InputShape>> shapeParams2 = {
     // roisnum
     {{ngraph::Dimension::dynamic()},
         {{1}, {10}}}},
+    /*1*/
     {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), 4},
         {{1, 10, 4}, {2, 100, 4}}},
     {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100)}},
         {{1, 10}, {2, 100}}},
     {{ngraph::Dimension::dynamic()},
-        {{1}, {10}}}}
+        {{1}, {10}}}},
+    /*2*/
+    {{{ngraph::Dimension(3), ngraph::Dimension(2), 4},
+        {{3, 2, 4}}},
+    {{{ngraph::Dimension(3), ngraph::Dimension(2)}},
+        {{3, 2}}},
+    {{ngraph::Dimension::dynamic()},
+        {{1}, {2}}}}
 };
 
 const std::vector<int32_t> nmsTopK = {-1, 20};

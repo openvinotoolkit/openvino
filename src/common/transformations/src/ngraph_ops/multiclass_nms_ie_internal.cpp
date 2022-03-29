@@ -2,67 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
+#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
-#include <algorithm>
-#include <memory>
-#include <string>
-#include <transformations_visibility.hpp>
-#include <vector>
+#include "itt.hpp"
 
-#include "ngraph/op/op.hpp"
+using namespace std;
+using namespace ngraph;
 
-namespace ov {
-namespace op {
-namespace v8 {
+op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
+                                                               const Output<Node>& scores,
+                                                               const ov::op::util::MulticlassNmsBase::Attributes& attrs)
+    : opset9::MulticlassNms(boxes, scores, attrs) {
+    constructor_validate_and_infer_types();  // FIXME: need?
+}
 
-class MatrixNms;
+op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
+                                                               const Output<Node>& scores,
+                                                               const Output<Node>& roisnum,
+                                                               const ov::op::util::MulticlassNmsBase::Attributes& attrs)
+    : opset9::MulticlassNms(boxes, scores, roisnum, attrs) {
+    constructor_validate_and_infer_types();
+}
 
-}  // namespace v8
-}  // namespace op
-}  // namespace ov
+std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inputs(
+    const ngraph::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_clone_with_new_inputs);
 
-namespace ngraph {
-namespace op {
-namespace internal {
-
-template <typename BaseNmsOp>
-class NmsStaticShapeIE : public BaseNmsOp {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    NmsStaticShapeIE() = default;
-
-    using Attributes = typename BaseNmsOp::Attributes;
-
-    /// \brief Constructs a NmsStaticShapeIE operation
-    ///
-    /// \param boxes Node producing the box coordinates
-    /// \param scores Node producing the box scores
-    /// \param attrs Attributes of the operation
-    NmsStaticShapeIE(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
-        : BaseNmsOp(boxes, scores, attrs) {
-        this->constructor_validate_and_infer_types();
+    if (new_args.size() == 3) {
+        return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    } else if (new_args.size() == 2) {
+        return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        return std::make_shared<NmsStaticShapeIE>(new_args.at(0), new_args.at(1), this->m_attrs);
-    }
+    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+}
 
-private:
-    typedef struct {
-    } init_rt_result;
+void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
 
-    init_rt_result init_rt_info() {
-        BaseNmsOp::get_rt_info()["opset"] = "ie_internal_opset";
-        return {};
-    }
-
-    init_rt_result init_rt = init_rt_info();
-};
-
-template <typename BaseNmsOp>
-void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
     const auto boxes_ps = this->get_input_partial_shape(0);
     const auto scores_ps = this->get_input_partial_shape(1);
 
@@ -106,17 +82,13 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
     }
 }
 
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const {
+const ::ngraph::Node::type_info_t& op::internal::MulticlassNmsIEInternal::get_type_info() const {
     return get_type_info_static();
 }
 
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
-    auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::get_type_info_static();
+const ::ngraph::Node::type_info_t& op::internal::MulticlassNmsIEInternal::get_type_info_static() {
+    auto BaseNmsOpTypeInfoPtr = &opset9::MulticlassNms::get_type_info_static();
 
-    // TODO: it should be static const std::string name = std::string("NmsStaticShapeIE_") + BaseNmsOpTypeInfoPtr->name;
-    //       but currently it will not pass conversion ot Legacy Opset correctly
     static const std::string name = BaseNmsOpTypeInfoPtr->name;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -129,15 +101,6 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
 }
 
 #ifndef OPENVINO_STATIC_LIBRARY
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
-    NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
+const ::ngraph::Node::type_info_t op::internal::MulticlassNmsIEInternal::type_info =
+    MulticlassNmsIEInternal::get_type_info_static();
 #endif
-
-#ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
-#endif  // __clang__
-
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

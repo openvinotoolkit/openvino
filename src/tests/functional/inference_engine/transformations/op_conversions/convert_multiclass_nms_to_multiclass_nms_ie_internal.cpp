@@ -14,7 +14,7 @@
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
+#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset9::MulticlassNms>>(boxes, scores, opset9::MulticlassNms::Attributes());
+        auto nms = std::make_shared<op::internal::MulticlassNmsIEInternal>(boxes, scores, opset9::MulticlassNms::Attributes());
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
