@@ -60,6 +60,7 @@
    openvino_docs_ops_detection_ExperimentalDetectronROIFeatureExtractor_6
    openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6
    openvino_docs_ops_movement_ExtractImagePatches_3
+   openvino_docs_ops_generation_Eye_9
    openvino_docs_ops_quantization_FakeQuantize_1
    openvino_docs_ops_arithmetic_FloorMod_1
    openvino_docs_ops_arithmetic_Floor_1
@@ -134,7 +135,6 @@
    openvino_docs_ops_detection_PriorBox_8
    openvino_docs_ops_detection_Proposal_1
    openvino_docs_ops_detection_Proposal_4
-   openvino_docs_ops_generation_EyeLike_9
    openvino_docs_ops_generation_RandomUniform_8
    openvino_docs_ops_generation_Range_1
    openvino_docs_ops_generation_Range_4
