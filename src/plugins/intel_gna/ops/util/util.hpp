@@ -19,19 +19,16 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
-template<typename T>
-static bool get_constant_value(const std::tuple<T>& args,
-                  const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
-    return constant->get_element_type() == T::value &&
-           get_constant_value<T>(constant, values);
+static bool get_constant_value(std::tuple<>&&, const std::shared_ptr<ngraph::opset8::Constant>&, std::vector<double>&) {
+    return false;
 }
 
 template<typename T, typename ...Types>
-static bool get_constant_value(const std::tuple<T, Types...>&,
+static bool get_constant_value(std::tuple<T, Types...>&&,
                   const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     return constant->get_element_type() == T::value &&
            get_constant_value<T>(constant, values) ||
-           get_constant_value<Types...>(std::tuple<Types...>(), constant, values);
+           get_constant_value(std::tuple<Types...>(), constant, values);
 }
 
 static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {

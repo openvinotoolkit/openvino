@@ -981,8 +981,8 @@ void InsertCopyLayerPass::run() {
     }
 
     for (auto & l : *pLayers) {
-        if (!l->outData.size() == 0 &&
-            !getInputTo(l->outData[0]).size() == 0) continue;
+        if (l->outData.size() > 0 &&
+            getInputTo(l->outData[0]).size() > 0) continue;
 
         bool bNeedInsertCopyLayer = true;
         CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
