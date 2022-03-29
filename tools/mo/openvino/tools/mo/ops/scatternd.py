@@ -92,6 +92,7 @@ class ScatterNDUpdate(ScatterNDBase):
                     indx = 0
                     updates_value = [updates_value]
                 insert_index = indices_value[indx]
+                # we check and change index type explicitly to avoid error in indexing ndarray by another ndarray
                 if isinstance(insert_index, np.ndarray):
                     insert_index = tuple(insert_index)
                 output_value[insert_index] = updates_value[indx]
