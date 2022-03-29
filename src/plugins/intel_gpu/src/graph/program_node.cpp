@@ -896,7 +896,11 @@ void program_node::init_onednn_primitive_attributes() {
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
-                    post_ops.append_sum(1.0f);
+                    if (is_type<convolution>()) {
+                        post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                    } else {
+                        post_ops.append_sum(1.0f);
+                    }
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                     num_sum_post_ops++;
                 } else {
