@@ -44,27 +44,27 @@ Available devices:
 
 Then device name can be passed to `ov::Core::compile_model()` method:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Running on default device
+@sphinxtab{Running on default device}
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_default_gpu]
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
 
-.. tab:: Running on specific GPU
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_gpu_with_id]
+@sphinxtab{Running on specific GPU}
 
-.. tab:: Running on specific tile
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_gpu_with_id_and_tile]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Running on specific tile}
+
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Supported inference data types
 GPU plugin supports the following data types as inference precision of internal primitives:
@@ -81,9 +81,9 @@ Selected precision of each primitive depends on the operation precision in IR, q
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
 See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../model_representation.md) which is executed in f16 precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in f16 precision.
 
-> **NOTE**: Harware acceleration for i8/u8 precision may be unavailable on some platforms. In that case model is executed in floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via `ov::device::capabilities` property.
+> **NOTE**: Hardware acceleration for i8/u8 precision may be unavailable on some platforms. In that case model is executed in floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via `ov::device::capabilities` property.
 
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
 
@@ -99,24 +99,24 @@ See [Multi-device execution page](../multi_device.md) for more details.
 
 ### Automatic batching
 GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware platform and model,
-thus automatic batching can be applied in cases when `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set
-or device is specified as `"BATCH:GPU"`.
+thus automatic batching is automatically enabled when `ov::optimal_batch_size` is > 1 and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
+Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:GPU"`.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Batching via BATCH plugin
+@sphinxtab{Batching via BATCH plugin}
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_batch_plugin]
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
 
-.. tab:: Bacthing via throughput hint
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-        :language: cpp
-        :fragment: [compile_model_auto_batch]
+@sphinxtab{Bacthing via throughput hint}
 
-@endsphinxdirective
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+
+@endsphinxtab
+
+@endsphinxtabset
 
 See [Automatic batching page](../automatic_batching.md) for more details.
 
@@ -214,6 +214,17 @@ Below is the list of such operations:
 - DetectionOutput
 
 The behavior depends on specific parameters of the operations and hardware configuration.
+
+
+## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
+Since the OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation. Thus, many general OpenCL tips apply:
+-	Prefer `FP16` inference precision over `FP32`, as the Model Optimizer can generate both variants and the `FP32` is default. Also, consider [int8 inference](../Int8Inference.md)
+- 	Try to group individual infer jobs by using [automatic batching](../automatic_batching.md)
+-	Consider [caching](../Model_caching_overview.md) to minimize model load time
+-	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit number of inference threads for the CPU plugin.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the dedicated referenced in this document. Notice that this option might increase the inference latency, so consider combining with multiple GPU streams or [throughput performance hints](../performance_hints.md).
+- When operating media inputs consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
+
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)

@@ -15,6 +15,7 @@ namespace op {
 namespace v1 {
 /// \brief Takes a slice of an input tensor, i.e., the sub-tensor that resides within a
 ///        bounding box, optionally with stride.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API StridedSlice : public Op {
 public:
     OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);

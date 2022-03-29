@@ -724,6 +724,12 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const st
 }
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
                                                 InferenceEngine::CNNNetwork network) {
+    if (metaDevices.empty()) {
+        IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
+    } else if (metaDevices.size() == 1) {
+        return metaDevices;
+    }
+
     std::vector<DeviceInformation> filterDevice;
     auto model = network.getFunction();
     if (model->is_dynamic()) {
