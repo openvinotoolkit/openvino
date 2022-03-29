@@ -369,8 +369,83 @@ def check_fallback(argv : argparse.Namespace):
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
 
-def convert():
-    return
+
+def serialize(ngraph_function, xml_path, argv=None):
+    from openvino.offline_transformations import serialize  # pylint: disable=import-error,no-name-in-module
+    serialize(ngraph_function, xml_path.encode('utf-8'), xml_path.replace('.xml', '.bin').encode('utf-8'))
+
+    if argv is not None:
+        from openvino.offline_transformations import \
+            generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+
+        path_to_mapping = xml_path.replace('.xml', '.mapping').encode('utf-8')
+        extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
+        generate_mapping_file(ngraph_function, path_to_mapping.encode('utf-8'), extract_names)
+
+        # add MO params information to IR
+        append_ir_info(file=xml_path,
+                       meta_info=get_meta_info(argv),
+                       mean_data=None,
+                       input_names=None,
+                       legacy_path=False)
+
+
+def convert(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    telemetry.start_session('mo')
+    telemetry.send_event('mo', 'version', get_simplified_mo_version())
+    try:
+        # Initialize logger with 'ERROR' as default level to be able to form nice messages
+        # before arg parser deliver log_level requested by user
+        init_logger('ERROR', False)
+
+        argv = cli_parser.parse_args()
+        send_params_info(argv, cli_parser)
+        if framework:
+            argv.framework = framework
+        argv.feManager = fem
+
+        ov_update_message = None
+        ov_api20_message = None
+        if not hasattr(argv, 'silent') or not argv.silent:
+            ov_update_message = get_ov_update_message()
+            ov_api20_message = get_ov_api20_message()
+        ngraph_function = driver(argv)
+        if ov_update_message:
+            print(ov_update_message)
+        if ov_api20_message and ngraph_function is not None:
+            print(ov_api20_message)
+        telemetry.send_event('mo', 'conversion_result', 'success')
+        telemetry.end_session('mo')
+        telemetry.force_shutdown(1.0)
+        return ngraph_function
+    except (FileNotFoundError, NotADirectoryError) as e:
+        log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
+        log.debug(traceback.format_exc())
+    except Error as err:
+        analysis_results = AnalysisResults()
+        if analysis_results.get_messages() is not None:
+            for el in analysis_results.get_messages():
+                log.error(el, extra={'analysis_info': True})
+        log.error(err)
+        log.debug(traceback.format_exc())
+    except FrameworkError as err:
+        log.error(err, extra={'framework_error': True})
+        log.debug(traceback.format_exc())
+    except Exception as err:
+        log.error("-------------------------------------------------")
+        log.error("----------------- INTERNAL ERROR ----------------")
+        log.error("Unexpected exception happened.")
+        log.error("Please contact Model Optimizer developers and forward the following information:")
+        log.error(str(err))
+        log.error(traceback.format_exc())
+        log.error("---------------- END OF BUG REPORT --------------")
+        log.error("-------------------------------------------------")
+
+    telemetry.send_event('mo', 'conversion_result', 'fail')
+    telemetry.end_session('mo')
+    telemetry.force_shutdown(1.0)
+    return None
 
 def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
@@ -441,7 +516,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         return_code = "not executed"
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-            apply_offline_transformations(orig_model_name, argv)
+            func = apply_offline_transformations(orig_model_name, argv)
             if "compress_fp16" in argv and argv.compress_fp16:
                 # restore data_type cmd parameter
                 argv.data_type = 'FP16'
@@ -469,18 +544,18 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             if os.path.exists(path_to_file):
                 os.remove(path_to_file)
 
-        # add meta information to IR
-        append_ir_info(file=orig_model_name,
-                       meta_info=get_meta_info(argv),
-                       mean_data=mean_data,
-                       input_names=input_names,
-                       legacy_path=True)
+        # # add meta information to IR
+        # append_ir_info(file=orig_model_name,
+        #                meta_info=get_meta_info(argv),
+        #                mean_data=mean_data,
+        #                input_names=input_names,
+        #                legacy_path=True)
+        #
+        # print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        # print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        # print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
-        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
-
-    return 0
+    return func
 
 
 def driver(argv: argparse.Namespace):
@@ -490,12 +565,12 @@ def driver(argv: argparse.Namespace):
 
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
-        ret_res = emit_ir(graph, argv)
+        res_ngraph_function = emit_ir(graph, argv)
     else:
-        ret_res = moc_emit_ir(ngraph_function, argv)
+        res_ngraph_function = moc_emit_ir(ngraph_function, argv)
 
-    if ret_res != 0:
-        return ret_res
+    if res_ngraph_function is None:
+        return res_ngraph_function
 
     elapsed_time = datetime.datetime.now() - start_time
     print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
@@ -509,65 +584,25 @@ def driver(argv: argparse.Namespace):
     except ImportError:
         pass
 
-    return ret_res
+    return res_ngraph_function
 
 
 def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
-    telemetry.start_session('mo')
-    telemetry.send_event('mo', 'version', get_simplified_mo_version())
-    try:
-        # Initialize logger with 'ERROR' as default level to be able to form nice messages
-        # before arg parser deliver log_level requested by user
-        init_logger('ERROR', False)
+    argv = cli_parser.parse_args()
+    ngraph_function = convert(argv, fem, framework)
 
-        argv = cli_parser.parse_args()
-        send_params_info(argv, cli_parser)
-        if framework:
-            argv.framework = framework
-        argv.feManager = fem
+    if ngraph_function is None:
+        return 1
+    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+    model_path = os.path.normpath(os.path.join(output_dir, argv.model_name)) + '.xml'
 
-        ov_update_message = None
-        ov_api20_message = None
-        if not hasattr(argv, 'silent') or not argv.silent:
-            ov_update_message = get_ov_update_message()
-            ov_api20_message = get_ov_api20_message()
-        ret_code = driver(argv)
-        if ov_update_message:
-            print(ov_update_message)
-        if ov_api20_message and ret_code == 0:
-            print(ov_api20_message)
-        telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
-        return ret_code
-    except (FileNotFoundError, NotADirectoryError) as e:
-        log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
-        log.debug(traceback.format_exc())
-    except Error as err:
-        analysis_results = AnalysisResults()
-        if analysis_results.get_messages() is not None:
-            for el in analysis_results.get_messages():
-                log.error(el, extra={'analysis_info': True})
-        log.error(err)
-        log.debug(traceback.format_exc())
-    except FrameworkError as err:
-        log.error(err, extra={'framework_error': True})
-        log.debug(traceback.format_exc())
-    except Exception as err:
-        log.error("-------------------------------------------------")
-        log.error("----------------- INTERNAL ERROR ----------------")
-        log.error("Unexpected exception happened.")
-        log.error("Please contact Model Optimizer developers and forward the following information:")
-        log.error(str(err))
-        log.error(traceback.format_exc())
-        log.error("---------------- END OF BUG REPORT --------------")
-        log.error("-------------------------------------------------")
+    serialize(ngraph_function, model_path, argv)
 
-    telemetry.send_event('mo', 'conversion_result', 'fail')
-    telemetry.end_session('mo')
-    telemetry.force_shutdown(1.0)
-    return 1
+
+    print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+    print('[ SUCCESS ] XML file: {}.xml'.format(xml_path))
+    print('[ SUCCESS ] BIN file: {}.bin'.format(xml_path))
+    return 0
 
 
 if __name__ == "__main__":

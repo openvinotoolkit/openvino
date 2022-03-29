@@ -104,6 +104,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)
 
-    serialize(func, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
-    path_to_mapping = input_model + ".mapping"
-    generate_mapping_file(func, path_to_mapping.encode('utf-8'), extract_names)
+    return func
+
+    # serialize(func, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
+    # path_to_mapping = input_model + ".mapping"
+    # generate_mapping_file(func, path_to_mapping.encode('utf-8'), extract_names)
