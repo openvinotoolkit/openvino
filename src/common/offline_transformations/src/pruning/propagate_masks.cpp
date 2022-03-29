@@ -18,6 +18,7 @@
 #include <ngraph/log.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <ngraph/coordinate_transform.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -872,7 +873,7 @@ public:
 
 
 using dims_vec = std::vector<size_t>;
-static std::vector<dims_vec> map_reshape_dimensions(
+static std::vector<dims_vec> map_reshaped_dimensions(
     const dims_vec input_shape, const dims_vec output_shape) {
     auto dims_map = std::vector<dims_vec>();
     auto cur_output_dims = dims_vec();
@@ -893,6 +894,22 @@ static std::vector<dims_vec> map_reshape_dimensions(
     return dims_map;
 }
 
+static std::vector<ov::Shape> map_reshaped_shapes(
+    const ov::Shape unsquized_shape, const std::vector<dims_vec> dims_map) {
+    auto retval = std::vector<ov::Shape>();
+    for (const auto unsquized_dims : dims_map) {
+        auto cur_dim_shape = ov::Shape();
+        for (const auto & dim : unsquized_dims)
+            cur_dim_shape.push_back(unsquized_shape[dim]);
+        retval.push_back(cur_dim_shape);
+    }
+    return retval;
+}
+
+/* Attributes of unsquized dimension. Channel block is all elements
+*  which have equal coordinates in first k dimensions where k is
+*  a coordinate of the unsquized dimension.
+*/
 struct DimsAttr {
    size_t elems_inner_dims, elems_outer_dims, shift, dim;
 };
@@ -910,46 +927,35 @@ struct ChannelsMap {
     should_init(p_should_init) {}
 };
 
-class ChannelDimsGenerator {
-    uint64_t i, j, ch, ch_shift;
-    DimsAttr dim_attrs;
-    bool m_stop_iter{false};
+/* Returns coordinate iterator through all values of given channel
+*  on unsquized_shape_dim dimension according to unsquized_shape shape.
+*/
+NGRAPH_SUPPRESS_DEPRECATED_START
+static ngraph::CoordinateTransform get_channel_iter(
+    const ov::Shape unsquized_shape, const size_t unsquized_shape_dim, const size_t channel) {
+    auto begin = ov::Coordinate(unsquized_shape.size(), 0);
+    auto end = ov::Coordinate(unsquized_shape);
+    begin[unsquized_shape_dim] = channel;
+    end[unsquized_shape_dim] = channel + 1;
+    ngraph::CoordinateTransform iter(unsquized_shape, begin, end);
+    return iter;
+}
+NGRAPH_SUPPRESS_DEPRECATED_END
 
-public:
-    ChannelDimsGenerator(const uint64_t p_channel, const DimsAttr p_dim_attrs)
-    : i(0), j(0), ch(p_channel), dim_attrs(p_dim_attrs) {
-        ch_shift = ch * dim_attrs.elems_inner_dims;
-    }
-
-    uint64_t operator()() {
-        uint64_t idx = ch_shift + i * dim_attrs.shift + j;
-        if (j < dim_attrs.elems_inner_dims - 1) {
-            j++;
-        } else {
-           if (i < dim_attrs.elems_outer_dims - 1) {
-               i++;
-               j = 0;
-           } else {
-               m_stop_iter = true;
-           }
-        }
-        return idx;
-    }
-
-    bool stop_iter() {
-        return m_stop_iter;
-    }
-};
-
+/* Maps squzed_mask_dim mask dimension to vector of masks for unsquized_dims.
+*  Using dims_attrs and unsquized_shape for channel iteration.
+*/
 static ChannelsMap map_channels(
     const std::set<uint64_t> squized_mask_dim,
-    const dims_vec unsquized_dims, const std::vector<DimsAttr> dims_attrs) {
+    const dims_vec unsquized_dims, const std::vector<DimsAttr> dims_attrs,
+    const ov::Shape unsquized_shape) {
     auto squized_mask_res = std::set<uint64_t>();
     auto unsquized_mask = std::map<uint64_t, std::set<uint64_t>>();
     auto suspicious_elems = std::set<uint64_t>();
     for (auto & unsquized_dim : unsquized_dims) {
         unsquized_mask[unsquized_dim] = std::set<uint64_t>();
         auto squized_mask_dim_copy = std::set<uint64_t>();
+        const auto unsquized_shift = unsquized_dim - unsquized_dims[0];
         std::copy(squized_mask_dim.begin(), squized_mask_dim.end(),
                   std::inserter(squized_mask_dim_copy, squized_mask_dim_copy.begin()));
         while (squized_mask_dim_copy.size()) {
@@ -962,9 +968,11 @@ static ChannelsMap map_channels(
             auto ch = elem / dims_attrs[unsquized_dim].elems_inner_dims;
             if (dims_attrs[unsquized_dim].elems_outer_dims != 1)
                 ch %= dims_attrs[unsquized_dim].dim;
-            auto ch_gen = ChannelDimsGenerator(ch, dims_attrs[unsquized_dim]);
-            while (!ch_gen.stop_iter()) {
-                const auto idx = ch_gen();
+
+            // Start iterating through chanel
+            auto iter = get_channel_iter(unsquized_shape, unsquized_shift, ch);
+            for (const auto & coord : iter) {
+                const auto idx = iter.index(coord);
                 if (squized_mask_dim_copy.find(idx) != squized_mask_dim_copy.end()) {
                     cur_ch_elems.insert(idx);
                     squized_mask_dim_copy.erase(idx);
@@ -1054,15 +1062,14 @@ public:
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining
-                size_t not_reshaped_dims_input, not_reshaped_dims_output;
+                size_t not_reshaped_dims;
                 {
                     size_t i = 0;
                     for (; i < std::min(input_shape.size(), output_shape.size()); ++i) {
                         if (input_shape[i] != output_shape[i])
                             break;
                     }
-                    not_reshaped_dims_input = i;
-                    not_reshaped_dims_output = i;
+                    not_reshaped_dims = i;
                 }
 
                 auto input_mask_row = input_mask.get();
@@ -1070,11 +1077,11 @@ public:
                 auto output_mask_row = output_mask.get();
 
                 // Choose correct configuration
-                auto dims_map = map_reshape_dimensions(input_shape, output_shape);
+                auto dims_map = map_reshaped_dimensions(input_shape, output_shape);
                 if (dims_map.size() == input_shape.size()) {
                     configuration = ReshapeType::extend;
                 } else {
-                    dims_map = map_reshape_dimensions(output_shape, input_shape);
+                    dims_map = map_reshaped_dimensions(output_shape, input_shape);
                     if (dims_map.size() == output_shape.size())
                         configuration = ReshapeType::shrink;
                 }
@@ -1082,41 +1089,41 @@ public:
                 switch (configuration) {
                     case ReshapeType::default_ : {
                         // Case when input and output dimensions size are equal from 0 to k dimentions
-                        // and dimension k+1 is not exist in input our output shape or
+                        // and dimension k+1 is not exist in input or output shape or
                         // k+1 dimensionss has different size. Masks are proagating as is through
                         // from 0 to k dimensions.
-                        // Example: [a, b, c, d1, e1] -> [a, b, c, d2, e2]
-                        input_mask->add_callback([weights_mask_row, not_reshaped_dims_input](Mask::Ptr cur_mask) -> bool {
+                        // Example: [a, b, c, 3, 2] -> [a, b, c, 2, 3]
+                        input_mask->add_callback([weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
-                                if (dim < not_reshaped_dims_input)
+                                if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
                                 else
                                     cur_mask->at(dim).clear();
                             return true;
                         }, weights_mask);
-                        weights_mask->add_callback([input_mask_row, not_reshaped_dims_input](Mask::Ptr cur_mask) -> bool {
+                        weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
                             // Propagate masks down through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
-                                if (dim < not_reshaped_dims_input)
+                                if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = input_mask_row->at(dim);
                                 else if (!input_mask_row->at(dim).empty())
                                     cur_mask->initialize_dependencies();
                             return true;
                         }, input_mask);
 
-                        output_mask->add_callback([weights_mask_row, not_reshaped_dims_input](Mask::Ptr cur_mask) -> bool {
+                        output_mask->add_callback([weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
-                                if (dim < not_reshaped_dims_input)
+                                if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
                                 else
                                     cur_mask->at(dim).clear();
                             return true;
                         }, weights_mask);
 
-                        weights_mask->add_callback([output_mask_row, not_reshaped_dims_input](Mask::Ptr cur_mask) -> bool {
+                        weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
                             // Propagate masks up through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
-                                if (dim < not_reshaped_dims_input)
+                                if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = output_mask_row->at(dim);
                                 else if (!output_mask_row->at(dim).empty())
                                     cur_mask->initialize_dependencies();
@@ -1124,15 +1131,22 @@ public:
                         }, output_mask);
                     }; break;
                     case ReshapeType::extend : {
+                        // Case when the output shape shape is bigger than the input shape and
+                        // each input dimension could be mapped to one or several
+                        // successive output dimensions.
+                        // Example: [a * b, c, d * e] -> [a, b, c, d, e]
+                        // Example mapping: 0 -> [0, 1], 1 -> [2], 2 -> [3, 4]
                         const auto dims_attrs = collect_dims_attrs(dims_map, output_shape);
+                        const auto dims_shape = map_reshaped_shapes(output_shape, dims_map);
                         input_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 cur_mask->at(in_dim).clear();
                                 for (auto & out_dim : dims_map[in_dim]) {
+                                    const auto unsquized_shift = out_dim - dims_map[in_dim][0];
                                     for (auto &ch : weights_mask_row->at(out_dim)) {
-                                        auto ch_gen = ChannelDimsGenerator(ch, dims_attrs[out_dim]);
-                                        while (!ch_gen.stop_iter())
-                                            cur_mask->at(in_dim).insert(ch_gen());
+                                        auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
+                                        for (const auto coord : iter)
+                                            cur_mask->at(in_dim).insert(iter.index(coord));
                                     }
                                 }
                             }
@@ -1142,7 +1156,8 @@ public:
                         weights_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 const auto map = map_channels(input_mask_row->at(in_dim),
-                                                              dims_map[in_dim], dims_attrs);
+                                                              dims_map[in_dim], dims_attrs,
+                                                              dims_shape[in_dim]);
                                 for (auto & dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
@@ -1162,11 +1177,18 @@ public:
                         }, output_mask);
                     }; break;
                     case ReshapeType::shrink : {
+                        // Case when the input shape shape is bigger than the output shape and
+                        // each output dimension could be mapped to one or several
+                        // successive input dimensions.
+                        // Example: [a, b, c, d, e] -> [a * b, c, d * e]
+                        // Example mapping: 0 -> [0, 1], 1 -> [2], 2 -> [3, 4]
                         const auto dims_attrs = collect_dims_attrs(dims_map, input_shape);
+                        const auto dims_shape = map_reshaped_shapes(input_shape, dims_map);
                         input_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(weights_mask_row->at(out_dim),
-                                                              dims_map[out_dim], dims_attrs);
+                                                              dims_map[out_dim], dims_attrs,
+                                                              dims_shape[out_dim]);
                                 for (auto & dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
@@ -1179,10 +1201,11 @@ public:
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 cur_mask->at(out_dim).clear();
                                 for (auto & in_dim : dims_map[out_dim]) {
+                                    const auto unsquized_shift = in_dim - dims_map[out_dim][0];
                                     for (auto &ch : input_mask_row->at(in_dim)) {
-                                        auto ch_gen = ChannelDimsGenerator(ch, dims_attrs[in_dim]);
-                                        while (!ch_gen.stop_iter())
-                                            cur_mask->at(out_dim).insert(ch_gen());
+                                        auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
+                                        for (const auto coord : iter)
+                                            cur_mask->at(out_dim).insert(iter.index(coord));
                                     }
                                 }
                             }
@@ -1197,7 +1220,8 @@ public:
                         weights_mask->add_callback([=](Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(output_mask_row->at(out_dim),
-                                                              dims_map[out_dim], dims_attrs);
+                                                              dims_map[out_dim], dims_attrs,
+                                                              dims_shape[out_dim]);
                                 cur_mask->at(out_dim) = map.squized_mask;
                                 if (map.should_init)
                                     cur_mask->initialize_dependencies();
