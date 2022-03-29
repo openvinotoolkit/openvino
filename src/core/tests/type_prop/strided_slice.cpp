@@ -4,6 +4,7 @@
 
 #include <dimension_tracker.hpp>
 #include <memory>
+#include <strided_slice_shape_inference.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -190,4 +191,21 @@ TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, default_strided_slice_shape_inference) {
+    auto slice = new op::v1::StridedSlice;
+    slice->set_begin_mask({0, 0, 0});
+    slice->set_end_mask({0, 0, 0});
+    slice->set_new_axis_mask({1, 0, 0});
+    slice->set_shrink_axis_mask({0, 0, 0, 1});
+    slice->set_ellipsis_mask_mask({0, 0, 0});
+    std::vector<ov::PartialShape> in = {{10, 11, 12}, {3}, {3}, {3}}, out = {PartialShape()};
+    int64_t begin_data[] = {0, 0, 0, 0}, end_data[] = {1, 1, 5, 1}, stride_data[] = {1, 1, 1, 1};
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+        {1, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, begin_data)},
+        {2, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, end_data)},
+        {3, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, stride_data)}};
+    ov::op::v1::shape_infer(slice, in, out, const_data);
+    ASSERT_EQ(out[0], PartialShape({1, 1, 5}));
 }
