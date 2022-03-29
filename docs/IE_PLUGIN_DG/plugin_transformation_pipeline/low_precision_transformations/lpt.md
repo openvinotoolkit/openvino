@@ -72,7 +72,7 @@ For example, if you would like to infer a model with `Convolution` operation in 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
 ### Low precision tools
-For more details on how to get quantized model please refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 ## Quantization approaches
 LPT transformations support two quantization approaches:

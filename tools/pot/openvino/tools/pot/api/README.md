@@ -1,6 +1,6 @@
 # API Reference  {#pot_compression_api_README}
 
-Post-trianing Optimization Tool API provides a full set of interaces and helpers that allow user to implement a custom optimization pipeline for various types o DL models including cascaded or compound models. Below is a full specificatoin of this API:
+Post-training Optimization Tool API provides a full set of interfaces and helpers that allow users to implement a custom optimization pipeline for various types of DL models including cascaded or compound models. Below is a full specification of this API:
 
 ### DataLoader
 
@@ -13,7 +13,7 @@ The base class for all DataLoaders.
 by index. 
 
 All subclasses should override `__len__()` function, which should return the size of the dataset, and `__getitem__()`, 
-which supports integer indexing in range of 0 to `len(self)`. `__getitem__()` method can return data in on of the possible format:
+which supports integer indexing in the range of 0 to `len(self)`. `__getitem__()` method can return data in one of the possible formats:
 ```
 (data, annotation)
 ```
@@ -21,7 +21,7 @@ or
 ```
 (data, annotation, metadata)
 ```
-`data` is the input which is passed to the model at inderence so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where key is the name of the model input and value is `numpy.array` which corresponds to this input. The format of `annotation` should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
+`data` is the input that is passed to the model at inference so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where the key is the name of the model input and value is `numpy.array` which corresponds to this input. The format of `annotation` should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ### Metric
 
@@ -33,10 +33,10 @@ An abstract class representing an accuracy metric.
 All instances should override the following properties:
 - `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
 - `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
-- `higher_better` should return `True` if a higher value of the metric corresponds to a better performance, otherwise, returns `False`. Default implementation returns `True`.
+- `higher_better` should return `True` if a higher value of the metric corresponds to better performance, otherwise, returns `False`. Default implementation returns `True`.
 
 and methods:
-- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation. The model ouput and annotation should be passed in this method. It should also contain the model specific post-processing in case if the model returns the raw output.
+- `update(output, annotation)` - calculates and updates the accuracy metric value using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
 - `reset()` - resets collected accuracy metric. 
 - `get_attributes()` - returns a dictionary of metric attributes:
    ```

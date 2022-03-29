@@ -32,7 +32,7 @@ To install POT from source:
    python3 setup.py install
    ```
 
-After installation POT is available as a Python* library under `openvino.tools.pot.*` and in the command line by the `pot` alias. To verify it, run `pot -h`. 
+After installation POT is available as a Python library under `openvino.tools.pot.*` and in the command line by the `pot` alias. To verify it, run `pot -h`. 
 
 
 ## Examples

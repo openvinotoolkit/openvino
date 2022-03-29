@@ -1,7 +1,7 @@
 # DefaultQuantization Algorithm {#pot_compression_algorithms_quantization_default_README}
 
 ## Introduction
-DefaultQuantization algorithm is designed to do a fast and, in many cases, accurate quantization. It does not have any control of accuracy metric but provides a lot of knobs that can be used to imporove it.
+DefaultQuantization algorithm is designed to do a fast and, in many cases, accurate quantization. It does not have any control of accuracy metric but provides a lot of knobs that can be used to improve it.
 
 ## Parameters
 DefaultQuantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the definition of DefualtQuantization method and its parameters:

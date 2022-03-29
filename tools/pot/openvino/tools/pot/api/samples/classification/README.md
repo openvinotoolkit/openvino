@@ -1,4 +1,4 @@
-# Quantizatiing Image Classification Model {#pot_example_classification_README}
+# Quantizing Image Classification Model {#pot_example_classification_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a classification model.
 The [MobilenetV2](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v2-1.0-224/mobilenet-v2-1.0-224.md) model from TensorFlow* is used for this purpose.

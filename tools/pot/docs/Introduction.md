@@ -24,7 +24,7 @@ and run on CPU with the OpenVINO&trade;.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-For the needs of post-training optimization, OpenVINO&trade; provides a Post-training Optimization Tool (POT) which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reduciing the model size.
+For the needs of post-training optimization, OpenVINO&trade; provides a Post-training Optimization Tool (POT) which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reducing the model size.
 
 Figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)

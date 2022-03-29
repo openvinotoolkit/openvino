@@ -1,4 +1,4 @@
-# Quantizatiing Object Detection Model with Accuracy Control {#pot_example_object_detection_README}
+# Quantizing Object Detection Model with Accuracy Control {#pot_example_object_detection_README}
 
 This example demonstrates the use of the [Post-training Optimization Toolkit API](@ref pot_compression_api_README) to
  quantize an object detection model in the [accuracy-aware mode](@ref accuracy_aware_README).
@@ -8,7 +8,7 @@ and the implementation of mAP COCO is used for the model evaluation. The code of
 
 ## How to prepare the data
 
-To run this example, you will need to download the validation part of the [COCO](https://cocodataset.org/). The images should be placed in a separate folder, which will be later referred as `<IMAGES_DIR>` and annotation file `instances_val2017.json` later referred as `<ANNOTATION_FILE>`.  
+To run this example, you will need to download the validation part of the [COCO](https://cocodataset.org/). The images should be placed in a separate folder, which will be later referred to as `<IMAGES_DIR>` and the annotation file `instances_val2017.json` later referred to as `<ANNOTATION_FILE>`.  
 ## How to Run the example
 
 1. Launch [Model Downloader](@ref omz_tools_downloader) tool to download `ssd_mobilenet_v1_fpn_coco` model from the Open Model Zoo repository.

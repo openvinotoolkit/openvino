@@ -56,7 +56,7 @@ First of all, you should validate the POT compression pipeline you are running, 
 2.	Run your compression pipeline with a single compression algorithm ([Default Quantization](@ref pot_default_quantization_usage) or [Accuracy-aware Quantization](@ref pot_accuracyaware_usage)) without any parameter values specified in the config (except for `preset` and `stat_subset_size`). Make sure you get the undesirable accuracy drop/performance gain in this case.
 
 Finally, if you have done the steps above and the problem persists, you could try to compress your model using the [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf_pytorch).
-Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based training pipeline of your model in order to perform Quantization-aware Training. See [Model Optimization Guide](@ref openvino_docs_model_optimization_guide) for more details.
+Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based training pipeline of your model to perform Quantization-aware Training. See [Model Optimization Guide](@ref openvino_docs_model_optimization_guide) for more details.
 
 ### <a name="memory">I get “RuntimeError: Cannot get memory” and “RuntimeError: Output data was not allocated” when I quantize my model by the POT.</a>
 
@@ -73,8 +73,8 @@ which is usually more accurate and takes more time but requires less memory. See
 
 It can happen due to the following reasons:
 - A wrong or not representative dataset was used during the quantization and accuracy validation. Please make sure that your data and labels are correct and they sufficiently reflect the use case.
-- In the case if command-line interface was used for quantization, a wrong Accuracy Checker configuration file could lead to this problem. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) for more information.
-- If [Default Quantization](@ref pot_default_quantization_usage) was used for quantization you can also try [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method that allows to control maximum accuracy deviation.
+- If the command-line interface was used for quantization, a wrong Accuracy Checker configuration file could lead to this problem. Refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) for more information.
+- If [Default Quantization](@ref pot_default_quantization_usage) was used for quantization you can also try [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method that allows controlling maximum accuracy deviation.
 
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 
@@ -91,7 +91,7 @@ Note that higher values of `stat_requests_number` and `eval_requests_number` inc
 
 ### <a name="python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 
-This error is reported when you have an older python version than 3.6 in your environment. Upgrade your python version.
+This error is reported when you have a Python version older than 3.6 in your environment. Upgrade your Python version.
 
 ### <a name="nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 
@@ -102,4 +102,4 @@ It means that some required python module is not installed in your environment. 
 You can add `"dump_intermediate_model": true` to the POT configuration file and it will drop an intermidiate IR to `accuracy_aware_intermediate` folder. 
 
 ### <a name="outputs"> What do the messages "Output name: <result_operation_name> not found" or "Output node with <result_operation_name> is not found in graph" mean?</a>
-Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. May appear for some models only for IRs converted from ONNX models using new frontend (which is default conversion path starting from 2022.1 release). To avoid such errors, use legacy MO frontend to convert a model to IR by passing the --use_legacy_frontend option. Then, use produced IR for quantization.
+Errors are caused by missing output nodes names in a graph when using the POT tool for model quantization. It might appear for some models only for IRs converted from ONNX models using new frontend (which is the default conversion path starting from 2022.1 release). To avoid such errors, use legacy MO frontend to convert a model to IR by passing the --use_legacy_frontend option. Then, use the produced IR for quantization.

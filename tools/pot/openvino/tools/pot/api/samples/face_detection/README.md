@@ -1,4 +1,4 @@
-# Quantizatiing Cascaded Face detection Model {#pot_example_face_detection_README}
+# Quantizing Cascaded Face detection Model {#pot_example_face_detection_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a face detection model.
 The [MTCNN](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mtcnn/mtcnn.md) model from Caffe* is used for this purpose.

@@ -11,28 +11,28 @@
 @endsphinxdirective
 
 ## Introduction
-This document assumes that you already tried [Default Quantization](@ref pot_default_quantization_usage) for the same model. In case when it introduces a significant accuracy degradation, Accuracy-aware Quantization algorithm can be used to remain accuracy within the pre-defined range. This may cause a 
+This document assumes that you already tried [Default Quantization](@ref pot_default_quantization_usage) for the same model. In case when it introduces a significant accuracy degradation, the Accuracy-aware Quantization algorithm can be used to remain accuracy within the pre-defined range. This may cause a 
 degradation of performance in comparison to [Default Quantization](@ref pot_default_quantization_usage) algorithm because some layers can be reverted back to the original precision.
 
 > **NOTE**: In case of GNA `target_device`, the Accuracy-aware Quantization algorithm behavior is different. It is searching for the best configuration selecting between INT8 and INT16 precisions for weights of each layer. The algorithm works for the `performance` preset only. For the `accuracy` preset, this algorithm is not helpful since the whole model is already in INT16 precision.
 
-A script for Accuracy-aware Quantization should include four steps:
+A script for Accuracy-aware Quantization includes four steps:
 1. Prepare data and dataset interface
 2. Define accuracy metric
 3. Select quantization parameters
 4. Define and run quantization process
 
 ## Prepare data and dataset interface
-This step is the same as in the case of [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and it format should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
+This step is the same as in the case of [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)` where `annotation` is required and its format should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ## Define accuracy metric
-In order to control accuracy during the optimization a `openvino.tools.pot.Metric` interface should be implemented. Each implementaion should override the following properties:
+To control accuracy during the optimization a `openvino.tools.pot.Metric` interface should be implemented. Each implementation should override the following properties:
 - `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
 - `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
-- `higher_better` should return `True` if a higher value of the metric corresponds to a better performance, otherwise, returns `False`. Default implementation returns `True`.
+- `higher_better` should return `True` if a higher value of the metric corresponds to better performance, otherwise, returns `False`. Default implementation returns `True`.
 
 and methods:
-- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation. The model ouput and annotation should be passed in this method. It should also contain the model specific post-processing in case if the model returns the raw output.
+- `update(output, annotation)` - calculates and updates the accuracy metric value using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
 - `reset()` - resets collected accuracy metric. 
 - `get_attributes()` - returns a dictionary of metric attributes:
    ```
@@ -109,7 +109,7 @@ describe only Accuracy-aware Quantization required parameters:
 
 ## Run quantization
 
-The code example below shows basic quantization workflow with accuracy control. `UserDataLoader()` is a placeholder for the implementation of `DataLoader`.
+The code example below shows a basic quantization workflow with accuracy control. `UserDataLoader()` is a placeholder for the implementation of `DataLoader`.
 
 ```python
 from openvino.tools.pot import IEEngine
@@ -172,9 +172,9 @@ compressed_model_paths = save_model(
 metric_results = pipeline.evaluate(compressed_model)
 ```
 
-It is worth noting that now `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
+It is worth noting that now the `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
 
-In case when Accuracy-aware Quantization does not allow to achieve the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref docs_nncf_introduction).
+In case when Accuracy-aware Quantization does not allow achieving the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref docs_nncf_introduction).
 
 ## Examples
 

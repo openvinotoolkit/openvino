@@ -109,7 +109,7 @@ GPU plugin supports the following data types as inference precision of internal 
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
-See For more details on how to get quantized model please refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document. for more details on how to get quantized model.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in f16 precision.
 
