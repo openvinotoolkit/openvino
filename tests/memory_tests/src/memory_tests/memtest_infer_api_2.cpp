@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/runtime/core.hpp>
 
-#include <openvino/runtime/infer_request.hpp>
-#include <iostream>
 #include <fstream>
 
 #include "common_utils.h"
+#include "reshape_utils.h"
 #include "memory_tests_helper/memory_counter.h"
 #include "memory_tests_helper/utils.h"
-#include "openvino/runtime/core.hpp"
+
 
 
 /**
@@ -17,43 +17,66 @@
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device) {
-    auto pipeline = [](const std::string &model, const std::string &device) {
+int runPipeline(const std::string &model, const std::string &device,
+                std::map<std::string, ov::PartialShape> reshapeShapes,
+                std::map<std::string, std::vector<size_t>> dataShapes) {
+    auto pipeline = [](const std::string &model, const std::string &device,
+                       std::map<std::string, ov::PartialShape> reshapeShapes,
+                       std::map<std::string, std::vector<size_t>> dataShapes) {
         ov::Core ie;
-        std::shared_ptr<ov::Model> network;
-        ov::CompiledModel compiled_model;
-        ov::InferRequest infer_request;
+        std::shared_ptr<ov::Model> cnnNetwork;
+        ov::CompiledModel exeNetwork;
+        ov::InferRequest inferRequest;
+
+        std::vector<ov::Output<ov::Node>> defaultInputs;
+
+        bool reshape = false;
+        if (!reshapeShapes.empty()) {
+            reshape = true;
+        }
 
         ie.get_versions(device);
         MEMORY_SNAPSHOT(load_plugin);
 
         if (MemoryTest::fileExt(model) == "blob") {
             std::ifstream streamModel{model};
-            compiled_model = ie.import_model(streamModel, device);
+            exeNetwork = ie.import_model(streamModel, device);
             MEMORY_SNAPSHOT(import_network);
         } else {
-            network = ie.read_model(model);
+            cnnNetwork = ie.read_model(model);
             MEMORY_SNAPSHOT(read_network);
 
-            compiled_model = ie.compile_model(network, device);
+            if (reshape) {
+                defaultInputs = getCopyOfDefaultInputs(cnnNetwork->inputs());
+                cnnNetwork->reshape(reshapeShapes);
+                MEMORY_SNAPSHOT(reshape);
+            }
+
+            exeNetwork = ie.compile_model(cnnNetwork, device);
 
             MEMORY_SNAPSHOT(load_network);
         }
         MEMORY_SNAPSHOT(create_exenetwork);
 
-        infer_request = compiled_model.create_infer_request();
+        inferRequest = exeNetwork.create_infer_request();
 
-        auto inputs = network->inputs();
-        fillTensors(infer_request, inputs);
-        MEMORY_SNAPSHOT(fill_inputs)
+        std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
+        if (reshape && dataShapes.empty()) {
+            fillTensors(inferRequest, defaultInputs);
+        } else if (reshape && !dataShapes.empty()) {
+            fillTensorsWithSpecifiedShape(inferRequest, inputs, dataShapes);
+        } else {
+            fillTensors(inferRequest, inputs);
+        }
+        MEMORY_SNAPSHOT(fill_inputs);
 
-        infer_request.infer();
+        inferRequest.infer();
         MEMORY_SNAPSHOT(first_inference);
         MEMORY_SNAPSHOT(full_run);
     };
 
     try {
-        pipeline(model, device);
+        pipeline(model, device, reshapeShapes, dataShapes);
     } catch (const InferenceEngine::Exception &iex) {
         std::cerr
                 << "Inference Engine pipeline failed with Inference Engine exception:\n"
