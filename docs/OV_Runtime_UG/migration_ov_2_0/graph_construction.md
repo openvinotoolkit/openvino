@@ -5,11 +5,31 @@ Code snippets below show how application code should be changed for migration to
 
 ### nGraph API
 
-@snippet snippets/ngraph.cpp ngraph:graph
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/ngraph.cpp ngraph:graph
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ngraph.py ngraph:graph
+@endsphinxtab
+
+@endsphinxtabset
 
 ### OpenVINO™ Runtime API 2.0:
 
-@snippet snippets/ov_graph.cpp ov:graph
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/ov_graph.cpp ov:graph
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/ov_graph.py ov:graph
+@endsphinxtab
+
+@endsphinxtabset
 
 **See also:**
 - [Hello Model Creation C++ Sample](../../../samples/cpp/model_creation_sample/README.md)
