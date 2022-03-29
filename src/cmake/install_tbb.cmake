@@ -36,9 +36,7 @@ endif()
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND (TBBROOT MATCHES ${TEMP} OR DEFINED ENV{TBBROOT}))
     ie_cpack_add_component(tbb REQUIRED)
-    ie_cpack_add_component(tbb_dev REQUIRED)
     list(APPEND core_components tbb)
-    list(APPEND core_dev_components tbb_dev)
 
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
@@ -66,6 +64,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND (TBBROOT MATCHES ${TEMP} OR DEFINED 
     # development files are needed only for tbb_downloaded
     # which we are going to distribute
     if(tbb_downloaded)
+        ie_cpack_add_component(tbb_dev REQUIRED)
+        list(APPEND core_dev_components tbb_dev)
+
         install(FILES "${TBB}/LICENSE"
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
