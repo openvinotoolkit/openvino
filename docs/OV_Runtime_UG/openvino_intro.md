@@ -19,8 +19,6 @@
    openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_OV_UG_stateful_models_intro
-   openvino_2_0_transition_guide
-   openvino_docs_OV_Should_be_in_performance
 @endsphinxdirective
 
 ## Introduction
