@@ -157,7 +157,7 @@ To enable fallback on a custom operation implementation, one have to override `o
 ### Stateful models
 CPU plugin supports stateful models without any limitations.
 
-See [stateful models guide](@ref openvino_docs_IE_DG_network_state_intro) for details.
+See [stateful models guide](@ref openvino_docs_OV_UG_stateful_models_intro) for details.
 
 ## Supported properties
 The plugin supports the properties listed below.

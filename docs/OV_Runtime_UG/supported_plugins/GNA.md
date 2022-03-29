@@ -159,7 +159,7 @@ Import model:
 ### Stateful models
 GNA plugin natively supports stateful models.
 
-Please refer to [Stateful models] (@ref openvino_docs_IE_DG_network_state_intro) for more details about such models.
+Please refer to [Stateful models] (@ref openvino_docs_OV_UG_stateful_models_intro) for more details about such models.
 
 > **NOTE**: Typically, GNA is used in streaming scenarios, when minimizing the latency is important. Taking into account that POT does not support the `TensorIterator` operation, the recommendation is to use the `--transform` option of the Model Optimizer to apply `LowLatency2` transformation when converting an original model.
 

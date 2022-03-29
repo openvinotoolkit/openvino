@@ -83,6 +83,8 @@ You can reshape the inputs of the network to set *sequence_dimension* to exactly
 
 By default, the LowLatency2 transformation inserts a constant subgraph of the same shape as the previous input node, and with zero values as the initializing value for ReadValue nodes, please see the picture below. We can disable insertion of this subgraph by passing the `false` value for the `use_const_initializer` argument.
 
+@sphinxdirective
+
 .. tab:: C++
 
       .. doxygensnippet:: docs/snippets/ov_network_state_intro.cpp
