@@ -29,7 +29,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
     }
 
     std::shared_ptr<Node> neg =
-        std::make_shared<opset1::Multiply>(sub->get_input_node_shared_ptr(1),
+        std::make_shared<opset1::Multiply>(sub->input_value(1),
                                            opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     if (auto constant = ov::get_constant_from_source(neg)) {
@@ -38,7 +38,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         new_nodes.push_back(neg);
     }
 
-    auto add = std::make_shared<opset1::Add>(sub->get_input_node_shared_ptr(0), neg);
+    auto add = std::make_shared<opset1::Add>(sub->input_value(0), neg);
     new_nodes.push_back(add);
 
     add->set_friendly_name(sub->get_friendly_name());
