@@ -2,7 +2,7 @@
 
 ## OpenVINO Streams
 As detailed in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common) running multiple inference requests asynchronously is important for general application efficiency.
-Internally, every device internally implements a queue. The queue acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
+Internally, every device implements a queue. The queue acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
 The devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput.
 This configurable mean of this device-side parallelism is commonly referred as **streams**.
 
@@ -55,24 +55,24 @@ Also, consider [OpenVINO Deep Learning Workbench](@ref workbench_docs_Workbench_
 * Select the number of streams is it is **less or equal** to the number of requests that your application would be able to runs simultaneously
 * To avoid wasting resources, the number of streams should be enough to meet the _average_ parallel slack rather than the peak load
 * As a more portable option (that also respects the underlying hardware configuration) use the `ov::streams::AUTO`
-* It is very important to keep these streams busy, by starting as many inference requests as possible (and e.g. the sources of inputs are capable to produce)
-   * Bare minimum of requests can be queried as `ov::optimal_number_of_infer_requests` (or "OPTIMAL_NUMBER_OF_INFER_REQUESTS") of the  `ov:Compiled_Model` 
+* It is very important to keep these streams busy, by running as many inference requests as possible (e.g. start the newly-arrived inputs immediately)
+   * Bare minimum of requests to saturate the device can be queried as `ov::optimal_number_of_infer_requests` of the  `ov:Compiled_Model` 
 * _Maximum number of streams_ for the device (per model) can be queried as the `ov::range_for_streams`
 
 ### Batch Size Considerations
 * Select the batch size that is **equal** to the number of requests that your application is able to runs simultaneously
-   * Otherwise (or if the number fluctuates), you may need to keep several instances of the network (reshaped to the different batch size) and select the properly sized instance in the runtime accordingly 
-* For OpenVINO devices that internally implement a dedicated heuristic, the `ov::optimal_batch_size` is a _device_ property (that accepts actual model as a parameter) to query the recommended batch size for the model.
+   * Otherwise (or if the number of "available" requests fluctuates), you may need to keep several instances of the network (reshaped to the different batch size) and select the properly sized instance in the runtime accordingly 
+* For OpenVINO devices that internally implement a dedicated heuristic, the `ov::optimal_batch_size` is a _device_ property (that accepts the actual model as a parameter) to query the recommended batch size for the model.
 
 
 ### Few Device Specific Details
 * For the **GPU**:
-   * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using the streams for the GPU may suffice
+   * When the parallel slack is small (e.g. only 2-4 requests executed simultaneously), then using only the streams for the GPU may suffice
       * Notice that the GPU runs 2 request per stream, so 4 requests can be served by 2 streams
-      * Alternatively, consider single stream with small batch size (e.g. 2) with 2 requests, which would total the same 4 inputs in flight
+      * Alternatively, consider single stream with with 2 requests (each with a small batch size like 2), which would total the same 4 inputs in flight
    * Typically, for 4 and more requests the batching delivers better throughput
    * Batch size can be calculated as "number of inference requests executed in parallel" divided by the "number of requests that the streams consume"
-      * E.g. if you process 16 cameras (by 16 requests inferenced _simultaneously_) with the two GPU streams (each can process two requests), the batch size per request is 16/(2*2)=4 
+      * E.g. if you process 16 cameras (by 16 requests inferenced _simultaneously_) by the two GPU streams (each can process two requests), the batch size per request is 16/(2*2)=4 
 
 * For the **CPU always use the streams first**
    * On the high-end CPUs, using moderate (2-8) batch size _in addition_ to the maximum number of streams, may further improve the performance.

@@ -16,7 +16,7 @@
 
 Runtime or deployment optimizations are focused on tuning of the inference _parameters_ (e.g. optimal number of the requests executed simultaneously) and other means of how a model is _executed_. 
 
-As referenced in the parent [performance introduction topic](./dldt_optimization_guide.md), the [dedicated document](./model_optimization_guide.md) covers the  **model-level optimizations** like quantization that unlocks the [int8 inference](../OV_Runtime_UG/Int8Inference.md). Model-optimizations are most general and help any scenario and any device (that accelerated the quantized models). The relevant _runtime_ configuration is `ov::hint::inference_precision` allowing the devices to trade the accuracy for the performance (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
+As referenced in the parent [performance introduction topic](./dldt_optimization_guide.md), the [dedicated document](./model_optimization_guide.md) covers the  **model-level optimizations** like quantization that unlocks the [int8 inference](../OV_Runtime_UG/Int8Inference.md). Model-optimizations are most general and help any scenario and any device (that e.g. accelerates the quantized models). The relevant _runtime_ configuration is `ov::hint::inference_precision` which trades the accuracy for the performance (e.g. by allowing the fp16/bf16 execution for the layers that remain in fp32 after quantization of the original fp32 model). 
 
 Then, possible optimization should start with defining the use-case. For example, whether the target scenario emphasizes throughput over latency like processing millions of samples by overnight jobs in the data centers.
 In contrast, real-time usages would likely trade off the throughput to deliver the results at minimal latency. Often this is a combined scenario that targets highest possible throughput while maintaining a specific latency threshold.
@@ -56,7 +56,7 @@ Also, while the resulting performance may be optimal for the specific combinatio
  
 Here, to mitigate the performance configuration complexity the **Performance Hints** offer the high-level "presets" for the **latency** and **throughput**, as detailed in the [Performance Hints usage document](../OV_Runtime_UG/performance_hints.md).
 
-Beyond execution _parameters_ there is device-specific _scheduling_ that greatly affects the performance. 
+Beyond execution _parameters_ there is a device-specific _scheduling_ that greatly affects the performance. 
 Specifically, GPU-oriented optimizations like batching, which combines many (potentially tens) of inputs to achieve optimal throughput, do not always map well to the CPU, as e.g. detailed in the [further internals](dldt_deployment_optimization_internals.md) sections.
 
 The hints really hide the _execution_ specifics required to saturate the device. In the [internals](dldt_deployment_optimization_internals.md) sections you can find the implementation details (particularly how the OpenVINO implements the 'throughput' approach) for the specific devices. Keep in mind that the hints make this transparent to the application. For example, the hints obviates the need for explicit (application-side) batching or streams.
