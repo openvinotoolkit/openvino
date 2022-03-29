@@ -62,7 +62,7 @@ endif()
 
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
 list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})

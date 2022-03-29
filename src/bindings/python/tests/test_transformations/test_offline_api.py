@@ -67,26 +67,6 @@ def test_make_stateful_transformations():
     assert len(function.get_results()) == 0
 
 
-def test_serialize_pass():
-    core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
-
-    func = get_test_function()
-
-    serialize(func, xml_path, bin_path)
-
-    assert func is not None
-
-    res_func = core.read_model(model=xml_path, weights=bin_path)
-
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
-
-    os.remove(xml_path)
-    os.remove(bin_path)
-
-
 def test_serialize_pass_v2():
     core = Core()
     xml_path = "./serialized_function.xml"

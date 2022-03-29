@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_graph_passes_Manager(py::module m);
+void regclass_passes_Manager(py::module m);
