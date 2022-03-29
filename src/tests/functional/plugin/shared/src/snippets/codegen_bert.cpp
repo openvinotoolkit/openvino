@@ -17,36 +17,39 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include "subgraph_tests/codegen_bert.hpp"
+#include "snippets/codegen_bert.hpp"
+//  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace snippets {
 
-    std::string CodegenBert::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::multiInputParams> obj) {
-        InferenceEngine::Precision netPrecision;
-        InferenceEngine::SizeVector inputShapes0, inputShapes1, newInputShapes;
+    std::string CodegenBert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenBertParams> obj) {
+        ov::element::Type_t netPrecision;
+        ov::Shape inputShapes0, inputShapes1, newInputShapes;
         std::string targetDevice;
         std::tie(netPrecision, inputShapes0, inputShapes1, targetDevice) = obj.param;
 
         std::ostringstream result;
         result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
         result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
-        result << "netPRC=" << netPrecision.name() << "_";
+        result << "netPRC=" << netPrecision << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
 
     // the simplest possible eltwise operation with streaming access to the data
     void CodegenBert::SetUp() {
-        std::vector<size_t> inputShape0, inputShape1;
-        InferenceEngine::Precision netPrecision;
+        ov::Shape inputShape0, inputShape1;
+        ov::element::Type_t netPrecision;
         std::tie(netPrecision, inputShape0, inputShape1, targetDevice) = this->GetParam();
 
         auto shape = ngraph::Shape{inputShape0};
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape);
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape);
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
+        auto input2 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
 
         auto shapeMM = ngraph::Shape{inputShape1};
-        auto input3 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shapeMM);
+        auto input3 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shapeMM);
 
         auto add    = std::make_shared<ngraph::opset1::Add>(input1, input2);
         auto mm     = std::make_shared<ngraph::opset1::MatMul>(add, input3);
@@ -56,7 +59,7 @@ namespace LayerTestsDefinitions {
             vals[i] = static_cast<float>(i)*vals.size();
         }
 
-        auto c0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape);
+        auto c0 = std::make_shared<ngraph::opset1::Parameter>(netPrecision, shape);
         auto add2    = std::make_shared<ngraph::opset1::Subtract>(mm, c0);
 
         auto add3    = std::make_shared<ngraph::opset1::Multiply>(add, add2);
@@ -73,4 +76,7 @@ TEST_P(CodegenBert, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+
+} // namespace snippets
+} // namespace test
+} // namespace ov
