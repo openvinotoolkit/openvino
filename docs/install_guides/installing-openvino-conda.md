@@ -31,7 +31,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 @endsphinxdirective
 
-### Install OpenVINO Runtime Using the Anaconda Package Manager
+## Install OpenVINO Runtime Using the Anaconda Package Manager
 
 1. Set up the Anaconda environment (taking Python 3.7 for example): 
    ```sh
