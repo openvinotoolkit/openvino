@@ -30,34 +30,62 @@ if(install_tbbbind)
     list(APPEND PATH_VARS "IE_TBBBIND_DIR")
 endif()
 
-# install only downloaded TBB, system | custom one is not installed
-if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
+# install only downloaded | custom TBB, system one is not installed
+# - downloaded TBB should be a part of all packages
+# - custom TBB provided by users, needs to be a part of wheel packages
+# - TODO: system TBB also needs to be a part of wheel packages
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND (TBBROOT MATCHES ${TEMP} OR DEFINED ENV{TBBROOT}))
     ie_cpack_add_component(tbb REQUIRED)
     ie_cpack_add_component(tbb_dev REQUIRED)
     list(APPEND core_components tbb)
     list(APPEND core_dev_components tbb_dev)
 
-    install(DIRECTORY "${TBB}/lib"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-    # Windows only
-    if(EXISTS "${TBB}/bin")
+    if(TBBROOT MATCHES ${TEMP})
+        set(tbb_downloaded ON)
+    elseif(DEFINED ENV{TBBROOT})
+        set(tbb_custom ON)
+    endif()
+
+    if(tbb_custom)
+        # since the setup.py for pip installs tbb component
+        # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
+        # to ignore from IRC distribution
+        set(exclude_from_all EXCLUDE_FROM_ALL)
+    endif()
+
+    if(WIN32)
         install(DIRECTORY "${TBB}/bin"
                 DESTINATION runtime/3rdparty/tbb
-                COMPONENT tbb)
+                COMPONENT tbb ${exclude_from_all})
+    elseif(tbb_custom OR tbb_downloaded)
+        install(DIRECTORY "${TBB}/lib"
+                DESTINATION runtime/3rdparty/tbb
+                COMPONENT tbb ${exclude_from_all})
     endif()
-    install(FILES "${TBB}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
 
-    set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
-    install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                  "${TBB}/cmake/TBBConfigVersion.cmake"
-            DESTINATION runtime/${IE_TBB_DIR_INSTALL}
-            COMPONENT tbb_dev)
-    install(DIRECTORY "${TBB}/include"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb_dev)
+    # development files are needed only for tbb_downloaded
+    # which we are going to distribute
+    if(tbb_downloaded)
+        install(FILES "${TBB}/LICENSE"
+                DESTINATION runtime/3rdparty/tbb
+                COMPONENT tbb)
+
+        set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
+        install(FILES "${TBB}/cmake/TBBConfig.cmake"
+                    "${TBB}/cmake/TBBConfigVersion.cmake"
+                DESTINATION runtime/${IE_TBB_DIR_INSTALL}
+                COMPONENT tbb_dev)
+        install(DIRECTORY "${TBB}/include"
+                DESTINATION runtime/3rdparty/tbb
+                COMPONENT tbb_dev)
+
+        if(WIN32)
+            # .lib files are needed only for Windows
+            install(DIRECTORY "${TBB}/lib"
+                    DESTINATION runtime/3rdparty/tbb
+                    COMPONENT tbb)
+        endif()
+    endif()
 endif()
 
 # install tbbbind for static OpenVINO case
