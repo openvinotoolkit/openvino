@@ -3504,7 +3504,7 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     auto reshape_const = opset5::Constant::create(element::i64, Shape{2}, {1, linear_input_features});
     auto reshape = std::make_shared<opset5::Reshape>(conv, reshape_const, true);
     auto linear_mask = Mask();
-    auto outer_dim_zeros = std::set<size_t>();
+    auto outer_dim_zeros = std::set<uint64_t>();
     for (auto i = 0; i < linear_input_features / 2; ++i)
         outer_dim_zeros.insert(i);
     linear_mask.push_back({10, 11});
