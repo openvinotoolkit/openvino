@@ -10,9 +10,9 @@ using namespace ov::test::conformance;
 namespace {
 
 const Params coreThreadingParams[] = {
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, generateConfigs(CommonTestUtils::DEVICE_HETERO).front() },
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, generateConfigs(CommonTestUtils::DEVICE_MULTI).front() },
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, generateConfigs(CommonTestUtils::DEVICE_AUTO).front() },
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, generate_configs(CommonTestUtils::DEVICE_HETERO).front() },
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, generate_configs(CommonTestUtils::DEVICE_MULTI).front() },
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, generate_configs(CommonTestUtils::DEVICE_AUTO).front() },
 };
 
 INSTANTIATE_TEST_SUITE_P(Conformance_, CoreThreadingTests, testing::ValuesIn(coreThreadingParams), CoreThreadingTests::getTestCaseName);

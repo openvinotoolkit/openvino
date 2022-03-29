@@ -49,7 +49,7 @@ if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_GPU_DEVICE_MEM_SUPPORT)
 endif()
 
-# Optional OpenCV dependnency
+# Optional OpenCV dependency
 
 find_package(OpenCV COMPONENTS core QUIET)
 if(NOT OpenCV_FOUND)

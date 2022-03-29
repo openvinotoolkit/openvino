@@ -3495,10 +3495,12 @@ TEST_P(onednn_binary_add_full_tensor, basic) {
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; eltw_type; eltw_format; out_type; out_format; default_type; default_format;
 #define CASE_CONV_ELTW_SUM_BINARY_ADD_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_CONV_ELTW_SUM_SUM_1        { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 5 },
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 5 },
 }));
 
 
@@ -3534,6 +3536,5 @@ INSTANTIATE_TEST_SUITE_P(multiple_eltwise_sum_fusings_gpu, onednn_multiple_binar
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 7 },
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 7 },
 }));
-
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
