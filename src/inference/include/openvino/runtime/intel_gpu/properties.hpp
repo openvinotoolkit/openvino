@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header for advanced hardware related properties for GPU plugin
+ * @brief A headerr for advanced hardware related properties for GPU plugin
  *        To use in set_property, compile_model, import_model, get_property methods
  *
  * @file openvino/runtime/intel_gpu/properties.hpp

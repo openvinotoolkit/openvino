@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header for properties
+ * @brief a header for propertiess
  * of shared device contexts and shared device memory blobs
  * for clDNN plugin
  *
