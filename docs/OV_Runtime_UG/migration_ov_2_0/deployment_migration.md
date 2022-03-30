@@ -6,7 +6,7 @@ To accomplish that, we made some changes to the installation and deployment proc
 
 ## The Installer Package Contains OpenVINO™ Runtime Only
 
-Starting from OpenVINO 2022.1, Model Optimizer, Post-Training Optimization tool, and Python-based Development tools, such as those of Open Model Zoo, are distributed via [PyPI](https://pypi.org/project/openvino-dev/) only, and are no longer included in the OpenVINO installer package. This change has several benefits, as it:
+Starting from OpenVINO 2022.1, development tools are distributed via [PyPI](https://pypi.org/project/openvino-dev/) only and are no longer included in the OpenVINO installer package. For a list of these components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md). This approach has several benefits:
 
 * simplifies the user experience - in previous versions, installation and usage of OpenVINO Development Tools differed from one distribution type to another (the OpenVINO installer vs. PyPI), 
 * ensures that dependencies are handled properly via the PIP package manager and support virtual environments of development tools.
