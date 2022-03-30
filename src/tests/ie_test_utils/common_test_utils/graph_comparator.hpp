@@ -20,12 +20,14 @@ class FunctionsComparator {
 public:
     enum CmpValues {
         NONE = 0,
-        CONST_VALUES = 1 << 0,
-        NAMES = 1 << 1,
-        RUNTIME_KEYS = 1 << 2,
-        PRECISIONS = 1 << 3,
-        ATTRIBUTES = 1 << 4,
-        TENSOR_NAMES = 1 << 5,
+        NODES = 1 << 0,
+        CONST_VALUES = 1 << 1,
+        NAMES = 1 << 2,
+        RUNTIME_KEYS = 1 << 3,
+        PRECISIONS = 1 << 4,
+        ATTRIBUTES = 1 << 5,
+        TENSOR_NAMES = 1 << 6,
+        ACCURACY = 1 << 7
     };
 
     struct Result {
@@ -45,6 +47,7 @@ public:
     }
     static FunctionsComparator with_default() noexcept {
         auto fc = FunctionsComparator::no_default();
+        fc.enable(NODES);
         fc.enable(PRECISIONS);
         fc.enable(TENSOR_NAMES);
         return fc;
@@ -52,6 +55,11 @@ public:
 
     FunctionsComparator& enable(CmpValues f) noexcept {
         m_comparison_flags = static_cast<CmpValues>(m_comparison_flags | f);
+        return *this;
+    }
+
+    FunctionsComparator& disable(CmpValues f) noexcept {
+        m_comparison_flags = static_cast<CmpValues>(m_comparison_flags & ~f);
         return *this;
     }
 
@@ -85,6 +93,7 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
     auto fc = FunctionsComparator::no_default();
 
     using Cmp = FunctionsComparator::CmpValues;
+    fc.enable(Cmp::NODES);
     if (compareConstValues)
         fc.enable(Cmp::CONST_VALUES);
     if (compareNames)
@@ -103,10 +112,6 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
-
-void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string& name);
-
-void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string>& names);
 
 namespace ngraph {
 namespace pass {
@@ -188,8 +193,8 @@ public:
             for (auto output : node->outputs()) {
                 const auto& tensor_names = output.get_names();
                 if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string& name) {
-                        return unique_tensor_names.count(name);
-                    })) {
+                    return unique_tensor_names.count(name);
+                })) {
                     std::stringstream ss;
                     ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                     ss << "has non unique tensor name.";
@@ -478,9 +483,9 @@ public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
 
 #define ON_ADAPTER(TYPE)                                                                      \
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
-        insert(name, adapter.get());                                                          \
-    }
+void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
+insert(name, adapter.get());                                                          \
+}
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -711,37 +716,37 @@ struct Equal<std::shared_ptr<Constant>> {
         }
 
         switch (lhs_t) {
-        case ngraph::element::Type_t::u1: {
-            const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
-            const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
-            const auto lhs_bit_size = shape_size(lhs->get_shape());
-            const auto rhs_bit_size = shape_size(rhs->get_shape());
-            return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
-        }
-        case ngraph::element::Type_t::bf16: {
-            auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
-            auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
-            return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
-            break;
-        }
-        case ngraph::element::Type_t::f16: {
-            const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
-            const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
-            return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
-            break;
-        }
-        case ngraph::element::Type_t::f32: {
-            const auto& lhs_v = lhs->cast_vector<float>();
-            const auto& rhs_v = rhs->cast_vector<float>();
-            return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
-            break;
-        }
-        default: {
-            const auto& lhs_v = lhs->cast_vector<double>();
-            const auto& rhs_v = rhs->cast_vector<double>();
-            return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
-            break;
-        }
+            case ngraph::element::Type_t::u1: {
+                const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
+                const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
+                const auto lhs_bit_size = shape_size(lhs->get_shape());
+                const auto rhs_bit_size = shape_size(rhs->get_shape());
+                return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
+            }
+            case ngraph::element::Type_t::bf16: {
+                auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
+                auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
+                return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
+                break;
+            }
+            case ngraph::element::Type_t::f16: {
+                const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
+                const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
+                return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
+                break;
+            }
+            case ngraph::element::Type_t::f32: {
+                const auto& lhs_v = lhs->cast_vector<float>();
+                const auto& rhs_v = rhs->cast_vector<float>();
+                return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
+                break;
+            }
+            default: {
+                const auto& lhs_v = lhs->cast_vector<double>();
+                const auto& rhs_v = rhs->cast_vector<double>();
+                return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
+                break;
+            }
         }
         return false;
     }
@@ -862,18 +867,18 @@ struct Get<std::shared_ptr<ngraph::Variable>, void> {
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref, Comparator::CmpValues check_flags)
-        : m_attr_ref(ref),
-          m_cmp_result{ref.read_result()},
-          m_check_flags(check_flags) {}
+            : m_attr_ref(ref),
+              m_cmp_result{ref.read_result()},
+              m_check_flags(check_flags) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         verify_others(name, adapter);
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
-        verify(name, adapter.get());                                                          \
-    }
+void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
+verify(name, adapter.get());                                                          \
+}
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -981,3 +986,11 @@ private:
 Comparator::Result compare(ngraph::Node* node1, ngraph::Node* node2, Comparator::CmpValues comparition_flags);
 
 }  // namespace attributes
+
+struct AccuracyCheckResult {
+    bool status;
+    std::string message;
+};
+
+AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
+                                   const std::shared_ptr<ov::Model>& cur_function);
