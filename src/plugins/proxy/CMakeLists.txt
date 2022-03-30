@@ -17,7 +17,6 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 
 add_library(${TARGET_NAME} OBJECT ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_API)
-ie_faster_build(${TARGET_NAME} UNITY PCH PRIVATE "src/precomp.hpp")
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
