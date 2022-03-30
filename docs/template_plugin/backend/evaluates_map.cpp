@@ -64,6 +64,7 @@
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
+#include <ngraph/runtime/reference/rdft.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
@@ -2102,6 +2103,73 @@ bool evaluate(const shared_ptr<op::v7::IDFT>& op, const HostTensorVector& output
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
+    return true;
+}
+
+namespace rfft_v9 {
+struct InfoForRFFT9 {
+    std::vector<float> input_data;
+    std::vector<int64_t> axes_data;
+    Shape input_data_shape;
+    Shape axes_data_shape;
+    Shape fft_output_shape;
+    Shape output_shape;
+};
+
+InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForRFFT9 result;
+
+    result.input_data_shape = inputs[0]->get_shape();
+    result.axes_data_shape = inputs[1]->get_shape();
+    result.input_data = get_floats(inputs[0], result.input_data_shape);
+    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
+
+    auto fft_output_shape = result.input_data_shape;
+    auto output_shape = result.input_data_shape;
+
+    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
+    auto canonicalized_axes =
+        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, input_rank);
+
+    size_t num_of_axes = result.axes_data.size();
+    auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
+
+    const auto last_axis = canonicalized_axes.back();
+    for (size_t i = 0; i < num_of_axes; ++i) {
+        int64_t current_axis = canonicalized_axes[i];
+        int64_t current_signal_size = signal_size[i];
+        if (current_signal_size != -1) {
+            fft_output_shape[current_axis] = current_signal_size;
+            output_shape[current_axis] = current_signal_size;
+        }
+    }
+    output_shape[last_axis] = fft_output_shape[last_axis] / 2 + 1;
+    output_shape.push_back(2);
+    fft_output_shape.push_back(2);
+
+    result.fft_output_shape = fft_output_shape;
+    result.output_shape = output_shape;
+
+    result.axes_data = canonicalized_axes;
+
+    return result;
+}
+}  // namespace rfft_v9
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    auto info = rfft_v9::get_info_for_rfft9_eval(inputs);
+    outputs[0]->set_shape(info.output_shape);
+
+    std::vector<float> rfft_result(shape_size(info.output_shape), 0.0f);
+    runtime::reference::rdft(info.input_data,
+                             info.input_data_shape,
+                             info.axes_data,
+                             info.fft_output_shape,
+                             rfft_result.data());
+
+    const auto output_type = op->get_input_element_type(0);
+    runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
     return true;
 }
 
