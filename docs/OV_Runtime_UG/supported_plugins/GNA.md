@@ -90,7 +90,7 @@ can cause the user's request to be executed on CPU, thereby unnecessarily increa
 
 Intel® GNA essentially operates in the low-precision mode which represents a mix of 8-bit (`i8`), 16-bit (`i16`), and 32-bit (`i32`) integer computations.
 
-GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_README) to get a model with quantization hints based on statistics for the provided dataset.
+GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_introduction) to get a model with quantization hints based on statistics for the provided dataset.
 
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration. However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data and this mode is going to be deprecated soon.
 
@@ -101,7 +101,7 @@ GNA plugin supports the following data types as inference precision of internal 
 
 [Hello Query Device C++ Sample](@ref openvino_inference_engine_samples_hello_query_device_README) can be used to print out supported data types for all detected devices.
 
-[POT API Usage sample for GNA](@ref pot_sample_speech_README) demonstrates how a model can be quantized for GNA using POT API in 2 modes:
+[POT API Usage sample for GNA](@ref pot_example_speech_README) demonstrates how a model can be quantized for GNA using POT API in 2 modes:
 * Accuracy (i16 weights)
 * Performance (i8 weights)
 

@@ -1,4 +1,4 @@
-# TunableQuantization Algorithm {#pot_compression_algorithms_quantization_tunable_quantization_README}
+# TunableQuantization Algorithm
 
 ## Overview
 
