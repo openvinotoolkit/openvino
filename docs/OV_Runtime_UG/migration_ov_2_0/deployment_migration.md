@@ -80,7 +80,7 @@ target_link_libraries(ov_c_app PRIVATE openvino::runtime::c)
 
 To build applications without the CMake interface, you can also use MSVC IDE, UNIX makefiles, and any other interface, which has been changed as shown here:
 
-**With Inference Engine of the previous versions**:
+**With Inference Engine of previous versions**:
 
 @sphinxdirective
 
