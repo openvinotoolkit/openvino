@@ -156,7 +156,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
                 # oneTBB case exposed via export TBBROOT=<custom TBB root>
                 "$ENV{TBBROOT}/lib64/cmake/TBB"
                 "$ENV{TBBROOT}/lib/cmake/TBB"
-                "$ENV{TBB_DIR}"
+                # "$ENV{TBB_DIR}"
                 # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
                 "${TBBROOT}/cmake"
                 # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
