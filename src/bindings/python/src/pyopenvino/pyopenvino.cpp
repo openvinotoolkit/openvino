@@ -21,12 +21,13 @@
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
+#include "pyopenvino/core/properties/properties.hpp"
 #include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"
-#include "pyopenvino/core/ie_parameter.hpp"
+// #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
@@ -199,10 +200,13 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
-    regclass_Parameter(m);
+    // regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
+
+    // Properties and hints
+    regmodule_properties(m);
 
     // frontend
     regclass_frontend_Place(m);
