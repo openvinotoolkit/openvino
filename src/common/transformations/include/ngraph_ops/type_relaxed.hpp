@@ -222,9 +222,7 @@ public:
     }
 
     void validate_and_infer_types() override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -239,15 +237,14 @@ private:
     init_rt_result init_rt = init_rt_info(*this);
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
-bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    std::shared_ptr<ngraph::op::v0::Convert> convert;
-    HostTensorVector casted_inputs(BaseOp::get_input_size());
+bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    std::shared_ptr<op::v0::Convert> convert;
+    ov::TensorVector casted_inputs(BaseOp::get_input_size());
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         const auto expected_input_type = get_origin_input_type(i);
 
-        if (inputs[i]->get_element_type() == expected_input_type || expected_input_type == element::undefined) {
+        if (inputs[i].get_element_type() == expected_input_type || expected_input_type == element::undefined) {
             casted_inputs[i] = inputs[i];
         } else {
             if (convert == nullptr) {
@@ -255,25 +252,25 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
             }
 
             convert->set_destination_type(expected_input_type);
-            casted_inputs[i] = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
-            if (!convert->evaluate({casted_inputs[i]}, {inputs[i]})) {
+            casted_inputs[i] = ov::Tensor(expected_input_type, inputs[i].get_shape());
+            ov::TensorVector casted_inputs1{casted_inputs[i]};
+            if (!std::static_pointer_cast<Node>(convert)->evaluate(casted_inputs1, ov::TensorVector{inputs[i]})) {
                 return false;
             }
         }
     }
 
-    HostTensorVector original_outputs(BaseOp::get_output_size());
+    ov::TensorVector original_outputs(BaseOp::get_output_size());
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
         if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
-            original_outputs[i] =
-                std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+            original_outputs[i] = ov::Tensor(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i).get_shape());
         }
     }
 
-    if (!BaseOp::evaluate(original_outputs, casted_inputs)) {
+    if (!static_cast<const Node*>(this)->evaluate(original_outputs, casted_inputs, EvaluationContext())) {
         return false;
     }
 
@@ -281,15 +278,15 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
         const auto expected_output_type = get_overridden_output_type(i);
 
         if (expected_output_type != element::undefined &&
-            original_outputs[i]->get_element_type() != expected_output_type) {
+            original_outputs[i].get_element_type() != expected_output_type) {
             if (convert == nullptr) {
                 convert = std::make_shared<ngraph::op::v0::Convert>();
             }
 
             convert->set_destination_type(expected_output_type);
-            const auto casted_output =
-                std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
-            if (!convert->evaluate({outputs[i]}, {original_outputs[i]})) {
+            const auto casted_output = ov::Tensor(expected_output_type, original_outputs[i].get_shape());
+            ov::TensorVector outputs1{casted_inputs[i]};
+            if (!std::static_pointer_cast<Node>(convert)->evaluate(outputs1, {original_outputs[i]})) {
                 return false;
             }
         }
@@ -297,7 +294,6 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
     return true;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {

@@ -313,7 +313,7 @@ std::shared_ptr<Node> fold(Args&&... args) {
     return node;
 }
 
-std::shared_ptr<Node> foldConvert(const Output<Node>& node, const element::Type targetPrecision);
+std::shared_ptr<Node> LP_TRANSFORMATIONS_API foldConvert(const Output<Node>& node, const element::Type targetPrecision);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
