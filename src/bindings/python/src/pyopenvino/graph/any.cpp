@@ -41,6 +41,14 @@ void regclass_graph_Any(py::module m) {
         Common::from_ov_any(self)[k] = v;
     });
 
+    ov_any.def("__get__", [](const ov::Any& self) {
+        return Common::from_ov_any(self);
+    });
+
+    ov_any.def("__set__", [](const ov::Any& self, const ov::Any& val) {
+        Common::from_ov_any(self) = Common::from_ov_any(val);
+    });
+
     ov_any.def("__len__", [](const ov::Any& self) {
         py::handle some_object = Common::from_ov_any(self);
         PyObject* source = some_object.ptr();
