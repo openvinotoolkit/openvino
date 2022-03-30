@@ -181,7 +181,7 @@ ov::Output<const ov::Node> CompiledModel::output() const {
     OV_EXEC_NET_CALL_STATEMENT({
         const auto outputs = _impl->getOutputs();
         if (outputs.size() != 1) {
-            throw ov::Exception("output() must be called on a function with exactly one parameter.");
+            throw ov::Exception("output() must be called on a function with exactly one result.");
         }
         return outputs.at(0);
     });
