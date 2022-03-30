@@ -7,7 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
-#include "common/operation_precision_restriction.hpp"
+#include "common/precisions_restriction.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -26,7 +26,7 @@ public:
     OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
-        const OperationPrecisionRestriction::PrecisionsByPort& restrictions = {});
+        const PrecisionsRestriction::PrecisionsByPort& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
@@ -39,7 +39,7 @@ public:
     void setGroupSize(const size_t groupSize);
     size_t getGroupSize() const;
 private:
-    OperationPrecisionRestriction::PrecisionsByPort restrictions;
+    PrecisionsRestriction::PrecisionsByPort restrictions;
     size_t groupSize;
 };
 
