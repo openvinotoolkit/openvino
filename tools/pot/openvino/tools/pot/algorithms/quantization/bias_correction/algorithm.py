@@ -418,7 +418,7 @@ class BiasCorrection(Algorithm):
             add_node = self._get_add_node_for_bias(node)
             add_node_name = add_node.fullname
             if 'orig_node_name' in add_node:
-                add_node_name = nu.reset_node_fullname(add_node_name, add_node['orig_node_name'])
+                add_node_name = add_node['orig_node_name']
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
             node_name = node.fullname

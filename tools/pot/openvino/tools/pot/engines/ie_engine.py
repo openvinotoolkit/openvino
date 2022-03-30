@@ -127,7 +127,7 @@ class IEEngine(Engine):
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
 
-        if stats_layout:
+        if stats_layout and stat_aliases:
             restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
 
         # Calculate metrics of required type. Reset collected statistics

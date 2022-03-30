@@ -26,12 +26,23 @@ class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
         output_to_node_names = {}
         nodes_names_map = {m['model'].name: {} for m in model.models}
-        if stat_aliases is None or model is None:
+        if stat_aliases is None:
             for node_name in stats_layout.keys():
                 node_name_in_graph = self.get_graph_node_name(node_name)
                 node = get_node_by_name(model, node_name_in_graph)
                 node_graph = node.graph
-                nodes_names_map[node_graph.name][node_name] = convert_to_outputs_name(node_name)
+
+                node_in_main_graph = get_node_by_name(model, node_name_in_graph.split('|')[0])
+                model_graph = node_in_main_graph.graph
+
+                if model_graph == node_graph:
+                    nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(node_name)
+                else:
+                    result_name = self.add_subgraph_output(model_graph, node_name)
+                    output_to_node_names[result_name] = node_name
+            for result_name, node_name in output_to_node_names.items():
+                stats_layout[result_name] = stats_layout.pop(node_name)
+
             return model, nodes_names_map, output_to_node_names
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
@@ -42,7 +53,7 @@ class StatisticGraphBuilder:
                 model_graph = node_in_main_graph.graph
                 for stat, _ in list(stats.items()):
                     if not isinstance(stat, Statistic) or not stat.kwargs.get('inplace_statistics', False):
-                        if node_name not in nodes_names_map[model_graph.name]:
+                        if node_name not in nodes_names_map[model_graph.name] and model_graph == node.graph:
                             nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(node_name)
                         continue
                     type_stat = stat.kwargs['type']
@@ -52,7 +63,7 @@ class StatisticGraphBuilder:
                                                                                     node_name,
                                                                                     **stat.kwargs)
                     if add_output_node:
-                        if node_name not in nodes_names_map[model_graph.name]:
+                        if node_name not in nodes_names_map[model_graph.name] and model_graph == node.graph:
                             nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(op_name)
                         class_statistic = TensorStatistic if isinstance(stat, TensorStatistic) else TensorStatisticAxis
                         fn = get_stats_function(ACTIVATIONS, type_stat, stat.kwargs.get('granularity'),
@@ -76,22 +87,19 @@ class StatisticGraphBuilder:
 
                 # add output if node in subgraph
                 if model_graph != node.graph:
-                    if node_name in nodes_names_map[model_graph.name]:
-                        del nodes_names_map[model_graph.name][node_name]
-
                     # Don't need adding extra output to the same node, but for another algo
-                    if node_name_in_graph in output_to_node_names.values():
+                    if node_name in output_to_node_names.values():
                         result_name = next((result for result, node in output_to_node_names.items()
-                                            if node == node_name_in_graph))
+                                            if node == node_name))
                     else:
-                        model_graph.graph['additional_outputs'] = node_name_in_graph.split('|')
-                        results = AddOutputRecursive().find_and_replace_pattern(model_graph)
-                        assert len(results) == 1
-                        result_name = results[0].name
-                    if node_name in stats_layout:
-                        stats_layout[result_name] = stats_layout.pop(node_name)
+                        result_name = self.add_subgraph_output(model_graph, node_name)
+                        output_to_node_names[result_name] = node_name
+
+        for result_name, node_name in output_to_node_names.items():
+            stats_layout[result_name] = stats_layout.pop(node_name)
+            for algo_name in copy_stat_aliases:
+                if node_name in stat_aliases[algo_name]:
                     stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
-                    output_to_node_names[result_name] = node_name_in_graph
 
         return model, nodes_names_map, output_to_node_names
 
@@ -147,12 +155,9 @@ class StatisticGraphBuilder:
         abs_node.out_port(0).connect(max_op.in_port(0))
         return self.insert_result(model_graph, node, max_op, type_stat, out_port)
 
-    @staticmethod
-    def insert_result(model_graph, node, child_node, name, port=None):
+    def insert_result(self, model_graph, node, child_node, name, port=None):
         if node.graph != model_graph:
-            model_graph.graph['additional_outputs'] = child_node.fullname.split('|')
-            res_op = AddOutputRecursive().find_and_replace_pattern(model_graph)
-            ie_result_name = res_op[0].name
+            ie_result_name = self.add_subgraph_output(model_graph, child_node.fullname)
         else:
             ie_result_name = f'{name}_{node.name}'
             if port is not None:
@@ -182,3 +187,11 @@ class StatisticGraphBuilder:
     def get_out_port(node_name):
         out_port = node_name[1] if isinstance(node_name, tuple) else None
         return out_port
+
+    def add_subgraph_output(self, model_graph, node_name):
+        name = self.get_graph_node_name(node_name)
+        port = node_name[1] if isinstance(node_name, tuple) else 0
+        model_graph.graph['additional_outputs'] = name.split('|')
+        results = AddOutputRecursive().find_and_replace_pattern(model_graph)
+        result_name = results[port].name
+        return result_name

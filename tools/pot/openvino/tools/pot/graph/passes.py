@@ -709,10 +709,10 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
             if len(input_node_outputs) > 1 and all([op.type == 'FakeQuantize' for op in input_node_outputs]):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
-            fq_node['orig_fq_name'] = copy(fq_node.name)
+            fq_node['orig_fq_name'] = nu.reset_node_fullname(input_node.fullname, copy(fq_node.name))
 
             if 'orig_node_name' not in input_node:
-                input_node['orig_node_name'] = copy(input_node.name)
+                input_node['orig_node_name'] = copy(input_node.fullname)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
             rename_node(fq_node, new_fq_name)
 
