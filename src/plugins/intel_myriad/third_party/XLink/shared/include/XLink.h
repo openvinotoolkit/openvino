@@ -117,7 +117,11 @@ XLinkError_t XLinkProfStop();
 XLinkError_t XLinkProfPrint();
 
 /**
- * @brief Set maximum packet length to split sent data on the device.
+ * @brief Set maximum packet length of transferring data (sent and recieved). In case data is larger than
+ *        packetLength then data will be split into chunks.
+ *        This function can be called both on the device and on the host side. In case of calling from the host side,
+ *        a service packet will be sent to the device with a corresponding packetLength value.
+ *        This function must be called only in runtime that is after booting a device and XLinkConnect call.
  *        For some scenarios configuring packet length can increase throughput of XLink communication channel
  * @warning Packet length should be greater than 0 and aligned with 1024
  * @param[in] linkId – link Id obtained from XLinkConnect in the handler parameter
@@ -127,7 +131,13 @@ XLinkError_t XLinkProfPrint();
 XLinkError_t XLinkSetDevicePacketLength(linkId_t linkId, unsigned int packetLength);
 
 /**
- * @brief Set maximum packet length to split sent data on the host.
+ * @brief Set maximum packet length of transferring data (sent and recieved). In case data is larger than
+ *        packetLength then data will be split into chunks.
+ *        This function can be called both on the device and on the host side. In case of calling from the device side,
+ *        a service packet will be sent to the host with a corresponding packetLength value.
+ *        This function must be called only in runtime that is after booting a device and XLinkConnect call.
+ *        In order to configure packetLength on initializing step, use XLinkGlobalHandler_t::packetLength field when
+ *        calling XLinkInitialize function.
  *        For some scenarios configuring packet length can increase throughput of XLink communication channel
  * @warning Packet length should be greater than 0 and aligned with 1024
  * @param[in] linkId – link Id obtained from XLinkConnect in the handler parameter
