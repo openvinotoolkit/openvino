@@ -52,9 +52,7 @@ public:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    ov::test::utils::ov_entity api_entity;
 };
 
 typedef std::tuple<

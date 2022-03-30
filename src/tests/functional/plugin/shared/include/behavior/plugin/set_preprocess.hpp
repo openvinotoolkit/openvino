@@ -29,7 +29,7 @@ TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     {
@@ -48,7 +48,7 @@ TEST_P(InferRequestPreprocessTest, SetPreProcessToInferRequest) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     InferenceEngine::ConstInputsDataMap inputsMap = execNet.GetInputsInfo();
@@ -100,7 +100,7 @@ TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessGetBlob) {
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
@@ -167,7 +167,7 @@ TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessSetBlob) {
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
@@ -229,7 +229,7 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessGetBlob) {
     preProcess[2]->stdScale = 1;
     preProcess.setVariant(InferenceEngine::MEAN_VALUE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
@@ -289,7 +289,7 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessSetBlob) {
     preProcess[2]->stdScale = 1;
     preProcess.setVariant(InferenceEngine::MEAN_VALUE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
@@ -344,7 +344,7 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setColorFormat(InferenceEngine::ColorFormat::RGB);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
@@ -405,7 +405,7 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setColorFormat(InferenceEngine::ColorFormat::RGB);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
@@ -476,7 +476,7 @@ TEST_P(InferRequestPreprocessTest, SetScalePreProcessGetBlob) {
     preProcess[2]->meanValue = 0;
     preProcess.setVariant(InferenceEngine::MEAN_VALUE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
@@ -536,7 +536,7 @@ TEST_P(InferRequestPreprocessTest, SetScalePreProcessSetBlob) {
     preProcess[2]->meanValue = 0;
     preProcess.setVariant(InferenceEngine::MEAN_VALUE);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
@@ -587,12 +587,12 @@ public:
         InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
         InferenceEngine::Layout netLayout, iLayout, oLayout;
         bool setInputBlob, setOutputBlob;
-        std::string targetDevice;
+        std::string target_device;
         std::map<std::string, std::string> configuration;
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
                  setInputBlob, setOutputBlob,
-                 targetDevice, configuration) = obj.param;
+                 target_device, configuration) = obj.param;
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         result << "iPRC=" << iPrecision.name() << "_";
@@ -602,7 +602,7 @@ public:
         result << "oLT=" << oLayout << "_";
         result << "setIBlob=" << setInputBlob << "_";
         result << "setOBlob=" << setOutputBlob << "_";
-        result << "targetDevice=" << targetDevice;
+        result << "target_device=" << target_device;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
@@ -635,7 +635,7 @@ public:
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
                  setInputBlob, setOutputBlob,
-                 targetDevice, configuration) = this->GetParam();
+                 target_device, configuration) = this->GetParam();
     }
 
     void TearDown() override {
@@ -648,7 +648,7 @@ public:
     InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
     InferenceEngine::Layout netLayout, iLayout, oLayout;
     bool setInputBlob, setOutputBlob;
-    std::string targetDevice;
+    std::string target_device;
     std::map<std::string, std::string> configuration;
 };
 
@@ -680,7 +680,7 @@ TEST_P(InferRequestPreprocessConversionTest, Infer) {
     cnnNet.getOutputsInfo().begin()->second->setLayout(oLayout);
 
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
@@ -777,12 +777,12 @@ public:
         bool changeIPrecision, changeOPrecision;
         bool changeILayout, changeOLayout;
         bool setInputBlob, setOutputBlob;
-        std::string targetDevice;
+        std::string target_device;
         std::map<std::string, std::string> configuration;
         std::tie(netPrecision, changeIPrecision, changeOPrecision,
                  netLayout, changeILayout, changeOLayout,
                  setInputBlob, setOutputBlob,
-                 targetDevice, configuration) = obj.param;
+                 target_device, configuration) = obj.param;
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         result << "iPRC=" << changeIPrecision << "_";
@@ -792,7 +792,7 @@ public:
         result << "oLT=" << changeOLayout << "_";
         result << "setIBlob=" << setInputBlob << "_";
         result << "setOBlob=" << setOutputBlob << "_";
-        result << "targetDevice=" << targetDevice;
+        result << "target_device=" << target_device;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
@@ -825,7 +825,7 @@ public:
         std::tie(netPrecision, changeIPrecision, changeOPrecision,
                  netLayout, changeILayout, changeOLayout,
                  setInputBlob, setOutputBlob,
-                 targetDevice, configuration) = this->GetParam();
+                 target_device, configuration) = this->GetParam();
     }
 
     void TearDown() override {
@@ -840,7 +840,7 @@ public:
     InferenceEngine::Layout netLayout;
     bool changeILayout, changeOLayout;
     bool setInputBlob, setOutputBlob;
-    std::string targetDevice;
+    std::string target_device;
     std::map<std::string, std::string> configuration;
 };
 
@@ -867,7 +867,7 @@ TEST_P(InferRequestPreprocessDynamicallyInSetBlobTest, Infer) {
     InferenceEngine::CNNNetwork cnnNet(ngraph);
 
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     auto req = execNet.CreateInferRequest();
     InferenceEngine::Blob::Ptr inBlob = nullptr, outBlob = nullptr;
 
@@ -1001,7 +1001,7 @@ TEST_P(InferRequestPreprocessTest, InferWithRGB2BGRConversion) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setColorFormat(InferenceEngine::ColorFormat::BGR);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
 
