@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(set_ie_threading_interface_for TARGET_NAME)
+macro(ov_find_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
         find_package(TBB COMPONENTS tbb tbbmalloc)
 
@@ -31,6 +31,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif()
 
         # set variables to parent scope to prevent multiple invocations of find_package(TBB)
+        # at the same CMakeLists.txt; invocations in different directories are allowed
         set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
@@ -40,6 +41,11 @@ function(set_ie_threading_interface_for TARGET_NAME)
                              SEQ method will be used.")
         endif ()
     endif()
+endmacro()
+
+function(set_ie_threading_interface_for TARGET_NAME)
+    # find TBB
+    ov_find_tbb()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
 
