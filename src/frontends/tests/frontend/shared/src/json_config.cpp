@@ -143,7 +143,7 @@ TEST_P(FrontEndJsonConfigTest, testAddJsonConfigExtension) {
         auto target_ext = json_config_ext->get_target_extensions();
 
         // the number of Loaded extensions can be more than the number of actually used ones.
-        EXPECT_EQ(loaded_ext.size(), 9);
+        EXPECT_EQ(loaded_ext.size(), 10);
         EXPECT_EQ(target_ext.size(), 3);
 
         for (const auto& target : target_ext) {

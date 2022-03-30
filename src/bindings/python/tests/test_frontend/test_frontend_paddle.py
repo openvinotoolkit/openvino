@@ -2,23 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from cv2 import threshold
 import paddle
 from paddle.jit import to_static
 from paddle.static import InputSpec
-import paddle.nn.functional as F
-import numpy as np
 import pytest
 from pathlib import Path
 from itertools import chain
 
 from openvino.frontend import FrontEndManager
 
-PADDLE_FRONTEND_NAME = 'paddle'
-paddle_relu6_model_basename = 'relu6'
-paddle_relu6_model_filename = paddle_relu6_model_basename + '.pdmodel'
-paddle_concat_model_basename = 'concat'
-paddle_concat_model_filename = paddle_concat_model_basename + '.pdmodel'
+PADDLE_FRONTEND_NAME = "paddle"
+paddle_relu6_model_basename = "relu6"
+paddle_relu6_model_filename = paddle_relu6_model_basename + ".pdmodel"
+paddle_concat_model_basename = "concat"
+paddle_concat_model_filename = paddle_concat_model_basename + ".pdmodel"
 fem = FrontEndManager()
 
 
@@ -31,8 +28,8 @@ def skip_if_paddle_frontend_is_disabled():
 def create_paddle_model():
     @to_static()
     def test(x):
-        return F.relu6(x)
-    x_spec = InputSpec(shape=[None, 3], dtype='float32', name='x')
+        return paddle.nn.functional.relu6(x)
+    x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
     paddle.jit.save(test, path=paddle_relu6_model_basename, input_spec=[x_spec, ])
 
 
@@ -40,8 +37,8 @@ def create_concat_model():
     @to_static()
     def test(x, y):
         return paddle.concat([x, y], axis=0)
-    x_spec = InputSpec(shape=[None, 3], dtype='float32', name='x')
-    y_spec = InputSpec(shape=[None, 3], dtype='float32', name='y')
+    x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
+    y_spec = InputSpec(shape=[None, 3], dtype="float32", name="y")
     paddle.jit.save(test, path=paddle_concat_model_basename, input_spec=[x_spec, y_spec])
 
 

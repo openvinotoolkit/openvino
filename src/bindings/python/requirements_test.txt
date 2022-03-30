@@ -24,6 +24,7 @@ flake8_quotes
 import-order
 mypy
 onnx
+paddlepaddle==2.1.0
 Pep8-naming
 pydocstyle
 pytest-xdist
