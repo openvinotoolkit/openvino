@@ -82,7 +82,6 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/insert_copy_layer.hpp"
-#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 

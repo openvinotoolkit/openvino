@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <transformations/utils/utils.hpp>
-#include "ngraph/pass/visualize_tree.hpp"
 
 namespace testing {
 
@@ -67,7 +66,6 @@ public:
         ngraph::Shape input_shape{10};
         InsertCopyLayerTest::SetUp();
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
             ngraph::OutputVector concat_inputs;
@@ -81,7 +79,6 @@ public:
                                                         "Concat");
         }
 
-        // ref function concat should has copy on second input
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
             auto copy = std::make_shared<GNAPluginNS::Copy>(params);
@@ -112,7 +109,6 @@ public:
         ngraph::Shape input_shape{10};
         InsertCopyLayerTest::SetUp();
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
             auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, m_inputs_num, m_axis);
@@ -128,7 +124,6 @@ public:
                                                         "Concat");
         }
 
-        // ref function concat should has copy on second input
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
             auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, m_inputs_num, m_axis);
@@ -161,7 +156,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatTest) {
         size_t axis = 0;
         ngraph::Shape in_shape{10};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             ngraph::OutputVector concat_inputs{params, params};
@@ -187,7 +181,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatTest) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
-        m.register_pass<ngraph::pass::VisualizeTree>("1graph.svg");
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -202,7 +195,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
         ngraph::Shape shape    = {1, 1, 2, 4};
         ngraph::Shape in_shape = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
@@ -234,7 +226,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
-        m.register_pass<ngraph::pass::VisualizeTree>("2graph.svg");
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -248,7 +239,6 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
         size_t axis = 0;
         ngraph::Shape in_shape{10};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto add = std::make_shared<ngraph::opset8::Add>(params, params);
@@ -290,7 +280,6 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
         ngraph::Shape shape    = {1, 1, 2, 4};
         ngraph::Shape in_shape = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto add = std::make_shared<ngraph::opset8::Add>(params, params);
@@ -334,7 +323,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamMemoryTest) {
         std::shared_ptr<ngraph::Function> func, ref_func;
         ngraph::Shape in_shape{10};
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto read_value = std::make_shared<ngraph::opset3::ReadValue>(input, "variable_id");
@@ -380,7 +368,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatMemoryTest) {
         ngraph::Shape in_shape{10};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto read_value = std::make_shared<ngraph::opset3::ReadValue>(input, "variable_id");
@@ -427,7 +414,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatMemoryTest) {
         ngraph::Shape in_shape      = {1, 2, 4};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(input, shape);
@@ -481,7 +467,6 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatMemoryTest) {
         ngraph::Shape in_shape{10};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto read_value = std::make_shared<ngraph::opset3::ReadValue>(input, "variable_id");
@@ -527,7 +512,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamLayerConcatMemoryTest) {
         ngraph::Shape in_shape{10};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto read_value = std::make_shared<ngraph::opset3::ReadValue>(input, "variable_id");
@@ -569,7 +553,6 @@ TEST(TransformationTests, InsertCopyLayerMultiParamLayerConcatMemoryTest) {
         ASSERT_TRUE(result.first);
 }
 
-// CROOOOOOP
 TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
         std::shared_ptr<ngraph::Function> func, ref_func;
         std::vector<int64_t> axes   = {0, 1, 2, 3};
@@ -578,7 +561,6 @@ TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(input, shape);
@@ -632,7 +614,6 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
         ngraph::Shape shape2        = {1, 1, 2, 2};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(input, shape1);
@@ -679,13 +660,11 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
         ASSERT_TRUE(result.first);
 }
 
-// Concat memory
 TEST(TransformationTests, InsertCopyLayerConcatMemoryTest) {
         std::shared_ptr<ngraph::Function> func, ref_func;
         ngraph::Shape in_shape{10};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{input}, axis);
@@ -732,7 +711,6 @@ TEST(TransformationTests, InsertCopyLayerConcatNFLMemoryTest) {
         ngraph::Shape in_shape = {1, 2, 4};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{input}, axis);
@@ -777,13 +755,11 @@ TEST(TransformationTests, InsertCopyLayerConcatNFLMemoryTest) {
         ASSERT_TRUE(result.first);
 }
 
-// Split memory
 TEST(TransformationTests, InsertCopyLayerSplitMemoryTest) {
         std::shared_ptr<ngraph::Function> func, ref_func;
         ngraph::Shape in_shape{10};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
@@ -831,7 +807,6 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLMemoryTest) {
         ngraph::Shape in_shape = {1, 2, 4};
         size_t axis = 0;
 
-        // test function
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
@@ -886,7 +861,6 @@ TEST(TransformationTests, InsertCopyLayerCropConcatTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
@@ -934,7 +908,6 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
@@ -973,7 +946,6 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
@@ -1016,7 +988,6 @@ TEST(TransformationTests, InsertCopyLayerNFLBranchTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
@@ -1065,7 +1036,6 @@ TEST(TransformationTests, InsertCopyLayerNFLvsFLSubgraphTest) {
         ngraph::Shape shape         = {1, 1, 2, 4};
         ngraph::Shape in_shape      = {1, 2, 4};
 
-        // test function
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
@@ -1116,7 +1086,6 @@ TEST(TransformationTests, InsertCopyLayerCropNFLConcatTest) {
     ngraph::Shape shape2        = {1, 1, 2, 2};
     ngraph::Shape in_shape      = {1, 2, 4};
 
-    // test function
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         auto reshape1 = ngraph::op::util::reshapeTo(params, shape1);
@@ -1161,7 +1130,6 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
     ngraph::Shape shape{1, 1, 2, 4};
     size_t axis = 0;
 
-    // test function
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
         auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, 1, axis);
@@ -1172,8 +1140,6 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
                                                     ngraph::ParameterVector{params},
                                                     "Concat");
     }
-
-    // ref function concat should has copy on second input
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
         auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, 1, axis);
