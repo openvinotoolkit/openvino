@@ -85,24 +85,21 @@ Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob,
 Blob::~Blob() {}
 MemoryBlob::~MemoryBlob() {}
 
-template <typename T, typename U>
-TBlob<T, U>::~TBlob() {
-    free();
-}
-
-template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
+#ifndef WIN32
+template class TBlob<float>;
+template class TBlob<double>;
+template class TBlob<int8_t>;
+template class TBlob<uint8_t>;
+template class TBlob<int16_t>;
+template class TBlob<uint16_t>;
+template class TBlob<int32_t>;
+template class TBlob<uint32_t>;
+template class TBlob<long>;
+template class TBlob<long long>;
+template class TBlob<unsigned long>;
+template class TBlob<unsigned long long>;
+template class TBlob<bool>;
+template class TBlob<char>;
+#endif
 
 }  // namespace InferenceEngine
