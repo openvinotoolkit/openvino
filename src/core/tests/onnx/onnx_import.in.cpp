@@ -5025,7 +5025,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_seq_lens) {
         const auto function =
             onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan8_ND_b4_seq_lens.onnx"));
     } catch (const ngraph::ngraph_error& e) {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string(" ONNX Scan-9 `sequence_lens` input is not supported. "));
+        EXPECT_HAS_SUBSTRING(e.what(), std::string(" ONNX Scan-8 `sequence_lens` input is not supported. "));
     } catch (...) {
         FAIL() << "Expected exception was not thrown.";
     }
