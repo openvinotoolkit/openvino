@@ -505,4 +505,20 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
     return res;
 }
 
+ov::pass::Serialize::Version convert_to_version(const std::string& version) {
+    using Version = ov::pass::Serialize::Version;
+
+    if (version == "UNSPECIFIED") {
+        return Version::UNSPECIFIED;
+    }
+    if (version == "IR_V10") {
+        return Version::IR_V10;
+    }
+    if (version == "IR_V11") {
+        return Version::IR_V11;
+    }
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+}
+
 };  // namespace Common

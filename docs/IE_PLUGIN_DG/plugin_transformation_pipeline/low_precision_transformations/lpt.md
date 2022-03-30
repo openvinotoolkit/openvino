@@ -72,11 +72,7 @@ For example, if you would like to infer a model with `Convolution` operation in 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
 ### Low precision tools
-There are two tools to quantize a model:
-1. [Post-Training Optimization Toolkit](@ref pot_docs_LowPrecisionOptimizationGuide) (POT)
-2. [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf) (NNCF)
-
-Additionally, low precision transformations can handle ONNX quantized models.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 ## Quantization approaches
 LPT transformations support two quantization approaches:
@@ -236,11 +232,11 @@ This step is optional. It modifies the nGraph function to a device-specific oper
 
 Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
-./downloader.py --name resnet-50-tf --precisions FP16-INT8
+omz_downloader --name resnet-50-tf --precisions FP16-INT8
 ```
 After that you should quantize model by the [Model Quantizer](@ref omz_tools_downloader) tool.
 ```sh
-./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+omz_quantizer --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
 
 ### Inference
@@ -259,7 +255,7 @@ Result model depends on different factors:
 
 
 Information about layer precision is stored in the performance counters that are
-available from the Inference Engine API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on CPU Plugin looks as follows:
+available from the OpenVINO Runtime API. For example, the part of performance counters table for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on CPU Plugin looks as follows:
 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |

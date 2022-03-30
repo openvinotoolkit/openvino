@@ -40,6 +40,7 @@
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
@@ -48,6 +49,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 // clang-format on
 
 using namespace InferenceEngine;
@@ -170,17 +172,23 @@ void HeteroExecutableNetwork::init_device_properties() {
     }
 }
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& originalNetwork,
                                                  const Engine::Configs& config,
                                                  Engine* plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _heteroPlugin{plugin},
-      _name{network.getName()} {
     init_properties(config);
-    auto function = network.getFunction();
-    IE_ASSERT(function != nullptr);
-    auto clonedFunction = ngraph::clone_function(*function);
+      _name{originalNetwork.getName()},
+      _config{config} {
+    auto clonned_network = InferenceEngine::details::cloneNetwork(originalNetwork);
+    auto clonned_function = clonned_network.getFunction();
+    IE_ASSERT(clonned_function != nullptr);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.run_passes(clonned_function);
+
     bool dumpDotFile = false;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
         dumpDotFile = true;
@@ -189,7 +197,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     QueryNetworkResult queryNetworkResult;
-    auto orderedOps = clonedFunction->get_ordered_ops();
+    auto orderedOps = clonned_function->get_ordered_ops();
     bool allEmpty = true;
     // Get user defined affinity
     for (auto&& node : orderedOps) {
@@ -203,10 +211,19 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     if (queryNetworkResult.supportedLayersMap.empty()) {
+<<<<<<< HEAD
         auto all_properties = _properties.merge(config);
         if (!all_properties.at(ov::device::priorities.name()).empty() ||
             !all_properties.at("TARGET_FALLBACK").empty()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, all_properties);
+=======
+        auto it = _config.find("TARGET_FALLBACK");
+        if (it == _config.end()) {
+            it = _config.find(ov::device::priorities.name());
+        }
+        if (it != _config.end()) {
+            queryNetworkResult = _heteroPlugin->QueryNetwork(clonned_network, _config);
+>>>>>>> master
         } else {
             IE_THROW() << "The '" << ov::device::priorities.name()
                        << "' option was not defined for heterogeneous plugin";
@@ -222,7 +239,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     };
 
     // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
+    for (auto&& node : clonned_function->get_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
             if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
                 auto& nodeWithAffinityName =
@@ -303,7 +320,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     colorIndex++;
                 }
             }}
-            .run_on_model(ngraph::clone_function(*function));
+            .run_on_model(ngraph::clone_function(*clonned_function));
     }
 
     NodeMap<InputSet> nodeInputDependencies;
@@ -436,7 +453,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 itLabel->pop_back();
                 (*itLabel) += label;
             }}
-            .run_on_model(std::const_pointer_cast<ov::Model>(function));
+            .run_on_model(std::const_pointer_cast<ov::Model>(clonned_function));
     }
 
     // Break graph using insertion of result parameter split
@@ -553,8 +570,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         std::move(std::begin(newOrderedSubgraphs), std::end(newOrderedSubgraphs), std::back_inserter(orderedSubgraphs));
     } while (!allSubgraphs.empty());
 
-    InputsDataMap externalInputsData = network.getInputsInfo();
-    OutputsDataMap externalOutputsData = network.getOutputsInfo();
+    InputsDataMap externalInputsData = clonned_network.getInputsInfo();
+    OutputsDataMap externalOutputsData = clonned_network.getOutputsInfo();
     _networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     int id = 0;
