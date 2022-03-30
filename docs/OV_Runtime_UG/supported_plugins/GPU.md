@@ -48,19 +48,49 @@ Then device name can be passed to `ov::Core::compile_model()` method:
 
 @sphinxtab{Running on default device}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_default_gpu
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Running on specific GPU}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Running on specific tile}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -79,7 +109,7 @@ GPU plugin supports the following data types as inference precision of internal 
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
-See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in f16 precision.
 
@@ -93,7 +123,17 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 If a machine has multiple GPUs (for example integrated GPU and discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 This can be achieved by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
 
-@snippet snippets/gpu/compile_model.cpp compile_model_multi
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_multi
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_multi
+@endsphinxtab
+
+@endsphinxtabset
 
 See [Multi-device execution page](../multi_device.md) for more details.
 
@@ -106,13 +146,33 @@ Alternatively it can be enabled explicitly via the device notion, e.g. `"BATCH:G
 
 @sphinxtab{Batching via BATCH plugin}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_batch_plugin
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
 @sphinxtab{Bacthing via throughput hint}
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_auto_batch
+@endsphinxtab
+
+@endsphinxtabset
 
 @endsphinxtab
 
@@ -141,7 +201,17 @@ For example, batch size 33 may be executed via 2 internal networks with batch si
 
 The code snippet below demonstrates how to use dynamic batch in simple scenarios:
 
-@snippet snippets/gpu/dynamic_batch.cpp dynamic_batch
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/dynamic_batch.cpp dynamic_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/dynamic_batch.py dynamic_batch
+@endsphinxtab
+
+@endsphinxtabset
 
 See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 
@@ -149,7 +219,17 @@ See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
 GPU plugin has the following additional preprocessing options:
 - `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
-@snippet snippets/gpu/preprocessing.cpp init_preproc
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/preprocessing.cpp init_preproc
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/preprocessing.py init_preproc
+@endsphinxtab
+
+@endsphinxtabset
 
 With such preprocessing GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
 
@@ -218,7 +298,7 @@ The behavior depends on specific parameters of the operations and hardware confi
 
 ## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
 Since the OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation. Thus, many general OpenCL tips apply:
--	Prefer `FP16` inference precision over `FP32`, as the Model Optimizer can generate both variants and the `FP32` is default. Also, consider [int8 inference](../Int8Inference.md)
+-	Prefer `FP16` inference precision over `FP32`, as the Model Optimizer can generate both variants and the `FP32` is default. Also, consider [int8 inference](@ref openvino_docs_model_optimization_guide).
 - 	Try to group individual infer jobs by using [automatic batching](../automatic_batching.md)
 -	Consider [caching](../Model_caching_overview.md) to minimize model load time
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit number of inference threads for the CPU plugin.
