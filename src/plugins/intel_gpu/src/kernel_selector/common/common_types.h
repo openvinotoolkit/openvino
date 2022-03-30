@@ -55,6 +55,7 @@ enum class KernelType {
     SCATTER_ELEMENTS_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
+    SHAPE_OF,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
