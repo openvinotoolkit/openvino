@@ -58,7 +58,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND (TBBROOT MATCHES ${TEMP} OR DEFINED 
     elseif(tbb_custom OR tbb_downloaded)
         install(DIRECTORY "${TBB}/lib"
                 DESTINATION runtime/3rdparty/tbb
-                COMPONENT tbb ${exclude_from_all})
+                COMPONENT tbb ${exclude_from_all}
+                FILES_MATCHING
+                    # install only shared libraries
+                    REGEX "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$")
     endif()
 
     # development files are needed only for tbb_downloaded
