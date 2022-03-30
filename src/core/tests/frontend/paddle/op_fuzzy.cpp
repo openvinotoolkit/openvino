@@ -311,10 +311,9 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("trilinear_upsample_scales2"),
                                              std::string("trilinear_upsample_true_0"),
                                              std::string("unsqueeze"),
-                                             // FuzzyTest framework doesn't support boolean,
-                                             // std::string("where_1"),
-                                             // std::string("where_2"),
-                                             // std::string("where_3"),
+                                             std::string("where_1"),
+                                             std::string("where_2"),
+                                             std::string("where_3"),
                                              // Temporily disable them until root caused to secure CI stable.
                                              // CVS-66703 to track this.
                                              // std::string("yolo_box_clip_box"),

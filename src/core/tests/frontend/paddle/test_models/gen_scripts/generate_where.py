@@ -22,7 +22,9 @@ def where(name, test_x, test_y, test_cond):
         Cond_Node = paddle.static.data(
             name='cond', shape=test_cond.shape, dtype=test_cond.dtype)
 
-        out = paddle.where(Cond_Node, X_Node, Y_Node)
+        Cond_Node_bl = paddle.fluid.layers.cast(Cond_Node, "bool")
+
+        out = paddle.where(Cond_Node_bl, X_Node, Y_Node)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -44,19 +46,19 @@ def main():
             "name": "where_1",
             "x": np.random.uniform(-3, 5, (100)).astype("float32"),
             "y": np.random.uniform(-3, 5, (100)).astype("float32"),
-            "cond": np.zeros((100)).astype("bool")
+            "cond": np.zeros((100)).astype("int32")
         },
         {
             "name": "where_2",
             "x": np.random.uniform(-5, 5, (60, 2)).astype("int32"),
             "y": np.random.uniform(-5, 5, (60, 2)).astype("int32"),
-            "cond": np.ones((60, 2)).astype("bool")
+            "cond": np.ones((60, 2)).astype("int32")
         },
         {
             "name": "where_3",
             "x": np.random.uniform(-3, 5, (20, 2, 4)).astype("float32"),
             "y": np.random.uniform(-3, 5, (20, 2, 4)).astype("float32"),
-            "cond": np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
+            "cond": np.array(np.random.randint(2, size=(20, 2, 4)), dtype="int32")
         }
     ]
     for test in test_cases:
