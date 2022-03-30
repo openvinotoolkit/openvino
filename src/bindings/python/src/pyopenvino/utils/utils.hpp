@@ -52,7 +52,7 @@ inline ov::Any py_object_to_any(const pybind11::object& py_obj) {
             case PY_TYPE::STR:
                 return _list.cast<std::vector<std::string>>();
             case PY_TYPE::FLOAT:
-                return _list.cast<std::vector<float>>();
+                return _list.cast<std::vector<double>>();
             case PY_TYPE::INT:
                 return _list.cast<std::vector<int64_t>>();
             case PY_TYPE::BOOL:

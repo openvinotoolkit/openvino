@@ -304,29 +304,23 @@ py::object from_ov_any(const ov::Any& any) {
     }
     // Check for int
     else if (any.is<int>()) {
-        auto val = any.as<int>();
-        return py::cast<py::object>(PyLong_FromLong((long)val));
+        return py::cast<py::object>(PyLong_FromLong(any.as<int>()));
     } else if (any.is<int64_t>()) {
-        auto val = any.as<int64_t>();
-        return py::cast<py::object>(PyLong_FromLong((long)val));
+        return py::cast<py::object>(PyLong_FromLong(any.as<int64_t>()));
     }
     // Check for unsigned int
     else if (any.is<unsigned int>()) {
-        auto val = any.as<unsigned int>();
-        return py::cast<py::object>(PyLong_FromLong((unsigned long)val));
+        return py::cast<py::object>(PyLong_FromLong(any.as<unsigned int>()));
     }
     // Check for float
     else if (any.is<float>()) {
-        auto val = any.as<float>();
-        return py::cast<py::object>(PyFloat_FromDouble((double)val));
+        return py::cast<py::object>(PyFloat_FromDouble(any.as<float>()));
     } else if (any.is<double>()) {
-        auto val = any.as<double>();
-        return py::cast<py::object>(PyFloat_FromDouble(val));
+        return py::cast<py::object>(PyFloat_FromDouble(any.as<double>()));
     }
     // Check for bool
     else if (any.is<bool>()) {
-        auto val = any.as<bool>();
-        return py::cast<py::object>(val ? Py_True : Py_False);
+        return py::cast<py::object>(any.as<bool>() ? Py_True : Py_False);
     }
     // Check for std::vector<std::string>
     else if (any.is<std::vector<std::string>>()) {
@@ -371,6 +365,15 @@ py::object from_ov_any(const ov::Any& any) {
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
             PyList_Append(list, PyFloat_FromDouble((double)it));
+        }
+        return py::cast<py::object>(list);
+    }
+    // Check for std::vector<double>
+    else if (any.is<std::vector<double>>()) {
+        auto val = any.as<std::vector<double>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& it : val) {
+            PyList_Append(list, PyFloat_FromDouble(it));
         }
         return py::cast<py::object>(list);
     }
