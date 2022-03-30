@@ -206,12 +206,8 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     const_connections[constLayer->name] = &const_connections[constLayer->name];
     void* ptr_for_const_blob = &const_connections[constLayer->name];
 
-    connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
-    // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
-    // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->bind_initializer(nullptr, ptr_for_const_blob, [const_blob](void* data, size_t size) {
-        ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
-        });
+    gnamem->readonly().push_initializer(nullptr, ptr_for_const_blob, const_blob->byteSize(), [const_blob](void* data, size_t size) {
+        ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize()); });
 }
 
 void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::DataPtr& data) {
@@ -2451,9 +2447,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
-            gnamem->bind_ptr(layer, ptr, const_connections[prevLayer->name], offset);
+            gnamem->readonly().bind_ptr(layer, ptr, const_connections[prevLayer->name], offset);
         } else {
-            gnamem->bind_ptr(layer, const_connections[prevLayer->name], ptr, offset);
+            gnamem->readonly().bind_ptr(layer, const_connections[prevLayer->name], ptr, offset);
         }
 
         return prevLayer;

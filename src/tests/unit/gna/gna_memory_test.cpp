@@ -273,10 +273,10 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
 
     mem.commit();
 
-    ASSERT_FLOAT_EQ(pFuture[0], 3);
-    ASSERT_FLOAT_EQ(pFuture[1], 3);
-    ASSERT_FLOAT_EQ(pFuture[2], 13);
-    ASSERT_FLOAT_EQ(pFuture[3], 13);
+    ASSERT_FLOAT_EQ(pFuture2[0], 13);
+    ASSERT_FLOAT_EQ(pFuture2[1], 13);
+    ASSERT_FLOAT_EQ(pFuture2[2], 3);
+    ASSERT_FLOAT_EQ(pFuture2[3], 3);
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
@@ -342,7 +342,8 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     ASSERT_EQ(mem.getTotalBytes(), (2+3+4) * sizeof(float));
     ASSERT_EQ(mem.getRWBytes(), 3 * sizeof(float));
 
-    ASSERT_LT(&pFuture2[0], &pFuture1[0]);
+    ASSERT_GT(&pFuture2[0], &pFuture1[0]);
+    ASSERT_GT(&pFuture2[0], &pFuture3[0]);
     ASSERT_LT(&pFuture1[0], &pFuture3[0]);
 
     ASSERT_FLOAT_EQ(pFuture1[0], 3.f);
