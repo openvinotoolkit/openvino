@@ -7,6 +7,8 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
+#include "itt.hpp"
+
 using namespace ngraph;
 
 namespace ov {
@@ -297,6 +299,7 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
