@@ -664,7 +664,7 @@ void regclass_graph_Model(py::module m) {
         )");
 
     function.def(
-        "clone_model",
+        "clone",
         [](ov::Model& self) {
             return ov::clone_model(self);
         },
