@@ -192,6 +192,8 @@ private:
 
     Xbyak::Reg64 reg_src_aux = rax;
     Xbyak::Reg64 reg_work_batch_aux = rbx;
+    Xbyak::Reg64 reg_can_divide = rbp;
+    Xbyak::Reg64 reg_divisor = reg_can_divide;
 
     Vmm vmm_aux = Vmm(0);
     Xmm xmm_aux = Xmm(0);
@@ -301,6 +303,22 @@ private:
 
             // reduce
             reduce_kernel();
+
+            if (jcp_.reduce_mode == Algorithm::ReduceMean) {
+                Xbyak::Label reduce_divide_end_label;
+                mov(reg_can_divide, ptr[reg_params + GET_OFF(can_divide)]);
+                cmp(reg_can_divide, 0);
+                je(reduce_divide_end_label, T_NEAR);
+                {
+                    mov(reg_divisor, ptr[reg_params + GET_OFF(divisor)]);
+                    uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
+                    uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
+                    if (isa == cpu::x64::sse41) {
+                        uni_vdivps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
+                    }
+                }
+                L(reduce_divide_end_label);
+            }
 
             // store
             store_dst_vector();
@@ -1950,6 +1968,9 @@ void Reduce::prepareParams() {
         set_reduce_dim_flags();
     }
 
+    apply_post_kernel = true;
+    apply_division = false;
+
     auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
@@ -2358,6 +2379,10 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     for (size_t ib = 0; ib < IB; ib++) {
         size_t ob = ReduceN ? 0 : ib; GET_PTR_N_BLK;
         if (!ReduceC && !ReduceD && ReduceH && ReduceW) {
+            if (!ReduceN || (ReduceN && ib == IB - 1)) {
+                apply_division = getAlgorithm() == Algorithm::ReduceMean && attr.get()->post_ops_.len() == 0;
+                apply_post_kernel = !apply_division;
+            }
             parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
                 size_t ocb = icb, od = id; GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
@@ -2419,7 +2444,9 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
         }
     }
 
-    reduce_kernel_post_process(out_ptr);
+    if (apply_post_kernel) {
+        reduce_kernel_post_process(out_ptr);
+    }
 }
 
 void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
@@ -2508,6 +2535,7 @@ void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr)
 
 inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount,
                                                     size_t reduce_w, size_t work_batch, const int *tab_idx) {
+    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW)) : 1;
     auto arg = jit_reduce_call_args();
     arg.src = static_cast<const void *>(in_p);
     arg.idx = tab_idx;
@@ -2516,6 +2544,8 @@ inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, s
     arg.work_batch = work_batch;
     arg.reduce_w = reduce_w;
     arg.reduce_stride = reduce_stride;
+    arg.can_divide = apply_division ? 1 : 0;
+    arg.divisor = &divisor;
 
     (*reduce_kernel)(&arg);
 }

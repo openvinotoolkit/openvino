@@ -38,6 +38,8 @@ struct jit_reduce_call_args {
     size_t work_batch;
     size_t reduce_w = 2;    // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
     size_t reduce_stride;   // only used in planar layout while reducing dimensions except for width
+    size_t can_divide;      // if apply division in reduce_kernel [1: Yes] [0: No]
+    const float *divisor;   // mean = sum / divisor
 };
 
 struct jit_reduce_post_call_args {
@@ -140,6 +142,8 @@ private:
     bool keep_dims = true;
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
+    bool apply_post_kernel = true;
+    bool apply_division = false;
     bool support_split = false;
     bool precision_change = false;
     bool ReduceAll_opt = false;
