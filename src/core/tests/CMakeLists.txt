@@ -13,8 +13,6 @@ set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(util)
-    add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -583,9 +581,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
