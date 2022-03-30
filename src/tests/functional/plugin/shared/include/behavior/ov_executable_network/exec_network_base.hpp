@@ -17,7 +17,7 @@ namespace test {
 namespace behavior {
 
 class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
-                                    public CommonTestUtils::TestsCommon {
+                                    public APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -36,6 +36,7 @@ public:
     }
 
     void SetUp() override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, configuration) = this->GetParam();
@@ -46,6 +47,7 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
+        APIBaseTest::TearDown();
     }
 
     bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
@@ -73,6 +75,8 @@ protected:
     std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
+
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {

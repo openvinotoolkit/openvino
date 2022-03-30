@@ -13,13 +13,14 @@ namespace BehaviorTestsDefinitions {
 class InferRequestCancellationTests : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp()  override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(targetDevice, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice, {1, 3, 640, 640});
+        std::tie(target_device, configuration) = this->GetParam();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device, {1, 3, 640, 640});
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 };
 

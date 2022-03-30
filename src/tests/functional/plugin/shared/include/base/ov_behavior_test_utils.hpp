@@ -32,13 +32,41 @@ inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(st
         return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
 }
 
+class APIBaseTest : public CommonTestUtils::TestsCommon {
+protected:
+    std::string target_device = "";
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
+    ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
+
+public:
+    APIBaseTest() = default;
+
+    virtual void set_api_entity() { api_entity = ov::test::utils::ov_entity::UNDEFINED; }
+
+    void SetUp() override {
+        set_api_entity();
+        api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED);
+        api_summary.saveReport();
+    }
+
+    void TearDown() override {
+        if (this->HasFailure()) {
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::PASSED);
+        }
+    }
+};
+
 typedef std::tuple<
         std::string,            // Device name
         ov::AnyMap   // Config
 > InferRequestParams;
 
 class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                            public CommonTestUtils::TestsCommon {
+                            public APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -57,32 +85,21 @@ public:
     }
 
     void SetUp() override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(targetDevice, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        std::tie(target_device, configuration) = this->GetParam();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
         }
-        execNet = core->compile_model(function, targetDevice, params);
-    }
-
-    void TearDown() override {
-        if (!configuration.empty()) {
-            utils::PluginCache::get().reset();
-        }
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
+        execNet = core->compile_model(function, target_device, params);
     }
 
 protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_infer_request; };
+
     ov::CompiledModel execNet;
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
@@ -101,11 +118,11 @@ inline ov::Core createCoreWithTemplate() {
     return core;
 }
 
-class OVClassNetworkTest : public ::testing::Test {
+class OVClassNetworkTest {
 public:
     std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
-    void SetUp() override {
+    void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // Generic network
         actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
@@ -135,62 +152,42 @@ public:
     }
 };
 
-class OVClassBaseTestP : public OVClassNetworkTest, public ::testing::WithParamInterface<std::string> {
+class OVClassBaseTestP : public OVClassNetworkTest,
+                         public ::testing::WithParamInterface<std::string>,
+                         public APIBaseTest {
 public:
-    std::string deviceName;
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
-
     void SetUp() override {
-        api_entity = ov::test::utils::ov_entity::ov_plugin;
+        APIBaseTest::SetUp();
         // TODO: Remove it after fixing issue 69529
         // w/a for myriad (cann't store 2 caches simultaneously)
         PluginCache::get().reset();
 
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
-        deviceName = GetParam();
+        target_device = GetParam();
     }
 
-    void TearDown() override {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 };
 
 using PriorityParams = std::tuple<
         std::string,            // Device name
         ov::AnyMap              // device priority Configuration key
 >;
-class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::Test, public ::testing::WithParamInterface<PriorityParams> {
+class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
+                                                       public APIBaseTest {
 protected:
-    std::string deviceName;
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> simpleNetwork;
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 
 public:
     void SetUp() override {
-        api_entity = ov::test::utils::ov_entity::ov_compiled_model;
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(deviceName, configuration) = GetParam();
+        std::tie(target_device, configuration) = GetParam();
         simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
-    }
-
-    void TearDown() override {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-        }
     }
 };
 using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;

@@ -19,7 +19,7 @@ using InferRequestSetBlobByTypeParams = std::tuple<
 >;
 
 class InferRequestSetBlobByType : public testing::WithParamInterface<InferRequestSetBlobByTypeParams>,
-                                  public CommonTestUtils::TestsCommon {
+                                  public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestSetBlobByTypeParams> obj) {
         FuncTestUtils::BlobType BlobType;
@@ -35,6 +35,7 @@ public:
     }
 
     void SetUp() override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::map<std::string, std::string> config;
@@ -45,18 +46,8 @@ public:
         executableNetwork = ie->LoadNetwork(cnnNetwork, targetDevice, config);
     }
 
-    void TearDown() override {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
-
 protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; }
     bool blobTypeIsSupportedByDevice() {
         switch (blobType) {
             case FuncTestUtils::BlobType::Memory:

@@ -16,11 +16,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVCompiledModelPropertiesBase : public CommonTestUtils::TestsCommon {
+class OVCompiledModelPropertiesBase : public APIBaseTest {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
-    std::string device_name;
     AnyMap properties;
 };
 
@@ -42,6 +41,9 @@ public:
     void SetUp() override;
 
     void TearDown() override;
+
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 using OVCompiledModelPropertiesIncorrectTests = OVCompiledModelPropertiesTests;

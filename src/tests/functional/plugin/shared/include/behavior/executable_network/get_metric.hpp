@@ -32,57 +32,45 @@ namespace BehaviorTestsDefinitions {
 }
 
 class IEClassExecutableNetworkGetMetricTestForSpecificConfig :
+        public ov::test::behavior::APIBaseTest,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
 protected:
-    std::string deviceName;
     std::string configKey;
     std::string configValue;
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        deviceName = std::get<0>(GetParam());
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        target_device = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
     }
-    void TearDown() override {
-        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
+
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
 };
 
 //
 // Hetero Executable network case
 //
 class IEClassHeteroExecutableNetworkGetMetricTest :
+        public ov::test::behavior::APIBaseTest,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::string> {
 protected:
-    std::string deviceName;
     std::string heteroDeviceName;
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        deviceName = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + std::string(",") + CommonTestUtils::DEVICE_CPU;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        target_device = GetParam();
+        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + std::string(",") + CommonTestUtils::DEVICE_CPU;
     }
-    void TearDown() override {
-        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
+
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
 };
 
 
@@ -91,10 +79,8 @@ public:
 //
 
 class IEClassGetMetricP : public BehaviorTestsUtils::IEClassBaseTestP {
-    void SetUp() override {
-        IEClassGetMetricP::SetUp();
-        api_entity = ov::test::utils::ov_entity::ie_executable_network;
-    }
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
 };
 
 using IEClassImportExportTestP = IEClassGetMetricP;
@@ -103,7 +89,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     std::stringstream strm;
     InferenceEngine::ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, target_device));
     ASSERT_NO_THROW(executableNetwork.Export(strm));
 
     IE_SUPPRESS_DEPRECATED_START
@@ -115,9 +101,9 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     std::stringstream strm;
     InferenceEngine::ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, target_device));
     ASSERT_NO_THROW(executableNetwork.Export(strm));
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, target_device));
     ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
@@ -126,13 +112,13 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::string fileName{"ExportedNetwork"};
     {
-        ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName));
+        ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device));
         ASSERT_NO_THROW(executableNetwork.Export(fileName));
     }
     {
         {
             std::ifstream strm(fileName, std::ifstream::binary | std::ifstream::in);
-            ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+            ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, target_device));
         }
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
@@ -158,7 +144,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -176,7 +162,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> metricValues = p;
@@ -194,7 +180,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME)));
     std::string networkname = p;
@@ -208,7 +194,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)));
     unsigned int value = p;
@@ -222,7 +208,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_THROW(p = exeNetwork.GetMetric("unsupported_metric"), InferenceEngine::Exception);
 }
@@ -231,14 +217,14 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto &&confKey : configValues) {
         InferenceEngine::Parameter defaultValue;
-        ASSERT_NO_THROW(defaultValue = ie.GetConfig(deviceName, confKey));
+        ASSERT_NO_THROW(defaultValue = ie.GetConfig(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
 }
@@ -247,7 +233,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_THROW(p = exeNetwork.GetConfig("unsupported_config"), InferenceEngine::Exception);
 }
@@ -256,7 +242,7 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_THROW(exeNetwork.SetConfig({{"unsupported_config", "some_value"}}), InferenceEngine::Exception);
 }
@@ -265,7 +251,7 @@ TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(exeNetwork.SetConfig({{configKey, configValue}}));
     ASSERT_NO_THROW(p = exeNetwork.GetConfig(configKey));
@@ -276,7 +262,7 @@ TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
 TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngine::Exception);
 }
@@ -285,10 +271,10 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> devConfigValues = p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> execConfigValues = p;
@@ -314,7 +300,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
     InferenceEngine::Parameter pHetero, pDevice;
 
     InferenceEngine::ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
-    InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, target_device);
 
     ASSERT_NO_THROW(pHetero = heteroExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     ASSERT_NO_THROW(pDevice = deviceExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -347,7 +333,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
     InferenceEngine::Parameter pHetero, pDevice;
 
     InferenceEngine::ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
-    InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork deviceExeNetwork = ie.LoadNetwork(actualCnnNetwork, target_device);
 
     ASSERT_NO_THROW(pHetero = heteroExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
     ASSERT_NO_THROW(pDevice = deviceExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
@@ -396,13 +382,13 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    setHeteroNetworkAffinity(deviceName);
+    setHeteroNetworkAffinity(target_device);
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
 
     ASSERT_NO_THROW(p = exeNetwork.GetConfig("TARGET_FALLBACK"));
     std::string targets = p;
-    auto expectedTargets = deviceName + "," + CommonTestUtils::DEVICE_CPU;
+    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU;
 
     std::cout << "Exe network fallback targets: " << targets << std::endl;
     ASSERT_EQ(expectedTargets, targets);

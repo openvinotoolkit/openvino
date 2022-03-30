@@ -25,28 +25,18 @@ inline std::shared_ptr<ngraph::Function> makeTestModel(std::vector<size_t> input
 
 std::string CustomLocaleTest::getTestCaseName(const testing::TestParamInfo<LocaleParams> &obj) {
     std::ostringstream results;
-    std::string deviceName, localeName;
-    std::tie(localeName, deviceName) = obj.param;
+    std::string target_device, localeName;
+    std::tie(localeName, target_device) = obj.param;
     results << "locale=" << localeName << "_"
-            << "targetDevice=" << deviceName;
+            << "targetDevice=" << target_device;
     return results.str();
 }
 
 void CustomLocaleTest::SetUp() {
-    std::tie(localeName, deviceName) = GetParam();
+    APIBaseTest::SetUp();
+    std::tie(localeName, target_device) = GetParam();
     testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     function = makeTestModel();
-}
-
-void CustomLocaleTest::TearDown() {
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    if (this->HasFailure()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-    } else if (this->IsSkipped()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-    } else {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-    }
 }
 
 TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
@@ -57,9 +47,9 @@ TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
         GTEST_SKIP();
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(deviceName);
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(target_device);
     InferenceEngine::CNNNetwork cnnNet(function);
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, deviceName));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device));
 
     std::locale::global(prev);
 }

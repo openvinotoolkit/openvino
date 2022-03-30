@@ -20,7 +20,7 @@ typedef std::tuple<
 > BehaviorBasicParams;
 
 class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
-                           public CommonTestUtils::TestsCommon {
+                           public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
         InferenceEngine::Precision  netPrecision;
@@ -36,27 +36,17 @@ public:
         return result.str();
     }
 
-    virtual void setApiEntity() { api_entity = ov::test::utils::ov_entity::UNDEFINED; }
-
     void SetUp() override {
-        setApiEntity();
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        std::tie(netPrecision, target_device, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
-
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
+        APIBaseTest::TearDown();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -73,7 +63,7 @@ typedef std::tuple<
 > InferRequestParams;
 
 class InferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                          public CommonTestUtils::TestsCommon {
+                          public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -90,35 +80,29 @@ public:
     }
 
     void SetUp() override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(targetDevice, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        std::tie(target_device, configuration) = this->GetParam();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
-
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(api_entity, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
+        APIBaseTest::TearDown();
     }
 
 protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; };
+
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
     std::map<std::string, std::string> configuration;
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::ie_infer_request;
 };
@@ -138,7 +122,7 @@ class IEClassNetworkTest : public ov::test::behavior::OVClassNetworkTest {
 public:
     InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
 
-    void SetUp() override {
+    void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         // Generic network
@@ -152,27 +136,18 @@ public:
     }
 };
 
-class IEClassBaseTestP : public IEClassNetworkTest, public ::testing::WithParamInterface<std::string> {
+class IEClassBaseTestP : public IEClassNetworkTest,
+                         public ::testing::WithParamInterface<std::string>,
+                         public ov::test::behavior::APIBaseTest {
 public:
-    std::string deviceName;
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
-
     void SetUp() override {
-        api_entity = ov::test::utils::ov_entity::ie_plugin;
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        deviceName = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        target_device = GetParam();
     }
 
-    void TearDown() override {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(api_entity, deviceName, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
+protected:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; };
 };
 } // namespace BehaviorTestsUtils

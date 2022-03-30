@@ -11,21 +11,22 @@ namespace test {
 namespace behavior {
 
 std::string OVCompiledModelEmptyPropertiesTests::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    return "device_name=" + obj.param;
+    return "target_device=" + obj.param;
 }
 
 void OVCompiledModelEmptyPropertiesTests::SetUp() {
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    device_name = this->GetParam();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(device_name);
+    target_device = this->GetParam();
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
 }
 
 std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
-    std::string device_name;
+    std::string target_device;
     AnyMap properties;
-    std::tie(device_name, properties) = obj.param;
+    std::tie(target_device, properties) = obj.param;
     std::ostringstream result;
-    result << "device_name=" << device_name << "_";
+    result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
         result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
     }
@@ -33,34 +34,36 @@ std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamIn
 }
 
 void OVCompiledModelPropertiesTests::SetUp() {
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::tie(device_name, properties) = this->GetParam();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(device_name);
+    std::tie(target_device, properties) = this->GetParam();
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
 }
 
 void OVCompiledModelPropertiesTests::TearDown() {
     if (!properties.empty()) {
         utils::PluginCache::get().reset();
     }
+    APIBaseTest::TearDown();
 }
 
 TEST_P(OVCompiledModelEmptyPropertiesTests, CanCompileModelWithEmptyProperties) {
-    OV_ASSERT_NO_THROW(core->compile_model(model, device_name, AnyMap{}));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, AnyMap{}));
 }
 
 TEST_P(OVCompiledModelPropertiesTests, CanCompileModelWithCorrectProperties) {
-    OV_ASSERT_NO_THROW(core->compile_model(model, device_name, properties));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }
 
 TEST_P(OVCompiledModelPropertiesTests, CanUseCache) {
     core->set_property(ov::cache_dir("./test_cache"));
-    OV_ASSERT_NO_THROW(core->compile_model(model, device_name, properties));
-    OV_ASSERT_NO_THROW(core->compile_model(model, device_name, properties));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     CommonTestUtils::removeDir("./test_cache");
 }
 
 TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetProperty) {
-    auto compiled_model = core->compile_model(model, device_name, properties);
+    auto compiled_model = core->compile_model(model, target_device, properties);
     auto supported_properties = compiled_model.get_property(ov::supported_properties);
     for (const auto& property_item : properties) {
         if (util::contains(supported_properties, property_item.first)) {
@@ -73,26 +76,26 @@ TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetP
 }
 
 TEST_P(OVCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncorrectProperties) {
-    ASSERT_THROW(core->compile_model(model, device_name, properties), ov::Exception);
+    ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
 TEST_P(OVCompiledModelPropertiesDefaultTests, CanCompileWithDefaultValueFromPlugin) {
     std::vector<ov::PropertyName> supported_properties;
-    OV_ASSERT_NO_THROW(supported_properties = core->get_property(device_name, ov::supported_properties));
+    OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     AnyMap default_rw_properties;
     for (auto& supported_property : supported_properties) {
         if (supported_property.is_mutable()) {
             Any property;
-            OV_ASSERT_NO_THROW(property = core->get_property(device_name, supported_property));
+            OV_ASSERT_NO_THROW(property = core->get_property(target_device, supported_property));
             default_rw_properties.emplace(supported_property, property);
             std::cout << supported_property << ":" << property.as<std::string>() << std::endl;
         }
     }
-    OV_ASSERT_NO_THROW(core->compile_model(model, device_name, default_rw_properties));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, default_rw_properties));
 }
 
 TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
-    auto compiled_model = core->compile_model(model, device_name);
+    auto compiled_model = core->compile_model(model, target_device);
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = compiled_model.get_property(ov::supported_properties));
     std::cout << "SUPPORTED PROPERTIES: " << std::endl;

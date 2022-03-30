@@ -18,18 +18,17 @@
 namespace ExecutionGraphTests {
 
 class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                                 public CommonTestUtils::TestsCommon {
+                                 public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
     void SetUp() override;
-    void TearDown() override;
 
 protected:
-    std::string targetDevice;
     std::shared_ptr<ngraph::Function> fnPtr;
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 };
 
-class ExecGraphSerializationTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
+class ExecGraphSerializationTest : public ov::test::behavior::APIBaseTest, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
@@ -55,7 +54,8 @@ protected:
     // beetween different devices)
     std::pair<bool, std::string> compare_docs(const pugi::xml_document &doc1,
                                               const pugi::xml_document &doc2);
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 
-    std::string deviceName, m_out_xml_path, m_out_bin_path;
+    std::string m_out_xml_path, m_out_bin_path;
 };
 }  // namespace ExecutionGraphTests

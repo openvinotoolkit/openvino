@@ -17,7 +17,7 @@
 
 namespace BehaviorTestsDefinitions {
 class InferRequestPreprocessTest : public virtual BehaviorTestsUtils::BehaviorTestsBasic {
-    void setApiEntity() override {
+    void set_api_entity() override {
         api_entity = ov::test::utils::ov_entity::ie_plugin;
     };
 };

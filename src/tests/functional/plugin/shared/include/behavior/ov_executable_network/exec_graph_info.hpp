@@ -25,15 +25,15 @@ typedef std::tuple<
 > OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
-                                    public CommonTestUtils::TestsCommon {
+                                    public APIBaseTest {
     public:
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
         ov::element::Type_t elementType;
-        std::string targetDevice;
+        std::string target_device;
         ov::AnyMap configuration;
-        std::tie(elementType, targetDevice, configuration) = obj.param;
+        std::tie(elementType, target_device, configuration) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "target_device=" << target_device << "_";
         result << "elementType=" << elementType << "_";
         if (!configuration.empty()) {
             result << "config=(";
@@ -48,27 +48,30 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     }
 
     void SetUp() override {
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(elementType, targetDevice, configuration) = this->GetParam();
+        std::tie(elementType, target_device, configuration) = this->GetParam();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
+        APIBaseTest::TearDown();
     }
 
     protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::string targetDevice;
     ov::AnyMap configuration;
     ov::element::Type_t elementType;
     std::shared_ptr<ov::Model> function;
+
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -96,12 +99,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -151,7 +154,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -167,11 +170,11 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
         function->set_friendly_name("ParamResult");
     }
 
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_NO_THROW(importedCompiledModel.input());
@@ -191,7 +194,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -207,11 +210,11 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
         function->set_friendly_name("ConstResult");
     }
 
-    auto execNet = core->compile_model(function, targetDevice, configuration);
+    auto execNet = core->compile_model(function, target_device, configuration);
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 0);
     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
@@ -286,20 +289,20 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
     EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
 
-    ov::CompiledModel execNet = core->compile_model(function, targetDevice, configuration);
+    ov::CompiledModel execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));
     EXPECT_NO_THROW(execNet.output("round"));
 
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
     std::stringstream strm;
     execNet.export_model(strm);
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(importedExecNet.inputs().size(), 1);
     EXPECT_EQ(importedExecNet.outputs().size(), 1);
     EXPECT_NO_THROW(importedExecNet.input("in1"));
@@ -327,7 +330,7 @@ static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -356,12 +359,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleReLU");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedExecNet = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
@@ -392,7 +395,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -410,7 +413,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
                                                       ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
     auto inputPrecision = InferenceEngine::details::convertPrecision(execNet.GetInputsInfo().at("param")->getPrecision());
     auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("param")->getPrecision());
@@ -418,7 +421,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_NO_THROW(importedCompiledModel.input());
@@ -438,7 +441,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -456,14 +459,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
                                                       ngraph::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
-    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
+    execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), target_device, any_copy(configuration));
 
     auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("constant")->getPrecision());
 
     std::stringstream strm;
     execNet.Export(strm);
 
-    ov::CompiledModel importedCompiledModel = core->import_model(strm, targetDevice, configuration);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
     EXPECT_EQ(function->inputs().size(), 0);
     EXPECT_EQ(function->inputs().size(), importedCompiledModel.inputs().size());
     EXPECT_THROW(importedCompiledModel.input(), ov::Exception);
@@ -483,7 +486,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
 }
 
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
-    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+    if (target_device == "MULTI" || target_device == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -512,12 +515,12 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleReLU");
     }
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
 
     std::stringstream strm;
     execNet.export_model(strm);
 
-    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, any_copy(configuration));
+    InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, target_device, any_copy(configuration));
     EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);

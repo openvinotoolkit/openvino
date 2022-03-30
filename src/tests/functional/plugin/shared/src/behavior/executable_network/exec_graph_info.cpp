@@ -250,6 +250,7 @@ std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<s
 }
 
 void ExecGraphSerializationTest::SetUp() {
+    APIBaseTest::SetUp();
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
@@ -258,10 +259,11 @@ void ExecGraphSerializationTest::SetUp() {
     m_out_xml_path = model_name + XML_EXT;
     m_out_bin_path = model_name + BIN_EXT;
 
-    deviceName = this->GetParam();
+    target_device = this->GetParam();
 }
 
 void ExecGraphSerializationTest::TearDown() {
+    APIBaseTest::TearDown();
     CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
@@ -340,10 +342,10 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_docs(const pugi
 }
 
 TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
-    auto ie = PluginCache::get().ie(deviceName);
+    auto ie = PluginCache::get().ie(target_device);
     InferenceEngine::Blob::Ptr a;
     auto cnnNet = ie->ReadNetwork(serialize_test_model, a);
-    auto execNet = ie->LoadNetwork(cnnNet, deviceName);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
     auto execGraph = execNet.GetExecGraphInfo();
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     execGraph.serialize(m_out_xml_path, m_out_bin_path);
@@ -375,11 +377,12 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 }
 
 void ExecGraphUniqueNodeNames::SetUp() {
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(netPrecision, inputShape, target_device) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -390,22 +393,11 @@ void ExecGraphUniqueNodeNames::SetUp() {
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
-void ExecGraphUniqueNodeNames::TearDown() {
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    if (this->HasFailure()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-    } else if (this->IsSkipped()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-    } else {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_executable_network, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-    }
-}
-
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
-    auto ie = PluginCache::get().ie(targetDevice);
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto ie = PluginCache::get().ie(target_device);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
