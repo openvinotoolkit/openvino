@@ -17,7 +17,7 @@ resources:
 jobs:
 - job: WinCC
   # About 150% of total time
-  timeoutInMinutes: 60
+  timeoutInMinutes: 120
 
   pool:
     name: WIN_VMSS_VENV_F8S_WU2
