@@ -82,10 +82,10 @@ TEST(concat_gpu, mixed_input_types) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 4);
@@ -155,11 +155,11 @@ TEST(concat_gpu, mixed_input_types_5d) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int z_size = output_layout.size.spatial[2];
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfzyx);
     EXPECT_EQ(z_size, 3);
     EXPECT_EQ(y_size, 4);
@@ -206,8 +206,8 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     layout reorder_layout(data_types::i8, format::yxfb, {7, 2, 2, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
                                     {"pool0", "pool1"},
                                     1,
@@ -229,10 +229,10 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[0];
-    int x_size = output_layout.size.spatial[1];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(0);
+    int x_size = output_layout.spatial(1);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 7);
     EXPECT_EQ(x_size, 2);
@@ -316,7 +316,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", { "weights" }, { 1,1,1,2 }),
+                      convolution("conv", "concat", { "weights" }, { 2, 1 }),
                       reorder("output", "conv", reorder_layout));
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
@@ -333,10 +333,10 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 3);
@@ -409,8 +409,8 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
                                     {"pool0", "pool1"},
                                     1,
@@ -418,7 +418,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, tensor{{0, 0, 1, 0}, 0}),
+                      convolution("conv", "concat", {"weights"}, {1, 1}, {0, 1}),
                       reorder("output", "conv", reorder_layout) );
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
@@ -434,10 +434,10 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[0];
-    int x_size = output_layout.size.spatial[1];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(0);
+    int x_size = output_layout.spatial(1);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 1);
@@ -830,7 +830,7 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
             pooling_ids.push_back("pool" + std::to_string(i));
@@ -851,7 +851,7 @@ public:
         }
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
+        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);
@@ -988,10 +988,10 @@ TEST(concat_gpu_onednn, basic_input_types) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 4);
@@ -1049,7 +1049,7 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
             pooling_ids.push_back("pool" + std::to_string(i));
@@ -1070,7 +1070,7 @@ public:
         }
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1, 1, 1}, {1, 1, 1, 1}));
+        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);

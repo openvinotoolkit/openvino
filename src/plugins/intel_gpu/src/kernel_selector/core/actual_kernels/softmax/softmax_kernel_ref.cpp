@@ -12,7 +12,7 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
                                                                     const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
 
-    dispatchData.gws = GetSoftmaxDimGlobalSizes(params.dim, params.output);
+    dispatchData.gws = GetSoftmaxDimGlobalSizes(params.dim, params.outputs[0]);
 
     assert(dispatchData.gws.size() == 3);
 
