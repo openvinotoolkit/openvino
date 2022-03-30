@@ -120,11 +120,11 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropData) {
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        set_tensor_name(pad, "pad");
+
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(pad, filters, Strides{1, 1},
                                                                       CoordinateDiff{4, 4}, CoordinateDiff{3, 3}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
+
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<pass::PadFusion>();
@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropData) {
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(data, filters, Strides{1, 1},
                                                                       CoordinateDiff{3, 3}, CoordinateDiff{1, 1}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
+
 
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
     }
@@ -244,11 +244,11 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropDataNonConstPadValue) {
         std::shared_ptr<Node> pad_value = opset5::Constant::create(element::f16, Shape{}, {0});
         pad_value = std::make_shared<opset5::Convert>(pad_value, element::f32);
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-        set_tensor_name(pad, "pad");
+
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(pad, filters, Strides{1, 1},
                                                                       CoordinateDiff{4, 4}, CoordinateDiff{3, 3}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
+
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<pass::PadFusion>();
@@ -258,7 +258,7 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropDataNonConstPadValue) {
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(data, filters, Strides{1, 1},
                                                                       CoordinateDiff{3, 3}, CoordinateDiff{1, 1}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
+
 
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
     }
@@ -422,30 +422,29 @@ TEST_F(TransformationTestsF, NegativePadFusionConvolutionBackpropDataTooSmallPad
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        set_tensor_name(data, "data");
+
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        set_tensor_name(pad, "pad");
+
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(pad, filters, Strides{1, 1},
                                                                       CoordinateDiff{1, 1}, CoordinateDiff{1, 1}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
+
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        set_tensor_name(data, "data");
+
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        set_tensor_name(pad, "pad");
+
         auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5, 5});
         auto conv = std::make_shared<opset5::ConvolutionBackpropData>(pad, filters, Strides{1, 1},
                                                                       CoordinateDiff{1, 1}, CoordinateDiff{1, 1}, Shape{1, 1});
-        set_tensor_name(conv, "conv");
 
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
     }
