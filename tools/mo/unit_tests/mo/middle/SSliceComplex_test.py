@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from openvino.tools.mo.middle.SSliceComplexMiddleStage import SSliceComplexMiddleStage
+from openvino.tools.mo.middle.SSliceComplex import SSliceComplex
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, build_graph_with_edge_attrs, connect, \
@@ -180,7 +180,7 @@ ref_graph_edges_2 = [
 class SSliceComplexMiddleStageTest(unittest.TestCase):
     def test_replacement_for_the_last_axis(self):
         graph = build_graph(nodes_attrs=graph_node_attrs, edges=graph_edges)
-        SSliceComplexMiddleStage().find_and_replace_pattern(graph)
+        SSliceComplex().find_and_replace_pattern(graph)
         graph.clean_up()
         ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs, edges=ref_graph_edges)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
@@ -189,13 +189,13 @@ class SSliceComplexMiddleStageTest(unittest.TestCase):
     def test_nonreplacement_for_the_last_axis(self):
         graph = build_graph(nodes_attrs=non_transformed_graph_node_attrs, edges=non_transformed_graph_edges)
         ref_graph = build_graph(nodes_attrs=non_transformed_graph_node_attrs, edges=non_transformed_graph_edges)
-        SSliceComplexMiddleStage().find_and_replace_pattern(graph)
+        SSliceComplex().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_replacement_for_non_last_axis(self):
         graph = build_graph(nodes_attrs=graph_node_attrs_2, edges=graph_edges)
-        SSliceComplexMiddleStage().find_and_replace_pattern(graph)
+        SSliceComplex().find_and_replace_pattern(graph)
         graph.clean_up()
         ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs_2, edges=ref_graph_edges_2)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)

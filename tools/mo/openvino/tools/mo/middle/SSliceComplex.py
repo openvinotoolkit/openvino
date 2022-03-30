@@ -13,7 +13,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.transpose import Transpose
 
 
-class SSliceComplexMiddleStage(MiddleReplacementPattern):
+class SSliceComplex(MiddleReplacementPattern):
     """
     Some TF models contain the sub-graph
                SomeOp
