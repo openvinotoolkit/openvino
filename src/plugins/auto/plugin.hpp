@@ -56,9 +56,8 @@ protected:
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
 private:
-    void SelectDeviceForMulti(const std::vector<DeviceInformation>& metaDevices,
-                              std::vector<DeviceInformation>& outDevices,
-                              const std::string& networkPrecision);
+    std::list<DeviceInformation> AutoSelectDevice(const std::vector<DeviceInformation>& metaDevices,
+                                                  const std::string& networkPrecision);
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
