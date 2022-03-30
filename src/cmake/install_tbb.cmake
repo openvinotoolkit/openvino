@@ -38,13 +38,13 @@ endif()
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
-    (TBBROOT MATCHES ${TEMP} OR DEFINED ENV{TBBROOT} OR ENABLE_SYSTEM_TBB))
+    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBB} OR ENABLE_SYSTEM_TBB))
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
-    if(TBBROOT MATCHES ${TEMP})
+    if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBBROOT})
+    elseif(DEFINED ENV{TBB})
         set(tbb_custom ON)
     endif()
 
@@ -65,16 +65,16 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endforeach()
     else()
         if(WIN32)
-            install(DIRECTORY "${TBBROOT}/bin"
+            install(DIRECTORY "${TBB}/bin"
                     DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb ${exclude_from_all})
         elseif(tbb_custom OR tbb_downloaded)
-            install(DIRECTORY "${TBBROOT}/lib"
+            install(DIRECTORY "${TBB}/lib"
                     DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb ${exclude_from_all}
                     FILES_MATCHING
                         # install only versioned shared libraries
-                        REGEX "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$")
+                        REGEX "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
         endif()
     endif()
 
@@ -84,22 +84,22 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         ie_cpack_add_component(tbb_dev REQUIRED)
         list(APPEND core_dev_components tbb_dev)
 
-        install(FILES "${TBBROOT}/LICENSE"
+        install(FILES "${TBB}/LICENSE"
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
 
         set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
-        install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                    "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+        install(FILES "${TBB}/cmake/TBBConfig.cmake"
+                    "${TBB}/cmake/TBBConfigVersion.cmake"
                 DESTINATION runtime/${IE_TBB_DIR_INSTALL}
                 COMPONENT tbb_dev)
-        install(DIRECTORY "${TBBROOT}/include"
+        install(DIRECTORY "${TBB}/include"
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb_dev)
 
         if(WIN32)
             # .lib files are needed only for Windows
-            install(DIRECTORY "${TBBROOT}/lib"
+            install(DIRECTORY "${TBB}/lib"
                     DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb)
         endif()
