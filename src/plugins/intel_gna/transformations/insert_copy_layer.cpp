@@ -22,6 +22,7 @@ namespace GNAPluginNS {
 
 NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcat, "HandleMultiConnectedLayerToConcat", 0);
 NGRAPH_RTTI_DEFINITION(HandleLayerConnectedToConcatOrMemory, "HandleLayerConnectedToConcatOrMemory", 0);
+NGRAPH_RTTI_DEFINITION(MatchNonFunctionalLayers, "MatchNonFunctionalLayers", 0);
 NGRAPH_RTTI_DEFINITION(HandleNonComputationalSubgraphs, "HandleNonComputationalSubgraphs", 0);
 
 namespace {
@@ -245,82 +246,73 @@ bool HandleLayerConnectedToConcatOrMemory::run_on_model(const std::shared_ptr<ng
     return is_graph_modified;
 }
 
+MatchNonFunctionalLayers::MatchNonFunctionalLayers() {
+    MATCHER_SCOPE(MatchNonFunctionalLayers);
 
-    // for (auto & l : *pLayers) {
-    //     if (!l->outData.size() == 0 &&
-    //         !getInputTo(l->outData[0]).size() == 0) continue;
+    auto noncompute_op = ngraph::pattern::wrap_type<ngraph::opset8::Reshape,
+                                                ngraph::opset8::Squeeze,
+                                                ngraph::opset8::Unsqueeze,
+                                                ngraph::opset8::Transpose,
+                                                ngraph::op::CropIE,
+                                                ngraph::opset8::Split,
+                                                ngraph::opset8::VariadicSplit,
+                                                ngraph::opset8::Parameter,
+                                                ngraph::opset8::Constant,
+                                                ngraph::opset8::Result>();
 
-    //     bool bNeedInsertCopyLayer = true;
-    //     CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
-    //         if (!(LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCrop() || LayerInfo(layer).isInput())) {
-    //             bNeedInsertCopyLayer = false;
-    //         }
-    //         }, true, [&bNeedInsertCopyLayer](InferenceEngine::CNNLayer* from) {
-    //                 // aborting UFS if we found functional layer (excluding Splits and Crops)
-    //                 return make_upstream_order(bNeedInsertCopyLayer ? from : nullptr);
-    //         });
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto node = std::dynamic_pointer_cast<ngraph::Node>(m.get_match_root());
+        if (!(IsNonFunctionalGNANode(node) ||
+             std::dynamic_pointer_cast<ngraph::op::CropIE>(node) ||
+             std::dynamic_pointer_cast<ngraph::opset8::Split>(node) ||
+             std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(node) ||
+             std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node) ||
+             std::dynamic_pointer_cast<ngraph::opset8::Constant>(node) ||
+             std::dynamic_pointer_cast<ngraph::opset8::Result>(node))) {
+                 return false;
+        }
 
-    //     if (bNeedInsertCopyLayer) {
-    //         for (size_t inputIdx = 0; inputIdx < l->insData.size(); ++inputIdx) {
-    //             IE_ASSERT(l->insData[inputIdx].lock() != nullptr);
-    //             auto inputData = l->insData[inputIdx].lock();
-    //             auto parentLayer = getCreatorLayer(inputData);
-    //             IE_ASSERT(parentLayer.lock() != nullptr);
-    //             InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
-    //         }
-    //     }
-    // }
+        std::string noncomp_prop("non_compute_node");
+        std::string result_prop("result_vector");
 
+        auto& rt_info = node->get_rt_info();
+        auto res_node = std::dynamic_pointer_cast<ngraph::opset8::Result>(node);
+        if (res_node) {
+            rt_info[noncomp_prop] = true;
+            rt_info[result_prop] = ngraph::ResultVector{res_node};
+        }
 
-bool HandleNonComputationalSubgraphs::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    RUN_ON_FUNCTION_SCOPE(HandleNonComputationalSubgraphs);
-    bool is_graph_modified = false;
+        if (!rt_info[noncomp_prop].as<bool>())
+            return false;
 
-    for (auto& node : f->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ngraph::opset8::Result>(node))
-            continue;
-        bool bNeedInsertCopyLayer = true;
-        std::unordered_map<std::shared_ptr<ngraph::Node>, bool> visited;
-        std::vector<std::shared_ptr<ngraph::Node>> dfs_v;
-        auto start_node = node->get_input_node_shared_ptr(0);
-        dfs_v.push_back(start_node);
-
-        while (!dfs_v.empty()) {
-            auto current_node = dfs_v.back();
-            dfs_v.pop_back();
-
-            if (visited[current_node])
-                continue;
-
-            if (!(IsNonFunctionalGNANode(current_node) ||
-                 std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) ||
-                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
-                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ||
-                 std::dynamic_pointer_cast<ngraph::opset8::Parameter>(current_node) ||
-                 std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node))) {
-                bNeedInsertCopyLayer = false;
-                break;
-            }
-            visited[current_node] = true;
-
-            for (size_t i = 0; i < current_node->get_input_size(); i++) {
-                auto input_node = current_node->get_input_node_shared_ptr(i);
-                if (!visited[input_node])
-                    dfs_v.push_back(input_node);
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            auto& input_rti = node->get_input_node_shared_ptr(i)->get_rt_info();
+            input_rti[noncomp_prop] = true;
+            if (input_rti.count(result_prop) && !input_rti[result_prop].as<ngraph::ResultVector>().empty()) {
+                for (auto&& res : rt_info[result_prop].as<ngraph::ResultVector>()) {
+                    input_rti[result_prop].as<ngraph::ResultVector>().push_back(res);
+                }
+            } else {
+                input_rti[result_prop] = rt_info[result_prop];
             }
         }
 
-        if (bNeedInsertCopyLayer) {
-            is_graph_modified = true;
-            for (size_t i = 0; i < start_node->get_input_size(); i++) {
-                auto prev_layer = start_node->get_input_node_shared_ptr(i);
-                if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(prev_layer))
-                    InsertCopyLayerBetween(prev_layer, start_node, i);
+        if (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node)) {
+            auto result_vec = rt_info[result_prop].as<ngraph::ResultVector>();
+            for (auto&& result_node : result_vec) {
+                auto copy_out = result_node->get_input_node_shared_ptr(0);
+                for (size_t i = 0; i < copy_out->get_input_size(); i++) {
+                    auto copy_in = copy_out->get_input_node_shared_ptr(i);
+                    if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(copy_in))
+                        InsertCopyLayerBetween(copy_in, copy_out, i);
+                }
             }
         }
-    }
 
-    return is_graph_modified;
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(noncompute_op, matcher_name);
+    this->register_matcher(m, callback);
 }
-
 } // namespace GNAPluginNS

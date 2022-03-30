@@ -40,12 +40,19 @@ public:
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
-class HandleNonComputationalSubgraphs : public ngraph::pass::FunctionPass {
+class MatchNonFunctionalLayers : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
+    MatchNonFunctionalLayers();
 };
 
+class HandleNonComputationalSubgraphs : public ngraph::pass::BackwardGraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    HandleNonComputationalSubgraphs() {
+        add_matcher<MatchNonFunctionalLayers>();
+    }
+};
 
 } // namespace GNAPluginNS
 

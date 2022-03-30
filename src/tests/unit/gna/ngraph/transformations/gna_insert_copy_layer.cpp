@@ -580,7 +580,7 @@ TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
 
         // test function
         {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(input, shape);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
 
@@ -596,7 +596,7 @@ TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
         }
 
         {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(input, shape);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
 
@@ -634,7 +634,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
 
         // test function
         {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(input, shape1);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape1, axes, dim, offset);
             auto reshape2 = ngraph::op::util::reshapeTo(crop, shape2);
@@ -651,7 +651,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
         }
 
         {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape1 = ngraph::op::util::reshapeTo(input, shape1);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape1, axes, dim, offset);
             auto reshape2 = ngraph::op::util::reshapeTo(crop, shape2);
@@ -888,7 +888,7 @@ TEST(TransformationTests, InsertCopyLayerCropConcatTest) {
 
         // test function
         {
-            auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
             auto concatInput = ngraph::OutputVector{crop};
@@ -900,7 +900,7 @@ TEST(TransformationTests, InsertCopyLayerCropConcatTest) {
         }
 
         {
-            auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
 
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
             auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);
@@ -936,7 +936,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
 
         // test function
         {
-            auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto reshape = ngraph::op::util::reshapeTo(params, shape);
             auto result = std::make_shared<ngraph::opset8::Result>(reshape);
             func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -945,7 +945,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
         }
 
         {
-            auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto copy = std::make_shared<GNAPluginNS::Copy>(params);
             auto reshape = ngraph::op::util::reshapeTo(copy, shape);
             auto result = std::make_shared<ngraph::opset8::Result>(reshape);
@@ -965,6 +965,146 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
         ASSERT_TRUE(result.first);
 }
 
+TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::vector<int64_t> axes   = {0, 1, 2, 3};
+        std::vector<int64_t> dim    = {1, 1, 2, 2};
+        std::vector<int64_t> offset = {0, 0, 0, 0};
+        ngraph::Shape shape         = {1, 1, 2, 4};
+        ngraph::Shape in_shape      = {1, 2, 4};
+
+        // test function
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(params, shape);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(reshape1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(reshape2);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                        ngraph::ParameterVector{params},
+                                                        "nonfunc");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto copy = std::make_shared<GNAPluginNS::Copy>(params);
+            auto reshape1 = ngraph::op::util::reshapeTo(copy, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(copy, shape);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(reshape1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(reshape2);
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                            ngraph::ParameterVector{params},
+                                                            "nonfunc");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::HandleNonComputationalSubgraphs>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+TEST(TransformationTests, InsertCopyLayerNFLBranchTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::vector<int64_t> axes   = {0, 1, 2, 3};
+        std::vector<int64_t> dim    = {1, 1, 2, 2};
+        std::vector<int64_t> offset = {0, 0, 0, 0};
+        ngraph::Shape shape         = {1, 1, 2, 4};
+        ngraph::Shape in_shape      = {1, 2, 4};
+
+        // test function
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape = ngraph::op::util::reshapeTo(params, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(reshape, shape);
+            auto result = std::make_shared<ngraph::opset8::Result>(reshape2);
+
+            auto relu = std::make_shared<ngraph::opset8::Relu>(reshape);
+            auto result_relu = std::make_shared<ngraph::opset8::Result>(relu);
+
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result, result_relu},
+                                                        ngraph::ParameterVector{params},
+                                                        "nonfunc");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape = ngraph::op::util::reshapeTo(params, shape);
+            auto copy = std::make_shared<GNAPluginNS::Copy>(reshape);
+            auto reshape2 = ngraph::op::util::reshapeTo(copy, shape);
+            auto result = std::make_shared<ngraph::opset8::Result>(reshape2);
+
+            auto relu = std::make_shared<ngraph::opset8::Relu>(reshape);
+            auto result_relu = std::make_shared<ngraph::opset8::Result>(relu);
+
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result, result_relu},
+                                                            ngraph::ParameterVector{params},
+                                                            "nonfunc");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::HandleNonComputationalSubgraphs>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+TEST(TransformationTests, InsertCopyLayerNFLvsFLSubgraphTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::vector<int64_t> axes   = {0, 1, 2, 3};
+        std::vector<int64_t> dim    = {1, 1, 2, 2};
+        std::vector<int64_t> offset = {0, 0, 0, 0};
+        ngraph::Shape shape         = {1, 1, 2, 4};
+        ngraph::Shape in_shape      = {1, 2, 4};
+
+        // test function
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape = ngraph::op::util::reshapeTo(params, shape);
+            auto result = std::make_shared<ngraph::opset8::Result>(reshape);
+
+            auto relu = std::make_shared<ngraph::opset8::Relu>(params);
+            auto reshape2 = ngraph::op::util::reshapeTo(relu, shape);
+            auto result_relu = std::make_shared<ngraph::opset8::Result>(reshape2);
+
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result, result_relu},
+                                                        ngraph::ParameterVector{params},
+                                                        "nonfunc");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto copy = std::make_shared<GNAPluginNS::Copy>(params);
+            auto reshape = ngraph::op::util::reshapeTo(copy, shape);
+            auto result = std::make_shared<ngraph::opset8::Result>(reshape);
+
+            auto relu = std::make_shared<ngraph::opset8::Relu>(params);
+            auto reshape2 = ngraph::op::util::reshapeTo(relu, shape);
+            auto result_relu = std::make_shared<ngraph::opset8::Result>(reshape2);
+
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result, result_relu},
+                                                            ngraph::ParameterVector{params},
+                                                            "nonfunc");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::HandleNonComputationalSubgraphs>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
 
 TEST(TransformationTests, InsertCopyLayerCropNFLConcatTest) {
     std::shared_ptr<ngraph::Function> func, ref_func;
@@ -978,7 +1118,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLConcatTest) {
 
     // test function
     {
-        auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+        auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         auto reshape1 = ngraph::op::util::reshapeTo(params, shape1);
         auto crop = std::make_shared<ngraph::op::CropIE>(reshape1, axes, dim, offset);
         auto reshape2 = ngraph::op::util::reshapeTo(crop, shape2);
@@ -990,7 +1130,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLConcatTest) {
     }
 
     {
-        auto params = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, in_shape);
+        auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         auto reshape1 = ngraph::op::util::reshapeTo(params, shape1);
         auto crop = std::make_shared<ngraph::op::CropIE>(reshape1, axes, dim, offset);
         auto reshape2 = ngraph::op::util::reshapeTo(crop, shape2);
