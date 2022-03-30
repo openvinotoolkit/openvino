@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/border.hpp>
+#include "ngraph/runtime/reference/pad.hpp"
 
 #include <cstddef>
 
@@ -28,6 +29,75 @@ static std::vector<T> generate_rnd_real_input(
         data.push_back(rnd_dist(rnd_gen));
 
     return data;
+}
+
+TEST(border_gpu, mytest0) {
+    //  Input (XY) : 4x3
+    //  Output (XY): 10x7
+
+    constexpr auto in_size_b = 1;
+    constexpr auto in_size_f = 1;
+    constexpr auto in_size_y = 3;
+    constexpr auto in_size_x = 4;
+
+    constexpr auto blt_size_b = 0;
+    constexpr auto blt_size_f = 0;
+    constexpr auto blt_size_y = 1;
+    constexpr auto blt_size_x = 2;
+
+    constexpr auto brb_size_b = 0;
+    constexpr auto brb_size_f = 0;
+    constexpr auto brb_size_y = 3;
+    constexpr auto brb_size_x = 4;
+
+    constexpr auto out_size_b = in_size_b + blt_size_b + brb_size_b;
+    constexpr auto out_size_f = in_size_f + blt_size_f + brb_size_f;
+    constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
+    constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
+
+    auto& engine = get_test_engine();
+    std::vector<float> input_data = {
+          1, -2,  3,  -4,
+          5,  6,  7,   8,
+        -10, 12, 13, -13,
+    };
+    float pad_value=0.3f;
+    
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(
+        input_layout("input", input->get_layout())
+    );
+    topology.add(
+        border("output", "input",
+               {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
+               {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
+               border_type::constant, 0.0f)
+    );
+
+    cldnn::network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> ans(out_size_b * out_size_f * out_size_y * out_size_x);
+    auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
+    ngraph::runtime::reference::pad(
+        (const char *)(input_data.data()),
+        (const char *)(&pad_value),
+        (char *)ans.data(),
+        sizeof(float),
+        ov::Shape(to_vec_size_t(input->get_layout().get_dims())),
+        ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
+        ov::CoordinateDiff({ blt_size_b, blt_size_f, blt_size_x, blt_size_y }),
+        ov::CoordinateDiff({ brb_size_b, brb_size_f, brb_size_x, brb_size_y }),
+        ngraph::op::PadMode::CONSTANT);
+
+    ASSERT_EQ(ans.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
+    EXPECT_TRUE( memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()) );
 }
 
 TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
