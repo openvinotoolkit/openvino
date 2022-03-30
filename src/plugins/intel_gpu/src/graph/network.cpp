@@ -700,34 +700,39 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
     }
 
-    for (auto& inst : _program->get_processing_order()) {
-        // Special handling for mutable data. The event should be the same as the user or dependency with highest
-        // processing_num as the mutable_data can be updated when is both user or dependency.
-        if (inst->is_type<mutable_data>()) {
-            decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
-            for (auto& user : inst->get_users()) {
-                auto user_proc_num = _program->get_processing_order().get_processing_number(user);
-                if (user_proc_num > proc_num) {
-                    _events[inst->id()] = _events[user->id()];
-                    proc_num = user_proc_num;
+    // Store events only in case of OOO queue or enabled Profiling
+    auto store_events = get_stream().get_queue_type() == queue_types::out_of_order ||
+                        get_engine().configuration().enable_profiling;
+    if (store_events) {
+        for (auto& inst : _program->get_processing_order()) {
+            // Special handling for mutable data. The event should be the same as the user or dependency with highest
+            // processing_num as the mutable_data can be updated when is both user or dependency.
+            if (inst->is_type<mutable_data>()) {
+                decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
+                for (auto& user : inst->get_users()) {
+                    auto user_proc_num = _program->get_processing_order().get_processing_number(user);
+                    if (user_proc_num > proc_num) {
+                        _events[inst->id()] = _events[user->id()];
+                        proc_num = user_proc_num;
+                    }
                 }
-            }
 
-            if (!inst->get_dependencies().empty()) {
-                for (auto& dep : inst->get_dependencies()) {
-                    auto dep_proc_num = _program->get_processing_order().get_processing_number(dep);
-                    if (dep_proc_num > proc_num) {
-                        _events[inst->id()] = _events[dep->id()];
-                        proc_num = dep_proc_num;
+                if (!inst->get_dependencies().empty()) {
+                    for (auto& dep : inst->get_dependencies()) {
+                        auto dep_proc_num = _program->get_processing_order().get_processing_number(dep);
+                        if (dep_proc_num > proc_num) {
+                            _events[inst->id()] = _events[dep->id()];
+                            proc_num = dep_proc_num;
+                        }
                     }
                 }
             }
         }
-    }
 
-    for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
-                                        // them valid events manually
-        _events[dout->id()] = get_stream().create_user_event(true);
+        for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
+                                            // them valid events manually
+            _events[dout->id()] = get_stream().create_user_event(true);
+        }
     }
 
     for (auto& prim : _primitives) {
@@ -828,17 +833,15 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
 }
 
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                                     const std::vector<event::ptr>& events) {
-    auto id = primitive->id();
-    auto it = _events.find(id);
-    bool found = (it != _events.end());
-    CLDNN_ERROR_BOOL(id,
-                     "Invalid primitive call ",
-                     found,
-                     "Primitive " + id + " is tried to be executed for the second time");
-
+                                const std::vector<event::ptr>& events) {
     event::ptr ev = primitive->execute(events);
-    _events.insert({id, ev});
+
+    // Collect events only for OOO queue and Profiling mode
+    if (get_stream().get_queue_type() == queue_types::out_of_order ||
+        get_engine().configuration().enable_profiling) {
+        auto id = primitive->id();
+        _events.insert({id, ev});
+    }
 }
 
 void network::allocate_primitive_instance(program_node const& node) {
