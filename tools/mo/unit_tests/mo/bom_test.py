@@ -7,6 +7,8 @@ import re
 import unittest
 from itertools import islice
 
+from openvino.tools.mo.utils.utils import get_mo_root_dir
+
 dir_patterns_to_skip = ['.*__pycache__.*']
 file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
@@ -16,7 +18,6 @@ full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['openvino/tools/mo']
 
 
 def is_match(name: str, patterns: ()):
@@ -27,16 +28,15 @@ class TestBOMFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.existing_files = []
-        cur_path = os.path.join(os.path.realpath(__file__), os.pardir)
-        mo_path = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir))
-        with open(os.path.join(mo_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
+        cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+        with open(os.path.join(cur_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
             if platform.system() == 'Windows':
                 cls.existing_files = [name.rstrip().replace('/', '\\') for name in bom_file.readlines()]
             else:
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
         # output_dir is the model_optimizer directory that is located in 'pkg/tools'
-        cls.output_dir = mo_path.replace('tests', 'tools')
+        cls.output_dir = get_mo_root_dir()
         cls.expected_header = [re.compile(pattern) for pattern in [
             r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
             r'^# SPDX-License-Identifier: Apache-2.0$',
@@ -44,8 +44,7 @@ class TestBOMFile(unittest.TestCase):
 
     def test_bom_file(self):
         missing_files = list()
-        for src_dir in dirs_to_search:
-            src_dir = os.path.join(self.output_dir, src_dir)
+        for src_dir in [self.output_dir]:
             if not os.path.isdir(src_dir):
                 continue
             for root, dirs, files in os.walk(src_dir):
@@ -91,8 +90,7 @@ class TestBOMFile(unittest.TestCase):
 
     def test_missed_intel_header(self):
         missing_files = list()
-        for src_dir in dirs_to_search:
-            src_dir = os.path.join(self.output_dir, src_dir)
+        for src_dir in [self.output_dir]:
             if not os.path.isdir(src_dir):
                 continue
             for root, dirs, files in os.walk(src_dir):
