@@ -15,7 +15,7 @@
 
 @endsphinxdirective
 
-To install Intel® Distribution of OpenVINO™ toolkit on your Linux machine You can choose to: 
+To install Intel® Distribution of OpenVINO™ toolkit on Linux, you can choose to: 
 
 * [Install OpenVINO Runtime using an Installer](installing-openvino-linux.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
