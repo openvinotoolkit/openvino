@@ -425,9 +425,10 @@ public:
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
-            const auto & m_weights = pattern_map.at(weights);
             const auto & m_output = pattern_map.at(eltwise);
-            const auto & m_input = pattern_map.at(input);
+            // Inputs are taken in deterministic way
+            const auto & m_input = m_output.get_node_shared_ptr()->get_input_source_output(0);
+            const auto & m_weights = m_output.get_node_shared_ptr()->get_input_source_output(1);
 
             const auto & input_rank = m_input.get_partial_shape().rank().get_length();
             const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
@@ -451,7 +452,7 @@ public:
                 weights_shape = m_weights.get_shape();
                 const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
-                for (int64_t i = 0; i < input_shape.size(); ++i) {
+                for (size_t i = 0; i < input_shape.size(); ++i) {
                     const auto shifted_elem = i + weights_shape_size_diff;
                     if (shifted_elem >= 0 && input_shape[i] == 1 &&
                         weights_shape[shifted_elem] != 1)
@@ -459,7 +460,7 @@ public:
                     if (shifted_elem < 0 && input_shape[i] != 1)
                         weights_shape_broadcasted_dims.insert(shifted_elem);
                 }
-                for (int64_t i = 0; i < weights_shape.size(); ++i) {
+                for (size_t i = 0; i < weights_shape.size(); ++i) {
                     const auto shifted_elem = i + input_shape_size_diff;
                     if (shifted_elem >=0 && weights_shape[i] == 1 &&
                         input_shape[shifted_elem] != 1)
