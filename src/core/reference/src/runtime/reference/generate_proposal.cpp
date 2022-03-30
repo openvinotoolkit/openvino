@@ -232,8 +232,8 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
     const float img_W = im_info[1];
 
     // scale factor for height & width
-    float scale_h;
-    float scale_w;
+    float scale_h = 1.0;
+    float scale_w = 1.0;
     if (im_info.size() == 3) {
         scale_h = im_info[2];
         scale_w = im_info[2];
