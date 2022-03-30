@@ -105,7 +105,8 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
         // trim leading and trailing whitespaces
         auto strBegin = field.find_first_not_of(" ");
         if (strBegin == std::string::npos)
-            IE_THROW() << "Cannot get set of strings from \"" << value << "\". Value \"" << field << "\" is incorrect";
+            IE_THROW() << "Cannot get a set of strings from \"" << value << "\". Value \"" << field
+                       << "\" is incorrect";
         auto strRange = field.find_last_not_of(" ") - strBegin + 1;
 
         res.insert(field.substr(strBegin, strRange));
