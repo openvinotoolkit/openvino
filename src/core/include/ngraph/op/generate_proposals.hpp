@@ -5,9 +5,6 @@
 #pragma once
 
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/generate_proposals.hpp"
 
 namespace ngraph {
