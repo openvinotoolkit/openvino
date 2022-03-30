@@ -25,8 +25,16 @@ def prepare_xml(xml_dir: Path):
             if matches:
                 for match in matches:
                     contents = contents.replace(match, saxutils.escape(match))
+            # escape asterisks
+            contents = contents.replace('*', '\\*')
             contents = str.encode(contents)
             root = etree.fromstring(contents)
+
+            # unescape * in sphinxdirectives
+            sphinxdirectives = root.xpath('//sphinxdirective')
+            for sd in sphinxdirectives:
+                sd_text = sd.text.replace('\\*', '*')
+                sd.text = sd_text
             anchors = root.xpath('//anchor')
             localanchors = list(filter(lambda x: x.attrib['id'].startswith('_1'), anchors))
             for anc in localanchors:
@@ -36,9 +44,9 @@ def prepare_xml(xml_dir: Path):
                 dd = para.getparent()
                 index = dd.index(para)
                 new_para = etree.Element('para')
-                sphinxdirective = etree.Element('sphinxdirective')
-                sphinxdirective.text = '\n\n.. _' + text[2:] + ':\n\n'
-                new_para.append(sphinxdirective)
+                sphinxdirective_anchor = etree.Element('sphinxdirective')
+                sphinxdirective_anchor.text = '\n\n.. _' + text[2:] + ':\n\n'
+                new_para.append(sphinxdirective_anchor)
                 dd.insert(index, new_para)
 
             with open(xml_file, 'wb') as f:
