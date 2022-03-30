@@ -32,6 +32,8 @@ public:
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         auto shape = Shape{1, 2, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        param->set_friendly_name("mock_param");
+        param->set_layout("NCHW");
         std::vector<float> data(ov::shape_size(shape), 1.f);
         auto aligned_weights_buffer =
             std::make_shared<ngraph::runtime::AlignedBuffer>(shape_size(shape) * ::element::f32.size());
@@ -40,11 +42,17 @@ public:
             aligned_weights_buffer->size(),
             aligned_weights_buffer);
         auto constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, shape, weights);
+        constant->set_friendly_name("mock_const");
         auto op = std::make_shared<ov::opset8::Add>(param, constant);
+        op->set_friendly_name("mock_add");
         auto op1 = std::make_shared<ov::opset8::Abs>(op);
+        op1->set_friendly_name("mock_abs");
         auto res = std::make_shared<ov::opset8::Result>(op1);
+        res->set_friendly_name("mock_result");
         auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
+        ov_model->input(0).set_names({"mock_input"});
+        ov_model->output(0).set_names({"mock_output"});
         return ov_model;
     }
 };
