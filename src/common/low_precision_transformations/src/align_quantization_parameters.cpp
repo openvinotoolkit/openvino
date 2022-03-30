@@ -10,6 +10,7 @@
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
@@ -18,6 +19,7 @@ ngraph::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParam
     : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(AlignQuantizationParameters);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> propagation = manager.register_pass<ngraph::pass::GraphRewrite>();

@@ -131,6 +131,7 @@
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <itt.h>
 
 using namespace InferenceEngine;
 
@@ -432,6 +433,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
+        CPU_LPT_SCOPE(LowPrecisionTransformations);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
