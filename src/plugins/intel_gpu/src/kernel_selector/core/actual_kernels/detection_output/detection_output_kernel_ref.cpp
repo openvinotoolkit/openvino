@@ -212,6 +212,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
     auto max_wg = detectOutParams.engineInfo.maxWorkGroupSize;
 
+    constexpr size_t stack_size = 100;   // The size of stack for QuickSort
     constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
@@ -229,6 +230,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         auto cldnnJit = GetJitConstants(detectOutParams);
         auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
+        cldnnJit.AddConstant(MakeJitConstant("QUICK_SORT_STACK_SIZE", stack_size));
         if (i == 0) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
@@ -254,9 +256,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
             } else {
                 // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
-                //                                           stack [LWS1 * LWS2 * 100 * 4 (int size) bytes]
+                //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
                 auto req_local_mem_size = dispatchData.lws[1] * dispatchData.lws[2] * 2 * 4 +
-                                          dispatchData.lws[1] * dispatchData.lws[2] * 100 * 4;
+                                          dispatchData.lws[1] * dispatchData.lws[2] * stack_size * 4;
                 if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
                     cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
@@ -309,8 +311,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 // Always use local memory since LWS size is 1x1x1
                 cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
             } else {
-                // Limit local memory usage for stack buffer [LWS0 * 100 * 4 (int size) bytes]
-                auto req_local_mem_size = dispatchData.lws[0] * 100 * 4;
+                // Limit local memory usage for stack buffer [LWS0 * 100 (stack_size) * 4 (int size) bytes]
+                auto req_local_mem_size = dispatchData.lws[0] * stack_size * 4;
                 if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
                     cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
