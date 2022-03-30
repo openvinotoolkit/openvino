@@ -443,7 +443,11 @@ void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
+            for (auto i : indexes)
+                std::cerr << i << " ";
+            std::cerr << "\n";
             schedule.get_callable<kernel>()(indexes, &call_args);
+            std::cerr << "finished\n";
         });
 }
 

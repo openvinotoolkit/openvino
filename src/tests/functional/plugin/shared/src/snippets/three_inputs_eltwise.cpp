@@ -48,11 +48,13 @@ namespace snippets {
     }
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
+        ov::pass::Serialize("model_1.xml", "model_1.bin").run_on_model(function);
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(ThreeInputsEltwiseSinh, CompareWithRefImpl) {
+    ov::pass::Serialize("model.xml", "model.bin").run_on_model(function);
     run();
     validateNumSubgraphs();
 }

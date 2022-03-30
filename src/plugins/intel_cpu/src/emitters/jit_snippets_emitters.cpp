@@ -57,7 +57,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     for (auto& c : body) {
         c.first->emit_code(c.second.first, c.second.second, pool, gpr);
     }
-        h->postamble();
+    h->postamble();
 }
 
 TileSchedulerEmitter::TileSchedulerEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -70,7 +70,7 @@ TileSchedulerEmitter::TileSchedulerEmitter(dnnl::impl::cpu::x64::jit_generator* 
     vector_tile = tile_scheduler->vector_region;
     scalar_tile = tile_scheduler->scalar_region;
     vector_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_body();
-    scalar_tile_body = std::dynamic_pointer_cast<TileEmitter>(vector_tile.first)->get_body();
+    scalar_tile_body = std::dynamic_pointer_cast<TileEmitter>(scalar_tile.first)->get_body();
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
 }
 void TileSchedulerEmitter::emit_code(const std::vector<size_t> &in,
@@ -93,20 +93,31 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
     const size_t num_params = num_inputs + num_outputs;
     const size_t outer_work_amount = jcp.scheduler_dims[0];
     const size_t inner_work_amount = jcp.scheduler_dims[1];
-    const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
+//    const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 
     // These are kernel runtime input arguments
-    Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
-    Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
+    Reg64 reg_indexes   {dnnl::impl::cpu::x64::abi_param1};
+    Reg64 reg_const_params {dnnl::impl::cpu::x64::abi_param2};
+    Reg64 reg_tmp_64 = {dnnl::impl::cpu::x64::abi_not_param1};
+    // By the time we need to store amount, we can reuse reg_indexes.
+    Reg64 reg_amount = reg_indexes;
 
-    Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param1};
-    Reg64 reg_amount = Reg64(reg64_tmp_start + num_params); // amount
+    std::vector<int> available_registers{0, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15};
+//    std::set<int> reserved_registers{reg_indexes.getIdx(), reg_const_params.getIdx(), reg_tmp_64.getIdx()};
+////    for (int reg_num = 0; reg_num < 16; reg_num++) {
+//    for (int reg_num = 0; reg_num < 3; reg_num++) {
+//        if (reserved_registers.count(reg_num) == 0)
+//            available_registers.push_back(reg_num);
+//    }
+//    for (int reg_num = 6; reg_num < 16; reg_num++) {
+//        if (reserved_registers.count(reg_num) == 0)
+//            available_registers.push_back(reg_num);
+//    }
     Label for_body;
 
-    // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
-    // todo: Do we need explicitly check that code contains ScalarEmitter?
-    std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
+    // We won't need them after offsets are calculated, so pass further to Tiles
+//    std::vector<size_t> local_gpr = {(size_t) reg_indexes.getIdx(), (size_t) reg_const_params.getIdx()};
     std::vector<Reg64> regs(num_params);
 
     auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
@@ -119,16 +130,13 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
         }
     };
     for (auto i = 0; i < num_params; i++) {
-        regs[i] = Reg64(reg64_tmp_start + i);
+        regs[i] = Reg64(available_registers[i]);
         if (i < num_inputs)
             h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         else
             h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
     }
-
-    for (auto i = 0; i < num_params; i++)
-        regs[i] = Reg64(reg64_tmp_start + i);
 
     auto emit_tiles = [&]() {
         auto process_tile =
@@ -137,12 +145,13 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
             if (body_condition) {
                 // emit Tile body directly if only one tile iteration is needed
                 for (auto& c : body)
-                    c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+                    c.first->emit_code(c.second.first, c.second.second);
             } else if (tile_condition) {
                 // Need to set proper work amount for inner tiles before code emission
-                h->mov(reg_amount, inner_work_amount);
+                Reg64 reg_inner_amount {dnnl::impl::cpu::x64::abi_param2};
+                h->mov(reg_inner_amount, inner_work_amount);
                 const ngraph::snippets::RegInfo &regInfo = tile.second;
-                tile.first->emit_code(regInfo.first, regInfo.second, pool, local_gpr);
+                tile.first->emit_code(regInfo.first, regInfo.second);
             }
         };
         process_tile(inner_work_amount == vector_size, vector_tile_body, inner_work_amount > vector_size, vector_tile);
@@ -197,14 +206,10 @@ void TileEmitter::validate_arguments(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
                                      const std::vector<size_t> &pool,
                                      const std::vector<size_t> &gpr) const {
-    if (in.size() != 2)
-        IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
+    if (in.size() != 1)
+        IE_THROW() << "TileEmitter got invalid number of inputs. Expected 1, got " << in.size();
     if (out.size() != 0)
         IE_THROW() << "TileEmitter got unexpected output arguments.";
-    const size_t num_params = in[1];
-    if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-        IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-                   " parameters, got " << num_params;
 }
 
 void TileEmitter::emit_impl(const std::vector<size_t>& in,
@@ -213,21 +218,17 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& gpr,
                             const ov::intel_cpu::emitter_context *emit_context) const {
     const size_t inc = in[0];
-    const size_t num_params = in[1];
-    const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-    Reg64 amount = Reg64(reg64_tmp_start + num_params); // amount
+    // Note that both Tiles use the same reg for amount;
+    Reg64 amount = Reg64(dnnl::impl::cpu::x64::abi_param2);
     std::array<Label, 2> for_body;
 
     // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
     // todo: Do we need explicitly check that code contains ScalarEmitter?
-    std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
+    std::vector<size_t> local_gpr = {(size_t) dnnl::impl::cpu::x64::abi_not_param1.getIdx()};
 
     // Note that:
     // * Work amount must be set by TileScheduler that executes Tiles
     // * TileScheduler execute Tile only if it has to perform >= 1 iterations
-    // Todo: remove this after tests
-//        h->cmp(amount, inc);
-//        h->jl(for_body[0], CodeGenerator::T_NEAR);
     h->L(for_body[1]);
     {
         h->push(amount);
@@ -329,6 +330,7 @@ size_t MemoryEmitter::getEA(const std::shared_ptr<ov::Node>& n) {
     } else {
         throw ov::Exception("effective address for Load generation cannot be determined");
     }
+    std::cerr << ea << "\n";
     return ea;
 }
 
