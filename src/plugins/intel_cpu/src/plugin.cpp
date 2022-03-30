@@ -186,6 +186,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
     bool hasINT16orINT32Levels = false;
     if (useLpt) {
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part1);
         hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
                 {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
@@ -237,6 +238,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
     }
     manager.register_pass<ngraph::pass::Validate>();
@@ -413,6 +415,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
 
     if (useLpt) {
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
         pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
                                   ngraph::pass::MulFakeQuantizeFusion,
                                   ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
@@ -433,7 +436,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
-        CPU_LPT_SCOPE(LowPrecisionTransformations);
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
