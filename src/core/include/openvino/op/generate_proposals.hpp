@@ -61,7 +61,7 @@ public:
         return m_attrs;
     }
 
-    element::Type get_roi_num_type() const {
+    const element::Type& get_roi_num_type() const {
         return m_roi_num_type;
     }
     void set_roi_num_type(const element::Type& output_type) {
