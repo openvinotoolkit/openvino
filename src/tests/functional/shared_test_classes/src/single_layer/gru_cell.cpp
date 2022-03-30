@@ -70,6 +70,8 @@ void GRUCellTest::SetUp() {
     if (should_decompose) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::GRUCellDecomposition>();
+        m.register_pass<ngraph::pass::Serialize>("/home/itikhonov/OpenVINO/temp/gru_cell_decomposed.xml",
+                                                 "/home/itikhonov/OpenVINO/temp/gru_cell_decomposed.bin");
         m.run_passes(function);
     }
 }

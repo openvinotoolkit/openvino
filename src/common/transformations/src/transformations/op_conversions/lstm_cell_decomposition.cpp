@@ -38,7 +38,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto add = std::make_shared<opset4::Add>(Ht_R, bias);
         auto XHB = std::make_shared<opset4::Add>(Xt_W, add);
 
-        auto axis_node = ngraph::opset4::Constant::create(element::u64, Shape{}, {1});
+        auto axis_node = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
         auto split = std::make_shared<opset4::Split>(XHB, axis_node, 4);
         Output<Node> f = split->output(0);
         Output<Node> i = split->output(1);

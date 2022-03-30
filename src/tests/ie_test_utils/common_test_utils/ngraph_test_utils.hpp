@@ -51,7 +51,7 @@ public:
             function_ref = cloned_function;
         }
 
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
+        //manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
         manager.run_passes(function);
         if (!m_disable_rt_info_check) {
             ASSERT_NO_THROW(check_rt_info(function));

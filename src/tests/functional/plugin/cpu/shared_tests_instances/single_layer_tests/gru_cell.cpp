@@ -10,16 +10,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<bool> should_decompose{false, true};
-    std::vector<size_t> batch{5};
-    std::vector<size_t> hidden_size{1, 10};
-    std::vector<size_t> input_size{1, 30};
-    std::vector<std::vector<std::string>> activations = {{"relu", "tanh"}, {"tanh", "sigmoid"}, {"sigmoid", "tanh"},
-                                                         {"tanh", "relu"}};
-    std::vector<float> clip = {0.0f, 0.7f};
-    std::vector<bool> linear_before_reset = {true, false};
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<bool> should_decompose{true};
+    std::vector<size_t> batch{1};
+    std::vector<size_t> hidden_size{36};
+    std::vector<size_t> input_size{1};
+    std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh"}};
+    std::vector<float> clip = {0.};
+    std::vector<bool> linear_before_reset = {true};
+    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
     INSTANTIATE_TEST_SUITE_P(smoke_GRUCellCommon, GRUCellTest,
             ::testing::Combine(
