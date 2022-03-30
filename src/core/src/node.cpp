@@ -743,13 +743,7 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    HostTensorVector input = create_tmp_tensors(input_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool sts = evaluate(output, input, evaluationContext);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
-    return sts;
+    return evaluate(output_values, input_values);
 }
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
