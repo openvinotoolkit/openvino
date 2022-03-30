@@ -222,6 +222,5 @@ std::string MockPluginBde::GetName() const noexcept {
     return InferenceEngine::IInferencePlugin::GetName();
 }
 
-OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
-    plugin = std::make_shared<MockPluginBde>();
-}
+static const Version version = {{2, 1}, "test_plugin", "MockPluginBde"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(MockPluginBde, version)
