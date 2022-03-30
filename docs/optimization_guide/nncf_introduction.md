@@ -1,8 +1,8 @@
 # Neural Network Compression Framework {#docs_nncf_introduction}
-This document describes the Neural Network Compression Framework (NNCF) which is being developed as a separate project outside of OpenVINO&trade; but it is highly aligned with OpenVINO&trade; in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf).
+This document describes the Neural Network Compression Framework (NNCF) which is distributed as a separate tool but is highly aligned with OpenVINO&trade; in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf).
 
 ## Introduction
- Neural Network Compression Framework (NNCF) is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc., to the original framework model. It mostly provides in-training optimization capabilities which means that optimization methods require model fine-tuning during and after optimization. The diagram below shows the model optimization workflow using NNCF.
+ Neural Network Compression Framework (NNCF) is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc., to the original framework model. It provides in-training optimization capabilities which means that optimization methods require model fine-tuning or even re-training. The diagram below shows the model optimization workflow using NNCF.
  ![](../img/nncf_workflow.png)
 
  ### Features
@@ -42,7 +42,6 @@ NNCF provides various examples and tutorials that demonstrate usage of optimizat
 ### Tutorials
 - [Quantization-aware training of PyTorch model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training)
 - [Quantization-aware training of TensorFlow model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/305-tensorflow-quantization-aware-training)
-- (Experimental) [Post-training quantization of PyTorch model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/112-pytorch-post-training-quantization-nncf)
 
 ### Samples
 - PyTorch: 
@@ -58,6 +57,6 @@ NNCF provides various examples and tutorials that demonstrate usage of optimizat
 
 ## See also
 - [Compressed Model Zoo](https://github.com/openvinotoolkit/nncf#nncf-compressed-model-zoo)
-- [NNCF in HuggingFace Optimum](https://github.com/dkurt/optimum-openvino)
-- [OpenVINO&trade; Post-training Optimization tool](../../tools/pot/README.md)
+- [NNCF in HuggingFace Optimum](https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/optimum)
+- [Post-training optimization](../../tools/pot/docs/Introduction.md)
 

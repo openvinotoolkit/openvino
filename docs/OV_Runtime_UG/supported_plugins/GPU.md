@@ -109,7 +109,7 @@ GPU plugin supports the following data types as inference precision of internal 
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
-See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in f16 precision.
 
@@ -298,7 +298,7 @@ The behavior depends on specific parameters of the operations and hardware confi
 
 ## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
 Since the OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation. Thus, many general OpenCL tips apply:
--	Prefer `FP16` inference precision over `FP32`, as the Model Optimizer can generate both variants and the `FP32` is default. Also, consider [int8 inference](../Int8Inference.md)
+-	Prefer `FP16` inference precision over `FP32`, as the Model Optimizer can generate both variants and the `FP32` is default. Also, consider [int8 inference](@ref openvino_docs_model_optimization_guide).
 - 	Try to group individual infer jobs by using [automatic batching](../automatic_batching.md)
 -	Consider [caching](../Model_caching_overview.md) to minimize model load time
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit number of inference threads for the CPU plugin.
