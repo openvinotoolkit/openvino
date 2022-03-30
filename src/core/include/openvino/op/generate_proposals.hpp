@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
-
-#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
