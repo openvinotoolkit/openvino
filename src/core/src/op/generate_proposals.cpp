@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/generate_proposals.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 #include <generate_proposals_shape_inference.hpp>
 
