@@ -151,7 +151,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name));
+            return from_ov_any(self.get_property(name));
         },
         py::arg("name"),
         R"(

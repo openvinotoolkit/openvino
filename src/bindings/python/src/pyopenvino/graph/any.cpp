@@ -6,7 +6,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -30,27 +29,27 @@ void regclass_graph_Any(py::module m) {
     });
 
     ov_any.def("__getitem__", [](const ov::Any& self, py::object& k) {
-        return Common::from_ov_any(self)[k];
+        return from_ov_any(self)[k];
     });
 
     ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const std::string& v) {
-        Common::from_ov_any(self)[k] = v;
+        from_ov_any(self)[k] = v;
     });
 
     ov_any.def("__setitem__", [](const ov::Any& self, py::object& k, const int64_t& v) {
-        Common::from_ov_any(self)[k] = v;
+        from_ov_any(self)[k] = v;
     });
 
     ov_any.def("__get__", [](const ov::Any& self) {
-        return Common::from_ov_any(self);
+        return from_ov_any(self);
     });
 
     ov_any.def("__set__", [](const ov::Any& self, const ov::Any& val) {
-        Common::from_ov_any(self) = Common::from_ov_any(val);
+        from_ov_any(self) = from_ov_any(val);
     });
 
     ov_any.def("__len__", [](const ov::Any& self) {
-        py::handle some_object = Common::from_ov_any(self);
+        py::handle some_object = from_ov_any(self);
         PyObject* source = some_object.ptr();
         return PyObject_Length(source);
     });
@@ -64,7 +63,7 @@ void regclass_graph_Any(py::module m) {
     ov_any.def(
         "get",
         [](const ov::Any& self) -> py::object {
-            return Common::from_ov_any(self);
+            return from_ov_any(self);
         },
         R"(
             :return: Value of this OVAny.
@@ -82,7 +81,7 @@ void regclass_graph_Any(py::module m) {
     ov_any.def_property_readonly(
         "value",
         [](const ov::Any& self) {
-            return Common::from_ov_any(self);
+            return from_ov_any(self);
         },
         R"(
             :return: Value of this OVAny.

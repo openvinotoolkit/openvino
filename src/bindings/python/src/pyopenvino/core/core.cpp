@@ -358,7 +358,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(device_name, name));
+            return from_ov_any(self.get_property(device_name, name));
         },
         py::arg("device_name"),
         py::arg("name"),
