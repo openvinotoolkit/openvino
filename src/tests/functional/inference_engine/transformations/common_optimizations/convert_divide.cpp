@@ -178,7 +178,6 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
 
 TEST_F(TransformationTestsF, ConvertDivide_If) {
     {
-
         auto data1 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {5});
         auto data2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1});
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{1, 3, 22, 22});
