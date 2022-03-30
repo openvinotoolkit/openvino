@@ -23,6 +23,8 @@ ov_add_test_target(
         PROXY_PLUGIN
 )
 
+target_link_libraries(${TARGET_NAME} PRIVATE gtest)
+
 if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
     target_compile_definitions(${TARGET_NAME} PRIVATE HETERO_ENABLED)

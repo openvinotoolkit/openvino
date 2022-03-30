@@ -23,9 +23,9 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      # Dynamic:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
