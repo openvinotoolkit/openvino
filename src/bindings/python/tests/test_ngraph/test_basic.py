@@ -336,7 +336,7 @@ def test_clone_model():
 
     # Make copies of it
     model_copy1 = ov.utils.clone_model(model_original)
-    model_copy2 = model_original.clone_model()
+    model_copy2 = model_original.clone()
 
     # Make changes to the copied models' inputs
     model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
