@@ -348,6 +348,7 @@ def test_clone_model():
 
     assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
+    assert model_copy1_shapes == model_copy2_shapes
 
 
 def test_result():
