@@ -394,3 +394,24 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
         ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }
 }
+
+TEST_F(TypeRelaxedTests, cloneWithNewInputs) {
+    auto input_type = element::f32;
+    auto overriden_type = element::i32;
+    ngraph::PartialShape shape({1, 3, 22, 22});
+    auto param = make_shared<ngraph::opset1::Parameter>(input_type, shape);
+    auto op = ngraph::opset1::Relu(param);
+    auto relaxed_op = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Relu>>(
+            op, TypeVector{}, TypeVector{overriden_type});
+    relaxed_op->set_friendly_name("opName");
+    relaxed_op->get_rt_info()["additional_rt_info"] = "additional_rt_info";
+
+    auto new_param = make_shared<ngraph::opset1::Parameter>(input_type, shape);
+    auto relaxed_clone = relaxed_op->clone_with_new_inputs({new_param});
+
+    ASSERT_EQ(relaxed_op->get_input_element_type(0), relaxed_clone->get_input_element_type(0));
+    ASSERT_EQ(relaxed_op->get_output_element_type(0), relaxed_clone->get_output_element_type(0));
+
+    ASSERT_TRUE(relaxed_clone->get_friendly_name() != relaxed_op->get_friendly_name());
+    ASSERT_EQ(relaxed_clone->get_rt_info().count("additional_rt_info"), 0);
+}
