@@ -16,8 +16,9 @@
 
 #ifdef ENABLE_OV_PADDLE_FRONTEND
 #    include <openvino/frontend/paddle/extension/conversion.hpp>
-#    define PADDLE_EXT \
-        std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle),
+#    define PADDLE_EXT                                                                                        \
+        std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle), \
+            std::make_shared<ov::frontend::paddle::ConversionExtension>("relu6", Relu6ToReluTranslatorPaddle),
 #else
 #    define PADDLE_EXT
 #endif

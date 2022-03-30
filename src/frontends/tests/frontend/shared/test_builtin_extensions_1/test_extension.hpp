@@ -26,3 +26,5 @@ ov::OutputVector CustomTranslatorONNX(const ov::frontend::NodeContext& node);
 ov::OutputVector ReluToSwishTranslatorONNX(const ov::frontend::NodeContext& node);
 
 std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::NodeContext& node);
+
+std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::frontend::NodeContext& node);

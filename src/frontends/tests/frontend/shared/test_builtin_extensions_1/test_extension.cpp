@@ -39,3 +39,10 @@ ov::OutputVector ReluToSwishTranslatorONNX(const ov::frontend::NodeContext& node
 std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::NodeContext& node) {
     return std::map<std::string, ov::OutputVector>();
 }
+
+std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::frontend::NodeContext& node) {
+    auto relu = std::make_shared<ov::opset8::Relu>(node.get_input("X"));
+    std::map<std::string, ov::OutputVector> ret;
+    ret["Out"] = {relu};
+    return ret;
+}

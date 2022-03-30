@@ -72,6 +72,7 @@ void regclass_frontend_NodeContext(py::module m) {
             CAST_TO_PY(any, dtype, int64_t);
             CAST_TO_PY(any, dtype, bool);
             CAST_TO_PY(any, dtype, std::string);
+            CAST_TO_PY(any, dtype, float);
             CAST_TO_PY(any, dtype, double);
             CAST_TO_PY(any, dtype, ov::element::Type);
             CAST_TO_PY(any, dtype, ov::PartialShape);
@@ -83,6 +84,7 @@ void regclass_frontend_NodeContext(py::module m) {
             CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
 #endif
             CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<float>);
             CAST_VEC_TO_PY(any, dtype, std::vector<double>);
             CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
             CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);

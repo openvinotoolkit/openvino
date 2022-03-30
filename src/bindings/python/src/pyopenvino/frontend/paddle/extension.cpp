@@ -3,6 +3,7 @@
 //
 
 #include "extension.hpp"
+#include "utils.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -10,6 +11,9 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/paddle/extension/conversion.hpp"
+#include "openvino/frontend/paddle/extension/op.hpp"
+#include "openvino/frontend/paddle/frontend.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace py = pybind11;
 
@@ -40,4 +44,48 @@ void regclass_frontend_paddle_ConversionExtension(py::module m) {
     ext.def(py::init([](const std::string& op_type, const PyConversionExtension::PyCreatorFunctionNamed& f) {
         return std::make_shared<PyConversionExtension>(op_type, f);
     }));
+}
+
+void regclass_frontend_paddle_OpExtension(py::module m) {
+    py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(
+            m,
+            "OpExtensionPaddle",
+            py::dynamic_attr());
+
+    ext.def(py::init([](const std::string& fw_type_name,
+                        const std::vector<std::string>& in_names_vec,
+                        const std::vector<std::string>& out_names_vec,
+                        const std::map<std::string, std::string>& attr_names_map,
+                        const std::map<std::string, py::object>& attr_values_map) {
+
+        std::map<std::string, ov::Any> any_map;
+        for (const auto& it : attr_values_map) {
+            any_map[it.first] = py_object_to_any(it.second);
+        }
+        return std::make_shared<OpExtension<void>>(fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
+    }), py::arg("fw_type_name"),
+            py::arg("in_names_vec"),
+            py::arg("out_names_vec"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, ov::Any>());
+
+    ext.def(py::init([](const std::string& ov_type_name,
+                               const std::string& fw_type_name,
+                               const std::vector<std::string>& in_names_vec,
+                               const std::vector<std::string>& out_names_vec,
+                               const std::map<std::string, std::string>& attr_names_map,
+                               const std::map<std::string, py::object>& attr_values_map) {
+
+        std::map<std::string, ov::Any> any_map;
+        for (const auto& it : attr_values_map) {
+            any_map[it.first] = py_object_to_any(it.second);
+        }
+        return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
+    }),
+            py::arg("ov_type_name"),
+            py::arg("fw_type_name"),
+            py::arg("in_names_vec"),
+            py::arg("out_names_vec"),
+            py::arg("attr_names_map") = std::map<std::string, std::string>(),
+            py::arg("attr_values_map") = std::map<std::string, py::object>());
 }

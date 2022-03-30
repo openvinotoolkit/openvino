@@ -95,6 +95,30 @@ public:
                     const std::string& fw_type_name,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
+
+    // Maps op with a given type in FW and specified OV type given in template parameter
+    OpExtensionBase(const std::string& fw_ov_type_name,
+                    const std::vector<std::string>& in_names_vec,
+                    const std::vector<std::string>& out_names_vec,
+                    const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {})
+        : OpExtensionBase(fw_ov_type_name,
+                          fw_ov_type_name,
+                          in_names_vec,
+                          out_names_vec,
+                          attr_names_map,
+                          attr_values_map) {}
+
+    // Maps op with output names, a given type in FW and OV type given in template parameter
+    OpExtensionBase(const std::string& ov_type_name,
+                    const std::string& fw_type_name,
+                    const std::vector<std::string>& in_names_vec,
+                    const std::vector<std::string>& out_names_vec,
+                    const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {});
+
+private:
+    static std::shared_ptr<ov::Node> make_node(const std::string& ov_type_name);
 };
 
 class FWVisitor : public ov::AttributeVisitor {
@@ -214,79 +238,98 @@ private:
 };
 
 template <typename BaseConversionType>
+std::shared_ptr<ov::Node> OpExtensionBase<BaseConversionType, void>::make_node(const std::string& ov_type_name) {
+    auto split = [](const std::string& s, const std::string& delimiter) {
+        size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+        std::string token;
+        std::vector<std::string> res;
+
+        while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+            token = s.substr(pos_start, pos_end - pos_start);
+            pos_start = pos_end + delim_len;
+            res.push_back(token);
+        }
+
+        res.push_back(s.substr(pos_start));
+        return res;
+    };
+
+    // Expected formats:
+    // opsetN::OpName
+    // opsetN.OpName
+    // OpName
+    std::string opset_name;
+    std::string op_name;
+    auto cnt_colons = std::count(ov_type_name.begin(), ov_type_name.end(), ':');
+    auto cnt_dots = std::count(ov_type_name.begin(), ov_type_name.end(), '.');
+    if (cnt_colons == 2 && cnt_dots == 0) {
+        auto divided = split(ov_type_name, "::");
+        if (divided.size() != 2) {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
+        }
+        opset_name = divided[0];
+        op_name = divided[1];
+    } else if (cnt_colons == 0 && cnt_dots == 1) {
+        auto divided = split(ov_type_name, ".");
+        if (divided.size() != 2) {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
+        }
+        opset_name = divided[0];
+        op_name = divided[1];
+    } else if (cnt_colons == 0 && cnt_dots == 0) {
+        opset_name = "latest";
+        op_name = ov_type_name;
+    } else {
+        FRONT_END_GENERAL_CHECK(false,
+                                "Invalid OpenVINO operation format, one of the next is expected: \n"
+                                "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                ov_type_name);
+    }
+
+    const auto& opset = get_opset_by_name(opset_name);
+    if (!opset.contains_type(op_name)) {
+        FRONT_END_GENERAL_CHECK(false,
+                                "OpenVINO opset doesn't contain operation with "
+                                "name ",
+                                op_name);
+    }
+
+    return std::shared_ptr<ngraph::Node>(opset.create(op_name));
+}
+
+template <typename BaseConversionType>
 OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov_type_name,
                                                            const std::string& fw_type_name,
                                                            const std::map<std::string, std::string>& attr_names_map,
                                                            const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
                          OpConversionFunction(
-                             [=]() -> std::shared_ptr<ov::Node> {
-                                 auto split = [](const std::string& s, const std::string& delimiter) {
-                                     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-                                     std::string token;
-                                     std::vector<std::string> res;
-
-                                     while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
-                                         token = s.substr(pos_start, pos_end - pos_start);
-                                         pos_start = pos_end + delim_len;
-                                         res.push_back(token);
-                                     }
-
-                                     res.push_back(s.substr(pos_start));
-                                     return res;
-                                 };
-
-                                 // Expected formats:
-                                 // opsetN::OpName
-                                 // opsetN.OpName
-                                 // OpName
-                                 std::string opset_name;
-                                 std::string op_name;
-                                 auto cnt_colons = std::count(ov_type_name.begin(), ov_type_name.end(), ':');
-                                 auto cnt_dots = std::count(ov_type_name.begin(), ov_type_name.end(), '.');
-                                 if (cnt_colons == 2 && cnt_dots == 0) {
-                                     auto divided = split(ov_type_name, "::");
-                                     if (divided.size() != 2) {
-                                         FRONT_END_GENERAL_CHECK(
-                                             false,
-                                             "Invalid OpenVINO operation format, one of the next is expected:"
-                                             "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                             ov_type_name);
-                                     }
-                                     opset_name = divided[0];
-                                     op_name = divided[1];
-                                 } else if (cnt_colons == 0 && cnt_dots == 1) {
-                                     auto divided = split(ov_type_name, ".");
-                                     if (divided.size() != 2) {
-                                         FRONT_END_GENERAL_CHECK(
-                                             false,
-                                             "Invalid OpenVINO operation format, one of the next is expected:"
-                                             "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                             ov_type_name);
-                                     }
-                                     opset_name = divided[0];
-                                     op_name = divided[1];
-                                 } else if (cnt_colons == 0 && cnt_dots == 0) {
-                                     opset_name = "latest";
-                                     op_name = ov_type_name;
-                                 } else {
-                                     FRONT_END_GENERAL_CHECK(
-                                         false,
-                                         "Invalid OpenVINO operation format, one of the next is expected: \n"
-                                         "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                         ov_type_name);
-                                 }
-
-                                 const auto& opset = get_opset_by_name(opset_name);
-                                 if (!opset.contains_type(op_name)) {
-                                     FRONT_END_GENERAL_CHECK(false,
-                                                             "OpenVINO opset doesn't contain operation with "
-                                                             "name ",
-                                                             op_name);
-                                 }
-
-                                 return std::shared_ptr<ngraph::Node>(opset.create(op_name));
+                             [ov_type_name]() -> std::shared_ptr<ov::Node> {
+                                 return make_node(ov_type_name);
                              },
+                             attr_names_map,
+                             attr_values_map)) {}
+
+template <typename BaseConversionType>
+OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov_type_name,
+                                                           const std::string& fw_type_name,
+                                                           const std::vector<std::string>& in_names_vec,
+                                                           const std::vector<std::string>& out_names_vec,
+                                                           const std::map<std::string, std::string>& attr_names_map,
+                                                           const std::map<std::string, ov::Any>& attr_values_map)
+    : BaseConversionType(fw_type_name,
+                         OpConversionFunctionNamed(
+                             [ov_type_name]() -> std::shared_ptr<ov::Node> {
+                                 return make_node(ov_type_name);
+                             },
+                             in_names_vec,
+                             out_names_vec,
                              attr_names_map,
                              attr_values_map)) {}
 
@@ -321,52 +364,51 @@ OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtension, OVOpType>;
 
+#define FRONTEND_EXPAND(X)  X
+#define FRONTEND_CAT_(x, y) x##y
+#define FRONTEND_CAT(x, y)  FRONTEND_CAT_(x, y)
+// extract common attribute and values
+#define GEN_VAR_COMMON(...)                     \
+    auto params = make_spec_tuple(__VA_ARGS__); \
+    const auto& name = std::get<0>(params);     \
+    const auto& attr_mp = std::get<1>(params);  \
+    const auto& val_mp = std::get<2>(params);
+// extract paddle specific param + common values
+#define GEN_VAR_PADDLE(in_names, out_names, ...)             \
+    const std::vector<std::string> in_names_vec(in_names);   \
+    const std::vector<std::string> out_names_vec(out_names); \
+    GEN_VAR_COMMON(__VA_ARGS__)
+// make common except paddle OpExtension
+#define MAKE_MAP_COMMON(FRAMEWORK, ...)                                                          \
+    GEN_VAR_COMMON(__VA_ARGS__)                                                                  \
+    if (!name.empty())                                                                           \
+        return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(name, attr_mp, val_mp); \
+    return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(attr_mp, val_mp);
+#define MAKE_MAP_onnx(...)       MAKE_MAP_COMMON(onnx, __VA_ARGS__)
+#define MAKE_MAP_tensorflow(...) MAKE_MAP_COMMON(tensorflow, __VA_ARGS__)
+// make paddle OpExtension
+#define MAKE_MAP_paddle(...)                                                         \
+    FRONTEND_EXPAND(GEN_VAR_PADDLE(__VA_ARGS__))                                     \
+    if (!name.empty())                                                               \
+        return std::make_shared<ov::frontend::paddle::OpExtension<T>>(name,          \
+                                                                      in_names_vec,  \
+                                                                      out_names_vec, \
+                                                                      attr_mp,       \
+                                                                      val_mp);       \
+    return std::make_shared<ov::frontend::paddle::OpExtension<T>>(in_names_vec, out_names_vec, attr_mp, val_mp);
+
 // Per each FRAMEWORK this macro can be used once in one operation class definition
 // It defines a member inline function that creates required extension.
-#define OPENVINO_FRAMEWORK_MAP(FRAMEWORK, ...)                                                           \
-    template <typename T>                                                                                \
-    struct __openvino_framework_map_helper_##FRAMEWORK {                                                 \
-        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {                  \
-            auto make_spec_tuple = [](const std::string& s = "",                                         \
-                                      const std::map<std::string, std::string>& attr_mp = {},            \
-                                      const std::map<std::string, ov::Any>& val_mp = {}) {               \
-                return std::make_tuple(s, attr_mp, val_mp);                                              \
-            };                                                                                           \
-            auto params = make_spec_tuple(__VA_ARGS__);                                                  \
-            const auto& name = std::get<0>(params);                                                      \
-            const auto& attr_mp = std::get<1>(params);                                                   \
-            const auto& val_mp = std::get<2>(params);                                                    \
-            if (!name.empty())                                                                           \
-                return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(name, attr_mp, val_mp); \
-            return std::make_shared<ov::frontend::FRAMEWORK::OpExtension<T>>(attr_mp, val_mp);           \
-        }                                                                                                \
-    };
-
-#define OPENVINO_FRAMEWORK_MAP_PADDLE(in_names, out_names, ...)                               \
+#define OPENVINO_FRAMEWORK_MAP(FRAMEWORK, ...)                                                \
     template <typename T>                                                                     \
-    struct __openvino_framework_map_helper_paddle {                                           \
-        static auto get() -> std::shared_ptr<ov::frontend::paddle::OpExtension<T>> {          \
+    struct __openvino_framework_map_helper_##FRAMEWORK {                                      \
+        static auto get() -> std::shared_ptr<ov::frontend::FRAMEWORK::OpExtension<T>> {       \
             auto make_spec_tuple = [](const std::string& s = "",                              \
                                       const std::map<std::string, std::string>& attr_mp = {}, \
                                       const std::map<std::string, ov::Any>& val_mp = {}) {    \
                 return std::make_tuple(s, attr_mp, val_mp);                                   \
             };                                                                                \
-            auto params = make_spec_tuple(__VA_ARGS__);                                       \
-            const auto& name = std::get<0>(params);                                           \
-            const auto& attr_mp = std::get<1>(params);                                        \
-            const auto& val_mp = std::get<2>(params);                                         \
-            const std::vector<std::string> in_names_vec(in_names);                            \
-            const std::vector<std::string> out_names_vec(out_names);                          \
-            if (!name.empty())                                                                \
-                return std::make_shared<ov::frontend::paddle::OpExtension<T>>(name,           \
-                                                                              in_names_vec,   \
-                                                                              out_names_vec,  \
-                                                                              attr_mp,        \
-                                                                              val_mp);        \
-            return std::make_shared<ov::frontend::paddle::OpExtension<T>>(in_names_vec,       \
-                                                                          out_names_vec,      \
-                                                                          attr_mp,            \
-                                                                          val_mp);            \
+            FRONTEND_CAT(MAKE_MAP_, FRAMEWORK)(__VA_ARGS__)                                   \
         }                                                                                     \
     };
 }  // namespace frontend
