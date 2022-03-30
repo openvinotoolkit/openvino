@@ -98,6 +98,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
         return false;
     }
 
+    auto skip = getAttribute<SkipCleanupAttribute>(operation);
+    if (!skip.empty() && skip.as<SkipCleanupAttribute>().value()) {
+        return false;
+    }
+
     const auto parent = operation->get_input_node_shared_ptr(0);
     auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
     const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
@@ -112,13 +117,6 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
 
     if (fq->get_output_target_inputs(0).size() != 1) {
         return false;
-    }
-
-    auto skip = getAttribute<SkipCleanupAttribute>(operation);
-    if (!skip.empty()) {
-        if (skip.as<SkipCleanupAttribute>().value()) {
-            return false;
-        }
     }
 
     return true;

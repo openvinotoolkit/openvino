@@ -1,8 +1,8 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/lstm.hpp"
+#include "low_precision/recurrent_cell.hpp"
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -13,7 +13,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-#include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "../include/low_precision/rt_info/skip_cleanup_attribute.hpp"
 
@@ -21,7 +20,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-LSTMTransformation::LSTMTransformation(const Params& params) : LayerTransformation(params) {
+RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) : LayerTransformation(params) {
     const auto X = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>();
     const auto H = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>();
     const auto C = ngraph::pattern::wrap_type<ngraph::opset5::Parameter>();
@@ -125,7 +124,7 @@ LSTMTransformation::LSTMTransformation(const Params& params) : LayerTransformati
     this->register_matcher(m, callback);
 }
 
-bool LSTMTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool RecurrentCellTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
      const auto lstm = m.get_match_root();
     if (!canBeTransformed(context, lstm)) {
         return false;
@@ -178,15 +177,15 @@ bool LSTMTransformation::transform(TransformationContext& context, ngraph::patte
     return true;
 }
 
-bool LSTMTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool RecurrentCellTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     return true;
 }
 
-bool LSTMTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
+bool RecurrentCellTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
     return true;
 }
 
-void LSTMTransformation::propagateSkipCleanupAttribute(std::shared_ptr<Node> multiply) {
+void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<Node> multiply) {
     SkipCleanupAttribute::create(multiply, true);
     auto multiply_parent = multiply->get_input_node_shared_ptr(0);
     SkipCleanupAttribute::create(multiply_parent, true);

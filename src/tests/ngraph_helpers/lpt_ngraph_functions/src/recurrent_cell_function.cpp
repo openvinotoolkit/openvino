@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lpt_ngraph_functions/lstm_function.hpp"
+#include "lpt_ngraph_functions/recurrent_cell_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
@@ -23,7 +23,7 @@ namespace subgraph {
 
 using namespace ngraph::pass;
 
-std::shared_ptr<ngraph::Function> LSTMFunction::get(
+std::shared_ptr<ngraph::Function> RecurrentCellFunction::get(
     const ngraph::element::Type inputPrecision,
     const std::vector<ngraph::PartialShape>& inputActivationsShapes,
     const std::vector<ngraph::Shape>& inputWeightsShapes,
@@ -82,6 +82,7 @@ std::shared_ptr<ngraph::Function> LSTMFunction::get(
                                                        C,
                                                        parent_W,
                                                        parent_R,
+                                                       B,
                                                        128);
         rnn_layer->set_friendly_name("lstm_cell");
         break;

@@ -20,9 +20,15 @@
 namespace ngraph {
 /**
  * @ingroup ie_transformation_common_api
- * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
+ * @brief SkipCleanupAttribute defines if operation <put here>.
+ *
+ * For more details about the attribute, refer to
+ * [SkipCleanupAttribute](@ref openvino_docs_IE_DG_lpt_SkipCleanupAttribute) page in the Inference Engine Developer
+ * Guide.
  */
-class LP_TRANSFORMATIONS_API SkipCleanupAttribute : public SharedAttribute<bool> {
+class LP_TRANSFORMATIONS_API SkipCleanupAttribute : public ov::RuntimeAttribute {
+    bool skip;
+
 public:
     OPENVINO_RTTI("LowPrecision::SkipCleanup", "", ov::RuntimeAttribute, 0);
     SkipCleanupAttribute(const bool skip);
@@ -30,5 +36,6 @@ public:
     static ov::Any create(const std::shared_ptr<ngraph::Node>& node, const bool skip);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() const override;
+    const bool value() const;
 };
 } // namespace ngraph

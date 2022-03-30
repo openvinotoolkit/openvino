@@ -91,6 +91,11 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
         return false;
     }
 
+    auto skip = getAttribute<SkipCleanupAttribute>(operation);
+    if (!skip.empty() && skip.as<SkipCleanupAttribute>().value()) {
+        return false;
+    }
+
     const auto children = operation->get_output_target_inputs(0);
 
     for (const auto& target : children) {
@@ -116,12 +121,6 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
 
     if (fq->get_output_target_inputs(0).size() != 1) {
         return false;
-    }
-    auto skip = getAttribute<SkipCleanupAttribute>(operation);
-    if (!skip.empty()) {
-        if (skip.as<SkipCleanupAttribute>().value()) {
-            return false;
-        }
     }
 
     return true;

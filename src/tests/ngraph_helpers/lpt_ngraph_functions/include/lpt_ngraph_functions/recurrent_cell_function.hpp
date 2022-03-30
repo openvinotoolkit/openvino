@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-class LSTMFunction {
+class RecurrentCellFunction {
 public:
     enum class RNNType { LSTMCell, LSTMSequence, GRU, RNNCell };
 

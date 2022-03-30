@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API LSTMTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API RecurrentCellTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("LSTMTransformation", "0");
-    LSTMTransformation(const Params& params = Params());
+    OPENVINO_RTTI("RecurrentCellTransformation", "0");
+    RecurrentCellTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

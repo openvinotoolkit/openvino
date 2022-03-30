@@ -17,10 +17,7 @@
 using namespace ngraph;
 using namespace ov;
 
-SkipCleanupAttribute::SkipCleanupAttribute(const bool skip)
-    :
-    SharedAttribute(skip) {
-}
+SkipCleanupAttribute::SkipCleanupAttribute(const bool skip) : skip(skip) {}
 
 ov::Any SkipCleanupAttribute::create(
     const std::shared_ptr<ngraph::Node>& node,
@@ -29,10 +26,14 @@ ov::Any SkipCleanupAttribute::create(
     return (rt[SkipCleanupAttribute::get_type_info_static()] = SkipCleanupAttribute(skip));
 }
 
+const bool SkipCleanupAttribute::value() const {
+    return skip;
+}
+
 std::string SkipCleanupAttribute::to_string() const {
     std::stringstream ss;
     ss << "SkipCleanup: {";
-    attribute ? ss << "True" : ss << "False";
+    skip ? ss << "True" : ss << "False";
     ss << "}";
     return ss.str();
 }

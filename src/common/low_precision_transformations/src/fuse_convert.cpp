@@ -112,6 +112,11 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    auto skip = getAttribute<SkipCleanupAttribute>(op);
+    if (!skip.empty() && skip.as<SkipCleanupAttribute>().value()) {
+        return false;
+    }
+
     const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     // issue #40395
     if (convert == nullptr) {
@@ -121,13 +126,6 @@ bool FuseConvertTransformation::canBeTransformed(const TransformationContext& co
     const auto destType = convert->get_destination_type();
     if ((destType != element::f16) && (destType != element::f32)) {
         return false;
-    }
-
-    auto skip = getAttribute<SkipCleanupAttribute>(op);
-    if (!skip.empty()) {
-        if (skip.as<SkipCleanupAttribute>().value()) {
-            return false;
-        }
     }
 
     return true;
