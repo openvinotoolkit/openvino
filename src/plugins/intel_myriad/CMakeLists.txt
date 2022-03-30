@@ -13,9 +13,9 @@ endif()
 add_subdirectory(common)
 
 if(ENABLE_INTEL_MYRIAD)
+    add_subdirectory(third_party)
     add_subdirectory(graph_transformer)
     add_subdirectory(myriad_plugin)
-    add_subdirectory(third_party)
 
     # TODO: custom installation or totally remove
     if(DEFINED VPU_CLC_MA2X8X_ROOT AND NOT CPACK_GENERATOR STREQUAL "DEB")
