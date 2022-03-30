@@ -212,8 +212,8 @@ def main():
         cmd = f'"{python_executable}" {converter_path} --name {model_name}' \
               f' -p "{python_executable}"' \
               f' --precisions={precision}' \
-              ' --output_dir {args.omz_irs_out_dir}' \
-              ' --download_dir {args.omz_models_out_dir}'
+              f' --output_dir {args.omz_irs_out_dir}' \
+              f' --download_dir {args.omz_models_out_dir}'
         if args.mo_tool:
             cmd += f' --mo {args.mo_tool}'
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
