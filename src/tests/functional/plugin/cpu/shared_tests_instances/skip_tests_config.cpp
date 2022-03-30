@@ -167,6 +167,16 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        // todo: [AV] issue
+        R"(.*ConvolutionLayerCPUTest.*inPRC=u8_outPRC=f32.*inFmts=nhwc_outFmts=nhwc_primitive=jit_gemm_Fused=PRelu\(PerChannel\)_zp.*)",
+//        // todo: [AV] issue
+        R"(.*ConvolutionLayerCPUTest.*K\(1.*S\(2.*zp.*)",
+//        // todo: [AV] issue 70622
+//        R"(.*ConvolutionLayerCPUTest.*PB\(1\.1\.1.*jit_gemm.*zp.*)",
+//        // todo: [AV] issue
+//        R"(.*GroupConvolutionLayerCPUTest.*PB\(1.*zp.*)",
+//        // todo: [AV] issue
+//        R"(.*MatMulLayerCPUTest.*outPRC=(U8|I8).*Fused=(fusingBiasFC|Relu|Multiply).*)",
     };
 
 #define FIX_62820 0

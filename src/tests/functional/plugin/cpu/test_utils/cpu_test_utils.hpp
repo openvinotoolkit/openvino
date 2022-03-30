@@ -157,6 +157,10 @@ protected:
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
+
+    ngraph::element::Type outElemType = ngraph::element::f32;
+    // only for int8 testing
+    int quantizeInHigh = 1;
 };
 
 // common parameters

@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;

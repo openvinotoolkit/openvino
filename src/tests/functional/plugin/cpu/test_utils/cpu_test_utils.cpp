@@ -7,6 +7,8 @@
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <cstdint>
 
+#include "ngraph_functions/builders.hpp"
+
 namespace CPUTestUtils {
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
@@ -288,6 +290,12 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
                                  const std::shared_ptr<ngraph::Node> &lastNode, std::string name) {
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
+
+    if (outElemType == ngraph::element::u8) {
+        newLastNode = ngraph::builder::makeFakeQuantize(newLastNode, ngPrc, 256, {1, 1, 1, 1}, {0}, {static_cast<float>(quantizeInHigh)}, {0}, {255});
+    } else if (outElemType == ngraph::element::i8) {
+        newLastNode = ngraph::builder::makeFakeQuantize(newLastNode, ngPrc, 255, {1, 1, 1, 1}, {0}, {static_cast<float>(quantizeInHigh)}, {-127}, {127});
+    }
 
    for (int i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));

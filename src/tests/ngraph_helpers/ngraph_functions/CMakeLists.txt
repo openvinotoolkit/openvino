@@ -13,6 +13,7 @@ addIeTarget(
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
+                ${OpenVINO_SOURCE_DIR}/src/common/transformations/include
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
