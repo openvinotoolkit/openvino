@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
