@@ -72,11 +72,7 @@ For example, if you would like to infer a model with `Convolution` operation in 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
 ### Low precision tools
-There are two tools to quantize a model:
-1. [Post-Training Optimization Toolkit](@ref pot_docs_LowPrecisionOptimizationGuide) (POT)
-2. [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf) (NNCF)
-
-Additionally, low precision transformations can handle ONNX quantized models.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
 
 ## Quantization approaches
 LPT transformations support two quantization approaches:

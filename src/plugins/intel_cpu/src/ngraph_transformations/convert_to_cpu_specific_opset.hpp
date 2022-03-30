@@ -20,10 +20,13 @@
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
+#include "itt.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
+    RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
     ngraph::pass::Manager manager;
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
