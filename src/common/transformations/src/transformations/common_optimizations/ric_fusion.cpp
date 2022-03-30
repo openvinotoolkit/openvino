@@ -24,6 +24,12 @@ namespace ngraph {
 namespace pass {
 namespace ric_attr {
 
+namespace {
+std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
+    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+}
+}  // namespace
+
 // Attribute describes RIC type which we propagate.
 // Also, it contains callback which can expand this attribute to the real RIC sub-graph.
 // In addition, attribute has some functionality and properties for propagation.
@@ -65,8 +71,18 @@ public:
     }
 
     // Apply callback to materialize RIC inside graph
-    void operator()(Input<Node> input) const {
-        m_callback(input, *this);
+    void materialize(Input<Node> input) const {
+        const auto& axis_dim = input.get_shape()[this->get_axis()];
+        auto output = input.get_source_output();
+        // Handle case when the RIC order is default
+        auto order = this->get_order();
+        if (order.empty()) {
+            order.resize(axis_dim);
+            std::iota(order.rbegin(), order.rend(), 0);
+        }
+        auto gather = std::make_shared<opset8::Gather>(output, create_const(order), create_const({this->get_axis()}));
+        input.replace_source_output(gather);
+        // TODO: copy runtime info from RIC sub-graph
     }
 
     bool can_be_fused() const {
@@ -174,12 +190,6 @@ void erase(T port) {
 }
 }  // namespace
 }  // namespace ric_attr
-
-namespace {
-    std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t> &values) {
-        return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-    }
-} // namespace
 
 namespace init {
 class SplitConcat : public ngraph::pass::MatcherPass {
@@ -367,19 +377,6 @@ public:
                 auto ric_const = ric;
                 ric_const.set_axis(new_axis);
                 ric_const.set_is_final(true);
-                ric_const.set_callback([axis_dim](Input<Node> input, const ric_attr::Attribute& attr) {
-                    auto output = input.get_source_output();
-                    // Handle case when the RIC order is default
-                    auto order = attr.get_order();
-                    if (order.empty()) {
-                        order.resize(axis_dim);
-                        std::iota(order.rbegin(), order.rend(), 0);
-                    }
-                    auto gather =
-                        std::make_shared<opset8::Gather>(output, create_const(order), create_const({attr.get_axis()}));
-                    input.replace_source_output(gather);
-                    // TODO: copy runtime info from RIC sub-graph
-                });
                 ric_attr::set(input, ric_const);
             }
 
@@ -409,22 +406,6 @@ public:
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
             if (ric.get_axis() != 1)
                 return false;
-
-            ric.set_callback([](Input<Node> input, const ric_attr::Attribute& attr) {
-                const auto output_channel_index = 1;
-                auto order = attr.get_order();
-                // Handle case when the RIC order is default
-                if (order.empty()) {
-                    order.resize(input.get_partial_shape()[output_channel_index].get_length());
-                    std::iota(order.rbegin(), order.rend(), 0);
-                }
-                auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights,
-                                                               create_const(order),
-                                                               create_const({output_channel_index}));
-                input.replace_source_output(gather);
-                // TODO: copy runtime info from RIC sub-graph
-            });
 
             ric_attr::set(conv->input(1), ric);
             return true;
@@ -468,14 +449,6 @@ public:
             auto ric_weights = ric;
             ric_weights.set_is_final(true);
             ric_weights.set_axis(0);
-            ric_weights.set_callback([](Input<Node> input, const ric_attr::Attribute& attr) {
-                auto weights = input.get_source_output();
-                auto gather = std::make_shared<opset8::Gather>(weights,
-                                                               create_const(attr.get_order()),
-                                                               create_const({0} /* output channel */));
-                input.replace_source_output(gather);
-                // TODO: copy runtime info from RIC sub-graph
-            });
 
             if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
                 // Set final RIC attr to the first FQ input
@@ -619,7 +592,7 @@ public:
                     continue;
                 const auto& ric = ric_attr::get(input);
                 if (ric.can_be_fused() && ric.is_final()) {
-                    ric(input);
+                    ric.materialize(input);
                 }
             }
             return false;
@@ -687,7 +660,7 @@ public:
             std::vector<ric_attr::Attribute> attrs;
             for (const auto& input : inputs) {
                 if (ric_attr::has(input)) {
-                    attrs.push_back(ric_attr::get(output).propagate());
+                    attrs.push_back(ric_attr::get(input).propagate());
                 } else {
                     return false;
                 }
@@ -732,20 +705,6 @@ public:
                 // finally, insert RIC
                 auto ric_const = ric;
                 ric_const.set_axis(new_axis);
-                ric_const.set_is_final(true);
-                ric_const.set_callback([axis_dim](Input<Node> input, const ric_attr::Attribute& attr) {
-                    auto output = input.get_source_output();
-                    // Handle case when the RIC order is default
-                    auto order = attr.get_order();
-                    if (order.empty()) {
-                        order.resize(axis_dim);
-                        std::iota(order.rbegin(), order.rend(), 0);
-                    }
-                    auto gather =
-                        std::make_shared<opset8::Gather>(output, create_const(order), create_const({attr.get_axis()}));
-                    input.replace_source_output(gather);
-                    // TODO: copy runtime info from RIC sub-graph
-                });
                 ric_attr::set(input, ric_const);
             }
 
@@ -762,11 +721,13 @@ public:
         MATCHER_SCOPE(Unsupported);
         auto pattern_root = pattern::any_input();
         auto callback = [=](pattern::Matcher& m) {
-            for (const auto& input : m.get_match_root()->input_values()) {
-                if (ric_attr::has(input)) {
-                    auto ric = ric_attr::get(input);
-                    ric.set_can_be_fused(false);
-                    NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+            for (const auto& output : m.get_match_root()->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
+                    if (ric_attr::has(consumer)) {
+                        auto ric = ric_attr::get(consumer);
+                        ric.set_can_be_fused(false);
+                        NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+                    }
                 }
             }
             return true;
