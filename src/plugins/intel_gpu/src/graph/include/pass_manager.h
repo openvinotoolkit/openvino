@@ -185,6 +185,12 @@ private:
     void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
 
+class prepare_primitive_fusing_through : public base_pass {
+public:
+    prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
+    void run(program& p) override;
+};
+
 class prepare_primitive_fusing : public base_pass {
 public:
     explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :

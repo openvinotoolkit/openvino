@@ -159,10 +159,10 @@ public:
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
-    void replace_dependency(size_t idx, program_node& new_dep);
+    void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
-    void replace_dependency(program_node const& old_dep, program_node& new_dep);
+    void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 

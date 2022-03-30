@@ -52,6 +52,12 @@ protected:
     virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
+    Datatype GetActivationType(const softmax_params& params) const {
+        if (params.inputs[0].GetDType() == Datatype::F16)
+            return Datatype::F16;
+        else
+            return Datatype::F32;
+    }
 };
 
 class SoftmaxKernelBaseBF : public SoftmaxKernelBase {

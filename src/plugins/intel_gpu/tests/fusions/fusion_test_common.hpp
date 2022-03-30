@@ -94,6 +94,24 @@ public:
         }
     }
 
+    void check_fusions_correctness(network& network_fused, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+        if (expected_fused_primitives_ids.size()) {
+            auto primitives_info = network_fused.get_primitives_info();
+            for (auto& prim : expected_fused_primitives_ids) {
+                auto info = std::find_if(primitives_info.begin(), primitives_info.end(),
+                                         [&prim](const primitive_info& info) -> bool { return info.original_id == prim.first; });
+                if (info != primitives_info.end()) {
+                    auto fused_primitives = info->c_fused_ids;
+                    for (auto& expected_fused_prim : prim.second)
+                        if (std::find(fused_primitives.begin(), fused_primitives.end(), expected_fused_prim) == fused_primitives.end())
+                            FAIL() << "Couldn't find requested fused primitive id " + prim.first;
+                } else {
+                    FAIL() << "Couldn't find requested primitive id " + prim.first;
+                }
+            }
+        }
+    }
+
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.size;
