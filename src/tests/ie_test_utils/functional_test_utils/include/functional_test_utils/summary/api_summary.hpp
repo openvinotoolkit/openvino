@@ -48,7 +48,7 @@ public:
     std::map<ov_entity, std::map<std::string, PassRate>> getApiStats() { return apiStats; }
 
 
-    void updateStat(ov_entity, std::string, PassRate::Statuses);
+    void updateStat(ov_entity, const std::string& device, PassRate::Statuses);
 
 //    std::map<std::string, PassRate> getStatisticFromReport() override;
     void saveReport() override;

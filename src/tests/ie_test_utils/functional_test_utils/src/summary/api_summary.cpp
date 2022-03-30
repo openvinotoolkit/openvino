@@ -14,10 +14,6 @@ using namespace ov::test::utils;
 #endif
 
 ApiSummary *ApiSummary::p_instance = nullptr;
-//bool Summary::extendReport = false;
-//bool Summary::saveReportWithUniqueName = false;
-//size_t Summary::saveReportTimeout = 0;
-//const char* Summary::outputFolder = ".";
 ApiSummaryDestroyer ApiSummary::destroyer;
 const std::map<ov_entity, std::string> ApiSummary::apiInfo({
     { ov_entity::ov_infer_request, "Infer request (OV2.0 API)"},
@@ -48,29 +44,30 @@ ApiSummary &ApiSummary::getInstance() {
     return *p_instance;
 }
 
-void ApiSummary::updateStat(ov_entity entity, std::string target_device, PassRate::Statuses status) {
+void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status) {
+    std::string real_device = target_device.substr(0, target_device.find(':'));
     if (apiStats.find(entity) == apiStats.end()) {
-        apiStats.insert({entity, {{target_device, PassRate()}}});
+        apiStats.insert({entity, {{real_device, PassRate()}}});
     }
     auto& cur_stat = apiStats[entity];
-    if (cur_stat.find(target_device) == cur_stat.end()) {
-        cur_stat.insert({target_device, PassRate()});
+    if (cur_stat.find(real_device) == cur_stat.end()) {
+        cur_stat.insert({real_device, PassRate()});
     }
     switch (status) {
         case PassRate::Statuses::SKIPPED:
-            cur_stat[target_device].skipped++;
+            cur_stat[real_device].skipped++;
             break;
         case PassRate::Statuses::PASSED:
-            cur_stat[target_device].passed++;
+            cur_stat[real_device].passed++;
             break;
         case PassRate::Statuses::HANGED:
-            cur_stat[target_device].hanged++;
+            cur_stat[real_device].hanged++;
             break;
         case PassRate::Statuses::FAILED:
-            cur_stat[target_device].failed++;
+            cur_stat[real_device].failed++;
             break;
         case PassRate::Statuses::CRASHED:
-            cur_stat[target_device].crashed++;
+            cur_stat[real_device].crashed++;
             break;
     }
 }
