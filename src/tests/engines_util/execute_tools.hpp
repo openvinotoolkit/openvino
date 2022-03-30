@@ -13,16 +13,15 @@
 #include <random>
 #include <vector>
 
-#include "graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "test_tools.hpp"
 
 namespace ngraph {
 class TestOpMultiOut : public op::Op {
