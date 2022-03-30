@@ -48,8 +48,6 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
     };
 
 
-    bool isSupported = false;
-    bool wasNodeAlreadyChecked = false;
     for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork};
             itLayer != InferenceEngine::details::CNNNetworkIterator();
             itLayer++) {
@@ -58,7 +56,8 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
             continue;
         }
 
-        wasNodeAlreadyChecked = false;
+        bool isSupported = false;
+        bool wasNodeAlreadyChecked = false;
         if (InferenceEngine::details::contains(originalOps, fusedNode->get_friendly_name())) {
             isSupported = isLayerSupported(itLayer);
             wasNodeAlreadyChecked = true;

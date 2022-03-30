@@ -399,7 +399,8 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto func = clonedNetwork.getFunction();
     auto ops = func->get_ordered_ops();
 
-    std::unordered_set<std::string> supported;
+    //Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
     std::unordered_set<std::string> unsupported;
 
     std::unordered_set<std::string> supportedNotOriginal;
@@ -453,16 +454,11 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                ngraph::op::is_output(node);
     };
 
-    //Mark removed nodes as supported
-    auto removedNodeNames = GetRemovedNodes(function, func);
-    supported.insert(removedNodeNames.begin(), removedNodeNames.end());
-
     // Get ops after transformations and check if it's supported
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
-    bool isSupported = false;
     for (auto&& op : ops) {
-        isSupported = layerIsSupported(op);
+        bool isSupported = layerIsSupported(op);
         if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
             if (isSupported) {
                 supported.emplace(op->get_friendly_name());

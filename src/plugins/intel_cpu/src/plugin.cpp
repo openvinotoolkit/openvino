@@ -923,26 +923,24 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
         Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
         auto ops = clonnedFunction->get_ordered_ops();
-        std::unordered_set<std::string> supported;
+
+        //Mark removed nodes as supported
+        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
         std::unordered_set<std::string> unsupported;
 
         auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-            } catch (InferenceEngine::Exception&) {
+            } catch (const InferenceEngine::Exception&) {
                 return false;
             }
             return true;
         };
 
-        auto removedNodeNames = GetRemovedNodes(function, clonnedFunction);
-        supported.insert(removedNodeNames.begin(), removedNodeNames.end());
-
-        bool isSupported = false;
-        bool wasNodeAlreadyChecked = false;
-        for (auto op : ops) {
-            wasNodeAlreadyChecked = false;
+        for (auto&& op : ops) {
+            bool isSupported = false;
+            bool wasNodeAlreadyChecked = false;
             if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
                 isSupported = layerIsSupported(op);
                 wasNodeAlreadyChecked = true;
