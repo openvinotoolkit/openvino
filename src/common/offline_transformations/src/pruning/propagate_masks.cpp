@@ -435,6 +435,12 @@ public:
             // Here assuming that masks can be propagated only through 3/4 dimensional tensors
             // (since channel dim is necessary) or tensors with equal rank.
             if (!((weights_rank > 2 && input_rank > 2) || weights_rank == input_rank)) return false;
+
+            if (m_output.get_node_shared_ptr()->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
+                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                             << " because node is using unsupported broadcast mode." << std::endl;
+                return false;
+            }
             // Case when input masks should be united instead of intersection
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
 
@@ -453,7 +459,7 @@ public:
                 const int64_t input_shape_size_diff = input_shape.size() - weights_shape.size();
                 const int64_t weights_shape_size_diff = -input_shape_size_diff;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
-                    const auto shifted_elem = i + weights_shape_size_diff;
+                    const int64_t shifted_elem = i + weights_shape_size_diff;
                     if (shifted_elem >= 0 && input_shape[i] == 1 &&
                         weights_shape[shifted_elem] != 1)
                         input_shape_broadcasted_dims.insert(i);
@@ -461,7 +467,7 @@ public:
                         weights_shape_broadcasted_dims.insert(shifted_elem);
                 }
                 for (size_t i = 0; i < weights_shape.size(); ++i) {
-                    const auto shifted_elem = i + input_shape_size_diff;
+                    const int64_t shifted_elem = i + input_shape_size_diff;
                     if (shifted_elem >=0 && weights_shape[i] == 1 &&
                         input_shape[shifted_elem] != 1)
                         weights_shape_broadcasted_dims.insert(i);
@@ -487,11 +493,6 @@ public:
                 }
             }
 
-            if ((input_shape_broadcasted_dims.size() || weights_shape_broadcasted_dims.size()) &&
-                 m_output.get_node_shared_ptr()->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
-                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                             << " because node is using unsupported broadcast mode." << std::endl;
-            }
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
@@ -976,6 +977,7 @@ static ChannelsMap map_channels(
                 ch %= dims_attrs[unsquized_dim].dim;
 
             // Start iterating through chanel
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto iter = get_channel_iter(unsquized_shape, unsquized_shift, ch);
             for (const auto & coord : iter) {
                 const auto idx = iter.index(coord);
@@ -984,6 +986,7 @@ static ChannelsMap map_channels(
                     squized_mask_dim_copy.erase(idx);
                 }
             }
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (cur_ch_elems.size() !=\
                 dims_attrs[unsquized_dim].elems_inner_dims * dims_attrs[unsquized_dim].elems_outer_dims) {
                 suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
@@ -1153,9 +1156,11 @@ public:
                                 for (auto & out_dim : dims_map[in_dim]) {
                                     const auto unsquized_shift = out_dim - dims_map[in_dim][0];
                                     for (auto &ch : weights_mask_row->at(out_dim)) {
+                                        NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
                                         for (const auto coord : iter)
                                             cur_mask->at(in_dim).insert(iter.index(coord));
+                                        NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
                                 }
                             }
@@ -1212,9 +1217,11 @@ public:
                                 for (auto & in_dim : dims_map[out_dim]) {
                                     const auto unsquized_shift = in_dim - dims_map[out_dim][0];
                                     for (auto &ch : input_mask_row->at(in_dim)) {
+                                        NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
                                         for (const auto coord : iter)
                                             cur_mask->at(out_dim).insert(iter.index(coord));
+                                        NGRAPH_SUPPRESS_DEPRECATED_END
                                     }
                                 }
                             }

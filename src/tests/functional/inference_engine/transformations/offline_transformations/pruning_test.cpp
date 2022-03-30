@@ -23,7 +23,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#define VISUALIZE_TESTS_TREE true
+#define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT "/tmp/"
 
 using namespace testing;
@@ -69,60 +69,62 @@ public testing::WithParamInterface<bool> {
 };
 
 
-// Uncomment, specify PRUNING_TARGET_IR_PATH var and
-// include <openvino/util/env_util.hpp> to check pruning on given IR
-TEST(TransformationTests, PruneIRTest) {
-    InferenceEngine::Core core;
-
-    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
-    if (input_model == "")
-        return;
-
-    auto function = core.ReadNetwork(input_model).getFunction();
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-
-    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-        std::stringstream ss;
-        size_t index{0};
-        for (const auto & output : node.outputs()) {
-            if (const auto & mask = getMask(output)) {
-                if (!mask->all_dims_are_empty()) {
-                    attributes.emplace_back("color=green");
-                    attributes.emplace_back("penwidth=2");
-                }
-                ss << "Mask(" << index << ") : " << *mask << "\\n";
-            }
-            index++;
-        }
-        if (!ss.str().empty()) {
-            auto label = std::find_if(attributes.begin(), attributes.end(),
-                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
-            if (label != attributes.end()) {
-                label->pop_back();
-                *label += "\n" + ss.str() + "\"";
-            } else {
-                attributes.push_back("label=\"" + ss.str() + "\"");
-            }
-        }
-    };
-
-    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
-    m.register_pass<pass::ShrinkWeights>();
-    m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks_after_shrink.svg", modifier);
-
-    if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
-    m.run_passes(function);
-    {
-        pass::Manager m;
-        m.register_pass<pass::Serialize>("/tmp/ir_model_pruned.xml", "/tmp/ir_model_pruned.bin");
-        m.run_passes(function);
-    }
-}
+// Uncomment and specify PRUNING_TARGET_IR_PATH var to check pruning on given IR
+//TEST(TransformationTests, PruneIRTest) {
+//    InferenceEngine::Core core;
+//
+//    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
+//    if (input_model == "")
+//        return;
+//
+//    auto function = core.ReadNetwork(input_model).getFunction();
+//
+//    {
+//        pass::Manager m;
+//        m.register_pass<pass::InitMasks>();
+//        m.register_pass<pass::PropagateMasks>();
+//    }
+//    // VisualizeTree modifier helps to print Masks and mark nodes with masks
+//    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
+//        std::stringstream ss;
+//        size_t index{0};
+//        for (const auto & output : node.outputs()) {
+//            if (const auto & mask = getMask(output)) {
+//                if (!mask->all_dims_are_empty()) {
+//                    attributes.emplace_back("color=green");
+//                    attributes.emplace_back("penwidth=2");
+//                }
+//                ss << "Mask(" << index << ") : " << *mask << "\\n";
+//            }
+//            index++;
+//        }
+//        if (!ss.str().empty()) {
+//            auto label = std::find_if(attributes.begin(), attributes.end(),
+//                                   [](const std::string & value) { return value.find("label=") != std::string::npos; });
+//            if (label != attributes.end()) {
+//                label->pop_back();
+//                *label += "\n" + ss.str() + "\"";
+//            } else {
+//                attributes.push_back("label=\"" + ss.str() + "\"");
+//            }
+//        }
+//    };
+//
+//    {
+//        pass::Manager m;
+//        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg", modifier);
+//        m.register_pass<pass::ShrinkWeights>();
+//        m.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks_after_shrink.svg", modifier);
+//    }
+//
+//    if (VISUALIZE_TESTS_TREE)
+//        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(function);
+//    {
+//        pass::Manager m;
+//        m.register_pass<pass::Serialize>(std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.xml",
+//                                         std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.bin");
+//    }
+//}
 
 
 TEST(TransformationTests, InitMasksOI) {
@@ -3908,15 +3910,18 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
     broadcasted_eltwise->set_friendly_name("Eltwise broadcasted same rank");
 
+    auto broadcasted_eltwise2 = std::make_shared<opset5::Add>(broadcasted_eltwise_weights, broadcasted_eltwise);
+    broadcasted_eltwise2->set_friendly_name("Eltwise broadcasted same rank swapped");
+
     auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
-    auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+    auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise2, transpose_to_const);
 
     auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
     auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
     broadcasted_eltwise_short->set_friendly_name("Eltwise broadcasted smaller rank");
 
-    auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_short, transpose_to);
-    broadcasted_eltwise_short2->set_friendly_name("Eltwise broadcasted smaller rank reversed");
+    auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_weights_short, broadcasted_eltwise_short);
+    broadcasted_eltwise_short2->set_friendly_name("Eltwise broadcasted smaller rank swapped");
 
     auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short2, transpose_to_const);
 
@@ -3928,9 +3933,12 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
     broadcasted_eltwise_without_weights_mask->set_friendly_name("Eltwise broadcasted same rank without weights mask");
 
+    auto broadcasted_eltwise_without_weights_mask2 = std::make_shared<opset5::Add>(dummy_eltwise, broadcasted_eltwise_without_weights_mask);
+    broadcasted_eltwise_without_weights_mask2->set_friendly_name("Eltwise broadcasted same rank without weights mask swapped");
+
     auto left_weights = create_constant_with_zeros(weightsLeftShape, {{}, {1, 2}});
 
-    auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
+    auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask2, left_weights);
 
     auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 36});
     auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
@@ -3958,14 +3966,16 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
         auto broadcasted_eltwise_weights = create_constant_with_zeros(broadcastedEltwiseShape, {{0}, {}, {}, {}});
         auto broadcasted_eltwise = std::make_shared<opset5::Add>(transpose, broadcasted_eltwise_weights);
 
+        auto broadcasted_eltwise2 = std::make_shared<opset5::Add>(broadcasted_eltwise_weights, broadcasted_eltwise);
+        broadcasted_eltwise2->set_friendly_name("Eltwise broadcasted same rank swapped");
+
         auto transpose_to_const = opset5::Constant::create(element::i64, {4}, {1, 0, 2, 3});
-        auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise, transpose_to_const);
+        auto transpose_to = std::make_shared<opset5::Transpose>(broadcasted_eltwise2, transpose_to_const);
 
         auto broadcasted_eltwise_weights_short = create_constant_with_zeros(broadcastedEltwiseShapeShort, {{}, {0, 1}, {}});
         auto broadcasted_eltwise_short = std::make_shared<opset5::Add>(transpose_to, broadcasted_eltwise_weights_short);
 
-        // NOT WORKING AS EXPECTED!!!!
-        auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_short, transpose_to);
+        auto broadcasted_eltwise_short2 = std::make_shared<opset5::Add>(broadcasted_eltwise_weights_short, broadcasted_eltwise_short);
 
         auto transpose_from = std::make_shared<opset5::Transpose>(broadcasted_eltwise_short2, transpose_to_const);
 
@@ -3975,9 +3985,11 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
 
         auto broadcasted_eltwise_without_weights_mask = std::make_shared<opset5::Add>(transpose_from, dummy_eltwise);
 
+        auto broadcasted_eltwise_without_weights_mask2 = std::make_shared<opset5::Add>(dummy_eltwise, broadcasted_eltwise_without_weights_mask);
+
         auto left_weights = create_constant_with_zeros({weightsLeftShape[0], weightsLeftShape[1] - 2}, {{}, {}});
 
-        auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask, left_weights);
+        auto mul_left = std::make_shared<opset5::MatMul>(broadcasted_eltwise_without_weights_mask2, left_weights);
 
         auto flatten_const = opset5::Constant::create(element::i64, {2}, {2, 8});
         auto flatten = std::make_shared<opset5::Reshape>(mul_left, flatten_const, true);
@@ -4006,13 +4018,16 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
 
     compare_masks(*getMask(transpose->output(0)), Mask({{}, {1, 2}, {}, {}}));
     compare_masks(*getMask(broadcasted_eltwise->output(0)), Mask({{}, {1, 2}, {}, {}}));
+    compare_masks(*getMask(broadcasted_eltwise2->output(0)), Mask({{}, {1, 2}, {}, {}}));
 
     compare_masks(*getMask(transpose_to), Mask{{1, 2}, {}, {}, {}});
     compare_masks(*getMask(broadcasted_eltwise_weights_short), Mask{{}, {}, {}});
     compare_masks(*getMask(broadcasted_eltwise_short->output(0)), Mask{{1, 2}, {}, {}, {}});
+    compare_masks(*getMask(broadcasted_eltwise_short2->output(0)), Mask{{1, 2}, {}, {}, {}});
     compare_masks(*getMask(transpose_from), Mask{{}, {1, 2}, {}, {}});
 
     compare_masks(*getMask(broadcasted_eltwise_without_weights_mask->output(0)), Mask({{}, {1, 2}, {}, {}}));
+    compare_masks(*getMask(broadcasted_eltwise_without_weights_mask2->output(0)), Mask({{}, {1, 2}, {}, {}}));
 
     compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2}}));
     compare_masks(*getMask(mul_left->output(0)),  Mask({{}, {1, 2}, {}, {1, 2}}));
@@ -4421,9 +4436,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
 }
 
 
-// TODO: find the way to test different layouts of elementwise operations
-// TODO: extend elementwise
-TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseSwapedLayoutP) {
+TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP) {
     uint64_t a(3), b(4), c(5), d(6);
     auto inputShapes = PartialShape{1, a, b};
     auto weightsShape = Shape{b, c};
@@ -4433,22 +4446,16 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     auto mul_const = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3}});
     auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
 
-    // Check broadcasting is working for input and weights with different ranks
-    // CONSTANT SHOULD BE ZERO BECAUSE IT'S A CONDITION FOR FUNCTIONS TO PRUNE
-    //auto broadcasted_add_const = create_constant_with_zeros({1, c}, {{0}, {}});
-    //auto broadcasted_add = std::make_shared<opset5::Add>(mul, broadcasted_add_const);
-
     auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});
     auto mult_const = opset5::Constant::create(element::f32, {1, 1}, {5});
 
     std::shared_ptr<Node> mult;
     const auto reverse_mul = GetParam();
-    //if (reverse_mul)
+    if (reverse_mul)
         mult = std::make_shared<opset5::Multiply>(mult_const, mul_last_const);
-    //else
-    //    mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
+    else
+        mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
 
-    //auto mul_last = std::make_shared<opset5::MatMul>(broadcasted_add, mult);
     auto mul_last = std::make_shared<opset5::MatMul>(mul, mult);
 
     function = std::make_shared<ngraph::Function>(OutputVector{mul_last}, ParameterVector{input});
@@ -4461,11 +4468,10 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
         auto mult_const = opset5::Constant::create(element::f32, {1, 1}, {5});
 
         std::shared_ptr<Node> mult;
-        //const auto reverse_mul = GetParam();
-        //if (reverse_mul)
+        if (reverse_mul)
             mult = std::make_shared<opset5::Multiply>(mult_const, mul_last_const);
-        //else
-        //    mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
+        else
+            mult = std::make_shared<opset5::Multiply>(mul_last_const, mult_const);
 
         auto mul_last = std::make_shared<opset5::MatMul>(mul, mult);
 
@@ -4474,7 +4480,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     if (VISUALIZE_TESTS_TREE) {
         auto postfix = (reverse_mul)? "True" : "False";
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +\
-        "MaskPropagationBroadcastedSameRankEltwiseSwapedLayoutP" + postfix + ".svg").run_on_function(function);
+        "MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP" + postfix + ".svg").run_on_function(function);
     }
     {
         pass::Manager m;
@@ -4485,8 +4491,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
 
     compare_masks(*getMask(mul_const), Mask{{}, {1, 2, 3}});
     compare_masks(*getMask(mul->output(0)), Mask{{}, {}, {1, 2, 3}});
-    //compare_masks(*getMask(broadcasted_add_const), Mask{{}});
-    //compare_masks(*getMask(broadcasted_add->output(0)), Mask{{}, {}, {1, 2, 3}});
     compare_masks(*getMask(mul_last_const), Mask{{1, 2, 3}, {}});
     compare_masks(*getMask(mult_const), Mask{{}, {}});
     compare_masks(*getMask(mult->output(0)), Mask{{1, 2, 3}, {}});
@@ -4553,10 +4557,9 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
 }
 
 
-// TODO: FIX THIS TEST
-TEST_F(DISABLED_TransformationTestsF, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode) {
+TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode) {
     constexpr uint64_t a(3), b(4), c(5), d(6);
-    auto inputShapes = PartialShape{a, b};
+    auto inputShapes = PartialShape{5, a, b};
     auto weightsShape = Shape{b, c};
     auto weightsShape2 = Shape{c, d};
 
@@ -4564,10 +4567,10 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationBroadcastedEltwiseWrongBroa
     auto mul_const = create_constant_with_zeros(weightsShape, {{}, {1, 2, 3}});
     auto mul = std::make_shared<opset5::MatMul>(input, mul_const);
 
-    auto mult_const = create_constant_with_zeros({c}, {{0, 1, 2, 3, 4}});
-    // TODO: Find the way to broadcast by PDPD
-    auto mult = std::make_shared<opset5::Multiply>(mul, mult_const, ov::op::AutoBroadcastType::PDPD);
+    auto mult_const = create_constant_with_zeros({c, 1, 1}, {{0, 1, 2, 3, 4}, {}});
 
+    auto autob = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 2);
+    auto mult = std::make_shared<opset5::Multiply>(mul, mult_const, autob);
 
     auto mul_last_const = create_constant_with_zeros(weightsShape2, {{}, {}});
     auto mul_last = std::make_shared<opset5::MatMul>(mult, mul_last_const);
@@ -4586,10 +4589,10 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationBroadcastedEltwiseWrongBroa
     }
 
     compare_masks(*getMask(mul_const), Mask{{}, {}});
-    compare_masks(*getMask(mul->output(0)), Mask{{}, {}});
+    compare_masks(*getMask(mul->output(0)), Mask{{}, {}, {}});
     compare_masks(*getMask(mul_last_const), Mask{{}, {}});
     check_mask_is_not_exist(getMask(mult_const));
-    compare_masks(*getMask(mult->output(0)), Mask{{}, {}});
+    compare_masks(*getMask(mult->output(0)), Mask{{}, {}, {}});
     compare_masks(*getMask(mul_last_const), Mask{{}, {}});
     compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
 
