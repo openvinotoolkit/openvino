@@ -42,6 +42,7 @@ public:
     MOCK_METHOD2(GetSupportedConfig, std::map<std::string, std::string>(const std::string&, const std::map<std::string, std::string>&));
     MOCK_CONST_METHOD0(isNewAPI, bool());
     MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
+    MOCK_METHOD1(GetHiddenDevicesFor, std::vector<std::string>(const std::string&));
 
     ~MockICore() = default;
 };
