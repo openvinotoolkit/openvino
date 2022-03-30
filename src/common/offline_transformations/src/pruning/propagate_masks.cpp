@@ -1020,12 +1020,10 @@ static std::vector<DimsAttr> collect_dims_attrs(
     for (size_t squized_dim = 0; squized_dim < dims_map.size(); ++squized_dim) {
         auto unsquized_dims = dims_map[squized_dim];
         for (size_t in_idx = 0; in_idx < unsquized_dims.size(); ++in_idx) {
-            size_t elems_outer_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0],
-                                                      unsquized_shape.begin() + unsquized_dims[0] + in_idx,
-                                                      1, std::multiplies<size_t>());
-            size_t elems_inner_dims = std::accumulate(unsquized_shape.begin() + unsquized_dims[0] + in_idx + 1,
-                                                      unsquized_shape.begin() + unsquized_dims[0] + unsquized_dims.size(),
-                                                      1, std::multiplies<size_t>());
+            size_t elems_outer_dims = ov::shape_size(unsquized_shape.begin() + unsquized_dims[0],
+                                                     unsquized_shape.begin() + unsquized_dims[0] + in_idx);
+            size_t elems_inner_dims = ov::shape_size(unsquized_shape.begin() + unsquized_dims[0] + in_idx + 1,
+                                                     unsquized_shape.begin() + unsquized_dims[0] + unsquized_dims.size());
             const auto dim = unsquized_shape[unsquized_dims[in_idx]];
             dims_attrs.push_back(DimsAttr{elems_inner_dims, elems_outer_dims, dim * elems_inner_dims, dim});
         }

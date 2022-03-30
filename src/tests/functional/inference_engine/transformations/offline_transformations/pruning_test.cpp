@@ -4437,7 +4437,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
 
 
 TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP) {
-    uint64_t a(3), b(4), c(5), d(6);
+    constexpr int64_t a(3), b(4), c(5), d(6);
     auto inputShapes = PartialShape{1, a, b};
     auto weightsShape = Shape{b, c};
     auto weightsShape2 = Shape{c, d};
@@ -4504,7 +4504,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
 
 
 TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted) {
-    constexpr uint64_t a(3), b(4), c(5), d(6);
+    constexpr int64_t a(3), b(4), c(5), d(6);
     auto inputShapes = PartialShape{1, a, b};
     auto weightsShape = Shape{b, c};
     auto weightsShape2 = Shape{c * d, d};
@@ -4558,7 +4558,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
 
 
 TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode) {
-    constexpr uint64_t a(3), b(4), c(5), d(6);
+    constexpr int64_t a(3), b(4), c(5), d(6);
     auto inputShapes = PartialShape{5, a, b};
     auto weightsShape = Shape{b, c};
     auto weightsShape2 = Shape{c, d};
