@@ -1717,7 +1717,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2161,7 +2161,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2255,7 +2255,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2352,7 +2352,7 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
@@ -2606,7 +2606,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2671,7 +2671,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -3178,7 +3178,7 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -3557,7 +3557,7 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -3608,7 +3608,7 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -3681,7 +3681,7 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -3880,7 +3880,7 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
@@ -4055,7 +4055,7 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
@@ -4241,7 +4241,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
         manager.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg", modifier);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
@@ -4432,7 +4432,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     manager.register_pass<ngraph::pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) +
     "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg", modifier);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -4499,7 +4499,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
 
     manager.register_pass<pass::ShrinkWeights>();
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
