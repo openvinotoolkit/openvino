@@ -8,7 +8,7 @@
 #include "ngraph/coordinate_transform.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
