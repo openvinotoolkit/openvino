@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "openvino/op/generate_proposals.hpp"
 
 namespace ngraph {

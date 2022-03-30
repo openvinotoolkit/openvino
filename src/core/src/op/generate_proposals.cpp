@@ -5,17 +5,16 @@
 #include "openvino/op/generate_proposals.hpp"
 
 #include "generate_proposals_shape_inference.hpp"
-
 #include "itt.hpp"
 
 using namespace std;
 
 ov::op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
-                                             const Output<Node>& anchors,
-                                             const Output<Node>& deltas,
-                                             const Output<Node>& scores,
-                                             const Attributes& attrs,
-                                             const element::Type roi_num_type)
+                                                 const Output<Node>& anchors,
+                                                 const Output<Node>& deltas,
+                                                 const Output<Node>& scores,
+                                                 const Attributes& attrs,
+                                                 const element::Type roi_num_type)
     : Op({im_info, anchors, deltas, scores}),
       m_attrs(attrs),
       m_roi_num_type(roi_num_type) {
@@ -26,11 +25,11 @@ shared_ptr<Node> ov::op::v9::GenerateProposals::clone_with_new_inputs(const Outp
     NGRAPH_OP_SCOPE(v9_GenerateProposals_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  new_args.at(2),
-                                                  new_args.at(3),
-                                                  m_attrs,
-                                                  m_roi_num_type);
+                                                      new_args.at(1),
+                                                      new_args.at(2),
+                                                      new_args.at(3),
+                                                      m_attrs,
+                                                      m_roi_num_type);
 }
 
 bool ov::op::v9::GenerateProposals::visit_attributes(AttributeVisitor& visitor) {
