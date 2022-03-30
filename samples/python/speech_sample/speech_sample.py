@@ -22,7 +22,7 @@ from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
 
 
 def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
-    """Do a synchronous matrix inference"""
+    """Do a synchronous matrix inference."""
     frames_to_infer = {}
     result = {}
 

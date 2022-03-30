@@ -5,7 +5,7 @@ import argparse
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    """Create and return argument parser"""
+    """Create and return argument parser."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)
@@ -73,7 +73,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse and validate command-line arguments"""
+    """Parse and validate command-line arguments."""
     parser = build_arg_parser()
     args = parser.parse_args()
 

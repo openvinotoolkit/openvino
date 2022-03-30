@@ -15,9 +15,9 @@ class FileData(NamedTuple):
 
 
 def read_ark_file(file_name: str) -> FileData:
-    """Read utterance matrices from a .ark file"""
+    """Read utterance matrices from a .ark file."""
     def read_key(input_file: IO[Any]) -> str:
-        """Read a identifier of utterance matrix"""
+        """Read a identifier of utterance matrix."""
         key = ''
         char = input_file.read(1).decode()
 
@@ -28,7 +28,7 @@ def read_ark_file(file_name: str) -> FileData:
         return key
 
     def read_matrix(input_file: IO[Any]) -> np.ndarray:
-        """Read a utterance matrix"""
+        """Read a utterance matrix."""
         header = input_file.read(5).decode()
         if 'FM' in header:
             num_of_bytes = 4
@@ -61,7 +61,7 @@ def read_ark_file(file_name: str) -> FileData:
 
 
 def write_ark_file(file_name: str, keys: List[str], utterances: List[np.ndarray]):
-    """Write utterance matrices to a .ark file"""
+    """Write utterance matrices to a .ark file."""
     with open(file_name, 'wb') as output_file:
         for key, matrix in zip(keys, utterances):
             # write a utterance key
@@ -86,7 +86,7 @@ def write_ark_file(file_name: str, keys: List[str], utterances: List[np.ndarray]
 
 
 def read_utterance_file(file_name: str) -> FileData:
-    """Read utterance matrices from a file"""
+    """Read utterance matrices from a file."""
     file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':
@@ -100,7 +100,7 @@ def read_utterance_file(file_name: str) -> FileData:
 
 
 def write_utterance_file(file_name: str, keys: List[str], utterances: List[np.ndarray]):
-    """Write utterance matrices to a file"""
+    """Write utterance matrices to a file."""
     file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':

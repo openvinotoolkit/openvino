@@ -35,7 +35,7 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
 
 
 def get_scale_factor(matrix: np.ndarray) -> float:
-    """Get scale factor for quantization using utterance matrix"""
+    """Get scale factor for quantization using utterance matrix."""
     # Max to find scale factor
     target_max = 16384
     max_val = np.max(matrix)
@@ -46,14 +46,14 @@ def get_scale_factor(matrix: np.ndarray) -> float:
 
 
 def set_scale_factors(plugin_config: dict, scale_factors: list):
-    """Set a scale factor provided for each input"""
+    """Set a scale factor provided for each input."""
     for i, scale_factor in enumerate(scale_factors):
         log.info(f'For input {i} using scale factor of {scale_factor:.7f}')
         plugin_config[f'GNA_SCALE_FACTOR_{i}'] = str(scale_factor)
 
 
 def parse_scale_factors(args: argparse.Namespace) -> list:
-    """Get a list of scale factors for input files"""
+    """Get a list of scale factors for input files."""
     input_files = re.split(', |,', args.input)
     scale_factors = re.split(', |,', str(args.scale_factor))
     scale_factors = list(map(float, scale_factors))
@@ -72,7 +72,7 @@ def parse_scale_factors(args: argparse.Namespace) -> list:
 
 
 def parse_outputs_from_args(args: argparse.Namespace) -> Tuple[List[str], List[int]]:
-    """Get a list of outputs specified in the args"""
+    """Get a list of outputs specified in the args."""
     name_and_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
     try:
         return [name for name, _ in name_and_port], [int(port) for _, port in name_and_port]
