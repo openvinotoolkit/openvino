@@ -4,7 +4,7 @@
 
 #include "openvino/op/generate_proposals.hpp"
 
-#include <generate_proposals_shape_inference.hpp>
+#include "generate_proposals_shape_inference.hpp"
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
