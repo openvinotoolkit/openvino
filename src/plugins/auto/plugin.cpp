@@ -301,6 +301,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
     bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    bool isCumulative = false;
+    std::vector<DeviceInformation> supportDevices;
 
     // if workMode is AUTO
     if (workModeAuto) {
@@ -312,7 +314,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
 
-        bool isCumulative = false;
         auto hintMode = fullConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
         if (hintMode->second == PluginConfigParams::CUMULATIVE_THROUGHPUT) {
             isCumulative = true;
@@ -320,15 +321,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             hintMode->second = PluginConfigParams::THROUGHPUT;
         }
 
-        if (!isCumulative) {
+        std::string strDevices;
+        // is not cumulative or (is cumulative and priority is empty)
+        if (!isCumulative || (isCumulative && priorities == fullConfig.end())) {
             // filter the device that supports filter configure
-            auto strDevices = GetDeviceList(fullConfig);
+            strDevices = GetDeviceList(fullConfig);
             auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
             auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
             if (supportDevicesByConfig.size() == 0) {
                 IE_THROW() << "There is no device support the configure";
             }
-            auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
             // replace the configure with configure that auto want to pass to device
             // and reset the strDevices to support devices
             auto validConfigKey = PerfHintsConfig::SupportedKeys();
@@ -355,12 +358,26 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
                 LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
             }
+        }
+
+        if (!isCumulative) {
             return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
         }
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
+        if (!isCumulative) {
+            IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
+        } else {
+            // for use case -d AUTO -hint cumulative_throughput
+            SelectDeviceForMulti(supportDevices, metaDevices, networkPrecision);
+            std::string priorityDevices;
+            for (auto&& device : metaDevices) {
+                priorityDevices += device.deviceName;
+                priorityDevices += ((device.deviceName == metaDevices[metaDevices.size() - 1].deviceName) ? "" : ",");
+            }
+            multiNetworkConfig.insert({MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, priorityDevices});
+        }
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         multiNetworkConfig.insert(*priorities);
@@ -462,6 +479,96 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
         queryResult.supportedLayersMap[supportedLayer] = GetName();
     }
     return queryResult;
+}
+
+void MultiDeviceInferencePlugin::SelectDeviceForMulti(const std::vector<DeviceInformation>& metaDevices,
+                                                      std::vector<DeviceInformation>& outDevices,
+                                                      const std::string& networkPrecision) {
+    if (metaDevices.empty()) {
+        IE_THROW(NotFound) << "No available device to select in " << GetName() << " plugin";
+    }
+
+    std::list<DeviceInformation> CPU;
+    std::list<DeviceInformation> dGPU;
+    std::list<DeviceInformation> iGPU;
+    std::list<DeviceInformation> MYRIAD;
+    std::list<DeviceInformation> VPUX;
+
+    for (auto& item : metaDevices) {
+        if (item.deviceName.find("CPU") == 0) {
+            CPU.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("MYRIAD") == 0) {
+            MYRIAD.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("VPUX") == 0) {
+            VPUX.push_back(item);
+            continue;
+        }
+        if (item.deviceName.find("GPU") == 0) {
+            auto& gpuUniqueName = item.uniqueName;
+            if (gpuUniqueName.find("iGPU") != std::string::npos) {
+                iGPU.push_back(item);
+            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+                dGPU.push_back(item);
+            }
+            continue;
+        }
+    }
+
+    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    std::list<DeviceInformation> devices;
+    if (networkPrecision == "INT8") {
+        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), dGPU);
+    } else {
+        devices.splice(devices.end(), dGPU);
+        devices.splice(devices.end(), VPUX);
+    }
+    devices.splice(devices.end(), iGPU);
+    devices.splice(devices.end(), MYRIAD);
+    devices.splice(devices.end(), CPU);
+
+    std::list<DeviceInformation> validDevices;
+
+    if (metaDevices.size() > 1) {
+        auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+            for (auto iter = devices.begin(); iter != devices.end();) {
+                auto capability = GetCore()
+                                      ->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES))
+                                      .as<std::vector<std::string>>();
+                auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+                if (supportNetwork != capability.end()) {
+                    validDevices.push_back(std::move(*iter));
+                    devices.erase(iter++);
+                    continue;
+                }
+                iter++;
+            }
+        };
+        selectSupportDev(networkPrecision);
+        // If network is FP32, continue to collect the device support FP16 but not support FP32.
+        if (networkPrecision == "FP32") {
+            const std::string f16 = "FP16";
+            selectSupportDev(f16);
+        }
+    } else {
+        validDevices.push_back(metaDevices[0]);
+    }
+
+    if (validDevices.empty()) {
+        IE_THROW() << "Cannot select any device for multi";
+    }
+    // sort validDevices
+    validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+        return a.devicePriority < b.devicePriority;
+    });
+
+    for (auto &device : validDevices) {
+        outDevices.push_back(device);
+    }
 }
 
 DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices,
