@@ -61,17 +61,22 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 
 void FrontEnd::convert(const std::shared_ptr<Model>& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert);
+    // TODO: model shall be replaced with it's copy created in 'openvino' context, not in frontend's library context
     m_actual->convert(model);
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert_partially);
-    return FrontEnd::create_copy(m_actual->convert_partially(model->m_actual), m_shared_object);
+    // TODO: creation of copy in 'openvino' library context via FrontEnd::create_copy doesn't work here as nodes can be
+    // 'framework' nodes which are not copyable
+    return m_actual->convert_partially(model->m_actual);
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, decode);
-    return FrontEnd::create_copy(m_actual->decode(model->m_actual), m_shared_object);
+    // TODO: creation of copy in 'openvino' library context via FrontEnd::create_copy doesn't work here as nodes can be
+    // 'framework' nodes which are not copyable
+    return m_actual->decode(model->m_actual);
 }
 
 void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
