@@ -37,7 +37,11 @@ void regmodule_graph_util(py::module m) {
                 :rtype: openvino.runtime.op.Constant or openvino.runtime.Node
             )");
 
-    mod.def("replace_output_update_name", &ov::replace_output_update_name, py::arg("output"), py::arg("target_output"));
+    mod.def("replace_output_update_name",
+            &ov::replace_output_update_name,
+            py::arg("output"),
+            py::arg("target_output"),
+            py::arg("do_copy_runtime_info") = true);
 
     mod.def("replace_node",
             overload_cast_<const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&>()(&ov::replace_node),

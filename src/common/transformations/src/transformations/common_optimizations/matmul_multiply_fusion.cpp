@@ -175,11 +175,11 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
 
         const auto& input = pattern_map.at(input_pattern);
         auto new_mm = matmul->clone_with_new_inputs({input, new_weights});
-        new_mm->set_friendly_name(mul->get_friendly_name());
+        new_mm->set_friendly_name(matmul->get_friendly_name());
 
         register_new_node(new_mm);
         copy_runtime_info({mul, weights.get_node_shared_ptr(), matmul}, {new_weights, new_mm});
-        replace_node(mul, new_mm);
+        replace_output_update_name(mul, new_mm, false);
 
         return true;
     };

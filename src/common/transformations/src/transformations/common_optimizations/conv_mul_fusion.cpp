@@ -70,9 +70,9 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
-        new_conv->set_friendly_name(m_mul->get_friendly_name());
+        new_conv->set_friendly_name(m_conv->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
-        replace_node(m_mul, new_conv);
+        replace_output_update_name(m_mul, new_conv, false);
         return true;
     };
 
@@ -157,7 +157,12 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         } else {
             m_conv->input(1).replace_source_output(new_weights);
         }
-        m_conv->set_friendly_name(m_mul->get_friendly_name());
+        auto mul_users = m_mul->get_users();
+        if (std::find_if(mul_users.begin(), mul_users.end(), [](const std::shared_ptr<Node> n) -> bool {
+                return ov::is_type<opset4::Result>(n);
+            }) != mul_users.end()) {
+            m_conv->set_friendly_name(m_mul->get_friendly_name());
+        }
         m_mul->output(0).replace(m_conv->output(0));
         copy_runtime_info(m_mul, {m_conv, new_weights});
 
@@ -224,9 +229,9 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
-        new_conv->set_friendly_name(m_mul->get_friendly_name());
+        new_conv->set_friendly_name(m_conv->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
-        replace_node(m_mul, new_conv);
+        replace_output_update_name(m_mul, new_conv, false);
         return true;
     };
 
@@ -292,9 +297,9 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
-        new_conv->set_friendly_name(m_mul->get_friendly_name());
+        new_conv->set_friendly_name(m_conv->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
-        replace_node(m_mul, new_conv);
+        replace_output_update_name(m_mul, new_conv, false);
         return true;
     };
 

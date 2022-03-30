@@ -749,7 +749,7 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
     return false;
 }
 
-bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& replacement) {
+bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& replacement, bool do_copy_runtime_info) {
     // output port consumers can be reconnected to replacement port only when:
     // 1. output has no Result consumers (so we do not propagate node name)
     // 2. output has Result consumers and single output port and replacement doesn't have Results consumers
@@ -791,8 +791,11 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
     // Restore back original replacement tensor name
     replacement.get_tensor().set_name(tensor_name);
 
-    copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
-                      replacement.get_node_shared_ptr());
+    if (do_copy_runtime_info) {
+        copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
+                          replacement.get_node_shared_ptr());
+    }
+
     return true;
 }
 

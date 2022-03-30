@@ -276,7 +276,7 @@ OPENVINO_API
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);
 
 OPENVINO_API
-bool replace_output_update_name(Output<Node> node, const Output<Node>& node_input);
+bool replace_output_update_name(Output<Node> node, const Output<Node>& node_input, bool do_copy_runtime_info = true);
 
 OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
