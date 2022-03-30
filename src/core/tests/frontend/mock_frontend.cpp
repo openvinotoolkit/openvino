@@ -49,7 +49,12 @@ public:
         op1->set_friendly_name("mock_abs");
         auto res = std::make_shared<ov::opset8::Result>(op1);
         res->set_friendly_name("mock_result");
-        auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
+        auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        param2->set_friendly_name("mock_param2");
+        auto res2 = std::make_shared<ov::opset8::Result>(param2);
+        res2->set_friendly_name("mock_result2");
+        auto ov_model =
+            std::make_shared<ov::Model>(ResultVector({res, res2}), ParameterVector({param, param2}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
         ov_model->input(0).set_names({"mock_input"});
         ov_model->output(0).set_names({"mock_output"});

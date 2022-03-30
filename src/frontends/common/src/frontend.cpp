@@ -19,12 +19,7 @@ using namespace ov::frontend;
 
 std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                  const std::shared_ptr<void>& shared_object) {
-    // create copies for params and results
-    auto copy = std::make_shared<Model>(ov_model->get_results(),
-                                        ov_model->get_sinks(),
-                                        ov_model->get_parameters(),
-                                        ov_model->get_variables(),
-                                        ov_model->get_friendly_name());
+    auto copy = ov::clone_model(*ov_model);
     copy->m_shared_object = shared_object;
     copy->get_rt_info() = ov_model->get_rt_info();
     auto params = copy->get_parameters();
@@ -32,28 +27,40 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
     new_params.reserve(params.size());
     // Static library case: it's not enough to just clone ops using 'op->clone_with_new_inputs' as
     // 'clone_with_new_inputs' will be executed in 'static frontend context' and objects will still be corrupted in this
-    // case. Need to create using 'make_shared' here. Currently it is done for parameters and results only to keep it
+    // case. Need to create using 'make_shared' here. Currently, it is done for parameters and results only to keep it
     // executed fast.
-    for (size_t i = 0; i < params.size(); i++) {
-        auto new_param =
-            std::make_shared<op::v0::Parameter>(params[i]->get_element_type(), params[i]->get_partial_shape());
-        *new_param = *params[i];
-        new_param->output(0).set_names(params[i]->output(0).get_names());
-        new_param->output(0).get_rt_info() = params[i]->output(0).get_rt_info();
-        auto consumers = params[i]->output(0).get_target_inputs();
+    bool need_validate = false;
+    for (const auto& param : params) {
+        auto new_param = std::make_shared<op::v0::Parameter>(param->get_element_type(), param->get_partial_shape());
+        *new_param = *param;
+        new_param->output(0).set_names(param->output(0).get_names());
+        new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
+        auto consumers = param->output(0).get_target_inputs();
         for (auto consumer : consumers) {
+            if (dynamic_cast<op::v0::Result*>(consumer.get_node())) {
+                // Some result points to old parameter (Param->Result case), need to trigger revalidation
+                need_validate = true;
+            }
             consumer.replace_source_output(new_param->get_default_output());
         }
         new_param->m_shared_object = shared_object;
         new_params.emplace_back(new_param);
     }
     copy->m_parameters = new_params;
+    if (need_validate) {
+        copy->validate_nodes_and_infer_types();
+    }
 
     auto results = copy->get_results();
     ov::ResultVector new_results;
     new_results.reserve(results.size());
     for (const auto& res : results) {
-        auto new_result = std::make_shared<op::v0::Result>(*res);
+        auto new_result = std::make_shared<op::v0::Result>(res->get_input_node_shared_ptr(0));
+        new_result->get_rt_info() = res->get_rt_info();
+        new_result->output(0).get_rt_info() = res->output(0).get_rt_info();
+        new_result->input(0).get_rt_info() = res->input(0).get_rt_info();
+        new_result->output(0).set_names(res->output(0).get_names());
+        new_result->set_friendly_name(res->get_friendly_name());
         new_result->m_shared_object = shared_object;
         new_results.emplace_back(new_result);
     }
