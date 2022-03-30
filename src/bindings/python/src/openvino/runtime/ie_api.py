@@ -333,20 +333,14 @@ class Core(CoreBase):
         )
 
 
-class ExtendedModel(CompiledModel):
-    """CompiledModel that additionally holds Core object."""
-
-    def __init__(self, core: Core, net: CompiledModel):
-        super().__init__(net)
-        self.core = core  # needs to store Core object for CPU plugin
-
-
 def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model_path: Path to file with model.
     :type model_path: str
-    :return: Extended version of `CompiledModel` that holds and keeps alive `Core` object.
+    :return: A compiled model.
+    :rtype: openvino.runtime.CompiledModel
+
     """
     core = Core()
-    return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
+    return core.compile_model(model_path, "AUTO")
