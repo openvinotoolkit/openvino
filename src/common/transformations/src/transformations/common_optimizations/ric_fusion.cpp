@@ -447,20 +447,9 @@ public:
 
             // Update weights with RIC attribute
             auto ric_weights = ric;
-            ric_weights.set_is_final(true);
             ric_weights.set_axis(0);
 
-            if (auto fq = std::dynamic_pointer_cast<opset8::FakeQuantize>(conv->get_input_node_shared_ptr(1))) {
-                // Set final RIC attr to the first FQ input
-                ric_attr::set(fq->input(0), ric_weights);
-
-                // Apply Binary transformation for FQ to handle 1..5 inputs
-                ric_weights.set_is_final(false);
-                ric_attr::set(fq->input_value(0), ric_weights);  // set ric attr to simulate propagation flow
-                Binary().apply(fq);
-            } else {
-                ric_attr::set(conv->input(1), ric_weights);
-            }
+            ric_attr::set(conv->input(1), ric_weights);
 
             // Calculate new order for RIC propagation
             const int64_t output_channels = group * channels;
