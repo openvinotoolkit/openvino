@@ -13,7 +13,7 @@ namespace vpu {
 void HostPacketLength::validate(const std::string& value) {
     int intValue;
     try {
-        intValue = std::stoi(value);
+        intValue = std::stoi(value) * 1024;
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
@@ -21,8 +21,6 @@ void HostPacketLength::validate(const std::string& value) {
     VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue > 0,
         R"(unexpected {} option value "{}", only positive numbers are supported)", key(), value);
 
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue % 1024 == 0,
-        R"(unexpected {} option value "{}", value should be multiple of 1024)", key(), value);
     return;
 }
 
@@ -49,15 +47,13 @@ std::string HostPacketLength::defaultValue() {
 HostPacketLength::value_type HostPacketLength::parse(const std::string& value) {
     int intValue;
     try {
-        intValue = std::stoi(value);
+        intValue = std::stoi(value) * 1024;
     } catch (const std::exception& e) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
     VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue > 0,
         R"(unexpected {} option value "{}", only positive numbers are supported)", key(), value);
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(intValue % 1024 == 0,
-        R"(unexpected {} option value "{}", value should be multiple of 1024)", key(), value);
     return HostPacketLength::value_type(intValue);
 }
 
