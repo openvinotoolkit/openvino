@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, ConvertSubtract) {
         function_ref = std::make_shared<Function>(NodeVector{add1, add2}, ParameterVector{data1, data2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, ConvertSubtractWithConstant) {
@@ -63,7 +63,7 @@ TEST_F(TransformationTestsF, ConvertSubtractWithConstant) {
         function_ref = std::make_shared<Function>(NodeVector{add, sub}, ParameterVector{data1, data2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, ConvertSubtractDequantizationSubgraph) {
