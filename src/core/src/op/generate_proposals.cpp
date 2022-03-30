@@ -12,9 +12,6 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v9::GenerateProposals);
 
 op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
                                              const Output<Node>& anchors,
