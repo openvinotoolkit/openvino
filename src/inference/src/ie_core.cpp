@@ -234,6 +234,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
         std::string proxy_name;
+        size_t proxy_priority = 0;
 
         PluginDescriptor() = default;
 
@@ -418,6 +419,16 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return ie::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
 
+    void RegisterInternalPlugin(const std::string& dev_name, const PluginDescriptor& desc) {
+        OPENVINO_ASSERT(pluginRegistry.find(dev_name) == pluginRegistry.end());
+        pluginRegistry[dev_name] = desc;
+    }
+
+    void RegisterProxyPlugin(const std::string& proxy_name) {
+        if (pluginRegistry.find(proxy_name) == pluginRegistry.end())
+            RegisterInternalPlugin(proxy_name, PluginDescriptor(ov::proxy::create_plugin));
+    }
+
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         opsetNames.insert("opset1");
@@ -428,19 +439,6 @@ public:
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
         opsetNames.insert("opset8");
-
-        // Register internal plugins
-        const auto& reg_internal_plugin = [&](const std::string& name, const PluginDescriptor& desc) {
-            pluginRegistry[name] = desc;
-        };
-        RegisterPluginByName(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC");
-        pluginRegistry["ABC"].proxy_name = "MOCK";
-        RegisterPluginByName(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE");
-        pluginRegistry["BDE"].proxy_name = "MOCK";
-
-        std::map<std::string, std::string> config;
-        config["plugins"] = "ABC,BDE";
-        reg_internal_plugin("MOCK", PluginDescriptor(ov::proxy::create_plugin, config));
     }
 
     ~CoreImpl() override = default;
@@ -508,6 +506,7 @@ public:
                 PluginDescriptor desc{pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
             }
+            // TODO: Add registration of proxy plugin
         }
     }
 
@@ -923,10 +922,13 @@ public:
     }
 
     std::vector<std::string> GetHiddenDevicesFor(const std::string& main_device) const override {
-        std::vector<std::string> devices;
+        // list of devices with priority
+        std::vector<std::pair<std::string, size_t>> devices;
         const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
-        for (auto&& deviceName : GetListOfDevicesInRegistry()) {
-            if (pluginRegistry.at(deviceName).proxy_name != main_device)
+        for (auto&& pluginDesc : pluginRegistry) {
+            const auto& deviceName = pluginDesc.first;
+            const auto& desc = pluginDesc.second;
+            if (desc.proxy_name != main_device)
                 continue;
             std::vector<std::string> devicesIDs;
             try {
@@ -948,13 +950,23 @@ public:
 
             if (devicesIDs.size() > 1) {
                 for (auto&& deviceID : devicesIDs) {
-                    devices.push_back(deviceName + '.' + deviceID);
+                    devices.push_back({deviceName + '.' + deviceID, desc.proxy_priority});
                 }
             } else if (!devicesIDs.empty()) {
-                devices.push_back(deviceName);
+                devices.push_back({deviceName, desc.proxy_priority});
             }
         }
-        return devices;
+        std::sort(devices.begin(),
+                  devices.end(),
+                  [](const std::pair<std::string, size_t>& v1, const std::pair<std::string, size_t>& v2) {
+                      return v1.second < v2.second;
+                  });
+        // Vector with devices in the right order
+        std::vector<std::string> ordered_devices(devices.size());
+        for (size_t i = 0; i < ordered_devices.size(); i++) {
+            ordered_devices[i] = devices[i].first;
+        }
+        return ordered_devices;
     }
 
     /**
@@ -1108,7 +1120,10 @@ public:
      * @brief Registers plugin meta-data in registry for specified device
      * @param deviceName A name of device
      */
-    void RegisterPluginByName(const std::string& pluginName, const std::string& deviceName) {
+    void RegisterPluginByName(const std::string& pluginName,
+                              const std::string& deviceName,
+                              const std::string& proxy_name,
+                              size_t priority) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         auto it = pluginRegistry.find(deviceName);
@@ -1131,7 +1146,11 @@ public:
         }
 
         PluginDescriptor desc{pluginPath};
+        desc.proxy_priority = priority;
+        desc.proxy_name = proxy_name;
         pluginRegistry[deviceName] = desc;
+        if (!proxy_name.empty())
+            RegisterProxyPlugin(proxy_name);
     }
 
     /**
@@ -1737,8 +1756,11 @@ std::vector<std::string> Core::GetAvailableDevices() const {
     return _impl->GetAvailableDevices();
 }
 
-void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->RegisterPluginByName(pluginName, deviceName);
+void Core::RegisterPlugin(const std::string& pluginName,
+                          const std::string& deviceName,
+                          const std::string& proxy_name,
+                          size_t priority) {
+    _impl->RegisterPluginByName(pluginName, deviceName, proxy_name, priority);
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
@@ -1939,8 +1961,11 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
 }
 
-void Core::register_plugin(const std::string& pluginName, const std::string& deviceName) {
-    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginByName(pluginName, deviceName););
+void Core::register_plugin(const std::string& pluginName,
+                           const std::string& deviceName,
+                           const std::string& proxy_name,
+                           size_t priority) {
+    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginByName(pluginName, deviceName, proxy_name, priority););
 }
 
 void Core::unload_plugin(const std::string& deviceName) {

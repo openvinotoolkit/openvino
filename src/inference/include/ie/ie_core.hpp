@@ -298,8 +298,13 @@ public:
      *
      * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
      * plugin itself.
+     * @param proxyName A proxy name to hide several HW devices inside common proxy name
+     * @param priority Priority of HW devices inside proxy name
      */
-    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
+    void RegisterPlugin(const std::string& pluginName,
+                        const std::string& deviceName,
+                        const std::string& proxyName = "",
+                        size_t priority = 0);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine

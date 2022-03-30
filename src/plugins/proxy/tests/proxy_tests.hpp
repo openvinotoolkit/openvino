@@ -16,9 +16,8 @@ class ProxyTests : public ::testing::Test {
 public:
     ov::Core core;
     void SetUp() override {
-        // TODO: Remove temp plugins from core
-        // core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC");
-        // core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE");
+        core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC", "MOCK", 1);
+        core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE", "MOCK", 2);
     }
 
     std::shared_ptr<ov::Model> create_model_with_subtract() {

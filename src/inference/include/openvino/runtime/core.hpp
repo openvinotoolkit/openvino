@@ -597,9 +597,14 @@ public:
      * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
      *
-     * @param device_name Device name to register a plugin for.
+     * @param device_name Hardware device name to register a plugin for.
+     * @param proxy_name Proxy device name to hide hardware name and map several HW plugins to single proxy device
+     * @param proxy_priority Priority of HW plugins inside proxy
      */
-    void register_plugin(const std::string& plugin_name, const std::string& device_name);
+    void register_plugin(const std::string& plugin_name,
+                         const std::string& device_name,
+                         const std::string& proxy_name = "",
+                         size_t proxy_priority = 0);
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
