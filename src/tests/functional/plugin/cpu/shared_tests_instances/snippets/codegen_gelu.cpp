@@ -5,22 +5,23 @@
 
 #include <vector>
 
-#include "subgraph_tests/codegen_gelu.hpp"
+#include "snippets/codegen_gelu.hpp"
 #include "common_test_utils/test_constants.hpp"
+//  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
 
-using namespace LayerTestsDefinitions;
-
+namespace ov {
+namespace test {
+namespace snippets {
 namespace {
-
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32
-    };
 
     INSTANTIATE_TEST_SUITE_P(NoReshape, CodegenGelu,
             ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(InferenceEngine::SizeVector({1, 384, 4096})),
+            ::testing::Values(ov::element::f32),
+            ::testing::Values(ov::Shape {1, 384, 4096}),
             ::testing::Values(true, false),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             CodegenGelu::getTestCaseName);
 }  // namespace
+} // namespace snippets
+} // namespace test
+} // namespace ov

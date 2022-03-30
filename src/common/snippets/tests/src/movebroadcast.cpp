@@ -17,6 +17,8 @@
 using namespace testing;
 using namespace ngraph;
 
+//  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
+
 TEST_F(TransformationTestsF, InsertBroadcastMove) {
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});

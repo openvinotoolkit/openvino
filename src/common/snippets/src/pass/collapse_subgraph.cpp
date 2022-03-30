@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
@@ -152,8 +152,12 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 if (out_tensor->get_name().empty()) {
                     const auto& body_result = subgraph->get_body()->get_output_op(i);
-                    const std::string newTensorName = ngraph::op::util::get_ie_output_name(
-                            body_result->get_input_source_output(0));
+                    const auto& body_result_input = body_result->get_input_source_output(0);
+                    // Note that create_ie_output_name() checks only deprecated output.get_tensor().get_name()
+                    // However output.get_tensor().get_names() should also be updated
+                    if (!body_result_input.get_names().empty())
+                        out_tensor->add_names(body_result_input.get_names());
+                    std::string newTensorName = ngraph::op::util::get_ie_output_name(body_result_input);
                     out_tensor->set_name(newTensorName);
                 }
                 NGRAPH_SUPPRESS_DEPRECATED_END
@@ -324,7 +328,6 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
-        std::string newSubgraphName{};
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -339,8 +342,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     input_subgraphs.insert(input_node);
 
                     fusedNames += getFusedNames(subgraph);
-                    if (newSubgraphName.empty())
-                            newSubgraphName = subgraph->get_friendly_name();
+
                     num_result_children += has_result_child(subgraph);
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
@@ -422,8 +424,6 @@ TokenizeSnippets::TokenizeSnippets() {
         num_result_children += get_num_result_children(node);
         if (num_result_children > 1)
             return abort_with_strategy("New subgraph is created since too many Result children are detected");
-        if (newSubgraphName.empty())
-            newSubgraphName = node->get_friendly_name();
 
         auto body_node = node->copy_with_new_inputs(internal_inputs);
         body_node->set_friendly_name(node->get_friendly_name());
@@ -485,11 +485,11 @@ TokenizeSnippets::TokenizeSnippets() {
             return abort_with_strategy(message_reset, message_abort);
         }
 
-        auto body = op::create_body(newSubgraphName, body_results, body_parameters);
+        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body, newSubgraphName);
+        auto subgraph = op::build_subgraph(node, external_inputs, body);
         auto act_body = subgraph->get_body();
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());

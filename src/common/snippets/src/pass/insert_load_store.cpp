@@ -3,7 +3,7 @@
 //
 
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/snippets_isa.hpp"

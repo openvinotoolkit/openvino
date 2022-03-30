@@ -18,6 +18,8 @@
 using namespace testing;
 using namespace ngraph;
 
+//  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
+
 TEST(TransformationTests, AssignRegisters) {
     std::shared_ptr<Function> f(nullptr);
     {
