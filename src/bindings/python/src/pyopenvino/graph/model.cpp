@@ -19,8 +19,6 @@
 
 namespace py = pybind11;
 
-static const char* CAPSULE_NAME = "openvino_function";
-
 using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
@@ -50,18 +48,18 @@ void regclass_graph_Model(py::module m) {
     model.doc() = "openvino.runtime.Model wraps ov::Model";
 
     model.def(py::init([](const ov::ResultVector& res,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& params,
-                             const std::string& name) {
-                     set_tensor_names(params);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(res, sinks, params, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("name"),
-                 R"(
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& params,
+                          const std::string& name) {
+                  set_tensor_names(params);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(res, sinks, params, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name"),
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of results.
@@ -75,15 +73,15 @@ void regclass_graph_Model(py::module m) {
                  )");
 
     model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of Nodes to be used as results.
@@ -95,15 +93,15 @@ void regclass_graph_Model(py::module m) {
                  )");
 
     model.def(py::init([](const std::shared_ptr<ov::Node>& result,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(result, parameters, name);
-                 }),
-                 py::arg("result"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(result, parameters, name);
+              }),
+              py::arg("result"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param result: Node to be used as result.
@@ -134,18 +132,18 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def(py::init([](const ov::OutputVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
@@ -156,20 +154,20 @@ void regclass_graph_Model(py::module m) {
             :type name: str
             )");
     model.def(py::init([](const ov::ResultVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -185,20 +183,20 @@ void regclass_graph_Model(py::module m) {
             )");
 
     model.def(py::init([](const ov::OutputVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -212,17 +210,17 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def(py::init([](const ov::ResultVector& results,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -236,17 +234,17 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def(py::init([](const ov::OutputVector& results,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -374,33 +372,33 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("get_output_size",
-                 &ov::Model::get_output_size,
-                 R"(
+              &ov::Model::get_output_size,
+              R"(
                     Return the number of outputs for the model.
 
                     :return: Number of outputs.
                     :rtype: int
                  )");
     model.def("get_ops",
-                 &ov::Model::get_ops,
-                 R"(
+              &ov::Model::get_ops,
+              R"(
                     Return ops used in the model.
 
                     :return: List of Nodes representing ops used in model.
                     :rtype: List[openvino.runtime.Node]
                  )");
     model.def("get_ordered_ops",
-                 &ov::Model::get_ordered_ops,
-                 R"(
+              &ov::Model::get_ordered_ops,
+              R"(
                     Return ops used in the model in topological order.
 
                     :return: List of sorted Nodes representing ops used in model.
                     :rtype: List[openvino.runtime.Node]
                  )");
     model.def("get_output_op",
-                 &ov::Model::get_output_op,
-                 py::arg("index"),
-                 R"(
+              &ov::Model::get_output_op,
+              py::arg("index"),
+              R"(
                     Return the op that generates output i
 
                     :param index: output index
@@ -409,9 +407,9 @@ void regclass_graph_Model(py::module m) {
                     :rtype: openvino.runtime.Node
                 )");
     model.def("get_output_element_type",
-                 &ov::Model::get_output_element_type,
-                 py::arg("index"),
-                 R"(
+              &ov::Model::get_output_element_type,
+              py::arg("index"),
+              R"(
                     Return the element type of output i
 
                     :param index: output index
@@ -420,9 +418,9 @@ void regclass_graph_Model(py::module m) {
                     :rtype: openvino.runtime.Type
                  )");
     model.def("get_output_shape",
-                 &ov::Model::get_output_shape,
-                 py::arg("index"),
-                 R"(
+              &ov::Model::get_output_shape,
+              py::arg("index"),
+              R"(
                     Return the shape of element i
 
                     :param index: element index
@@ -431,9 +429,9 @@ void regclass_graph_Model(py::module m) {
                     :rtype: openvino.runtime.Shape
                  )");
     model.def("get_output_partial_shape",
-                 &ov::Model::get_output_partial_shape,
-                 py::arg("index"),
-                 R"(
+              &ov::Model::get_output_partial_shape,
+              py::arg("index"),
+              R"(
                     Return the partial shape of element i
 
                     :param index: element index
@@ -442,33 +440,33 @@ void regclass_graph_Model(py::module m) {
                     :rtype: openvino.runtime.PartialShape
                  )");
     model.def("get_parameters",
-                 &ov::Model::get_parameters,
-                 R"(
+              &ov::Model::get_parameters,
+              R"(
                     Return the model parameters.
                     
                     :return: ParameterVector containing model parameters.
                     :rtype: ParameterVector
                  )");
     model.def("get_results",
-                 &ov::Model::get_results,
-                 R"(
+              &ov::Model::get_results,
+              R"(
                     Return a list of model outputs.
 
                     :return: ResultVector containing model parameters.
                     :rtype: ResultVector
                  )");
     model.def("get_result",
-                 &ov::Model::get_result,
-                 R"(
+              &ov::Model::get_result,
+              R"(
                     Return single result.
 
                     :return: Node object representing result.
                     :rtype: openvino.runtime.Node
                  )");
     model.def("get_result_index",
-                 (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
-                 py::arg("value"),
-                 R"(
+              (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
+              py::arg("value"),
+              R"(
                     Return index of result.
 
                     Return -1 if `value` not matched.
@@ -479,9 +477,9 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
     model.def("get_result_index",
-                 (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
-                 py::arg("value"),
-                 R"(
+              (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
+              py::arg("value"),
+              R"(
                     Return index of result.
 
                     Return -1 if `value` not matched.
@@ -493,16 +491,16 @@ void regclass_graph_Model(py::module m) {
                  )");
 
     model.def("get_name",
-                 &ov::Model::get_name,
-                 R"(
+              &ov::Model::get_name,
+              R"(
                     Get the unique name of the model.
 
                     :return: String with a name of the model.
                     :rtype: str
                  )");
     model.def("get_friendly_name",
-                 &ov::Model::get_friendly_name,
-                 R"(
+              &ov::Model::get_friendly_name,
+              R"(
                     Gets the friendly name for a model. If no
                     friendly name has been set via set_friendly_name
                     then the model's unique name is returned.
@@ -511,9 +509,9 @@ void regclass_graph_Model(py::module m) {
                     :rtype: str
                  )");
     model.def("set_friendly_name",
-                 &ov::Model::set_friendly_name,
-                 py::arg("name"),
-                 R"(
+              &ov::Model::set_friendly_name,
+              py::arg("name"),
+              R"(
                     Sets a friendly name for a model. This does
                     not overwrite the unique name of the model and
                     is retrieved via get_friendly_name(). Used mainly
@@ -523,8 +521,8 @@ void regclass_graph_Model(py::module m) {
                     :type name: str
                  )");
     model.def("is_dynamic",
-                 &ov::Model::is_dynamic,
-                 R"(
+              &ov::Model::is_dynamic,
+              R"(
                     Returns true if any of the op's defined in the model
                     contains partial shape.
 
@@ -535,36 +533,32 @@ void regclass_graph_Model(py::module m) {
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
 
     model.def("input",
-                 (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
-                 py::arg("tensor_name"));
+              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
+              py::arg("tensor_name"));
 
     model.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
 
-    model.def("input",
-                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input,
-                 py::arg("index"));
+    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
 
     model.def("input",
-                 (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
-                 py::arg("tensor_name"));
+              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
+              py::arg("tensor_name"));
 
     model.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
 
     model.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
 
     model.def("output",
-                 (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
-                 py::arg("tensor_name"));
+              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
+              py::arg("tensor_name"));
 
     model.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
 
-    model.def("output",
-                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output,
-                 py::arg("index"));
+    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("index"));
 
     model.def("output",
-                 (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
-                 py::arg("tensor_name"));
+              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
+              py::arg("tensor_name"));
 
     model.def(
         "add_outputs",
@@ -607,10 +601,10 @@ void regclass_graph_Model(py::module m) {
         py::arg("outputs"));
 
     model.def("replace_parameter",
-                 &ov::Model::replace_parameter,
-                 py::arg("parameter_index"),
-                 py::arg("parameter"),
-                 R"(
+              &ov::Model::replace_parameter,
+              py::arg("parameter_index"),
+              py::arg("parameter"),
+              R"(
                     Replace the `parameter_index` parameter of the model with `parameter`
 
                     All users of the `parameter_index` parameter are redirected to `parameter` , and the
