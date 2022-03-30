@@ -154,11 +154,11 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
             CONFIG
             PATHS
                 # oneTBB case exposed via export TBBROOT=<custom TBB root>
-                $ENV{TBBROOT}/lib64/cmake/TBB
-                $ENV{TBBROOT}/lib/cmake/TBB
-                $ENV{TBB_DIR}
+                "$ENV{TBBROOT}/lib64/cmake/TBB"
+                "$ENV{TBBROOT}/lib/cmake/TBB"
+                "$ENV{TBB_DIR}"
                 # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
-                ${TBBROOT}/cmake
+                "${TBBROOT}/cmake"
                 # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
                 ${_tbb_dir}
             NO_CMAKE_FIND_ROOT_PATH
@@ -192,7 +192,7 @@ if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
     _ov_find_dependency(libGNA
                         COMPONENTS KERNEL
                         CONFIG
-                        PATHS ${CMAKE_CURRENT_LIST_DIR}
+                        PATHS "${CMAKE_CURRENT_LIST_DIR}"
                         NO_CMAKE_FIND_ROOT_PATH
                         NO_DEFAULT_PATH)
 endif()
