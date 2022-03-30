@@ -8,8 +8,12 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace py = pybind11;
+
+template <typename... Args>
+using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
 void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
@@ -46,4 +50,24 @@ void regmodule_graph_util(py::module m) {
                 :return: A copy of Model.
                 :rtype: openvino.runtime.Model
             )");
+
+    mod.def("replace_output_update_name", &ov::replace_output_update_name, py::arg("output"), py::arg("target_output"));
+
+    mod.def("replace_node",
+            overload_cast_<const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&>()(&ov::replace_node),
+            py::arg("target"),
+            py::arg("replacement"));
+
+    mod.def("replace_node",
+            overload_cast_<const std::shared_ptr<ov::Node>&, const ov::OutputVector&>()(&ov::replace_node),
+            py::arg("target"),
+            py::arg("replacement"));
+
+    mod.def("replace_node",
+            overload_cast_<const std::shared_ptr<ov::Node>&,
+                           const std::shared_ptr<ov::Node>&,
+                           const std::vector<int64_t>&>()(&ov::replace_node),
+            py::arg("target"),
+            py::arg("replacement"),
+            py::arg("outputs_order"));
 }
