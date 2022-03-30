@@ -21,7 +21,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         if(CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-undef -Wno-suggest-override)
+            ie_add_compiler_flags(-Wno-undef -Wno-suggest-override -Wno-odr)
         endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
