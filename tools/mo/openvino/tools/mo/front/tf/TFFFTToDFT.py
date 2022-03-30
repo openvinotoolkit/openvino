@@ -30,12 +30,21 @@ class TFFFTToDFT(FrontReplacementSubgraph):
 
             num_of_dims = tf_fft.soft_get('num_of_dimensions', 1)
             axes = int64_array(range(-num_of_dims, 0))
-            assert tf_fft['fft_kind'] in ['DFT', 'IDFT', 'RDFT', 'IRDFT'], \
+
+            fft_kind = tf_fft['fft_kind']
+            assert fft_kind in ['DFT', 'IDFT', 'RDFT', 'IRDFT'], \
                 'Node {} with the operation TFFFT supports only the following FFT-like operations: ' \
-                'DFT, IDFT, RDFT, IRDFT. Got: {}'.format(tf_fft_name, tf_fft['fft_kind'])
-            op = {'DFT': DFT, 'IDFT': IDFT, 'RDFT': RDFT, 'IRDFT': IRDFT}[tf_fft['fft_kind']]
-            dft_node = create_op_with_const_inputs(graph, op, {1: axes}, {'in_ports_count': 2},
-                                                   tf_fft.in_port(0).get_source().node)
+                'DFT, IDFT, RDFT, IRDFT. Got: {}'.format(tf_fft_name, fft_kind)
+
+            op = {'DFT': DFT, 'IDFT': IDFT, 'RDFT': RDFT, 'IRDFT': IRDFT}[fft_kind]
+
+            if fft_kind in ['DFT', 'IDFT'] or not tf_fft.is_in_port_connected(1):
+                dft_node = create_op_with_const_inputs(graph, op, {1: axes}, {'in_ports_count': 2},
+                                                       tf_fft.in_port(0).get_source().node)
+            else:
+                dft_node = create_op_with_const_inputs(graph, op, {1: axes}, {'in_ports_count': 3},
+                                                       tf_fft.in_port(0).get_source().node)
+                tf_fft.in_port(1).get_source().connect(dft_node.in_port(2))
 
             tf_fft.out_port(0).get_connection().set_source(dft_node.out_port(0))
 
