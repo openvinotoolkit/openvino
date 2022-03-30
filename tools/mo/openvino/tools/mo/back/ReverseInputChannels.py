@@ -279,7 +279,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
                 continue
             shape = port.data.get_shape()
             non_one_dims = np.where(shape != 1)[0]
-            if shape[reverse_channels.axis] == 1:
+            if len(shape) <= reverse_channels.axis or shape[reverse_channels.axis] == 1:
                 continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 new_axis = non_one_dims.item()
@@ -446,7 +446,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             shape = port.data.get_shape()
 
             non_one_dims = np.where(shape != 1)[0]
-            if shape[reverse_channels.axis] == 1:
+            if len(shape) <= reverse_channels.axis or shape[reverse_channels.axis] == 1:
                 continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 axis = non_one_dims.item()
