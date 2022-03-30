@@ -650,7 +650,6 @@ openvino/tools/mo/front/tf/ssd_toolbox_detection_output.json
 openvino/tools/mo/front/tf/ssd_toolbox_multihead_detection_output.json
 openvino/tools/mo/front/tf/ssd_v2_support.json
 openvino/tools/mo/front/tf/SSDToolboxDetectionOutput.py
-openvino/tools/mo/front/tf/SSliceComplex.py
 openvino/tools/mo/front/tf/swap_deconv_inputs.py
 openvino/tools/mo/front/tf/swish_ext.py
 openvino/tools/mo/front/tf/SwitchMergeOptimization.py
