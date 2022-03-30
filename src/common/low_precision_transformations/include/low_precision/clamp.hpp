@@ -22,7 +22,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ClampTransformation", "0");
     ClampTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

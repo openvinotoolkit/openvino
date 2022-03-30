@@ -12,9 +12,9 @@
 #include <cmath>
 #include <cstddef>
 
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::SoftSign, "SoftSign", 0);
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
@@ -76,4 +76,6 @@ bool SoftSign::has_evaluate() const {
     return false;
 }
 
-} // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov
