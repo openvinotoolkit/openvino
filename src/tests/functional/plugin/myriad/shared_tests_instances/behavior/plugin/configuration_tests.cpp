@@ -150,6 +150,9 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, CONFIG_VALUE(NO)}},
 
+        {{InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH, "128"}},
+        {{InferenceEngine::MYRIAD_HOST_PACKET_LENGTH, "512"}},
+
         {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(NO)},
@@ -287,6 +290,8 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, {false}},
         {InferenceEngine::MYRIAD_NONE_LAYERS, {std::string()}},
         {InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, {true}},
+        {InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH, {"64"}},
+        {InferenceEngine::MYRIAD_HOST_PACKET_LENGTH, {"1024"}},
     };
     return defaultEntries;
 }
@@ -503,6 +508,9 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
+
+        std::make_tuple(InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH, "128", InferenceEngine::Parameter{"128"}),
+        std::make_tuple(InferenceEngine::MYRIAD_HOST_PACKET_LENGTH, "512", InferenceEngine::Parameter{"512"}),
     };
     return customEntries;
 }
@@ -573,6 +581,8 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
         InferenceEngine::MYRIAD_NONE_LAYERS,
         InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA,
+        InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH,
+        InferenceEngine::MYRIAD_HOST_PACKET_LENGTH,
     };
     return privateOptions;
 }
@@ -696,6 +706,11 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
 
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, "OFF"}},
+
+        {{InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH, "-1"}},
+        {{InferenceEngine::MYRIAD_DEVICE_PACKET_LENGTH, "1024K"}},
+        {{InferenceEngine::MYRIAD_HOST_PACKET_LENGTH, "-1"}},
+        {{InferenceEngine::MYRIAD_HOST_PACKET_LENGTH, "1024K"}},
 
         {
             {KEY_LOG_LEVEL, LOG_INFO},

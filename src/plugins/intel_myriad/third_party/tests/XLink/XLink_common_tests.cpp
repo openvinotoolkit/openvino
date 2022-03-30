@@ -326,6 +326,69 @@ TEST_P(XLinkResetAllTests, DISABLED_ResetBootedDevice) {
 }
 
 //------------------------------------------------------------------------------
+//      XLinkSetDevicePacketLengthTests
+//------------------------------------------------------------------------------
+TEST_P(XLinkSetDevicePacketLengthTests, CanSetDevicePacketLengthAndWriteData) {
+    if (getCountSpecificDevices(X_LINK_UNBOOTED, _protocol) == 0) {
+        GTEST_SKIP();
+    }
+
+    deviceDesc_t deviceDesc = {};
+    deviceDesc_t bootedDeviceDesc = {};
+
+    deviceDesc.protocol = _protocol;
+    bootDevice(deviceDesc, bootedDeviceDesc);
+
+    XLinkHandler_t handler = {0};
+    handler.protocol = bootedDeviceDesc.protocol;
+    handler.devicePath = bootedDeviceDesc.name;
+
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkConnect(&handler));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkSetDevicePacketLength(handler.linkId, 32*1024));
+
+    unsigned int size = 8 * 1024 * 1024;
+    streamId_t stream = XLinkOpenStream(handler.linkId, "mySuperStream", size);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    std::vector<uint8_t> data(size);
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkWriteData(stream, data.data(), size));
+    // We don't close the stream because the device hangs while it is waiting for read request
+
+    closeDevice(&handler);
+}
+
+TEST_P(XLinkSetDevicePacketLengthTests, CanSetHostPacketLength) {
+    if (getCountSpecificDevices(X_LINK_UNBOOTED, _protocol) == 0) {
+        GTEST_SKIP();
+    }
+
+    deviceDesc_t deviceDesc = {};
+    deviceDesc_t bootedDeviceDesc = {};
+
+    deviceDesc.protocol = _protocol;
+    bootDevice(deviceDesc, bootedDeviceDesc);
+
+    XLinkHandler_t handler = {0};
+    handler.protocol = bootedDeviceDesc.protocol;
+    handler.devicePath = bootedDeviceDesc.name;
+
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkConnect(&handler));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkSetHostPacketLength(handler.linkId, 2*1024*1024));
+
+    unsigned int size = 8 * 1024 * 1024;
+    streamId_t stream = XLinkOpenStream(handler.linkId, "mySuperStream", size);
+    ASSERT_NE(INVALID_STREAM_ID, stream);
+    std::vector<uint8_t> data(size);
+    ASSERT_EQ(X_LINK_SUCCESS, XLinkWriteData(stream, data.data(), size));
+    // We don't close the stream because the device hangs while it is waiting for read request
+
+    closeDevice(&handler);
+}
+
+//------------------------------------------------------------------------------
 //      XLinkOpenStreamTests
 //------------------------------------------------------------------------------
 
@@ -436,4 +499,11 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkOpenStreamTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    XLinkCommon,
+    XLinkSetDevicePacketLengthTests,
+    Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
+            Values(X_LINK_ANY_PLATFORM)),
+    XLinkSetDevicePacketLengthTests::getTestCaseName);
 

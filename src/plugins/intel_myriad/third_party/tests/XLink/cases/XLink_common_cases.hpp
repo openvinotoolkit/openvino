@@ -85,6 +85,11 @@ class XLinkResetRemoteTests : public XLinkDeviceTestsCommon {};
 //------------------------------------------------------------------------------
 class XLinkResetAllTests : public XLinkDeviceTestsCommon {};
 
+//------------------------------------------------------------------------------
+//      class XLinkSetDevicePacketLengthTests
+//------------------------------------------------------------------------------
+class XLinkSetDevicePacketLengthTests : public XLinkDeviceTestsCommon {};
+
 
 
 //------------------------------------------------------------------------------
