@@ -99,7 +99,7 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcat>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(m_func);
 
        InsertCopyLayerTest::Validate();
@@ -149,7 +149,7 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeConcatLayer>();
         m.run_passes(m_func);
 
        InsertCopyLayerTest::Validate();
@@ -186,7 +186,8 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.register_pass<ngraph::pass::VisualizeTree>("1graph.svg");
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -232,8 +233,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::VisualizeTree>("1graph.svg");
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.register_pass<ngraph::pass::VisualizeTree>("2graph.svg");
         m.run_passes(func);
 
@@ -275,7 +275,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -321,7 +321,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -366,7 +366,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -412,7 +412,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamConcatMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -467,7 +467,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -513,7 +513,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -560,7 +560,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamLayerConcatMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -614,7 +614,7 @@ TEST(TransformationTests, InsertCopyLayerCropMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -670,7 +670,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -717,7 +717,7 @@ TEST(TransformationTests, InsertCopyLayerConcatMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -768,7 +768,7 @@ TEST(TransformationTests, InsertCopyLayerConcatNFLMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -816,7 +816,7 @@ TEST(TransformationTests, InsertCopyLayerSplitMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -868,7 +868,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLMemoryTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeMemoryLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -917,7 +917,7 @@ TEST(TransformationTests, InsertCopyLayerCropConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeConcatLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -1144,7 +1144,7 @@ TEST(TransformationTests, InsertCopyLayerCropNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+    m.register_pass<GNAPluginNS::InsertCopyBeforeConcatLayer>();
     m.run_passes(func);
 
 
@@ -1189,7 +1189,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<GNAPluginNS::HandleLayerConnectedToConcatOrMemory>();
+    m.register_pass<GNAPluginNS::InsertCopyBeforeConcatLayer>();
     m.run_passes(func);
 
 

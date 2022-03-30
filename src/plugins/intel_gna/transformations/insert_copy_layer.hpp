@@ -22,19 +22,13 @@ public:
     InsertCopyBeforeMemoryLayer();
 };
 
-class InsertCopyBetweenCropConcat : public ngraph::pass::MatcherPass {
+class InsertCopyBeforeConcatLayer : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    InsertCopyBetweenCropConcat();
+    InsertCopyBeforeConcatLayer();
 };
 
-class InsertCopyBetweenSplitConcat : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    InsertCopyBetweenSplitConcat();
-};
-
-class HandleLayerConnectedToConcatOrMemory : public ngraph::pass::FunctionPass {
+class HandleMultiConnectedLayerToConcatAndMemory : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
