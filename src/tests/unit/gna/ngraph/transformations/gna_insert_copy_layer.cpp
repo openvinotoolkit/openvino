@@ -99,7 +99,7 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcat>();
         m.run_passes(m_func);
 
        InsertCopyLayerTest::Validate();

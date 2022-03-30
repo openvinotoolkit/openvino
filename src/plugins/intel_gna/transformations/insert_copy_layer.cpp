@@ -292,7 +292,7 @@ MatchNonFunctionalLayers::MatchNonFunctionalLayers() {
             rt_info[result_prop] = ngraph::ResultVector{res_node};
         }
 
-        if (!rt_info[noncomp_prop].as<bool>())
+        if (!rt_info.count(noncomp_prop) || !rt_info[noncomp_prop].as<bool>())
             return false;
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
