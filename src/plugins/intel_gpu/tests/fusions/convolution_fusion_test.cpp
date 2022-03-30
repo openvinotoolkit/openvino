@@ -115,7 +115,7 @@ public:
 
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p) {
+    void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -123,6 +123,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p, true);
+        check_fusions_correctness(network_fused, expected_fused_primitives_ids);
     }
 
     layout get_input_layout(convolution_test_params& p) {
@@ -2666,6 +2667,38 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        data("actv_params", get_mem(get_per_channel_layout(p), -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
+        activation("activation_quantize", "reorder_fsv32", "actv_params", activation_func::relu_negative_slope),
+        convolution("conv_prim2", "activation_quantize", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_prim2", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
+    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 6 }
+}));
+
+// activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
+class conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation : public ConvReorderFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused_through_activation) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(2, 2));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    ov::Strides dw_stride = { 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", "reorder_fsv32", activation_func::relu),
@@ -2677,10 +2710,11 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
     bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
 
-    execute(p);
+    execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  5, 6 }
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
