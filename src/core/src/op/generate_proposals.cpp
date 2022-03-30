@@ -7,9 +7,6 @@
 #include "generate_proposals_shape_inference.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/validation_util.hpp"
 
 using namespace std;
 
