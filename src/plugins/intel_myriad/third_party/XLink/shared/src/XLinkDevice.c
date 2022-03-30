@@ -74,6 +74,22 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
 
     XLINK_RET_IF(globalHandler == NULL);
     ASSERT_XLINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);
+
+    unsigned int packetLength = globalHandler->packetLength;
+    if (packetLength == 0) {
+#ifdef __PC__
+        packetLength = 1024*1024;
+        mvLog(MVLOG_WARN, "The packet length value provided via XLink global handler is "
+            "0 that is not allowed. Setting the default value for a host %u\n", packetLength);
+#else
+        packetLength = 64*1024;
+        mvLog(MVLOG_WARN, "The packet length value provided via XLink global handler is "
+            "0 that is not allowed. Setting the default value for a device %u\n", packetLength);
+#endif
+        globalHandler->packetLength = packetLength;
+    }
+    XLINK_RET_IF(packetLength % 1024 != 0);
+
     glHandler = globalHandler;
     if (sem_init(&pingSem,0,0)) {
         mvLog(MVLOG_ERROR, "Can't create semaphore\n");
@@ -85,14 +101,6 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     //Using deprecated fields. Begin.
     int loglevel = globalHandler->loglevel;
     int protocol = globalHandler->protocol;
-    unsigned int packetLength = globalHandler->packetLength;
-    if (packetLength == 0) {
-#ifdef __PC__
-        packetLength = 1024*1024;
-#else
-        packetLength = 64*1024;
-#endif
-    }
     //Using deprecated fields. End.
 
     memset((void*)globalHandler, 0, sizeof(XLinkGlobalHandler_t));
