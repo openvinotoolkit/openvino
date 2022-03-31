@@ -9,6 +9,7 @@
 #include <vector>
 #include <ngraph/node.hpp>
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
@@ -29,6 +30,7 @@ ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantiz
 }
 
 bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<size_t>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();

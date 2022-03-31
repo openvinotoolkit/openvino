@@ -10,12 +10,14 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FoldFakeQuantizeTransformation);
     auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -26,7 +28,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, "FoldFakeQuantizeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, matcher_name);
     this->register_matcher(m, callback);
 }
 
