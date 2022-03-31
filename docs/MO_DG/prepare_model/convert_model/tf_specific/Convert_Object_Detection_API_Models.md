@@ -78,7 +78,8 @@ There are several important notes about feeding input images to the samples:
 
 4. Read carefully messaged printed by the Model Optimizer during a model conversion. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
 
-## Custom Input Shape <a name="tf_od_custom_input_shape"></a>
+@anchor custom-input-shape
+## Custom Input Shape
 Model Optimizer handles the command line parameter `--input_shape` for TensorFlow\* Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow\* Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
 * `fixed_shape_resizer` --- *Stretches* input image to the specific height and width. The `pipeline.config` snippet below shows a `fixed_shape_resizer` sample definition:
 ```
