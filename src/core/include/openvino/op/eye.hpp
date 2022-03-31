@@ -30,6 +30,17 @@ public:
         const Output<Node>& batch_shape,
         const ov::element::Type& out_type);
 
+    /// \brief      Constructs a Eye operation without batch_shape.
+    ///
+    /// \param      num_rows          Node producing the tensor with row number.
+    /// \param      num_columns       Node producing the tensor with column number.
+    /// \param      diagonal_index    Node producing the tensor with the index of diagonal with ones.
+    /// \param      out_type          Output type of the tensor.
+    Eye(const Output<Node>& num_rows,
+        const Output<Node>& num_columns,
+        const Output<Node>& diagonal_index,
+        const ov::element::Type& out_type);
+
     /// \brief      Constructs a Eye operation with default values for the last
     ///             3 inputs
     ///

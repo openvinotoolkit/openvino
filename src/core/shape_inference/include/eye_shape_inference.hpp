@@ -30,7 +30,7 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
         dim_num_rows = num_rows.front();
     }
 
-    if (op->get_input_size() == 4) {
+    if (op->get_input_size() >= 3) {
         std::vector<int64_t> num_columns;
         if (get_data_as_int64<T>(1, op, num_columns, constant_data)) {
             NODE_VALIDATION_CHECK(op,
@@ -44,24 +44,26 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
             dim_num_columns = num_columns.front();
         }
 
-        const auto batch_shape_pshape = input_shapes[3];
-        if (batch_shape_pshape.is_static()) {
-            dims_batch_shape.resize(batch_shape_pshape[0].get_length(), ov::Dimension::dynamic());
-            std::vector<int64_t> batch_shape;
-            if (get_data_as_int64<T>(3, op, batch_shape, constant_data)) {
-                NODE_VALIDATION_CHECK(op, batch_shape_pshape[0].get_length() == batch_shape.size());
-                dims_batch_shape.resize(batch_shape.size());
-                for (auto i = 0; i < batch_shape.size(); i++) {
-                    NODE_VALIDATION_CHECK(op, batch_shape[i] >= 0,
-                                          "'batch_shape' must have non-negative values. Got: ",
-                                          batch_shape[i]);
+        if (op->get_input_size() == 4) {
+            const auto batch_shape_pshape = input_shapes[3];
+            if (batch_shape_pshape.is_static()) {
+                dims_batch_shape.resize(batch_shape_pshape[0].get_length(), ov::Dimension::dynamic());
+                std::vector<int64_t> batch_shape;
+                if (get_data_as_int64<T>(3, op, batch_shape, constant_data)) {
+                    NODE_VALIDATION_CHECK(op, batch_shape_pshape[0].get_length() == batch_shape.size());
+                    dims_batch_shape.resize(batch_shape.size());
+                    for (auto i = 0; i < batch_shape.size(); i++) {
+                        NODE_VALIDATION_CHECK(op, batch_shape[i] >= 0,
+                                              "'batch_shape' must have non-negative values. Got: ",
+                                              batch_shape[i]);
 
-                    dims_batch_shape[i] = batch_shape[i];
+                        dims_batch_shape[i] = batch_shape[i];
+                    }
                 }
+            } else {
+                output_shape = ov::PartialShape::dynamic();
+                return;
             }
-        } else {
-            output_shape = ov::PartialShape::dynamic();
-            return;
         }
     } else {
         dim_num_columns = dim_num_rows;
