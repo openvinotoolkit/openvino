@@ -106,7 +106,7 @@ For example, [publicly available Inception family models from TensorFlow*](https
 - Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
-For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref tf_od_custom_input_shape).
+For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref custom-input-shape).
 
 @anchor how-to-fix-non-reshape-able-model_cpp
 ### How To Fix Non-Reshape-able Model
