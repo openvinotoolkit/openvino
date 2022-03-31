@@ -101,11 +101,111 @@ void expect_enqueue_calls(GNACppApi &mockApi){
 void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
-        GNAPlugin plugin(_env.config);
+
         size_t inputSize = 10;
         size_t outputSize = 10;
         InputsDataMap inputsInfo;
         OutputsDataMap  outputsInfo;
+
+        StrictMock<GNACppApi> mockApi;
+        std::vector<uint8_t> data;
+
+        if (_env.config[GNA_CONFIG_KEY(DEVICE_MODE)].compare(GNA_CONFIG_VALUE(SW_FP32)) != 0 &&
+            !_env.matchThrows) {
+            EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).WillOnce(Invoke([&data](
+                uint32_t sizeRequested,
+                uint32_t *sizeGranted,
+                void **memoryAddress
+                ) {
+                data.resize(sizeRequested);
+                *sizeGranted = sizeRequested;
+                *memoryAddress = &data.front();
+                return Gna2StatusSuccess;
+            }));
+
+            EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
+                uint32_t deviceIndex,
+                enum Gna2DeviceVersion * deviceVersion) {
+                    *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
+                    return Gna2StatusSuccess;
+                }));
+
+            EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+            EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
+
+            EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
+
+            if(_env.is_setup_of_omp_theads_expected == true) {
+                EXPECT_CALL(mockApi, Gna2DeviceSetNumberOfThreads(_,_)).WillOnce(Return(Gna2StatusSuccess));
+            }
+
+            std::unique_ptr<NNetComponentMatcher> combined(new NNetComponentMatcher());
+
+            for (auto & matchWhat : _env.whatToMatch) {
+                switch(matchWhat.type) {
+                    case GnaPluginTestEnvironment::matchPrecision :
+                        combined->add(new NNetPrecisionMatcher(_env.nnet_precision, INTEL_AFFINE));
+                        break;
+                    case GnaPluginTestEnvironment::matchProcType :
+                        expect_enqueue_calls(mockApi);
+                        break;
+                    case GnaPluginTestEnvironment::matchPwlInserted :
+                        combined->add(new PWLMatcher(_env.matchInserted, matchWhat.matchQuantity, _env.pwlsToMatchWith));
+                        break;
+                    case GnaPluginTestEnvironment::matchConvInserted:
+                        combined->add(new ConvoluionLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
+                        break;
+                    case GnaPluginTestEnvironment::matchMaxPoolingInserted:
+                        combined->add(new PoolingLayerMatcher(_env.matchInserted, matchWhat.matchQuantity, true));
+                        break;
+                    case GnaPluginTestEnvironment::matchPwlQuantizeMetrics :
+                        combined->add(new PWLQuantizationMetricsMatcher(_env.type,
+                                                                        _env.quantization_presicion_threshold,
+                                                                        _env.quantization_segments_threshold));
+                        break;
+                    case GnaPluginTestEnvironment::matchCopyInserted :
+                        combined->add(new CopyLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
+                        break;
+                    case GnaPluginTestEnvironment::matchDiagonalInserted :
+                        combined->add(new DiagLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
+                        break;
+                    case GnaPluginTestEnvironment::saveArgs :
+                        expect_enqueue_calls(mockApi);
+                        break;
+                    case GnaPluginTestEnvironment::matchInputData :
+                        combined->add(new InputDataMatcher(_env.input_processed));
+                        break;
+                    case GnaPluginTestEnvironment::fillOutputValues :
+                        combined->add(new OutputFiller(_env.fillValue, _env.fillValue));
+                        break;
+                    case GnaPluginTestEnvironment::matchAffineWeightsTranspose:
+                        HasWeightsTranspozed(combined, _env.transposedData, _env.transposeArgs);
+                        break;
+                    case GnaPluginTestEnvironment::matchAffineWeights:
+                        HasWeightsEq(combined, _env.transposedData);
+                        break;
+                    case GnaPluginTestEnvironment::matchAffineWeightsSize:
+                        HasWeightsSizeEq(combined, _env.matched_weight_size);
+                        break;
+                    case GnaPluginTestEnvironment::saveAffineWeights:
+                        SaveWeights(combined, _env.transposedData, _env.transposedArgsForSaving);
+                        break;
+                    default:
+                        expect_enqueue_calls(mockApi);
+                        break;
+                }
+            }
+            if (combined && !combined->empty()) {
+                expect_enqueue_calls(mockApi);
+            }
+
+            EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillOnce(Return(Gna2StatusSuccess));
+
+            EXPECT_CALL(mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
+        }
+
+        GNAPlugin plugin(_env.config);
 
         auto loadNetworkFromIR = [&] () -> InferenceEngine::CNNNetwork {
             Core core;
@@ -272,102 +372,6 @@ void GNAPropagateMatcher :: match() {
                 expectedOutputIdx++;
             }
         };
-
-
-        StrictMock<GNACppApi> mockApi;
-        std::vector<uint8_t> data;
-
-        if (_env.config[GNA_CONFIG_KEY(DEVICE_MODE)].compare(GNA_CONFIG_VALUE(SW_FP32)) != 0 &&
-            !_env.matchThrows) {
-            EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).WillOnce(Invoke([&data](
-                uint32_t sizeRequested,
-                uint32_t *sizeGranted,
-                void **memoryAddress
-                ) {
-                data.resize(sizeRequested);
-                *sizeGranted = sizeRequested;
-                *memoryAddress = &data.front();
-                return Gna2StatusSuccess;
-            }));
-
-            EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
-                uint32_t deviceIndex,
-                enum Gna2DeviceVersion * deviceVersion) {
-                    *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
-                    return Gna2StatusSuccess;
-                }));
-
-            EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
-
-            EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
-
-            EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
-
-
-
-            if(_env.is_setup_of_omp_theads_expected == true) {
-                EXPECT_CALL(mockApi, Gna2DeviceSetNumberOfThreads(_,_)).WillOnce(Return(Gna2StatusSuccess));
-            }
-            std::unique_ptr<NNetComponentMatcher> combined(new NNetComponentMatcher());
-
-            for (auto & matchWhat : _env.whatToMatch) {
-                switch(matchWhat.type) {
-                    case GnaPluginTestEnvironment::matchPrecision :
-                        combined->add(new NNetPrecisionMatcher(_env.nnet_precision, INTEL_AFFINE));
-                        break;
-                    case GnaPluginTestEnvironment::matchProcType :
-                        expect_enqueue_calls(mockApi);
-                        break;
-                    case GnaPluginTestEnvironment::matchPwlInserted :
-                        combined->add(new PWLMatcher(_env.matchInserted, matchWhat.matchQuantity, _env.pwlsToMatchWith));
-                        break;
-                    case GnaPluginTestEnvironment::matchConvInserted:
-                        combined->add(new ConvoluionLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
-                        break;
-                    case GnaPluginTestEnvironment::matchMaxPoolingInserted:
-                        combined->add(new PoolingLayerMatcher(_env.matchInserted, matchWhat.matchQuantity, true));
-                        break;
-                    case GnaPluginTestEnvironment::matchPwlQuantizeMetrics :
-                        combined->add(new PWLQuantizationMetricsMatcher(_env.type,
-                                                                        _env.quantization_presicion_threshold,
-                                                                        _env.quantization_segments_threshold));
-                        break;
-                    case GnaPluginTestEnvironment::matchCopyInserted :
-                        combined->add(new CopyLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
-                        break;
-                    case GnaPluginTestEnvironment::matchDiagonalInserted :
-                        combined->add(new DiagLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
-                        break;
-                    case GnaPluginTestEnvironment::saveArgs :
-                        expect_enqueue_calls(mockApi);
-                        break;
-                    case GnaPluginTestEnvironment::matchInputData :
-                        combined->add(new InputDataMatcher(_env.input_processed));
-                        break;
-                    case GnaPluginTestEnvironment::fillOutputValues :
-                        combined->add(new OutputFiller(_env.fillValue, _env.fillValue));
-                        break;
-                    case GnaPluginTestEnvironment::matchAffineWeightsTranspose:
-                        HasWeightsTranspozed(combined, _env.transposedData, _env.transposeArgs);
-                        break;
-                    case GnaPluginTestEnvironment::matchAffineWeights:
-                        HasWeightsEq(combined, _env.transposedData);
-                        break;
-                    case GnaPluginTestEnvironment::matchAffineWeightsSize:
-                        HasWeightsSizeEq(combined, _env.matched_weight_size);
-                        break;
-                    case GnaPluginTestEnvironment::saveAffineWeights:
-                        SaveWeights(combined, _env.transposedData, _env.transposedArgsForSaving);
-                        break;
-                    default:
-                        expect_enqueue_calls(mockApi);
-                        break;
-                }
-            }
-            if (combined && !combined->empty()) {
-                expect_enqueue_calls(mockApi);
-            }
-        }
 
         loadNetwork();
 
