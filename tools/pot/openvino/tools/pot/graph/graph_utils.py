@@ -34,6 +34,7 @@ def load_graph(model_config, target_device='ANY'):
         apply_pot_transformations(model, target_device.encode('utf-8'))
         bin_path = serialized_bin_path
         xml_path = serialized_xml_path
+        # TODO: replace by openvino.runtime.serialize
         pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
         pass_manager.run_passes(model)
 

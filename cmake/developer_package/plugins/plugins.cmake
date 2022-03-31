@@ -219,6 +219,10 @@ macro(ie_register_plugins_dynamic)
         endif()
         list(GET name 0 device_name)
         list(GET name 1 name)
+        # Skip plugins which don't exist in the possible plugins list
+        if (IE_REGISTER_POSSIBLE_PLUGINS AND NOT name IN_LIST IE_REGISTER_POSSIBLE_PLUGINS)
+            continue()
+        endif()
 
         # create plugin file
         set(config_file_name "${CMAKE_BINARY_DIR}/plugins/${device_name}.xml")

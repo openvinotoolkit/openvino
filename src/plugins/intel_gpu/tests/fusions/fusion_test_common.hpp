@@ -227,4 +227,10 @@ public:
         topology_fused.add(args...);
         topology_non_fused.add(args...);
     }
+
+    template <class... Args>
+    void add_topologies(Args const&... args) {
+        topology_fused.add(args...);
+        topology_non_fused.add(args...);
+    }
 };
