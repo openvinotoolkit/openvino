@@ -167,12 +167,8 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-<<<<<<< HEAD
 3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
 
-=======
-2. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
->>>>>>> cf8ccb590a... Removed obsolete code snippets (#11061)
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
