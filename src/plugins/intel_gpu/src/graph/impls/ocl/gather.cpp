@@ -14,22 +14,48 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
-kernel_selector::gather_axis convert_axis(gather::gather_axis axis) {
-    switch (axis) {
-        case gather::along_x:
-            return kernel_selector::gather_axis::X;
-        case gather::along_y:
-            return kernel_selector::gather_axis::Y;
-        case gather::along_z:
-            return kernel_selector::gather_axis::Z;
-        case gather::along_w:
-            return kernel_selector::gather_axis::W;
-        case gather::along_f:
-            return kernel_selector::gather_axis::FEATURE;
-        case gather::along_b:
-            return kernel_selector::gather_axis::BATCH;
-        default:
-            return kernel_selector::gather_axis::X;
+static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
+    if (axis == 0) {
+        return kernel_selector::gather_axis::BATCH;
+    } else if (axis == 1) {
+        return kernel_selector::gather_axis::FEATURE;
+    }
+
+    if (rank <= 4) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::Y;
+            case 3: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::FEATURE;
+            case -3: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else if (rank == 5) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::Z;
+            case 3: return kernel_selector::gather_axis::Y;
+            case 4: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::Z;
+            case -3: return kernel_selector::gather_axis::FEATURE;
+            case -4: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else if (rank == 6) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::W;
+            case 3: return kernel_selector::gather_axis::Z;
+            case 4: return kernel_selector::gather_axis::Y;
+            case 5: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::Z;
+            case -3: return kernel_selector::gather_axis::W;
+            case -4: return kernel_selector::gather_axis::FEATURE;
+            case -5: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else {
+        IE_THROW() << "Unsupported gather axis: " << axis;
     }
 }
 
@@ -47,7 +73,8 @@ public:
         auto gather_optional_params =
             get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
 
-        gather_params.axis = convert_axis(arg.get_primitive()->axis);
+        auto input_layout = arg.get_dependency(0).get_output_layout();
+        gather_params.axis = convert_axis(arg.get_primitive()->axis, input_layout.get_rank());
         gather_params.batch_dim = size_t(arg.get_primitive()->batch_dim);
         gather_params.support_neg_ind = arg.get_primitive()->support_neg_ind;
 
