@@ -33,7 +33,7 @@ public:
     TransformationTestsF();
 
     void SetUp() override;
-    
+
     void TearDown() override;
 
     // TODO: this is temporary solution to disable rt info checks that must be applied by default
