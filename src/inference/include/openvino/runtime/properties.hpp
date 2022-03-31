@@ -89,6 +89,9 @@ struct PropertyTag {};
 template <typename P>
 using EnableIfProperty = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, P>::type::value_type;
 
+template <typename P, typename T>
+using EnableIfPropertyT = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, T>::type;
+
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
@@ -225,8 +228,9 @@ struct PrefixedProperty : protected Prefix, public Property<T, M> {
 
 /**
  * @brief Type for property to pass set of properties with predefined name
+ * @ingroup ov_runtime_cpp_prop_api
  */
-struct NamedProperties {
+struct NamedProperties : public util::PropertyTag {
     /**
      * @brief Constructs property access variable
      * @param str_ property name
@@ -280,45 +284,58 @@ private:
 };
 
 /**
- * @brief Type for property to pass set of properties to specified device
+ * @brief Type for property to pass set of properties with name defined in runtime
  * @ingroup ov_runtime_cpp_prop_api
  */
 struct Properties {
     /**
      * @brief Constructs property
-     * @param device_name device plugin alias
+     * @param name properties set alias
      * @param config set of property values with names
      * @return Pair of string key representation and type erased property value.
      */
-    inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+    inline std::pair<std::string, Any> operator()(const std::string& name, const AnyMap& config) const {
+        return {name, config};
     }
 
     /**
      * @brief Constructs property
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param device_name device plugin alias
+     * @param name properties set alias
      * @param configs Optional pack of pairs: (config parameter name, config parameter value)
      * @return Pair of string key representation and type erased property value.
      */
     template <typename... Properties>
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
-        const std::string& device_name,
+        const std::string& name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name, AnyMap{std::pair<std::string, Any>{configs}...}};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @tparam T property value type
+     * @tparam M property mutability type
+     * @param property property object without prefix
+     * @return property object with prefix
+     */
+    template <template <typename, PropertyMutability> class Property, typename T, PropertyMutability M>
+    util::PrefixedProperty<T, M> operator()(const std::string& name, const Property<T, M>& property) const {
+        return {name, property.name()};
     }
 };
 
 /**
  * @brief Property to pass set of property values to specified device
- * @ingroup ov_runtime_cpp_prop_api
  * Usage Example:
  * @code
  * core.compile_model("HETERO"
- *     ov::device::priorities("GPU", "CPU"),
- *     ov::device::properties("CPU", ov::enable_profiling(true)),
- *     ov::device::properties("GPU", ov::enable_profiling(false)));
+ *     ov::target_falLback("GPU", "CPU"),
+ *     ov::properties("CPU", ov::enable_profiling(true)),
+ *     ov::properties("GPU", ov::enable_profiling(false)));
  * @endcode
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Properties properties;
 
@@ -636,6 +653,7 @@ namespace device {
 
 /**
  * @brief Type for property to pass set of properties to specified device
+ * @ingroup ov_runtime_cpp_prop_api
  */
 OPENVINO_DEPRECATED("Use ov::properties")
 static constexpr Properties properties;

@@ -21,15 +21,26 @@
 
 using namespace TemplatePlugin;
 
+
+void TemplatePlugin::ExecutableNetwork::init_properties(const std::map<std::string, std::string>& cfg) {
+    _properties
+    .add(_cfg._properties)
+    .add(ov::optimal_number_of_infer_requests, std::ref(_cfg._streamsExecutorConfig._streams));
+    _properties.set(cfg)
+    // IF we need to make some properties read only use ov::PropertyAccess::ro() with property name
+    .ro(ov::streams::num)
+    .ro(ov::infer_property);
+}
+
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
                                                      const InferenceEngine::InputsDataMap& inputInfoMap,
                                                      const InferenceEngine::OutputsDataMap& outputsInfoMap,
-                                                     const Configuration& cfg,
+                                                     const std::map<std::string, std::string>& cfg,
                                                      const Plugin::Ptr& plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr),  // Disable default threads creation
-      _cfg(cfg),
       _plugin(plugin) {
+    init_properties(cfg);
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
@@ -48,10 +59,10 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 
 // ! [executable_network:ctor_import_stream]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
-                                                     const Configuration& cfg,
+                                                     const std::map<std::string, std::string>& cfg,
                                                      const Plugin::Ptr& plugin)
-    : _cfg(cfg),
-      _plugin(plugin) {
+    : _plugin(plugin) {
+    init_properties(cfg);
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -179,42 +190,6 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
                                                        _callbackExecutor);
 }
 // ! [executable_network:create_infer_request]
-
-// ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string& name) const {
-    return _cfg.Get(name);
-}
-// ! [executable_network:get_config]
-
-// ! [executable_network:get_metric]
-InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string& name) const {
-    // TODO: return more supported values for metrics
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
-                             std::vector<std::string>{METRIC_KEY(NETWORK_NAME),
-                                                      METRIC_KEY(SUPPORTED_METRICS),
-                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                      METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
-                                               CONFIG_KEY(PERF_COUNT),
-                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            configKeys.emplace_back(configKey);
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
-        auto networkName = _function->get_friendly_name();
-        IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
-    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
-        unsigned int value = _cfg._streamsExecutorConfig._streams;
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
-    } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
-    }
-}
-// ! [executable_network:get_metric]
 
 // ! [executable_network:export]
 void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {

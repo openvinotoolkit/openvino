@@ -39,6 +39,17 @@ Plugin::Plugin() {
 
     // create default stream executor with a given name
     _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+
+    // Add common read write properties
+    _properties.set_name(_pluginName).add(_cfg._properties);
+
+    // If plugin has several devices we can add property for each device
+    for (auto device_id : {"0"}) {
+        _properties.add(
+            device_id,
+            ov::PropertyAccess{}
+                .add(ov::device::full_name, "TEMPLATE_DEVICE_0"));
+    }
 }
 // ! [plugin:ctor]
 
@@ -97,17 +108,16 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 
 // ! [plugin:load_exe_network_impl]
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                            const ConfigMap& config) {
+                                                                            const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
 
     InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
 
-    auto fullConfig = Configuration{config, _cfg};
     return std::make_shared<ExecutableNetwork>(network.getFunction(),
                                                networkInputs,
                                                networkOutputs,
-                                               fullConfig,
+                                               _properties.merge(config),
                                                std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
@@ -118,9 +128,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
-    auto fullConfig = Configuration{config, _cfg};
     auto exec = std::make_shared<ExecutableNetwork>(modelStream,
-                                                    fullConfig,
+                                                    _properties.merge(config),
                                                     std::static_pointer_cast<Plugin>(shared_from_this()));
     SetExeNetworkInfo(exec, exec->_function);
     return exec;
@@ -129,10 +138,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
 
 // ! [plugin:query_network]
 InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                         const ConfigMap& config) const {
+                                                         const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::QueryNetwork");
 
-    Configuration fullConfig{config, _cfg, false};
+    auto fullConfig = _properties.merge(config);
     auto function = network.getFunction();
 
     // 1. First of all we should store initial input operation set
@@ -230,72 +239,6 @@ void Plugin::AddExtension(const InferenceEngine::IExtensionPtr& /*extension*/) {
     IE_THROW(NotImplemented);
 }
 // ! [plugin:add_extension]
-
-// ! [plugin:set_config]
-void Plugin::SetConfig(const ConfigMap& config) {
-    _cfg = Configuration{config, _cfg};
-}
-// ! [plugin:set_config]
-
-// ! [plugin:get_config]
-InferenceEngine::Parameter Plugin::GetConfig(
-    const std::string& name,
-    const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
-    return _cfg.Get(name);
-}
-// ! [plugin:get_config]
-
-// ! [plugin:get_metric]
-InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
-                                             const std::map<std::string, InferenceEngine::Parameter>& options) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        std::vector<std::string> supportedMetrics = {METRIC_KEY(AVAILABLE_DEVICES),
-                                                     METRIC_KEY(SUPPORTED_METRICS),
-                                                     METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                     METRIC_KEY(FULL_DEVICE_NAME),
-                                                     METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-                                                     METRIC_KEY(DEVICE_ARCHITECTURE),
-                                                     METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-                                                     METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)};
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
-                                               CONFIG_KEY(PERF_COUNT),
-                                               ov::hint::performance_mode.name(),
-                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
-                configKeys.emplace_back(configKey);
-            }
-        }
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
-        // TODO: fill list of available devices
-        std::vector<std::string> availableDevices = {""};
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
-        std::string name = "Template Device Full Name";
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
-    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
-        // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = "TEMPLATE";
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, arch);
-    } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
-        // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = {METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/};
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
-        // TODO: fill with actual values
-        using uint = unsigned int;
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, std::make_tuple(uint{1}, uint{1}, uint{1}));
-    } else {
-        IE_THROW(NotFound) << "Unsupported device metric: " << name;
-    }
-}
-// ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
 static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_template_plugin"};

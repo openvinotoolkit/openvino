@@ -167,7 +167,8 @@ void HeteroExecutableNetwork::init_device_properties() {
         _properties.add(network._device,
                         device_properties.remove(ov::model_name)
                             .remove(ov::optimal_number_of_infer_requests)
-                            .remove(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)));
+                            .remove(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)),
+                        network._network._so);
         i++;
     }
 }
@@ -178,9 +179,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _heteroPlugin{plugin},
+      _name{originalNetwork.getName()} {
     init_properties(config);
-      _name{originalNetwork.getName()},
-      _config{config} {
     auto clonned_network = InferenceEngine::details::cloneNetwork(originalNetwork);
     auto clonned_function = clonned_network.getFunction();
     IE_ASSERT(clonned_function != nullptr);
@@ -211,19 +211,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     if (queryNetworkResult.supportedLayersMap.empty()) {
-<<<<<<< HEAD
         auto all_properties = _properties.merge(config);
         if (!all_properties.at(ov::device::priorities.name()).empty() ||
             !all_properties.at("TARGET_FALLBACK").empty()) {
-            queryNetworkResult = _heteroPlugin->QueryNetwork(network, all_properties);
-=======
-        auto it = _config.find("TARGET_FALLBACK");
-        if (it == _config.end()) {
-            it = _config.find(ov::device::priorities.name());
-        }
-        if (it != _config.end()) {
-            queryNetworkResult = _heteroPlugin->QueryNetwork(clonned_network, _config);
->>>>>>> master
+            queryNetworkResult = _heteroPlugin->QueryNetwork(clonned_network, all_properties);
         } else {
             IE_THROW() << "The '" << ov::device::priorities.name()
                        << "' option was not defined for heterogeneous plugin";

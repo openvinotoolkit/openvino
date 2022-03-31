@@ -8,8 +8,8 @@
 #include <ngraph/function.hpp>
 
 #include "template_async_infer_request.hpp"
-#include "template_config.hpp"
 #include "template_infer_request.hpp"
+#include "template_rw_properties.hpp"
 
 namespace TemplatePlugin {
 
@@ -26,10 +26,10 @@ public:
     ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
                       const InferenceEngine::InputsDataMap& inputInfoMap,
                       const InferenceEngine::OutputsDataMap& outputsInfoMap,
-                      const Configuration& cfg,
+                      const std::map<std::string, std::string>& cfg,
                       const std::shared_ptr<Plugin>& plugin);
 
-    ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
+    ExecutableNetwork(std::istream& model, const std::map<std::string, std::string>& cfg, const std::shared_ptr<Plugin>& plugin);
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
@@ -41,8 +41,6 @@ public:
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
 
 private:
     friend class TemplateInferRequest;
@@ -53,8 +51,10 @@ private:
                         const InferenceEngine::OutputsDataMap& outputsInfoMap);
     void InitExecutor();
 
+    void init_properties(const std::map<std::string, std::string>& cfg);
+
     std::atomic<std::size_t> _requestId = {0};
-    Configuration _cfg;
+    RwProperties _cfg;
     std::shared_ptr<Plugin> _plugin;
     std::shared_ptr<ngraph::Function> _function;
     std::map<std::string, std::size_t> _inputIndex;

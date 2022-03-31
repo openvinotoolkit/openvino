@@ -441,7 +441,7 @@ public:
      * @param mutability sub properties mutability
      * @return Reference to current object
      */
-    PropertyAccess& add(const std::string& name, PropertyAccess sub_accesses);
+    PropertyAccess& add(const std::string& name, PropertyAccess sub_accesses, const std::shared_ptr<void>& so_ = {});
 
     /**
      * @brief Add read only property access for readwrite property
@@ -450,7 +450,7 @@ public:
      * @param mutability sub properties mutability
      * @return Reference to current object
      */
-    PropertyAccess& add(const NamedProperties& named_properties, PropertyAccess sub_accesses);
+    PropertyAccess& add(const NamedProperties& named_properties, PropertyAccess sub_accesses, const std::shared_ptr<void>& so_ = {});
 
     /**
      * @brief Remove property access using defined name
@@ -491,8 +491,8 @@ public:
      * @param property property variable
      * @return Reference to current object
      */
-    template <typename T, PropertyMutability M>
-    PropertyAccess& ro(const Property<T, M>& property) {
+    template <typename P>
+    util::EnableIfPropertyT<P, PropertyAccess&> ro(const P& property) {
         return ro(property.name());
     }
 
@@ -517,8 +517,8 @@ public:
      * @param property property variable
      * @return true if property exist
      */
-    template <typename T, PropertyMutability M>
-    bool has(const Property<T, M>& property) {
+    template <typename P>
+    util::EnableIfPropertyT<P, bool> has(const P& property) {
         return has(property.name());
     }
 

@@ -73,14 +73,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
     auto all_properties = _properties.merge(config);
-    auto device_priorities = all_properties.at("TARGET_FALLBACK");
-    if (device_priorities.empty()) {
-        device_priorities = all_properties.at(ov::device::priorities.name());
+    auto it_device_priorities = all_properties.find("TARGET_FALLBACK");
+    if (it_device_priorities == all_properties.end()) {
+        it_device_priorities = all_properties.find(ov::device::priorities.name());
     }
-    if (device_priorities.empty()) {
+    if (it_device_priorities == all_properties.end()) {
         IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(device_priorities, all_properties);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(it_device_priorities->second, all_properties);
 
     auto function = network.getFunction();
     if (function == nullptr) {
@@ -131,15 +131,15 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     }
 
     auto all_properties = _properties.merge(config);
-    auto device_priorities = all_properties.at("TARGET_FALLBACK");
-    if (device_priorities.empty()) {
-        device_priorities = all_properties.at(ov::device::priorities.name());
+    auto it_device_priorities = all_properties.find("TARGET_FALLBACK");
+    if (it_device_priorities == all_properties.end()) {
+        it_device_priorities = all_properties.find(ov::device::priorities.name());
     }
-    if (device_priorities.empty()) {
+    if (it_device_priorities == all_properties.end()) {
         IE_THROW() << "The '" << ov::device::priorities.name() << "' option was not defined for heterogeneous plugin";
     }
 
-    DeviceMetaInformationMap metaDevices = GetDevicePlugins(device_priorities, all_properties);
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(it_device_priorities->second, all_properties);
 
     auto function = network.getFunction();
     if (function == nullptr) {
@@ -153,7 +153,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     }
 
     //  WARNING: Here is devices with user set priority
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(device_priorities);
+    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(it_device_priorities->second);
 
     for (auto&& deviceName : fallbackDevices) {
         for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {

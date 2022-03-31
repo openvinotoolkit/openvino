@@ -12,7 +12,9 @@
 
 namespace ov {
 struct PropertyAccess::SubAccess : public Access, public PropertyAccess {
-    SubAccess(PropertyAccess property_access) : PropertyAccess{std::move(property_access)} {}
+    SubAccess(PropertyAccess property_access, const std::shared_ptr<void>& so_) :
+    PropertyAccess{std::move(property_access)},
+    so{so_} {}
     SubAccess* sub_access_ptr() override {
         return this;
     }
@@ -22,6 +24,7 @@ struct PropertyAccess::SubAccess : public Access, public PropertyAccess {
     void ro() override {
         PropertyAccess::ro();
     }
+    std::shared_ptr<void> so;
 };
 
 template <typename T>
@@ -101,21 +104,21 @@ PropertyAccess& PropertyAccess::add(PropertyAccess sub_accesses) {
     return *this;
 }
 
-PropertyAccess& PropertyAccess::add(const std::string& name, PropertyAccess sub_accesses_) {
+PropertyAccess& PropertyAccess::add(const std::string& name, PropertyAccess sub_accesses_, const std::shared_ptr<void>& so) {
     auto& access = accesses[name];
     sub_accesses_.remove(ov::supported_properties)
         .remove(METRIC_KEY(SUPPORTED_METRICS))
         .remove(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
     if (access == nullptr) {
-        access = std::make_shared<SubAccess>(std::move(sub_accesses_));
+        access = std::make_shared<SubAccess>(std::move(sub_accesses_), so);
     } else {
         access->sub_access().add(std::move(sub_accesses_));
     }
     return *this;
 }
 
-PropertyAccess& PropertyAccess::add(const NamedProperties& named_properties, PropertyAccess sub_accesses) {
-    return add(named_properties.name(), std::move(sub_accesses));
+PropertyAccess& PropertyAccess::add(const NamedProperties& named_properties, PropertyAccess sub_accesses, const std::shared_ptr<void>& so) {
+    return add(named_properties.name(), std::move(sub_accesses), so);
 }
 
 PropertyAccess& PropertyAccess::remove(const std::string& name) {
@@ -266,7 +269,10 @@ AnyMap PropertyAccess::get(const PropertyMutability mutability) const {
     AnyMap result;
     for (auto&& access : accesses) {
         if (access.second->is_sub_access()) {
-            result.emplace(access.first, access.second->sub_access().PropertyAccess::get(mutability));
+            auto any_map = access.second->sub_access().PropertyAccess::get(mutability);
+            if (!any_map.empty()) {
+                result.emplace(access.first, any_map);
+            }
         } else if ((mutability == PropertyMutability::RW && access.second->is_mutable()) ||
                    (mutability == PropertyMutability::RO)) {
             auto any = access.second->get({});
@@ -381,7 +387,10 @@ AnyMap PropertyAccess::merge(const AnyMap& properties, const PropertyMutability 
                 OPENVINO_ASSERT(access_ptr != nullptr);
                 auto access = static_cast<const Access*>(access_ptr);
                 if (access->is_sub_access() && property.second.is<AnyMap>()) {
-                    result[property.first] = access->sub_access().merge(property.second.as<AnyMap>(), mutability);
+                    auto any_map = access->sub_access().merge(property.second.as<AnyMap>(), mutability);
+                    if (!any_map.empty()) {
+                        result[property.first] = any_map;
+                    }
                 } else if ((!access->is_sub_access() && property.second.is<AnyMap>()) ||
                            (access->is_sub_access() && !property.second.is<AnyMap>())) {
                     OPENVINO_UNREACHABLE("Could not merge unsupported types");
@@ -419,7 +428,9 @@ std::map<std::string, std::string> PropertyAccess::merge(const std::map<std::str
                     std::stringstream strm{property.second};
                     util::Read<AnyMap>{}(strm, any_map);
                     any_map = access->sub_access().merge(any_map, mutability);
-                    result.emplace(property.first, util::to_string(any_map));
+                    if (!any_map.empty()) {
+                        result.emplace(property.first, util::to_string(any_map));
+                    }
                 } else {
                     auto any = access->get({});
                     OPENVINO_ASSERT(access->is_mutable(), "Could not merge read only property: ", property.first);
@@ -434,7 +445,10 @@ std::map<std::string, std::string> PropertyAccess::merge(const std::map<std::str
         }
     }
     for (auto value : get(mutability)) {
-        result.emplace(value.first, value.second.as<std::string>());
+        auto str = value.second.as<std::string>();
+        if (!str.empty()) {
+            result.emplace(value.first, value.second.as<std::string>());
+        }
     }
     return result;
 }
