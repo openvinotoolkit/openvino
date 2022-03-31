@@ -19,7 +19,7 @@ Stateful models and State API {#openvino_docs_OV_UG_stateful_models_intro}
  between data portions should be addressed. For that, networks save some data between inferences - state. When one dependent sequence is over,
  state should be reset to initial value and new sequence can be started.
  
- Several frameworks have special API for states in networks. For example, Keras has special option for RNNs `stateful` that turns on saving state 
+Deep learning frameworks provide a dedicated API to build models with state. For example, Keras has special option for RNNs `stateful` that turns on saving state 
  between inferences. Kaldi contains special specifier `Offset` to define time offset in a network. 
  
  OpenVINO also contains special API to simplify work with networks with states. State is automatically saved between inferences, 
@@ -40,10 +40,10 @@ You can find more details on these operations in [ReadValue specification](../op
 
 * [Convert Kaldi model to IR via Model Optimizer.](../MO_DG/prepare_model/convert_model/kaldi_specific)
    If the original Kaldi model contains RNN-like operations with `stateful` option, then after ModelOptimizer conversion,
-   the resulting OpenVINO model will also contain states, represented by pairs ReadValue/Assign operations.
+   the resulting OpenVINO model will also contain states.
 
 * [Apply LowLatency2 transformation.](./ways_to_get_stateful_model.md#)
-   If after conversion from original model to OpenVINO representation, the resulting model contains TensorIterator or Loop operations,
+   If a model contains a loop that runs over some sequence of input data,
    the LowLatency2 transformation can be applied to get model with states.
    Note: there are some [specific limitations]() to use the transformation.
 
@@ -57,8 +57,8 @@ You can find more details on these operations in [ReadValue specification](../op
 
 ## OpenVINO State API
 
- Inference Engine has the `ov::InferRequest::query_state` method  to get the list of states from a network and `ov::VariableState` class to operate with states. 
- Below you can find brief description of methods and the workable example of how to use this interface.
+OpenVINO runtime has the `ov::InferRequest::query_state` method  to get the list of states from a network and `ov::VariableState` class to operate with states. 
+ Below you can find brief description of methods and the example of how to use this interface.
  
  * `std::string get_name() const`
    returns name(variable_id) of according Variable
