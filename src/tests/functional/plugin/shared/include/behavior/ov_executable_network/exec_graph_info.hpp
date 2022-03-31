@@ -71,7 +71,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
 };
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -154,7 +154,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -194,7 +194,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -295,7 +295,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_NO_THROW(execNet.input("in1"));
     EXPECT_NO_THROW(execNet.output("round"));
 
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -330,7 +330,7 @@ static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -395,7 +395,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -441,7 +441,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 
@@ -486,7 +486,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
 }
 
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
-    if (target_device == "MULTI" || target_device == "AUTO") {
+    if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
 

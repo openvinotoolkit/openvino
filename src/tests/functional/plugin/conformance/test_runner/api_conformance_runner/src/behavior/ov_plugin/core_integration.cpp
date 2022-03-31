@@ -23,9 +23,9 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassNetworkTestP, OVClassNetworkTestP,
         ::testing::Values(ov::test::conformance::targetDevice));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(ov::test::conformance::targetDevice, generate_complex_device_name(CommonTestUtils::DEVICE_HETERO)));
+//INSTANTIATE_TEST_SUITE_P(
+//        smoke_OVClassImportExportTestP_, OVClassImportExportTestP,
+//        ::testing::Values(ov::test::conformance::targetDevice, generate_complex_device_name(CommonTestUtils::DEVICE_HETERO)));
 
 //
 // IE Class GetMetric
