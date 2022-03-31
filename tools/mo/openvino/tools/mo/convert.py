@@ -44,7 +44,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from moc_frontend.check_config import legacy_extensions_used
+from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
@@ -695,7 +695,7 @@ def mean_scale_value_to_str(value):
         return value
     if isinstance(value, dict):
         values_str = []
-        for op_name, val in value.values():
+        for op_name, val in value.items():
             if not isinstance(op_name, str):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + value_to_str(val, ","))
