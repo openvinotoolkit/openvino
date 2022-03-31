@@ -10,12 +10,13 @@ def meshgrid():
     paddle.disable_static()
 
     @paddle.jit.to_static
-    def test_model(x, y):
-        return paddle.meshgrid(x, y)
+    def test_model(x, y, z):
+        return paddle.meshgrid(x, y, z)
 
     x = paddle.randint(low=0, high=100, shape=[5])
     y = paddle.randint(low=0, high=100, shape=[3])
-    return exportModel('meshgrid', test_model, [x, y], target_dir=sys.argv[1])
+    z = paddle.randint(low=0, high=100, shape=[2])
+    return exportModel('meshgrid', test_model, [x, y, z], target_dir=sys.argv[1])
 
 if __name__ == "__main__":
     meshgrid()
