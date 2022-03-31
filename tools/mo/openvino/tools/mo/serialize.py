@@ -1,12 +1,11 @@
+import os
+
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.utils.cli_parser import get_meta_info
 from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.version import get_simplified_mo_version
-from openvino.tools.mo.utils.telemetry_utils import get_tid
-from pathlib import Path
-
-import os
 
 try:
     import openvino_telemetry as tm

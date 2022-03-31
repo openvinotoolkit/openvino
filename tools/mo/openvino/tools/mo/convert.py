@@ -44,6 +44,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
@@ -54,9 +55,11 @@ LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
                     is_onnx: bool):
+    if not legacy_extensions_used(argv):
+        Error('load_extensions() method should be used for legacy extensions loading only.')
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
-        extensions = argv.extensions.split(',')
+        extensions = argv.extensions
     if is_tf:
         from openvino.tools.mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
@@ -381,7 +384,7 @@ def prepare_ir(argv: argparse.Namespace):
             if new_transformations_config_used(argv):
                 moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if new_extensions_used(argv):
-                for extension in argv.extensions.split(','):
+                for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
@@ -549,8 +552,9 @@ def extension_path_to_str_or_extensions_class(extension):
     elif isinstance(extension, Path):
         return str(extension)
     else:
-        #TODO: Add support of Extension objects
-        raise Exception("Currently usage of Extension classes is not supported.")
+        # Return unknown object as is.
+        # The type of the object will be checked by frontend.add_extension() method
+        return extension
 
 
 def extensions_to_str_or_extensions_class(extensions):
@@ -561,7 +565,7 @@ def extensions_to_str_or_extensions_class(extensions):
         for ext in extensions:
             ext = extension_path_to_str_or_extensions_class(ext)
             ext_list.append(ext)
-        return ','.join(ext_list)
+        return ext_list
     else:
         return extension_path_to_str_or_extensions_class(extensions)
 

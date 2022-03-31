@@ -16,12 +16,13 @@ def any_extensions_used(argv: argparse.Namespace):
 
 def legacy_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
-        extensions = argv.extensions.split(',')
+        extensions = argv.extensions
         legacy_ext_counter = 0
         for extension in extensions:
-            path = Path(extension)
-            if not path.is_file():
-                legacy_ext_counter += 1
+            if isinstance(extension, str):
+                path = Path(extension)
+                if not path.is_file():
+                    legacy_ext_counter += 1
         if legacy_ext_counter == len(extensions):
             return True # provided only legacy extensions
         elif legacy_ext_counter == 0:
@@ -33,11 +34,16 @@ def legacy_extensions_used(argv: argparse.Namespace):
 
 def new_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
-        extensions = argv.extensions.split(',')
+        extensions = argv.extensions
         new_ext_counter = 0
-        for extension in argv.extensions.split(','):
-            path = Path(extension)
-            if path.is_file() and (path.suffix == '.so' or path.suffix == '.dll'):
+        for extension in extensions:
+            if isinstance(extension, str):
+                path = Path(extension)
+                if path.is_file() and (path.suffix == '.so' or path.suffix == '.dll'):
+                    new_ext_counter += 1
+            else:
+                # non-string object is treated as Extension object
+                # The exact type will be checked by frontend.add_extension() method
                 new_ext_counter += 1
         if new_ext_counter == len(extensions):
             return True # provided only new extensions

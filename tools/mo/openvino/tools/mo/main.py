@@ -18,6 +18,7 @@ from openvino.frontend import FrontEndManager
 from convert import convert
 from serialize import serialize
 
+
 def get_model_name_from_args(argv: argparse.Namespace):
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
