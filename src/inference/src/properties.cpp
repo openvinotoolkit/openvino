@@ -33,6 +33,14 @@ struct PropertyAccess::SubAccess : public Access {
     std::shared_ptr<void> so;
 };
 
+static const std::string& copy_property_name(const std::string&, const std::string& sub_str) {
+    return sub_str;
+}
+
+static PropertyName copy_property_name(const PropertyName& property_name, const std::string& sub_str) {
+    return {sub_str, property_name.is_mutable() ? PropertyMutability::RW : PropertyMutability::RO};
+}
+
 template <typename T>
 static std::vector<T> flatten_supported(const std::vector<T>& properties, bool full_properties_routs = false) {
     std::vector<T> result;
@@ -63,10 +71,10 @@ static std::vector<T> flatten_supported(const std::vector<T>& properties, bool f
                     result.emplace_back(lhs_property);
                     for (auto pos = lhs_property.find('.', 0); pos != std::string::npos;
                          pos = lhs_property.find('.', pos + 1)) {
-                        result.emplace_back(lhs_property.substr(pos + 1));
+                        result.emplace_back(copy_property_name(lhs_property, lhs_property.substr(pos + 1)));
                     }
                 } else {
-                    result.emplace_back(lhs_property.substr(last + 1));
+                    result.emplace_back(copy_property_name(lhs_property, lhs_property.substr(last + 1)));
                 }
             }
         }
@@ -439,7 +447,9 @@ std::map<std::string, std::string> PropertyAccess::merge(const std::map<std::str
                     }
                 } else {
                     auto any = access->get({});
-                    OPENVINO_ASSERT(access->is_mutable(), "Could not merge read only property: ", property.first);
+                    if (!access->is_mutable()) {
+                        OPENVINO_ASSERT(access->is_mutable(), "Could not merge read only property: ", property.first);
+                    }
                     std::stringstream strm{property.second};
                     any.read(strm);
                     access->precondition(any);
