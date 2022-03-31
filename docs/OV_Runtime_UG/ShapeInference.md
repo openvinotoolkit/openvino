@@ -84,7 +84,7 @@ Please find usage scenarios of `reshape` feature in our [samples](Samples_Overvi
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `ov::Model::reshape` method.
 
-@anchor troubleshooting_reshape_errors_cpp
+@anchor troubleshooting_reshape_errors
 ### Troubleshooting Reshape Errors
 
 Operation semantics may impose restrictions on input shapes of the operation. 
@@ -108,7 +108,7 @@ For example, Object Detection models from TensorFlow have resizing restrictions 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
 For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref custom-input-shape).
 
-@anchor how-to-fix-non-reshape-able-model_cpp
+@anchor how-to-fix-non-reshape-able-model
 ### How To Fix Non-Reshape-able Model
 
 Some operators which prevent normal shape propagation can be fixed. To do so you can:
@@ -240,7 +240,6 @@ Please find usage scenarios of `reshape` feature in our [samples](Samples_Overvi
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `Model.reshape` method.
 
-@anchor troubleshooting_reshape_errors_python
 ### Troubleshooting Reshape Errors
 
 Operation semantics may impose restrictions on input shapes of the operation. 
@@ -264,7 +263,6 @@ For example, Object Detection models from TensorFlow have resizing restrictions 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
 For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref custom-input-shape).
 
-@anchor how-to-fix-non-reshape-able-model_python
 ### How To Fix Non-Reshape-able Model
 
 Some operators which prevent normal shape propagation can be fixed. To do so you can:

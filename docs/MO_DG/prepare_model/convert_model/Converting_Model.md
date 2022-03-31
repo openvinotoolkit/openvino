@@ -61,7 +61,7 @@ mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1
 
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
-Learn more about shape inference troubleshooting ([C++](@ref troubleshooting_reshape_errors_cpp), [Python](@ref troubleshooting_reshape_errors_python))  and ways to relax shape inference flow ([C++](@ref how-to-fix-non-reshape-able-model_cpp), [Python](@ref how-to-fix-non-reshape-able-model_python). 
+Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
 
 ## When to Specify --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
