@@ -29,7 +29,7 @@ Importing models with such operations requires additional steps. This guide illu
 
 Defining a new custom operation basically consists of two parts:
 
-1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) are described in separate guides.
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) is described in separate guides.
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 
