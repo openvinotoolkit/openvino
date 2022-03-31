@@ -16,6 +16,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Constant", Type::Input },
         { "Parameter", Type::Input },
         { "Result", Type::Output },
+        { "Eye", Type::Eye },
         { "Convolution", Type::Convolution },
         { "GroupConvolution", Type::Convolution },
         { "MatMul", Type::MatMul },
@@ -212,6 +213,8 @@ std::string NameFromType(const Type type) {
             return "Input";
         case Type::Output:
             return "Output";
+        case Type::Eye:
+            return "Eye";
         case Type::Convolution:
             return "Convolution";
         case Type::Deconvolution:
