@@ -12,7 +12,7 @@
 @endsphinxdirective
 
 ## Introduction
-Training-time model optimization is a way to get a more efficient and HW-friendly model when applying optimization methods with fine-tuning. OpenVINO&trade; does not have training capabilities but it provides a Neural Network Compression Framework (NNCF) tool that can be used to integrate training-time optimizations supported by OpenVINO in the training scripts created using 3rd party frameworks, such as PyTorch or TensorFlow 2.x. 
+Training-time model optimization is a way to get a more efficient and HW-friendly model when applying optimization methods with fine-tuning. OpenVINO&trade; does not have training capabilities but it provides a Neural Network Compression Framework (NNCF) tool that can be used to integrate training-time optimizations supported by OpenVINO in the training scripts created using 3rd party frameworks, such as PyTorch or TensorFlow 2. 
 
 To apply training-time optimization methods you need:
 - A floating-point model in the framework representation.
@@ -40,7 +40,7 @@ pip install nncf
 ### Install from source
 To install the latest NNCF version from source follow the instruction on [GitHub](https://github.com/openvinotoolkit/nncf#installation).
 
->NOTE: NNCF does not have OpenVINO&trade; as a dependency. To deploy optimized models you should install OpenVINO&trade; separately.
+> **NOTE**: NNCF does not have OpenVINO&trade; as a dependency. To deploy optimized models you should install OpenVINO&trade; separately.
 
 
 ## See also
