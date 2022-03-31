@@ -13,10 +13,10 @@ NamedOutputs where(const NodeContext& node) {
     const auto condition_node = node.get_input("Condition");
     const auto x_node = node.get_input("X");
     const auto y_node = node.get_input("Y");
-    // bug for 'x_shape != y_shape' in Paddle framework
+    // TODO: support 'shape x != shape y' #83233
     const auto x_shape = x_node.get_partial_shape();
     const auto y_shape = y_node.get_partial_shape();
-    PADDLE_OP_CHECK(node, x_shape.compatible(y_shape), "shape x should be equal to shape y!");
+    PADDLE_OP_CHECK(node, x_shape.compatible(y_shape), "shape x should be compatible to shape y!");
 
     return node.default_single_output_mapping(
         {std::make_shared<default_opset::Select>(condition_node, x_node, y_node, ov::op::AutoBroadcastType::PDPD)},

@@ -16,7 +16,7 @@ NamedOutputs roi_align(const NodeContext& node) {
     const auto aligned = node.get_attribute("aligned", false);
     PADDLE_OP_CHECK(node, !aligned, "OpenVINO not support 'aligned' feature!");
 
-    // limitation for batch_size = 1
+    // TODO: support multiple batches #83232
     if (data_node.get_partial_shape().rank().is_static() && data_node.get_partial_shape()[0].is_static())
         PADDLE_OP_CHECK(node, data_node.get_partial_shape()[0] == 1, "roi_align currenty only support batch_size = 1!");
 
