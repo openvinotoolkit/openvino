@@ -3,7 +3,6 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 

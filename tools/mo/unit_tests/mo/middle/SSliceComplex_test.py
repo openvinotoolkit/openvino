@@ -5,12 +5,11 @@ import unittest
 
 import numpy as np
 
-from openvino.tools.mo.middle.SSliceComplex import SSliceComplex
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.SSliceComplex import SSliceComplex
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph, result, build_graph_with_edge_attrs, connect, \
-    regular_op_with_empty_data, regular_op_with_shaped_data, valued_const_with_data, connect_data
-
+from unit_tests.utils.graph import build_graph, result, connect, \
+    regular_op_with_shaped_data, valued_const_with_data
 
 graph_node_attrs = {
     **regular_op_with_shaped_data('placeholder', int64_array([3, 100, 100, 2]),

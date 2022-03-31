@@ -30,27 +30,35 @@ class SSliceComplex(MiddleReplacementPattern):
          -------------------
                  SomeOp1
 
-    Here SomeOp is some node with real output and with the shape [N_0, ..., N_{r - 1}, 2], and StridedSlice nodes
-    have output shapes [N_0, ..., N_{r - 1}].
+    Here SomeOp is some node with the real output and with the shape [N_0, ..., N_{k - 1}, 2, N_{k +1}, ..., N_{r - 1}],
+    and StridedSlice nodes have output shapes [N_0, ..., N_{k - 1}, N_{k +1}, ..., N_{r - 1}].
 
-    But MO and Inference Engine do not support complex tensors. Hence, we need to replace this sub-graph with
+    But MO and Inference Engine do not support complex tensors. Hence, we need to replace this sub-graph with.
+    If k == r - 1, then the replacement should be the subgraph
 
          SomeOp   other inputs
           |       |  ...  |
          -------------------
                  SomeOp1
 
+    In the other case, that is if 0 <= k and k < r - 1 the replacement should be the subgraph
+
+         SomeOp
+           |
+       Transpose -- input_order
+          |
+          |
+          |   other inputs
+          |       |  ...  |
+         -------------------
+                 SomeOp1
+
+    where the input_order is a Constant, and the value of input_order is [0, ..., k - 1, k + 1, ..., r - 1, k].
+
     After this transformation we need to mark SomeOp1 operation that its input rank has changed because
     its inputs/attributes should probably be updated. Currently we have such a case for a Roll operation.
     """
     enabled = True
-
-    # def run_after(self):
-    #     return [BinarizeWeightsM1P1]
-    #
-    # def run_before(self):
-    #     from openvino.tools.mo.middle.SharedWeightsDuplication import SharedWeightsDuplication
-    #     return [SharedWeightsDuplication]
 
     def pattern(self):
         return dict(

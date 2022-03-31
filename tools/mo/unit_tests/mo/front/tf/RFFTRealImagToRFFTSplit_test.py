@@ -6,11 +6,10 @@ import unittest
 
 from generator import generator, generate
 
-from openvino.tools.mo.front.tf.RFFTRealImagToRFFTSplit import RFFTRealImagToRDFTSplit
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.RFFTRealImagToRFFTSplit import RFFTRealImagToRDFTSplit
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-
 
 graph_node_attrs = {
     'placeholder': {'shape': int64_array([3, 192, 36, 64]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
