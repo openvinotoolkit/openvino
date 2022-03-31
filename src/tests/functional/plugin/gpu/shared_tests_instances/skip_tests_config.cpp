@@ -99,7 +99,5 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
             R"(.*CompileModelCacheTestBase.*)",
-            // Issue: 83014
-            R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
     };
 }
