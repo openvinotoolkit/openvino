@@ -8,6 +8,7 @@
 #include <list>
 #include <string>
 #include "gna_graph_tools.hpp"
+#include "layers/gna_layer_helpers.hpp"
 
 namespace GNAPluginNS {
 /**
