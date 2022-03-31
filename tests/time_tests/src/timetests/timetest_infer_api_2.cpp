@@ -39,8 +39,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             SCOPED_TIMER(time_to_inference);
             {
                 SCOPED_TIMER(load_plugin);
-                TimeTest::setPerformanceConfig(ie, device);
-                ie.get_versions(device);
+                TimeTest::setPerformanceConfig(ie, device.substr(0, device.find(':')));
+                ie.get_versions(device.substr(0, device.find(':')));
 
                 if (isCacheEnabled)
                     ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
