@@ -42,7 +42,6 @@ class Runner():
             if line:
                 if "# GetParam()" in line:
                     self.tests_list.append(prefix + line.split("# GetParam()")[0].strip())
-                    print(prefix + line.split("# GetParam()")[0].strip())
                 else:
                     prefix = line.strip()
 
@@ -107,11 +106,11 @@ class Runner():
         # valid error code: 1 - fail, 0  - passsed
         while (exit_code not in [0, 1]):
             start = datetime.now()
-
             process = subprocess.Popen(args_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
                 # timeout 9h 50m
-                output, err = process.communicate(timeout=35400)
+                new_timeout = 35400 - self.time.seconds
+                output, err = process.communicate(timeout=new_timeout)
             except subprocess.TimeoutExpired:
                 process.kill()
                 output, err = process.communicate()

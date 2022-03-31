@@ -42,7 +42,11 @@ class XMLUpdater():
                 status = STATUSES[match[1]]
                 for op in test_ops:
                     if op not in ops_info:
-                        ops_info[op] = {}
+                        ops_info[op] = {'skipped': 0,
+                                        'passed':  0,
+                                        'failed':  0,
+                                        'hanged':  0,
+                                        'crashed': 0}
                     ops_info[op][status] = 0 if 'OpImplCheckTest' in test_name else ops_info[op].get(status, 0) + 1
 
                 test_ops = []
@@ -50,7 +54,11 @@ class XMLUpdater():
         if (test_ops):
             for op in test_ops:
                 if op not in ops_info:
-                    ops_info[op] = {}
+                    ops_info[op] = {'skipped': 0,
+                                    'passed':  0,
+                                    'failed':  0,
+                                    'hanged':  0,
+                                    'crashed': 0}
                 ops_info[op]['crashed'] = ops_info[op].get('crashed', 0) + 1
 
         return ops_info
@@ -85,10 +93,16 @@ class XMLUpdater():
                     op_name_tag = ET.SubElement(test_ops, op_name)
                     op_name_tag.tail = '\n\t'
 
+            total_tests = 0
             for name, val in op_info.items():
                 old_val = op_tag.attrib.get(name)
                 new_val = int(val) + int(old_val)
                 op_tag.set(name, str(new_val))
+                total_tests += new_val
+
+            if (total_tests > 0):
+                passrate = round(100 * int(op_tag.attrib.get("passed")) / total_tests, 1)
+                op_tag.set("passrate", str(passrate))
 
         return xml_root
 
@@ -101,7 +115,7 @@ class XMLUpdater():
         device_tag = ET.SubElement(results, self.device)
 
         for op_name, op_info in ops_info.items():
-            op_name_tag = ET.SubElement(test_ops, op_name)
+            ET.SubElement(test_ops, op_name)
 
             op_tag = ET.SubElement(device_tag, op_name)
             op_tag.set("implemented", "true")
@@ -111,17 +125,19 @@ class XMLUpdater():
             op_tag.set("crashed", "0")
             op_tag.set("hanged", "0")
             op_tag.set("passrate", "0")
-            
+
+            total_tests = 0
             for name, val in op_info.items():
                 op_tag.set(name, str(val))
-        
+                total_tests += val
+
+            if (total_tests > 0):
+                passrate = round(100 * int(op_tag.attrib.get("passed")) / total_tests, 1)
+                op_tag.set("passrate", str(passrate))
+
         return summary
 
     def update_xml_file(self, xml_root, pretty_xml=False):
-        if not os.path.isdir(self.path_to_folder):
-            self.logger.error(f" {self.path_to_folder} is not a directory!")
-            return 1
-
         try:
             if not os.path.exists(self.path_to_folder):
                 os.makedirs(self.path_to_folder)

@@ -7,6 +7,8 @@
 #include <map>
 #include <fstream>
 
+#include <pugixml.hpp>
+
 #include "ngraph/ngraph.hpp"
 
 #include "common_test_utils/test_constants.hpp"
@@ -92,7 +94,7 @@ protected:
 public:
     void setDeviceName(std::string device) { deviceName = device; }
 
-    std::map<std::string, PassRate> getOpStatisticFromReport();
+    std::map<std::string, PassRate> getOpStatisticFromReport(const pugi::xml_node root);
 
     std::string getDeviceName() const { return deviceName; }
 

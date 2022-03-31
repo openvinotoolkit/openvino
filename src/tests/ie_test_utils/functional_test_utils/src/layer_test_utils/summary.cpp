@@ -121,16 +121,7 @@ std::string Summary::getOpName(const ngraph::NodeTypeInfo &type_info) {
     return std::string(type_info.name) + "-" + getOpVersion(type_info);
 }
 
-std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
-    pugi::xml_document doc;
-
-    std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
-
-    pugi::xml_node root;
-    doc.load_file(CommonTestUtils::REPORT_FILENAME);
-    root = doc.child("report");
-
+std::map<std::string, PassRate> Summary::getOpStatisticFromReport(const pugi::xml_node root) {
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
     std::map<std::string, PassRate> oldOpsStat;
@@ -280,9 +271,12 @@ void Summary::saveReport() {
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
     pugi::xml_node root;
+    std::map<std::string, PassRate> opStataFromReport;
     if (fileExists) {
         doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
+        opStataFromReport = summary.getOpStatisticFromReport(root);
+
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
         root.remove_attribute("timestamp");
         root.append_attribute("timestamp").set_value(timeNow);
@@ -319,7 +313,6 @@ void Summary::saveReport() {
     }
 
     if (extendReport && fileExists) {
-        auto opStataFromReport = summary.getOpStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
