@@ -24,6 +24,10 @@ model = TorchModel() # instance of torch.nn.Module
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 
+#! [distributed]
+compression_ctrl.distributed() # call it before the training loop
+#! [distributed]
+
 #! [tune_model]
 ...
 # tune quantized model for 5 epochs as the baseline

@@ -24,16 +24,24 @@ model = KerasModel() # instance of the tensorflow.python.keras.models.Model
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 
+#! [distributed]
+compression_ctrl.distributed() # call it before the training
+#! [distributed]
+
 #! [tune_model]
 ...
 # tune quantized model for 5 epochs the same way as the baseline
 model.fit(train_dataset, epochs=5)
 #! [tune_model]
 
-#! [save_checkpoint]
-torch.save(compressed_model.state_dict(), "compressed_model.pth")
-#! [save_checkpoint]
-
 #! [export]
 compression_ctrl.export_model("compressed_model.pb", save_format='frozen_graph') #export to Frozen Graph
 #! [export] 
+
+#! [save_checkpoint]
+compression_ctrl.export_model("compressed_model", save_format='saved_model')
+#! [save_checkpoint]
+
+#! [load_checkpoint]
+compression_ctrl.export_model("compressed_model", save_format='saved_model')
+#! [load_checkpoint]
