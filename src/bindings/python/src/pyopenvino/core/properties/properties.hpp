@@ -12,24 +12,6 @@
 
 namespace py = pybind11;
 
-// template <typename T, ov::PropertyMutability mutability_, typename B = ov::util::PropertyTag>
-// py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> register_property_class(
-//     py::module m,
-//     std::string type_name) {
-//     py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> cls(
-//         m,
-//         ("PropertyType" + type_name).c_str());
-
-//     cls.def("name", [](ov::Property<T, mutability_>& self) {
-//         return self.name();
-//     });
-
-//     cls.def("__repr__", [](ov::Property<T, mutability_>& self) {
-//         return py::str("<class Property[" + std::string(self.name()) + "]>");
-//     });
-
-//     return std::move(cls);  // return allows us to update class later
-// }
 
 template <typename T, ov::PropertyMutability mutability_, typename B = ov::util::PropertyTag>
 void register_property_class(
