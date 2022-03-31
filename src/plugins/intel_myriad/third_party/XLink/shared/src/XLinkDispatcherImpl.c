@@ -169,7 +169,8 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
             uint32_t releasedSize = 0;
-            releasePacketFromStream(stream, &releasedSize);
+            if (stream->blockedPackets)
+                releasePacketFromStream(stream, &releasedSize);
             event->header.size = releasedSize;
             releaseStream(stream);
             break;
@@ -231,6 +232,11 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             mvLog(MVLOG_DEBUG,"XLINK_PING_REQ - do nothing\n");
             break;
         }
+        case XLINK_DROP_REQ:
+        {
+            XLINK_EVENT_ACKNOWLEDGE(event);
+            break;
+        }
         case XLINK_WRITE_RESP:
         case XLINK_READ_RESP:
         case XLINK_READ_REL_RESP:
@@ -242,6 +248,8 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         case XLINK_RESET_RESP:
             //should not happen
             event->header.flags.bitField.localServe = 1;
+            break;
+        case XLINK_DROP_RESP:
             break;
         default:
         {
@@ -271,16 +279,22 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                 response->header.size = event->header.size;
                 response->header.streamId = event->header.streamId;
                 response->deviceHandle = event->deviceHandle;
+                stream = getStreamById(event->deviceHandle.xLinkFD,
+                                       event->header.streamId);
+                ASSERT_XLINK(stream);
                 XLINK_EVENT_ACKNOWLEDGE(response);
 
-                // we got some data. We should unblock a blocked read
-                int xxx = DispatcherUnblockEvent(-1,
-                                                XLINK_READ_REQ,
-                                                response->header.streamId,
-                                                event->deviceHandle.xLinkFD);
-                (void) xxx;
-                mvLog(MVLOG_DEBUG,"unblocked from stream %d %d\n",
-                    (int)response->header.streamId, (int)xxx);
+                if (!event->header.dropped)
+                {
+                    // we got some data. We should unblock a blocked read
+                    int xxx = DispatcherUnblockEvent(-1,
+                                                    XLINK_READ_REQ,
+                                                    response->header.streamId,
+                                                    event->deviceHandle.xLinkFD);
+                    mvLog(MVLOG_DEBUG,"unblocked from stream %d %d\n",
+                        (int)response->header.streamId, (int)xxx);
+                }
+                releaseStream(stream);
             }
             break;
         case XLINK_READ_REQ:
@@ -288,6 +302,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_READ_REL_SPEC_REQ:
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_SPEC_RESP;
+            response->header.size = event->header.size;
+            response->header.streamId = event->header.streamId;
             response->deviceHandle = event->deviceHandle;
             stream = getStreamById(event->deviceHandle.xLinkFD,
                                    event->header.streamId);
@@ -314,6 +330,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_READ_REL_REQ:
             XLINK_EVENT_ACKNOWLEDGE(response);
             response->header.type = XLINK_READ_REL_RESP;
+            response->header.size = event->header.size;
+            response->header.streamId = event->header.streamId;
             response->deviceHandle = event->deviceHandle;
             stream = getStreamById(event->deviceHandle.xLinkFD,
                                    event->header.streamId);
@@ -422,6 +440,22 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             response->deviceHandle = event->deviceHandle;
             // need to send the response, serve the event and then reset
             break;
+        case XLINK_DROP_REQ:
+        {
+            response->header.type = XLINK_DROP_RESP;
+            response->header.size = event->header.size;
+            response->header.streamId = event->header.streamId;
+            response->deviceHandle = event->deviceHandle;
+            XLINK_EVENT_ACKNOWLEDGE(response);
+
+            stream = getStreamById(event->deviceHandle.xLinkFD,
+                                   event->header.streamId);
+            uint32_t releasedSize = 0;
+            if (stream->blockedPackets)
+                releasePacketFromStream(stream, &releasedSize);
+            releaseStream(stream);
+            break;
+        }
         case XLINK_WRITE_RESP:
             break;
         case XLINK_READ_RESP:
@@ -469,6 +503,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_PING_RESP:
             break;
         case XLINK_RESET_RESP:
+            break;
+        case XLINK_DROP_RESP:
             break;
         default:
         {

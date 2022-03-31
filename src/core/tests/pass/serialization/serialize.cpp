@@ -8,11 +8,11 @@
 
 #include <fstream>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 using SerializationParams = std::tuple<std::string, std::string>;
@@ -23,6 +23,20 @@ public:
     std::string m_binary_path;
     std::string m_out_xml_path;
     std::string m_out_bin_path;
+
+    void CompareSerialized(std::function<void(const std::shared_ptr<ov::Model>&)> serializer) {
+        auto expected = ov::test::readModel(m_model_path, m_binary_path);
+        auto orig = ov::clone_model(*expected);
+        serializer(expected);
+        auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+        const auto fc = FunctionsComparator::with_default()
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::CONST_VALUES);
+        const auto res = fc.compare(result, expected);
+        const auto res2 = fc.compare(expected, orig);
+        EXPECT_TRUE(res.valid) << res.message;
+        EXPECT_TRUE(res2.valid) << res2.message;
+    }
 
     void SetUp() override {
         m_model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())});
@@ -42,17 +56,15 @@ public:
 };
 
 TEST_P(SerializationTest, CompareFunctions) {
-    auto expected = ov::test::readModel(m_model_path, m_binary_path);
-    auto orig = ov::clone_model(*expected);
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(expected);
-    auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
-    const auto fc = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::CONST_VALUES);
-    const auto res = fc.compare(result, expected);
-    const auto res2 = fc.compare(expected, orig);
-    EXPECT_TRUE(res.valid) << res.message;
-    EXPECT_TRUE(res2.valid) << res2.message;
+    CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
+        ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m);
+    });
+}
+
+TEST_P(SerializationTest, SerializeHelper) {
+    CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
+        ov::serialize(m, m_out_xml_path, m_out_bin_path);
+    });
 }
 
 INSTANTIATE_TEST_SUITE_P(

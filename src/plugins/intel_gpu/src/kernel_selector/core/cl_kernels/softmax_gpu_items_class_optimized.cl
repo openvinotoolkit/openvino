@@ -3,15 +3,19 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/acc_type.cl"
 
 
 #define DATA_PER_WORKITEM ( (INPUT0_CLASS_NUM + (WORKITEMS_PER_CLASSES - 1) ) / WORKITEMS_PER_CLASSES)
 #define FULL_ITERATIONS_NUM (INPUT0_CLASS_NUM / WORKITEMS_PER_CLASSES)
 
 __attribute__((intel_reqd_sub_group_size(16)))
-KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
-{
+KERNEL(softmax_items_class_optimized)(
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+) {
 #if INPUT0_DIMS == 5
     const uint other0 = (uint)get_group_id(0) % INPUT0_OTHER0_SIZE;
     const uint other2 = (uint)get_group_id(0) / INPUT0_OTHER0_SIZE;
@@ -26,21 +30,21 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
     const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
 
-    UNIT_TYPE max_value = UNIT_VAL_MIN;
-    UNIT_TYPE data[DATA_PER_WORKITEM];
+    ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
+    ACCUMULATOR_TYPE data[DATA_PER_WORKITEM];
 
     // PART 1. Calculate MAX value
     uint input_idx = in_depth_offset + simd_lane * INPUT0_CLASS_PITCH;
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
-        UNIT_TYPE in = input[input_idx];
+        ACCUMULATOR_TYPE in = input[input_idx];
         max_value = max(max_value, in);
         data[cls] = in;
         input_idx += WORKITEMS_PER_CLASSES*INPUT0_CLASS_PITCH;
     }
     if(simd_lane < LEFTOVERS)
     {
-        UNIT_TYPE in = input[input_idx];
+        ACCUMULATOR_TYPE in = input[input_idx];
         max_value = max(max_value, in);
         data[DATA_PER_WORKITEM-1] = in;
     }
@@ -51,8 +55,8 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     ACCUMULATOR_TYPE denominator = 0.0;
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
-// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries 
-// for current kernel but driver doesn't report any errors (JIRA CVS-32211)
+// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
+// for current kernel but driver doesn't report any errors (JIRA 32211)
 #if HAS_DRIVER_PROBLEMS
         data[cls] = data[cls] == max_value ? 1.0 : native_exp(data[cls] - max_value);
 #else
@@ -62,8 +66,8 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     }
     if(simd_lane < LEFTOVERS)
     {
-// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries 
-// for current kernel but driver doesn't report any errors (JIRA CVS-32211)
+// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
+// for current kernel but driver doesn't report any errors (JIRA 32211)
 #if HAS_DRIVER_PROBLEMS
         data[DATA_PER_WORKITEM-1] = data[DATA_PER_WORKITEM-1] == max_value ? 1.0 : native_exp(data[DATA_PER_WORKITEM-1] - max_value);
 #else
@@ -78,14 +82,24 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     uint output_idx = out_depth_offset + simd_lane * OUTPUT_CLASS_PITCH;
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
-        const UNIT_TYPE res = data[cls] / (UNIT_TYPE)denominator;
+        const ACCUMULATOR_TYPE res = data[cls] / denominator;
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[output_idx] = FUSED_OPS_RESULT;
+#else
         output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
         output_idx += WORKITEMS_PER_CLASSES * OUTPUT_CLASS_PITCH;
     }
     if(simd_lane < LEFTOVERS)
     {
-        const UNIT_TYPE res = data[DATA_PER_WORKITEM-1] / (UNIT_TYPE)denominator;
+        const ACCUMULATOR_TYPE res = data[DATA_PER_WORKITEM-1] / denominator;
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[output_idx] = FUSED_OPS_RESULT;
+#else
         output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
     }
 }
 

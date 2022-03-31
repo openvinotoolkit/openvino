@@ -18,19 +18,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPerfCountersTest,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 
