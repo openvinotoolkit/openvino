@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <algorithm>
+#include <sstream>
 #include <vector>
 
 namespace cldnn {
@@ -169,6 +170,14 @@ inline bool any_not_one(const std::vector<T> vec) {
 template <typename T>
 inline bool any_not_zero(const std::vector<T> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+}
+
+// Helpers to get string for types that have operator<< defined
+template <typename T>
+inline std::string to_string(const T& v) {
+    std::stringstream s;
+    s << v;
+    return s.str();
 }
 
 /// @}
