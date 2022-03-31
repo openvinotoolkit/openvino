@@ -61,7 +61,7 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
     try {
         asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (!asyncRequestImpl)
         asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);

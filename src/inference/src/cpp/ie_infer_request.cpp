@@ -134,7 +134,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
 }
 
 #define CATCH_IE_EXCEPTION_RETURN(StatusCode, ExceptionType) \
-    catch (const ExceptionType&) {                           \
+    catch (const ::InferenceEngine::ExceptionType&) {        \
         return StatusCode;                                   \
     }
 
