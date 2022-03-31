@@ -14,6 +14,7 @@ namespace pass {
  * @brief Constant folding iterates over the function and tries to evaluate nodes
  *        with constant inputs. Such nodes are then replaced with new Constants containing
  *        the result of a folded operation.
+ * @ingroup ov_pass_cpp_api
  */
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
@@ -36,6 +37,7 @@ protected:
  *        consumer)
  *        2. If node with disable_constant_folding was replaced with another node, the attribute will be lost because
  *        it is not copyable.
+ * @ingroup ov_pass_cpp_api
  */
 OPENVINO_API void disable_constant_folding(const std::shared_ptr<Node>& node);
 

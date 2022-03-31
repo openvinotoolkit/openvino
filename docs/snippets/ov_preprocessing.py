@@ -3,7 +3,7 @@
 #
 
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
-from openvino.runtime import Layout, Type
+from openvino.runtime import Layout, Type, serialize
 
 
 xml_path = ''
@@ -210,11 +210,7 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-pass_manager = Manager()
-pass_manager.register_pass(pass_name="Serialize",
-                           xml_path='/path/to/some_model_saved.xml',
-                           bin_path='/path/to/some_model_saved.bin')
-pass_manager.run_passes(model)
+serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
 # ! [ov:preprocess:save]
 
 # ! [ov:preprocess:save_load]

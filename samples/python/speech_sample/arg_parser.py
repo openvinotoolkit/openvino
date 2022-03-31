@@ -7,7 +7,7 @@ from typing import List, Tuple, Union
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    """Create and return argument parser"""
+    """Create and return argument parser."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)

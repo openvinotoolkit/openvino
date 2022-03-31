@@ -116,6 +116,7 @@
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
+#include "ngraph_transformations/swap_convert_transpose.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -240,6 +241,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
+    manager.register_pass<SwapConvertTranspose>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -913,28 +915,49 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto clonnedFunction = clonedNetwork.getFunction();
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
         Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
-        std::unordered_set<std::string> supported;
+        auto ops = clonnedFunction->get_ordered_ops();
+
+        //Mark removed nodes as supported
+        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
         std::unordered_set<std::string> unsupported;
-        for (auto op : ops) {
-            auto layerIsSupported = [&] {
-                std::unique_ptr<Node> ptr;
-                try {
-                    ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-                } catch (InferenceEngine::Exception&) {
-                    return false;
+
+        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
+            std::unique_ptr<Node> ptr;
+            try {
+                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+            } catch (const InferenceEngine::Exception&) {
+                return false;
+            }
+            return true;
+        };
+
+        for (auto&& op : ops) {
+            bool isSupported = false;
+            bool wasNodeAlreadyChecked = false;
+            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
+                isSupported = layerIsSupported(op);
+                wasNodeAlreadyChecked = true;
+                if (isSupported) {
+                    supported.emplace(op->get_friendly_name());
+                } else {
+                    unsupported.emplace(op->get_friendly_name());
                 }
-                return true;
-            } ();
+            }
+
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (layerIsSupported) {
+                    if (!wasNodeAlreadyChecked) {
+                        isSupported = layerIsSupported(op);
+                        wasNodeAlreadyChecked = true;
+                    }
+                    if (isSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
                         unsupported.emplace(fusedLayerName);
