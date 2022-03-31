@@ -29,4 +29,6 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEAD
                                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                                   $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-add_subdirectory(tests)
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
