@@ -158,7 +158,7 @@ Each custom layer is described with the `CustomLayer` node. It has the following
 ## Pass Configuration File to OpenVINO™ Runtime
 
 > **NOTE**: If both native and custom layer implementations are present, the custom kernel has a priority over the native one.
-Before loading the network that features the custom layers, provide a separate configuration file and load it using the `ov::Core::set_property()` method.  Use the "CONFIG_KEY" key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
+Before loading the network that features the custom layers, provide a separate configuration file and load it using the `ov::Core::set_property()` method. Use the "CONFIG_KEY" key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 @snippet docs/snippets/vpu/custom_op.cpp part0
 
