@@ -17,6 +17,15 @@ ov::op::v9::Eye::Eye(const Output<Node>& num_rows,
     constructor_validate_and_infer_types();
 }
 
+ov::op::v9::Eye::Eye(const Output<Node>& num_rows,
+                     const Output<Node>& num_columns,
+                     const Output<Node>& diagonal_index,
+                     const ov::element::Type& out_type)
+    : Op({num_rows, num_columns, diagonal_index}),
+      m_output_type(out_type) {
+    constructor_validate_and_infer_types();
+}
+
 ov::op::v9::Eye::Eye(const Output<Node>& num_rows, const ov::element::Type& out_type)
     : Op({num_rows}),
       m_output_type(out_type) {
@@ -43,7 +52,7 @@ void ov::op::v9::Eye::validate_and_infer_types() {
 
     std::vector<ov::PartialShape> input_shapes;
 
-    if (get_input_size() == 4) {
+    if (get_input_size() >= 3) {
         const auto& num_columns_et = get_input_element_type(1);
         NODE_VALIDATION_CHECK(this,
                               num_columns_et == element::i32 || num_columns_et == element::i64,
@@ -80,23 +89,26 @@ void ov::op::v9::Eye::validate_and_infer_types() {
             }
         }
 
-        const auto& batch_shape_et = get_input_element_type(3);
-        NODE_VALIDATION_CHECK(this,
-                              batch_shape_et == element::i32 || batch_shape_et == element::i64,
-                              "Type of the 'batch_shape' should be int32 or int64. Got: ",
-                              batch_shape_et);
-        const auto& batch_shape_pshape = get_input_partial_shape(3);
-        if (batch_shape_pshape.is_static()) {
-            const auto& diagonal_index_rank = batch_shape_pshape.rank().get_length();
-            NODE_VALIDATION_CHECK(this, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
-        } else {
+        input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape};
+        if (get_input_size() == 4) {
+            const auto &batch_shape_et = get_input_element_type(3);
             NODE_VALIDATION_CHECK(this,
-                                  batch_shape_pshape.rank().is_static(),
-                                  "'batch_shape' should have static shape rank");
-            NODE_VALIDATION_CHECK(this, batch_shape_pshape.rank() == 1, "'batch_shape' value must be a 1D tensor.");
-        }
+                                  batch_shape_et == element::i32 || batch_shape_et == element::i64,
+                                  "Type of the 'batch_shape' should be int32 or int64. Got: ",
+                                  batch_shape_et);
+            const auto &batch_shape_pshape = get_input_partial_shape(3);
+            if (batch_shape_pshape.is_static()) {
+                const auto &diagonal_index_rank = batch_shape_pshape.rank().get_length();
+                NODE_VALIDATION_CHECK(this, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
+            } else {
+                NODE_VALIDATION_CHECK(this,
+                                      batch_shape_pshape.rank().is_static(),
+                                      "'batch_shape' should have static shape rank");
+                NODE_VALIDATION_CHECK(this, batch_shape_pshape.rank() == 1, "'batch_shape' value must be a 1D tensor.");
+            }
 
-        input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape, batch_shape_pshape};
+            input_shapes.push_back(batch_shape_pshape);
+        }
     } else {
         input_shapes = {num_rows_pshape};
     }
@@ -117,6 +129,8 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
     check_new_args_count(this, new_args);
     if (new_args.size() == 1) {
         return std::make_shared<v9::Eye>(new_args[0], m_output_type);
+    } else if (new_args.size() == 3) {
+        return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], m_output_type);
     } else if (new_args.size() == 4) {
         return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], new_args[3], m_output_type);
     } else {

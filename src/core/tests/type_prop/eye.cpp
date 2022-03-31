@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, eye_type_shape_square) {
+TEST(type_prop, eye_square) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
 
     auto eye = std::make_shared<op::v9::Eye>(num_rows, element::i32);
@@ -19,7 +19,18 @@ TEST(type_prop, eye_type_shape_square) {
     EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{6, 6}));
 }
 
-TEST(type_prop, eye_type_shape_rectangle) {
+TEST(type_prop, eye_rectangle) {
+    auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
+    auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {3});
+    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
+
+    auto eye = std::make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::bf16);
+
+    EXPECT_EQ(eye->get_output_element_type(0), element::bf16);
+    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{6, 3}));
+}
+
+TEST(type_prop, eye_batch_shape) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {3});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -40,16 +51,27 @@ TEST(type_prop, eye_type_shape_square_param) {
     EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, eye_type_shape_rectangle_param_and_const) {
+TEST(type_prop, eye_rectangle_param_and_const) {
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {10});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
+
+    auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::f32);
+
+    EXPECT_EQ(eye->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 10}));
+}
+
+TEST(type_prop, eye_batch_shape_param_and_const) {
+    auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, Dimension::dynamic(), 10}));
+    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, eye_type_shape_rectangle_params) {
@@ -76,11 +98,11 @@ TEST(type_prop, eye_type_shape_rectangle_dynamic_batch_shape) {
     EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape().dynamic()));
 }
 
-TEST(type_prop, random_uniform_invalid_num_rows_value) {
+TEST(type_prop, eye_invalid_num_rows_value) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {-6});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
@@ -90,14 +112,13 @@ TEST(type_prop, random_uniform_invalid_num_rows_value) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_columns_value) {
+TEST(type_prop, eye_invalid_num_columns_value) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {6});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {-6});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
@@ -107,11 +128,11 @@ TEST(type_prop, random_uniform_invalid_num_columns_value) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_rows_type) {
+TEST(type_prop, eye_invalid_num_rows_type) {
     auto num_rows = op::v0::Constant::create(element::f32, Shape{}, {6.5});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
@@ -121,14 +142,13 @@ TEST(type_prop, random_uniform_invalid_num_rows_type) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_columns_type) {
+TEST(type_prop, eye_invalid_num_columns_type) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::bf16, Shape{}, {6.5});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
@@ -139,11 +159,11 @@ TEST(type_prop, random_uniform_invalid_num_columns_type) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_rows_shape) {
+TEST(type_prop, eye_invalid_num_rows_shape) {
     auto num_rows = op::v0::Constant::create(element::i32, Shape{2}, {6, 5});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
@@ -153,14 +173,13 @@ TEST(type_prop, random_uniform_invalid_num_rows_shape) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_columns_type_shape) {
+TEST(type_prop, eye_invalid_num_columns_type_shape) {
     auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::i32, Shape{3}, {1, 1, 1});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
@@ -170,9 +189,8 @@ TEST(type_prop, random_uniform_invalid_num_columns_type_shape) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_rows_rank) {
+TEST(type_prop, eye_invalid_num_rows_rank) {
     auto num_rows = op::v0::Constant::create(element::i32, Shape{1, 1}, {6});
-    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {6});
 
     try {
         auto Eye = make_shared<op::v9::Eye>(num_rows, element::i32);
@@ -185,18 +203,34 @@ TEST(type_prop, random_uniform_invalid_num_rows_rank) {
     }
 }
 
-TEST(type_prop, random_uniform_invalid_num_columns_type_rank) {
+TEST(type_prop, eye_invalid_num_columns_type_rank) {
     auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::i32, Shape{2, 1}, {1, 2});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value must be a scalar or 1D tensor."));
+    } catch (...) {
+        FAIL() << "Check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, eye_invalid_dynamic_batch_shape_rank) {
+    auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
+    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {2});
+    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
+    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape().dynamic());
+
+    try {
+        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Unexpected pass with invalid 'batch_shape' value.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'batch_shape' should have static shape rank"));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
