@@ -119,14 +119,22 @@ void PwlLPTransformationTest::SetUp() {
         const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
         const auto dequantizationOp = makeDequantization(input, testValues.actual.dequantization);
         auto m = ngraph::builder::makeConstant(netPrecision, inputShape, testValues.actual.m);
-        auto b = ngraph::builder::makeConstant(netPrecision, Shape{3}, testValues.actual.b);
-        auto knots = ngraph::builder::makeConstant(netPrecision, Shape{3}, testValues.actual.knots);
+        auto b = ngraph::builder::makeConstant(netPrecision, inputShape, testValues.actual.b);
+        auto knots = ngraph::builder::makeConstant(netPrecision, inputShape, testValues.actual.knots);
 
-        auto pwl = std::make_shared<intel_gna::op::Pwl>(
-            dequantizationOp,
-            ngraph::builder::makeConstant(netPrecision, Shape{3}, testValues.actual.m),
-            ngraph::builder::makeConstant(netPrecision, Shape{3}, testValues.actual.b),
-            ngraph::builder::makeConstant(netPrecision, Shape{3}, testValues.actual.knots));
+        std::shared_ptr<ov::Node> pwl;
+        if (!testValues.actual.dequantization.empty() || inputPrecision.is_real()) {
+            pwl = std::make_shared<intel_gna::op::Pwl>(dequantizationOp, m, b, knots);
+        } else {
+            pwl = std::make_shared<ngraph::op::TypeRelaxed<intel_gna::op::Pwl>>(
+                std::vector<element::Type>{ element::f32, element::f32, element::f32, element::f32 },
+                std::vector<element::Type>{ element::f32 },
+                ngraph::op::TemporaryReplaceOutputType(dequantizationOp, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(m, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(b, element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(knots, element::f32).get());
+            as_type_ptr<ngraph::op::TypeRelaxed<intel_gna::op::Pwl>>(pwl)->set_overridden_output_type(inputPrecision);
+        }
         pwl->set_friendly_name("output");
 
         auto result = std::make_shared<ngraph::opset8::Result>(pwl);
@@ -135,22 +143,21 @@ void PwlLPTransformationTest::SetUp() {
             ngraph::ParameterVector{input},
             "PWLTransformation");
     }
-#include "ngraph/pass/visualize_tree.hpp"
-    ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/actual.dot").run_on_model(func_);
+
     // ref function
     {
         const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
         const auto dequantizationOpBefore = makeDequantization(input, testValues.expected.dequantizationBefore);
-        std::shared_ptr<ov::Node> pwl;
 
         element::Type constPrecision = netPrecision;
         if (testValues.expected.transformed) {
             constPrecision = element::f32;
         }
-        auto m = ngraph::builder::makeConstant(constPrecision, ov::Shape{3}, testValues.expected.m);
-        auto b = ngraph::builder::makeConstant(constPrecision, ov::Shape{3}, testValues.expected.b);
-        auto knots = ngraph::builder::makeConstant(constPrecision, ov::Shape{3}, testValues.expected.knots);
+        auto m = ngraph::builder::makeConstant(constPrecision, inputShape, testValues.expected.m);
+        auto b = ngraph::builder::makeConstant(constPrecision, inputShape, testValues.expected.b);
+        auto knots = ngraph::builder::makeConstant(constPrecision, inputShape, testValues.expected.knots);
 
+        std::shared_ptr<ov::Node> pwl;
         if (!testValues.expected.dequantizationBefore.empty() || inputPrecision.is_real()) {
             pwl = std::make_shared<intel_gna::op::Pwl>(dequantizationOpBefore, m, b, knots);
         } else {
@@ -171,8 +178,6 @@ void PwlLPTransformationTest::SetUp() {
                 ngraph::ParameterVector{input},
                 "PWLTransformation");
     }
-#include "ngraph/pass/visualize_tree.hpp"
-    ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/reference.dot").run_on_model(ref_func_);
 }
 
 void PwlLPTransformationTest::Validate() {
@@ -184,8 +189,7 @@ void PwlLPTransformationTest::Validate() {
             element::f32,
             ngraph::pass::low_precision::precision_set::int8_int16_int32_support));
     m.run_passes(func_);
-#include "ngraph/pass/visualize_tree.hpp"
-    ngraph::pass::VisualizeTree("/home/vzinovie/work/model_dumps/transformed.dot").run_on_model(func_);
+
     auto res = compare_functions(func_, ref_func_, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -206,6 +210,7 @@ element::TypeVector inputPrecisions = {
 };
 
 std::vector<PwlLPTransformationTestValues> testValues = {
+    // general case
     {
         {
             {{element::f32}, {0.5f}, {2.f}},
@@ -219,6 +224,54 @@ std::vector<PwlLPTransformationTestValues> testValues = {
             {3.f, 0.f, -3.f},
             {-3.5f, 0.75f, 1.5f},
             true
+        },
+    },
+        // general case
+    {
+        {
+            {{element::f32}, {}, {2.f}},
+            {1.f, 2.f, 4.f},
+            {4.f, 2.f, 1.f},
+            {-8.f, 0.5f, 2.f}
+        },
+        {
+            {},
+            {2.f, 4.f, 8.f},
+            {4.f, 2.f, 1.f},
+            {-4.f, 0.25f, 1.f},
+            true
+        },
+    },
+    // no dequantizations
+    {
+        {
+            {},
+            {1.f, 2.f, 4.f},
+            {4.f, 2.f, 1.f},
+            {-8.f, 0.5f, 2.f}
+        },
+        {
+            {},
+            {1.f, 2.f, 4.f},
+            {4.f, 2.f, 1.f},
+            {-8.f, 0.5f, 2.f},
+            false
+        },
+    },
+    // per-channel dequantizations
+    {
+        {
+            {{element::f32}, {{0.5f, 0.6f, 0.7f}}, {{2.f, 3.f, 4.f}}},
+            {1.f, 2.f, 4.f},
+            {4.f, 2.f, 1.f},
+            {-8.f, 0.5f, 2.f}
+        },
+        {
+            {{element::f32}, {{0.5f, 0.6f, 0.7f}}, {{2.f, 3.f, 4.f}}},
+            {1.f, 2.f, 4.f},
+            {4.f, 2.f, 1.f},
+            {-8.f, 0.5f, 2.f},
+            false
         },
     },
 };
