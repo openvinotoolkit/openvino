@@ -60,6 +60,7 @@ declared in `namespace opset9`.
 * [ExperimentalDetectronROIFeatureExtractor_6](detection/ExperimentalDetectronROIFeatureExtractor_6.md)
 * [ExperimentalDetectronTopKROIs_6](sort/ExperimentalDetectronTopKROIs_6.md)
 * [ExtractImagePatches](movement/ExtractImagePatches_3.md)
+* [Eye](generation/Eye_9.md)
 * [FakeQuantize](quantization/FakeQuantize_1.md)
 * [Floor](arithmetic/Floor_1.md)
 * [FloorMod](arithmetic/FloorMod_1.md)
