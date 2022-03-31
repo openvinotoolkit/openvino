@@ -6,22 +6,39 @@
 
 #include "openvino/frontend/visibility.hpp"
 
-#define FRONTEND_CALL_STATEMENT(MESSAGE, ...) \
-    try {                                     \
-        __VA_ARGS__;                          \
-    } catch (const ov::Exception& ex) {       \
-        throw ov::Exception(ex.what());       \
-    } catch (...) {                           \
-        OPENVINO_ASSERT(false, (MESSAGE));    \
+#define RETHROW_FRONTEND_EXCEPTION(Type) \
+    catch (const Type& ex) {             \
+        throw Type(ex);                  \
     }
 
-#define FRONTEND_RETURN_STATEMENT(MESSAGE, FUNCTION) \
-    try {                                            \
-        return FUNCTION;                             \
-    } catch (const ov::Exception& ex) {              \
-        throw ov::Exception(ex.what());              \
-    } catch (...) {                                  \
-        OPENVINO_ASSERT(false, (MESSAGE));           \
+#define FRONTEND_CALL_STATEMENT(MESSAGE, ...)                       \
+    try {                                                           \
+        __VA_ARGS__;                                                \
+    }                                                               \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::GeneralFailure)        \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::OpValidationFailure)   \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::InitializationFailure) \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::OpConversionFailure)   \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::NotImplementedFailure) \
+    RETHROW_FRONTEND_EXCEPTION(ov::AssertFailure)                   \
+    RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
+    catch (...) {                                                   \
+        OPENVINO_ASSERT(false, (MESSAGE));                          \
+    }
+
+#define FRONTEND_RETURN_STATEMENT(MESSAGE, FUNCTION)                \
+    try {                                                           \
+        return FUNCTION;                                            \
+    }                                                               \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::GeneralFailure)        \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::OpValidationFailure)   \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::InitializationFailure) \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::OpConversionFailure)   \
+    RETHROW_FRONTEND_EXCEPTION(ov::frontend::NotImplementedFailure) \
+    RETHROW_FRONTEND_EXCEPTION(ov::AssertFailure)                   \
+    RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
+    catch (...) {                                                   \
+        OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
 
 namespace ov {

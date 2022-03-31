@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/visibility.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -22,109 +23,109 @@ public:
     bool m_throw = false;
 
     std::vector<Place::Ptr> get_inputs() const override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     std::vector<Place::Ptr> get_outputs() const override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     Place::Ptr get_place_by_operation_name(const std::string& operation_name) const override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                           int input_port_index) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
                                                            int output_port_index) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void set_name_for_operation(const Place::Ptr& operation, const std::string& new_name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void free_name_for_tensor(const std::string& name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void free_name_for_operation(const std::string& name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void set_name_for_dimension(const Place::Ptr& place, size_t shape_dim_index, const std::string& dim_name) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void cut_and_add_new_input(const Place::Ptr& place, const std::string& new_name_optional) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void cut_and_add_new_output(const Place::Ptr& place, const std::string& new_name_optional) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     Place::Ptr add_output(const Place::Ptr& place) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     void remove_output(const Place::Ptr& place) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void set_partial_shape(const Place::Ptr& place, const PartialShape& shape) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     PartialShape get_partial_shape(const Place::Ptr& place) const override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
     void set_element_type(const Place::Ptr& place, const element::Type& type) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void set_tensor_value(const Place::Ptr& place, const void* value) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
     void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value) override {
-        OPENVINO_ASSERT(!m_throw, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 };
 
@@ -133,20 +134,20 @@ class FrontEndMock : public FrontEnd {
 
 public:
     std::string get_name() const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
         return "mock1";
     }
 
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
         if (variants.size() == 1 && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
-            OPENVINO_ASSERT(command != "throw_now", "Test exception");
+            FRONT_END_GENERAL_CHECK(command != "throw_now", "Test exception");
         }
         return false;
     }
 
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
     }
 
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
@@ -165,25 +166,26 @@ public:
     }
 
     std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
         return nullptr;
     }
 
     std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
+
         return nullptr;
     }
 
     void convert(const std::shared_ptr<ov::Model>& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
     }
 
     void normalize(const std::shared_ptr<ov::Model>& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
     }
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+        FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
         auto shape = Shape{1, 2, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         std::vector<float> data(ov::shape_size(shape), 1.f);

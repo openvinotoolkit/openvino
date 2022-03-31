@@ -353,7 +353,7 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
         auto input_model = fe->load("throw_next");                                                      \
         statement;                                                                                      \
         FAIL() << "Throw was expected";                                                                 \
-    } catch (std::exception & error) {                                                                  \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
         EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
     } catch (...) {                                                                                     \
         FAIL() << "Unexpected error is thrown";                                                         \
@@ -403,7 +403,7 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Decode) {
         auto input_model = fe->load("throw_model");                                                     \
         statement;                                                                                      \
         FAIL() << "Throw was expected";                                                                 \
-    } catch (std::exception & error) {                                                                  \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
         EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
     } catch (...) {                                                                                     \
         FAIL() << "Unexpected error is thrown";                                                         \
