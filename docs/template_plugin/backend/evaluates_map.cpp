@@ -3592,7 +3592,6 @@ bool evaluate(const shared_ptr<op::v9::Eye>& op, const HostTensorVector& outputs
     return true;
 }
 
-
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;

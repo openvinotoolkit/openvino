@@ -5,21 +5,19 @@
 #include "openvino/op/eye.hpp"
 
 #include "eye_shape_inference.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
-#include "itt.hpp"
 
 namespace eye {
 namespace {
 template <ov::element::Type_t ET>
-bool evaluate(const ov::HostTensorPtr& out,
-              const int64_t diagonal_index) {
+bool evaluate(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
     ngraph::runtime::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
     return true;
 }
 
-bool evaluate_eye(const ov::HostTensorPtr& out,
-                  const int64_t diagonal_index) {
+bool evaluate_eye(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
     bool rc = true;
     switch (out->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate, i8, out, diagonal_index);
@@ -29,9 +27,9 @@ bool evaluate_eye(const ov::HostTensorPtr& out,
         NGRAPH_TYPE_CASE(evaluate, i32, out, diagonal_index);
         NGRAPH_TYPE_CASE(evaluate, f32, out, diagonal_index);
         NGRAPH_TYPE_CASE(evaluate, i64, out, diagonal_index);
-        default:
-            rc = false;
-            break;
+    default:
+        rc = false;
+        break;
     }
     return rc;
 }
@@ -122,14 +120,14 @@ void ov::op::v9::Eye::validate_and_infer_types() {
 
         input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape};
         if (get_input_size() == 4) {
-            const auto &batch_shape_et = get_input_element_type(3);
+            const auto& batch_shape_et = get_input_element_type(3);
             NODE_VALIDATION_CHECK(this,
                                   batch_shape_et == element::i32 || batch_shape_et == element::i64,
                                   "Type of the 'batch_shape' should be int32 or int64. Got: ",
                                   batch_shape_et);
-            const auto &batch_shape_pshape = get_input_partial_shape(3);
+            const auto& batch_shape_pshape = get_input_partial_shape(3);
             if (batch_shape_pshape.is_static()) {
-                const auto &diagonal_index_rank = batch_shape_pshape.rank().get_length();
+                const auto& diagonal_index_rank = batch_shape_pshape.rank().get_length();
                 NODE_VALIDATION_CHECK(this, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
             } else {
                 NODE_VALIDATION_CHECK(this,
@@ -172,16 +170,16 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
 bool ov::op::v9::Eye::has_evaluate() const {
     NGRAPH_OP_SCOPE(v9_Eye_has_evaluate);
     switch (m_output_type) {
-        case ngraph::element::i8:
-        case ngraph::element::u8:
-        case ngraph::element::f16:
-        case ngraph::element::bf16:
-        case ngraph::element::i32:
-        case ngraph::element::f32:
-        case ngraph::element::i64:
-            return true;
-        default:
-            break;
+    case ngraph::element::i8:
+    case ngraph::element::u8:
+    case ngraph::element::f16:
+    case ngraph::element::bf16:
+    case ngraph::element::i32:
+    case ngraph::element::f32:
+    case ngraph::element::i64:
+        return true;
+    default:
+        break;
     }
     return false;
 }

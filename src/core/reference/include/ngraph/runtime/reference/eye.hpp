@@ -26,7 +26,7 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     const int64_t count_by_columns = std::max(num_columns - std::abs(diagonal_index), int64_t(0));
     const int64_t count_by_rows = std::max(num_rows - std::abs(diagonal_index), int64_t(0));
     const int64_t count =
-            diagonal_index > 0 ? std::min(count_by_columns, num_rows) : std::min(count_by_rows, num_columns);
+        diagonal_index > 0 ? std::min(count_by_columns, num_rows) : std::min(count_by_rows, num_columns);
 
     for (auto i = 0; i < num_matrices; i++) {
         for (auto j = 0; j < count; j++) {

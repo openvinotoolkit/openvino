@@ -22,6 +22,7 @@ enum class Type {
     Reorder,
     Input,
     Output,
+    Eye,
     Convolution,
     Deconvolution,
     Lrn,
