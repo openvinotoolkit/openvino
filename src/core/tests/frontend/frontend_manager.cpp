@@ -167,13 +167,13 @@ TEST(FrontEndManagerTest, testFEMDestroy_NodeHolder) {
         auto fe = fem.load_by_framework("mock1");
         auto input_model = fe->load("test");
         auto model = fe->convert(input_model);
+        EXPECT_EQ(model->get_results()[0]->get_input_source_output(0).get_index(), 1);
         nodes = model->get_ordered_ops();
-        EXPECT_EQ(nodes.size(), 7);
+        EXPECT_EQ(nodes.size(), 9);
     }
     for (auto& node : nodes) {
         EXPECT_EQ(node->get_friendly_name().find("mock_"), 0)
             << "Name shall start with 'mock_': " << node->get_friendly_name();
-        EXPECT_EQ(node->get_output_partial_shape(0), (Shape{1, 2, 300, 300}));
     }
 }
 

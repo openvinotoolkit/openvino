@@ -55,7 +55,7 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
     ov::ResultVector new_results;
     new_results.reserve(results.size());
     for (const auto& res : results) {
-        auto new_result = std::make_shared<op::v0::Result>(res->get_input_node_shared_ptr(0));
+        auto new_result = std::make_shared<op::v0::Result>(res->get_input_source_output(0));
         new_result->get_rt_info() = res->get_rt_info();
         new_result->output(0).get_rt_info() = res->output(0).get_rt_info();
         new_result->input(0).get_rt_info() = res->input(0).get_rt_info();

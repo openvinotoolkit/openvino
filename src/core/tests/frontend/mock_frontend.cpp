@@ -30,7 +30,7 @@ public:
     }
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
-        auto shape = Shape{1, 2, 300, 300};
+        auto shape = Shape{2, 3, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         param->set_friendly_name("mock_param");
         param->set_layout("NCHW");
@@ -47,7 +47,11 @@ public:
         op->set_friendly_name("mock_add");
         auto op1 = std::make_shared<ov::opset8::Abs>(op);
         op1->set_friendly_name("mock_abs");
-        auto res = std::make_shared<ov::opset8::Result>(op1);
+        auto split_axis = ov::opset8::Constant::create(ov::element::i32, {}, {0});
+        split_axis->set_friendly_name("mock_split_axis");
+        auto op2 = std::make_shared<ov::opset8::Split>(op1, split_axis, 2);
+        op2->set_friendly_name("mock_split");
+        auto res = std::make_shared<ov::opset8::Result>(op2->output(1));
         res->set_friendly_name("mock_result");
         auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         param2->set_friendly_name("mock_param2");
