@@ -12,13 +12,32 @@
 
 namespace py = pybind11;
 
-template <typename B, typename T, ov::PropertyMutability mutability_>
-py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> wrap_property(
+// template <typename T, ov::PropertyMutability mutability_, typename B = ov::util::PropertyTag>
+// py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> register_property_class(
+//     py::module m,
+//     std::string type_name) {
+//     py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> cls(
+//         m,
+//         ("PropertyType" + type_name).c_str());
+
+//     cls.def("name", [](ov::Property<T, mutability_>& self) {
+//         return self.name();
+//     });
+
+//     cls.def("__repr__", [](ov::Property<T, mutability_>& self) {
+//         return py::str("<class Property[" + std::string(self.name()) + "]>");
+//     });
+
+//     return std::move(cls);  // return allows us to update class later
+// }
+
+template <typename T, ov::PropertyMutability mutability_, typename B = ov::util::PropertyTag>
+void register_property_class(
     py::module m,
     std::string type_name) {
     py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutability_>>, B> cls(
         m,
-        ("PropertyType" + type_name).c_str());
+        ("PropertyType" + type_name + (mutability_ == ov::PropertyMutability::RW ? "RW" : "RO")).c_str());
 
     cls.def("name", [](ov::Property<T, mutability_>& self) {
         return self.name();
@@ -27,8 +46,25 @@ py::class_<ov::Property<T, mutability_>, std::shared_ptr<ov::Property<T, mutabil
     cls.def("__repr__", [](ov::Property<T, mutability_>& self) {
         return py::str("<class Property[" + std::string(self.name()) + "]>");
     });
+}
 
-    return std::move(cls);  // return allows us to update class later
+template <typename T>
+void wrap_property_RO(py::module m, ov::Property<T, ov::PropertyMutability::RO> property, std::string name) {
+    m.def(name.c_str(), [property]() {
+        return property;
+    });
+}
+
+template <typename T>
+void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW> property, std::string name) {
+    m.def(name.c_str(), [property]() {
+        return property;
+    });
+
+    m.def(name.c_str(), [property](T value) {
+        // TODO: cast somehow?
+        return property(value);
+    });
 }
 
 void regmodule_properties(py::module m);
