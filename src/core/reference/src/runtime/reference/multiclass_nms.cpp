@@ -87,6 +87,10 @@ std::vector<T> slice_image(const T* data, const Shape& data_shape, const int64_t
     const auto class_num = data_shape[0];
     const auto item_size = (data_shape.size() == 3) ? data_shape[2] : 1;
 
+    // start and end should within [0, M)
+    OPENVINO_ASSERT(start >= 0 && (start + item_num) <= data_shape[1],
+                    "Invaid inputs as it is trying to slice data out of range.");
+
     const auto row_num = item_num * item_size;
     slice_data.reserve(class_num * row_num);
     T* item_data = slice_data.data();

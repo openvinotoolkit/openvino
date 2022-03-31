@@ -65,6 +65,12 @@ public:
 
 protected:
     bool validate() override;
+    /// \brief infer shape and type
+    ///
+    /// \param static_output Indicate to produce an upper bound for the number of possible selected boxes.
+    /// Hence it produce the static output shapes.
+    /// \param ignore_bg_class Indicate to remove the background class when produce the upper bound shapes.
+    void infer_shape_types(const bool output_static = false, const bool ignore_bg_class = false);
 };
 }  // namespace v9
 }  // namespace op

@@ -52,12 +52,12 @@ std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputV
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
-    if (new_args.size() == 3) {
+    switch (new_args.size()) {
+    case 3:
         return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
-    } else if (new_args.size() == 2) {
+    default:
         return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 namespace {
@@ -88,6 +88,12 @@ bool op::v9::MulticlassNms::validate() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).compatible(get_input_element_type(1)),
                           "Expected 'boxes', 'scores' type is same.");
+
+    if (get_input_size() == 3) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(2) == element::i64 || get_input_element_type(2) == element::i32,
+                              "Expected i64 or i32 as element type for the 'roisnum' input.");
+    }
 
     // validate rank of each input
     if (boxes_ps.rank().is_dynamic() || scores_ps.rank().is_dynamic()) {
@@ -181,45 +187,59 @@ bool op::v9::MulticlassNms::validate() {
     return true;
 }
 
-void op::v9::MulticlassNms::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
-
-    //
+void op::v9::MulticlassNms::infer_shape_types(const bool static_output, const bool ignore_bg_class) {
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
+
+    auto _ready_infer = [&]() {
+        if (boxes_ps.rank().is_dynamic() || scores_ps.rank().is_dynamic()) {
+            return false;
+        }
+        const bool shared = (scores_ps.rank().get_length() == 3);
+        if (shared) {
+            return boxes_ps[1].is_static() && scores_ps[1].is_static() && scores_ps[0].is_static();
+        } else {
+            const auto roisnum_ps = get_input_partial_shape(2);
+            if (roisnum_ps.rank().is_dynamic()) {
+                return false;
+            }
+            return boxes_ps[1].is_static() && boxes_ps[0].is_static() && roisnum_ps[0].is_static();
+        }
+    };
 
     // Here output 0 and output 1 is not the real dimension of output.
     // It will be rewritten in the computing runtime.
     // But we still need it here for static shape only backends.
     auto first_dim_shape = Dimension::dynamic();
-
-    const auto validated = validate();
-
-    if (validated) {  //  rank of inputs now are static, but dims maybe not.
+    if (_ready_infer()) {
         const bool shared = (scores_ps.rank().get_length() == 3);
         ov::PartialShape roisnum_ps;
         if (!shared) {
             roisnum_ps = get_input_partial_shape(2);
         }
 
-        if ((shared && boxes_ps[1].is_static() && scores_ps[1].is_static() && scores_ps[0].is_static()) ||
-            (!shared && boxes_ps[1].is_static() && boxes_ps[0].is_static() && roisnum_ps[0].is_static())) {
-            const auto num_boxes = shared ? boxes_ps[1].get_length() : boxes_ps[1].get_length();
-            const auto num_classes = shared ? scores_ps[1].get_length() : boxes_ps[0].get_length();
-            auto num_images = shared ? scores_ps[0].get_length() : roisnum_ps[0].get_length();
+        const auto num_boxes = shared ? boxes_ps[1].get_length() : boxes_ps[1].get_length();
+        auto num_classes = shared ? scores_ps[1].get_length() : boxes_ps[0].get_length();
+        auto num_images = shared ? scores_ps[0].get_length() : roisnum_ps[0].get_length();
 
-            int64_t max_output_boxes_per_class = 0;
-            if (m_nms_top_k >= 0)
-                max_output_boxes_per_class = std::min(num_boxes, (int64_t)m_nms_top_k);
-            else
-                max_output_boxes_per_class = num_boxes;
-
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (m_keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
-
-            first_dim_shape = Dimension(0, max_output_boxes_per_batch * num_images);
+        if (ignore_bg_class) {
+            if (this->m_attrs.background_class >= 0 && this->m_attrs.background_class < num_classes) {
+                num_classes = std::max(int64_t{1}, num_classes - 1);
+            }
         }
+
+        int64_t max_output_boxes_per_class = 0;
+        if (m_nms_top_k >= 0)
+            max_output_boxes_per_class = std::min(num_boxes, (int64_t)m_nms_top_k);
+        else
+            max_output_boxes_per_class = num_boxes;
+
+        auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
+        if (m_keep_top_k >= 0)
+            max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
+
+        first_dim_shape = static_output ? max_output_boxes_per_batch * num_images
+                                        : Dimension(0, max_output_boxes_per_batch * num_images);
     }
 
     // 'selected_outputs' have the following format:
@@ -244,4 +264,11 @@ void op::v9::MulticlassNms::validate_and_infer_types() {
             set_output_type(2, m_output_type, {Dimension::dynamic()});
         }
     }
+}
+
+void op::v9::MulticlassNms::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
+
+    validate();
+    infer_shape_types(false, false);
 }
