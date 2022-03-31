@@ -234,7 +234,7 @@ Your `PATH` environment variable is updated. If the changes don't take effect im
 
 ## <a name="get-started"></a>Step 6: Start Using the Toolkit
 
-Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started/get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## Troubleshooting
 
