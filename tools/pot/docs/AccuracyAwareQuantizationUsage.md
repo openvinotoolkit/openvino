@@ -1,4 +1,4 @@
-# Quantizing Model with Accuracy Control{#pot_accuracyaware_usage}
+# Quantizing Models with Accuracy Control{#pot_accuracyaware_usage}
 
 @sphinxdirective
 

@@ -103,7 +103,7 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 
 @endsphinxtabset
 
-### 6. Export checkpoints
+### 6. Export quantized model
 After fine-tuning finished the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorh and frozen graph - for TensorFlow 2.
 
 @sphinxtabset
@@ -124,7 +124,7 @@ After fine-tuning finished the quantized model can be exported to the correspond
 
 These were the basic steps to applying the QAT method from the NNCF. However, it is required to save/load model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
-### 7. Save checkpoint
+### 7. (Optional) Save checkpoint
 To save model checkpoint use the following API:
 
 @sphinxtabset
@@ -143,7 +143,7 @@ To save model checkpoint use the following API:
 
 @endsphinxtabset
 
-### 8. Restore from checkpoint
+### 8. (Optional) Restore from checkpoint
 To restore the model from checkpoint you should use the following API:
 
 @sphinxtabset
@@ -164,7 +164,7 @@ To restore the model from checkpoint you should use the following API:
 
 For more details on saving/loading checkpoints in the NNCF, see the following [documentation](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models).
 
-## Deploying optimized model
+## Deploying quantized model
 The quantized model can be deployed in OpenVINO in the same way as the baseline model. No extra steps or options are required in this case. For more details, see the corresponding [documentation](../../OV_Runtime_UG/openvino_intro.md).
 
 ## Examples

@@ -1,4 +1,4 @@
-# Traning-time Model Optimization in Frameworks {#tmo_introduction}
+# Optimizing Models at Training Time {#tmo_introduction}
 
 @sphinxdirective
 
@@ -25,8 +25,8 @@ Figure below shows a common workflow of applying training-time optimizations wit
 
 ## Optimization with NNCF
 NNCF provides two main optimization methods depending on the user’s needs and requirements:
-- Quantization-aware Training (QAT) is a recommended method that provides fast and accurate results. Currently, a HW-compatible (CPU, GPU, VPU) QAT for 8-bit inference is available. For details, see [Quantization-aware Training](./qat.md) documentation.
-- Filter Pruning is used to remove unnecessary or redundant filters from Convolutional Neural Networks. It is usually not used stand-alone but can be stacked with QAT to get additional speedup on top of it. For details, see [Filter Pruning](./filter_pruning.md) documentation.
+- **Quantization-aware Training (QAT)** is a recommended method that provides fast and accurate results. Currently, a HW-compatible (CPU, GPU, VPU) QAT for 8-bit inference is available. For details, see [Quantization-aware Training](./qat.md) documentation.
+- **Filter Pruning** is used to remove unnecessary or redundant filters from Convolutional Neural Networks. It is usually not used stand-alone but can be stacked with QAT to get additional speedup on top of it. For details, see [Filter Pruning](./filter_pruning.md) documentation.
 
 ## Installation
 NNCF is open-sourced on [GitHub](https://github.com/openvinotoolkit/nncf) and distributed as a separate package. It is also available on PyPI. We recommend installing it to the Python* environment where the framework is installed.
@@ -40,7 +40,7 @@ pip install nncf
 ### Install from source
 To install the latest NNCF version from source follow the instruction on [GitHub](https://github.com/openvinotoolkit/nncf#installation).
 
-> **NOTE**: NNCF does not have OpenVINO&trade; as a dependency. To deploy optimized models you should install OpenVINO&trade; separately.
+> **NOTE**: NNCF does not have OpenVINO&trade; as an installation requirement. To deploy optimized models you should install OpenVINO&trade; separately.
 
 
 ## See also

@@ -1,4 +1,4 @@
-# Optimizing models post-training {#pot_introduction}
+# Optimizing Models Post-training {#pot_introduction}
 
 @sphinxdirective
 
