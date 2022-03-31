@@ -157,6 +157,8 @@ OPENVINO_SUPPRESS_DEPRECATED_END
                 target_str = GNAConfigParams::GNA_TARGET_2_0;
             } else if (ov::intel_gna::HWGeneration::GNA_3_0 == target) {
                 target_str = GNAConfigParams::GNA_TARGET_3_0;
+            } else if (ov::intel_gna::HWGeneration::GNA_3_5 == target) {
+                target_str = GNAConfigParams::GNA_TARGET_3_5;
             }
             set_target(target_str);
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
@@ -376,10 +378,12 @@ Parameter Config::GetParameter(const std::string& name) const {
     } else if (name ==  ov::intel_gna::execution_target) {
         return ((gnaExecTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaExecTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+                (gnaExecTarget == GNAConfigParams::GNA_TARGET_3_5) ? ov::intel_gna::HWGeneration::GNA_3_5 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name ==  ov::intel_gna::compile_target) {
         return ((gnaCompileTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaCompileTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+                (gnaCompileTarget == GNAConfigParams::GNA_TARGET_3_5) ? ov::intel_gna::HWGeneration::GNA_3_5 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;

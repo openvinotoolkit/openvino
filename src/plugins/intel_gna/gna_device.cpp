@@ -178,7 +178,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return Gna2DeviceVersion3_0;
+        return Gna2DeviceVersion3_5;
     return detectedGnaDevVersion;
 }
 
