@@ -19,16 +19,22 @@ using namespace ov::frontend;
 
 std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                  const std::shared_ptr<void>& shared_object) {
-    auto copy = ov::clone_model(*ov_model);
+    auto copy = std::make_shared<Model>(ov_model->get_results(),
+                                        ov_model->get_sinks(),
+                                        ov_model->get_parameters(),
+                                        ov_model->get_variables(),
+                                        ov_model->get_friendly_name());
     copy->m_shared_object = shared_object;
     copy->get_rt_info() = ov_model->get_rt_info();
     auto params = copy->get_parameters();
     ov::ParameterVector new_params;
     new_params.reserve(params.size());
-    // Static library case: it's not enough to just clone ops using 'op->clone_with_new_inputs' as
-    // 'clone_with_new_inputs' will be executed in 'static frontend context' and objects will still be corrupted in this
-    // case. Need to create using 'make_shared' here. Currently, it is done for parameters and results only to keep it
-    // executed fast.
+    // Static library case: need to manually create all nodes with application's context, not with frontend's one.
+    // ov::clone_model can't be used here because:
+    //   a) It uses Node::clone_with_new_inputs which is executed in frontend's context anyway
+    //   b) cloning is not working correctly for 'custom nodes' added via extensions
+    // For now, create only parameters and results here, each will hold a pointer to shared object (not allowing to
+    // destroy actual frontend and extensions).
     bool need_validate = false;
     for (const auto& param : params) {
         auto new_param = std::make_shared<op::v0::Parameter>(param->get_element_type(), param->get_partial_shape());
