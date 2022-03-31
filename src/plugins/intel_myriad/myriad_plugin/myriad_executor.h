@@ -65,7 +65,7 @@ struct DeviceDesc {
 };
 
 typedef std::shared_ptr<DeviceDesc> DevicePtr;
-
+typedef std::shared_ptr<std::vector<DevicePtr>> DevicePoolPtr;
 
 class MyriadExecutor {
     Logger::Ptr _log;
@@ -81,9 +81,9 @@ public:
      * @brief Get myriad device
      * @return Already booted and empty device or new booted device
      */
-    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config);
+    DevicePtr openDevice(DevicePoolPtr devicePoolPtr, const PluginConfiguration& config);
 
-    static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
+    static void closeDevices(DevicePoolPtr devicePoolPtr, std::shared_ptr<IMvnc> mvnc);
 
     void allocateGraph(DevicePtr &device,
                        GraphDesc &graphDesc,

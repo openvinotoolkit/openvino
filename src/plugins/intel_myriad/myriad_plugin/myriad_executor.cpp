@@ -220,11 +220,11 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     return NC_OK;
 }
 
-DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
+DevicePtr MyriadExecutor::openDevice(DevicePoolPtr devicePoolPtr,
                                      const PluginConfiguration& config) {
     VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
-
+    auto& devicePool = *devicePoolPtr.get();
     auto firstBootedButEmptyDevice = std::find_if(devicePool.begin(), devicePool.end(),
         [&config](const DevicePtr &device) {
             return device->isBooted() && device->isEmpty()
@@ -294,9 +294,10 @@ VPU_PACKED(bin_header {
     uint32_t frequency;
 };)
 
-void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc) {
+void MyriadExecutor::closeDevices(DevicePoolPtr devicePoolPtr, std::shared_ptr<IMvnc> mvnc) {
     VPU_PROFILE(closeDevices);
     std::lock_guard<std::mutex> lock(device_mutex);
+    auto& devicePool = *devicePoolPtr.get();
     for (auto &device : devicePool) {
         if (device->_deviceHandle != nullptr) {
             auto res = ncDeviceClose(&(device->_deviceHandle), mvnc->watchdogHndl());

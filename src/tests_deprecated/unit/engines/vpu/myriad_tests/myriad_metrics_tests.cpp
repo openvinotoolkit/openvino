@@ -152,7 +152,7 @@ TEST_P(MyriadDeviceMetricsTestWithParam, CheckNames) {
     EXPECT_CALL(*mvnc_stub_, AvailableDevicesNames()).Times(1)
         .WillRepeatedly(Return(exp_unbooted_devices_names_));
 
-    ASSERT_NO_THROW(act_names = metrics_container_->AvailableDevicesNames(mvnc_stub_, devices_));
+    ASSERT_NO_THROW(act_names = metrics_container_->AvailableDevicesNames(devicesManager_));
 
     ASSERT_TRUE(act_names.size() ==
         (exp_unbooted_devices_names_.size() + exp_booted_devices_names_.size()));

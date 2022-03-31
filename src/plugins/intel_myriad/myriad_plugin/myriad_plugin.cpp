@@ -66,6 +66,7 @@
 #include <vpu/configuration/options/none_layers.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
 #include <vpu/configuration/options/enable_mx_boot.hpp>
+#include "myriad_executable_network.h"
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include "vpu/configuration/options/ov_throughput_streams.hpp"
@@ -89,7 +90,7 @@ IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     executableNetworkConfiguration.from(config);
     executableNetworkConfiguration.validate();
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(network, _devicesManager, executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
     return executableNetwork;
 }
@@ -203,10 +204,14 @@ QueryNetworkResult Engine::QueryNetwork(
     return res;
 }
 
+DevicesManagerPtr Engine::_devicesManager = nullptr;
+
 Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
-        _mvnc(std::move(mvnc)),
         _metrics(std::make_shared<MyriadMetrics>()) {
-    VPU_THROW_UNLESS(_mvnc, "mvnc is null");
+    if (!_devicesManager) {
+        _devicesManager = std::make_shared<DevicesManager>(mvnc);
+    }
+    VPU_THROW_UNLESS(_devicesManager, "DevicesManager is null");
 
     _pluginName = "MYRIAD";
 
@@ -273,28 +278,28 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
     executableNetworkConfiguration.fromAtRuntime(config);
     executableNetworkConfiguration.validate();
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _devicesManager, executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
     return executableNetwork;
 }
 
 InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
                                      const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    const auto mvnc = _mvnc;
+    const auto devicesManager = _devicesManager;
     const auto metrics = _metrics;
-    const auto devicePool = _devicePool;
-    const auto getSpecifiedDeviceName = [&mvnc, &metrics, &devicePool, &options]() {
+    const auto getSpecifiedDeviceName = [&devicesManager, &metrics, &options]() {
         if (options.count(KEY_DEVICE_ID)) {
             return options.at(KEY_DEVICE_ID).as<std::string>();
         }
 
-        const auto availableDevices = metrics->AvailableDevicesNames(mvnc, devicePool);
+        const auto availableDevices = metrics->AvailableDevicesNames(devicesManager);
         VPU_THROW_UNLESS(!availableDevices.empty(), "No devices available.");
         VPU_THROW_UNLESS(availableDevices.size() == 1, "KEY_DEVICE_ID is undefined.");
 
         return availableDevices.front();
     };
-    const auto getDeviceByName = [&devicePool](const std::string& deviceName) {
+    const auto getDeviceByName = [&devicesManager](const std::string& deviceName) {
+        const auto devicePool = *devicesManager->devicePoolPtr.get();
         const auto deviceIt = std::find_if(devicePool.begin(), devicePool.end(), [&deviceName](DevicePtr device) {
             return device->_name == deviceName;
         });
@@ -305,7 +310,7 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     };
 
     if (ov::available_devices == name) {
-        return _metrics->AvailableDevicesNames(_mvnc, _devicePool);
+        return _metrics->AvailableDevicesNames(devicesManager);
     } else if (ov::device::full_name == name) {
         return _metrics->FullName(getSpecifiedDeviceName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {

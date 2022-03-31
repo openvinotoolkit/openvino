@@ -24,21 +24,39 @@
 #include "myriad_async_infer_request.h"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
+#include "myriad_mvnc_wrapper.h"
 
 namespace vpu {
 namespace MyriadPlugin {
+struct DevicesManager {
+    DevicesManager() = delete;
+    DevicesManager(DevicesManager&) = delete;
+    void operator=(const DevicesManager&) = delete;
 
+    explicit DevicesManager(std::shared_ptr<IMvnc> mvnc)
+        : mvnc(mvnc),
+          devicePoolPtr(std::make_shared<std::vector<DevicePtr>>()) {}
+
+    ~DevicesManager() {
+        MyriadExecutor::closeDevices(devicePoolPtr, mvnc);
+    }
+
+    std::shared_ptr<IMvnc> mvnc;
+    DevicePoolPtr devicePoolPtr;
+};
+
+typedef std::shared_ptr<DevicesManager> DevicesManagerPtr;
 class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
-    ExecutableNetwork(const InferenceEngine::CNNNetwork& network, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+    ExecutableNetwork(const InferenceEngine::CNNNetwork& network, DevicesManagerPtr devicesManager,
                       const PluginConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
-    ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration,
+    ExecutableNetwork(std::istream& strm, DevicesManagerPtr devicesManager, const PluginConfiguration& configuration,
                       const std::shared_ptr<ie::ICore> core);
 
-    ExecutableNetwork(const std::string &blobFilename, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
+    ExecutableNetwork(const std::string &blobFilename, DevicesManagerPtr devicesManager,
                       const PluginConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
     virtual ~ExecutableNetwork() {
@@ -108,7 +126,7 @@ public:
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
-    void Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration);
+    void Import(std::istream& strm, DevicePoolPtr devicePoolPtr, const PluginConfiguration& configuration);
 
 private:
     Logger::Ptr _log;
@@ -130,7 +148,7 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
+    ExecutableNetwork(DevicesManagerPtr devicesManager,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core);
 
@@ -145,7 +163,7 @@ private:
         return taskExecutor;
     }
 
-    void openDevice(std::vector<DevicePtr>& devicePool);
+    void openDevice(DevicePoolPtr devicePoolPtr);
 };
 
 }  // namespace MyriadPlugin

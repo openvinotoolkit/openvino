@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <tuple>
+#include "myriad_executable_network.h"
 #include "myriad_plugin.h"
 #include "myriad_mvnc_stub.h"
 
@@ -100,6 +101,7 @@ protected:
     std::shared_ptr<MyriadMetrics> metrics_container_;
     std::shared_ptr<MvncStub> mvnc_stub_;
     std::vector<DevicePtr> devices_;
+    DevicesManagerPtr devicesManager_;
 };
 
 //------------------------------------------------------------------------------

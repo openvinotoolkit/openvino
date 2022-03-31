@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "myriad_executable_network.h"
 #include "myriad_mvnc_wrapper.h"
 #include "myriad_executor.h"
 
@@ -31,9 +32,7 @@ public:
     MyriadMetrics();
 
     // Accessors
-    std::vector<std::string> AvailableDevicesNames(
-        const std::shared_ptr<IMvnc> &mvnc,
-        const std::vector<DevicePtr> &devicePool) const;
+    std::vector<std::string> AvailableDevicesNames(const DevicesManagerPtr DevicesManager) const;
 
     std::string FullName(std::string deviceName) const;
     std::string DeviceArchitecture(const std::map<std::string, InferenceEngine::Parameter> & options) const;

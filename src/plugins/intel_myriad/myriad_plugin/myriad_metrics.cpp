@@ -52,10 +52,10 @@ IE_SUPPRESS_DEPRECATED_START
 }
 
 std::vector<std::string> MyriadMetrics::AvailableDevicesNames(
-    const std::shared_ptr<IMvnc> &mvnc,
-    const std::vector<DevicePtr> &devicePool) const {
+    const DevicesManagerPtr DevicesManager) const {
     std::vector<std::string> availableDevices;
-
+    const auto& mvnc = DevicesManager->mvnc;
+    const auto& devicePool = *DevicesManager->devicePoolPtr.get();
     auto unbootedDevices = mvnc->AvailableDevicesNames();
     availableDevices.insert(availableDevices.begin(),
                             unbootedDevices.begin(), unbootedDevices.end());

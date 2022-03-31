@@ -19,6 +19,7 @@
 #include <vpu/configuration/options/throughput_streams.hpp>
 #include <vpu/configuration/options/exclusive_async_requests.hpp>
 #include <vpu/configuration/options/performance_hint.hpp>
+#include "myriad_executor.h"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include <vpu/configuration/options/ov_throughput_streams.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
@@ -35,7 +36,7 @@ namespace vpu {
 namespace MyriadPlugin {
 
 ExecutableNetwork::ExecutableNetwork(
-        std::shared_ptr<IMvnc> mvnc,
+        DevicesManagerPtr devicesManager,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
             _config(config),
@@ -49,7 +50,7 @@ ExecutableNetwork::ExecutableNetwork(
         logLevel,
         consoleOutput());
 
-    _executor = std::make_shared<MyriadExecutor>(false, std::move(mvnc), logLevel, _log);
+    _executor = std::make_shared<MyriadExecutor>(false, devicesManager->mvnc, logLevel, _log);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
@@ -60,8 +61,8 @@ ExecutableNetwork::ExecutableNetwork(
     };
 }
 
-void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
-    _device = _executor->openDevice(devicePool, _config);
+void ExecutableNetwork::openDevice(DevicePoolPtr devicePoolPtr) {
+    _device = _executor->openDevice(devicePoolPtr, _config);
     int executors = 0;
     if (_config.get<ThroughputStreamsOption>().hasValue()) {
         executors = _config.get<ThroughputStreamsOption>().get();
@@ -75,11 +76,10 @@ void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
 
 ExecutableNetwork::ExecutableNetwork(
         const ie::CNNNetwork& network,
-        std::shared_ptr<IMvnc> mvnc,
-        std::vector<DevicePtr>& devicePool,
+        DevicesManagerPtr devicesManager,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
-            ExecutableNetwork(std::move(mvnc), config, core) {
+            ExecutableNetwork(devicesManager, config, core) {
     VPU_PROFILE(ExecutableNetwork);
 
     const auto compilerLog = std::make_shared<Logger>(
@@ -154,12 +154,12 @@ ExecutableNetwork::ExecutableNetwork(
         }
         return;
     }
-    openDevice(devicePool);
+    openDevice(devicesManager->devicePoolPtr);
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages,
                              networkName, _actualNumExecutors, _config);
 }
 
-void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration) {
+void ExecutableNetwork::Import(std::istream& strm, DevicePoolPtr devicePoolPtr, const PluginConfiguration& configuration) {
     auto currentPos = strm.tellg();
     strm.seekg(0, strm.end);
     auto blobSize = strm.tellg() - currentPos;
@@ -188,7 +188,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     std::size_t numStages = blobReader.getStageCount();
     auto blobHeader = blobReader.getHeader();
 
-    openDevice(devicePool);
+    openDevice(devicePoolPtr);
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors, _config);
     _graphMetaData.stagesMeta.resize(numStages);
     for (auto &meta : _graphMetaData.stagesMeta) {
@@ -208,25 +208,23 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm,
-                               std::shared_ptr<IMvnc> mvnc,
-                               std::vector<DevicePtr> &devicePool,
+                               DevicesManagerPtr devicesManager,
                                const PluginConfiguration& config,
                                const std::shared_ptr<ie::ICore> core) :
-    ExecutableNetwork(std::move(mvnc), config, core) {
+    ExecutableNetwork(devicesManager, config, core) {
     VPU_PROFILE(ExecutableNetwork);
-    Import(strm, devicePool, config);
+    Import(strm, devicesManager->devicePoolPtr, config);
 }
 
 ExecutableNetwork::ExecutableNetwork(
         const std::string& blobFilename,
-        std::shared_ptr<IMvnc> mvnc,
-        std::vector<DevicePtr>& devicePool,
+        DevicesManagerPtr devicesManager,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
-    ExecutableNetwork(std::move(mvnc), config, core) {
+    ExecutableNetwork(devicesManager, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};
-    Import(blobFile, devicePool, config);
+    Import(blobFile, devicesManager->devicePoolPtr, config);
 }
 
 InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name) const {
