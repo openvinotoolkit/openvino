@@ -1,4 +1,4 @@
-name: IE Python Checks
+name: Python API Checks
 
 on:
   workflow_dispatch:
@@ -23,8 +23,9 @@ jobs:
         with:
           python-version: '3.6'
       - name: Install dependencies
-        run: python -m pip install -r src/bindings/python/src/compatibility/openvino/requirements_dev.txt
-      - name: Run Flake on samples
+        run: python -m pip install -r src/bindings/python/requirements_test.txt
+      # samples code-style
+      - name: Run flake8 on samples
         run: python -m flake8 ./ --config=setup.cfg
         working-directory: samples/python
       - name: Create code style diff for samples
@@ -38,21 +39,53 @@ jobs:
         with:
           name: samples_diff
           path: samples_diff.diff
-      - name: Run Flake on src
+      # IE Python API Flake code-style
+      - name: Run flake8 on IE Python API
         run: python -m flake8 ./ --config=setup.cfg
         working-directory: src/bindings/python/src/compatibility/openvino
-      - name: Create code style diff for Python src
+      - name: Create code style diff for IE Python API
         if: failure()
         run: |
           python -m black -l 160 -S ./
-          git diff > src_diff.diff
+          git diff > ie_python_diff.diff
         working-directory: src/bindings/python/src/compatibility/openvino
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: src_diff
-          path: src_diff.diff
-      - name: Run Flake on wheel
+          name: ie_python_diff
+          path: ie_python_diff.diff
+      # nGraph Python API Flake code-style
+      - name: Run flake8 on nGraph Python API
+        run: python -m flake8 ./src/compatibility/ngraph --config=setup.cfg
+        working-directory: src/bindings/python
+      - name: Create code style diff for nGraph Python API
+        if: failure()
+        run: |
+          python -m black -l 160 -S ./
+          git diff > pyngraph_diff.diff
+        working-directory: src/bindings/python/src/compatibility/ngraph
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: pyngraph_diff
+          path: pyngraph_diff.diff
+      # Python API 2.0 Flake code-style
+      - name: Run flake8 on Python API 2.0
+        run: python -m flake8 ./src/openvino --config=setup.cfg
+        working-directory: src/bindings/python
+      - name: Create code style diff for Python API 2.0
+        if: failure()
+        run: |
+          python -m black -l 160 -S ./
+          git diff > pyopenvino_diff.diff
+        working-directory: src/bindings/python/src/openvino
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: pyopenvino_diff
+          path: pyopenvino_diff.diff
+      # wheel Flake code-style
+      - name: Run flake8 on wheel
         run: python -m flake8 ./ --config=../setup.cfg
         working-directory: src/bindings/python/wheel
       - name: Create code style diff for wheel
@@ -66,10 +99,24 @@ jobs:
         with:
           name: wheel_diff
           path: wheel_diff.diff
-      
-      - name: Run MyPy
+      # Python API 2.0 tests Flake code-style
+      - name: Run flake8 on python tests
+        # ignore lack of docs in tests
+        run: python -m flake8 tests/ --config=setup.cfg
+        working-directory: src/bindings/python
+      # IE Python API mypy check
+      - name: Run mypy on IE Python API
         run: python -m mypy ./ --config-file ./setup.cfg
         working-directory: src/bindings/python/src/compatibility/openvino
+      # nGraph Python API mypy check
+      - name: Run mypy on nGraph Python API
+        run: python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
+        working-directory: src/bindings/python
+      # Python API 2.0 mypy check
+      - name: Run mypy on Python API 2.0
+        run: python -m mypy ./src/openvino --config-file ./setup.cfg
+        working-directory: src/bindings/python
+
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
