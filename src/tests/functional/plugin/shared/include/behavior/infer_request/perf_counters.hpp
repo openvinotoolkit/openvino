@@ -10,10 +10,10 @@ namespace BehaviorTestsDefinitions {
 class InferRequestPerfCountersTest : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
+        std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
         ie = PluginCache::get().ie(target_device);
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);

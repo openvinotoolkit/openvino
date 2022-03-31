@@ -18,7 +18,7 @@ using namespace InferenceEngine::PluginConfigParams;
 
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassImportExportNetTestP,
+        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
         ::testing::Values(generate_complex_device_name(CommonTestUtils::DEVICE_HETERO)));
 
 //

@@ -18,7 +18,7 @@ typedef std::tuple<
 > InferRequestParams;
 
 class InferRequestConfigTest : public testing::WithParamInterface<InferRequestParams>,
-                               public ov::test::behavior::APIBaseTest {
+                               public virtual ov::test::behavior::APIBaseTest {
 public:
     void SetUp() override {
         SetUp();

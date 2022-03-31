@@ -54,18 +54,25 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         cur_stat.insert({real_device, PassRate()});
     }
     switch (status) {
-        case PassRate::Statuses::SKIPPED:
+        case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
             break;
-        case PassRate::Statuses::PASSED:
+        }
+        case PassRate::Statuses::PASSED: {
             cur_stat[real_device].passed++;
+            cur_stat[real_device].crashed--;
             break;
-        case PassRate::Statuses::HANGED:
+        }
+        case PassRate::Statuses::HANGED: {
             cur_stat[real_device].hanged++;
+            cur_stat[real_device].crashed--;
             break;
-        case PassRate::Statuses::FAILED:
+        }
+        case PassRate::Statuses::FAILED: {
             cur_stat[real_device].failed++;
+            cur_stat[real_device].crashed--;
             break;
+        }
         case PassRate::Statuses::CRASHED:
             cur_stat[real_device].crashed++;
             break;
@@ -73,9 +80,9 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
 }
 
 void ApiSummary::saveReport() {
-    if (isReported) {
-        return;
-    }
+//    if (isReported) {
+//        return;
+//    }
 
     std::string filename = reportFilename;
     if (saveReportWithUniqueName) {

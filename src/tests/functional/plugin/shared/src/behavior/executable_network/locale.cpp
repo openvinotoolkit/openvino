@@ -33,8 +33,9 @@ std::string CustomLocaleTest::getTestCaseName(const testing::TestParamInfo<Local
 }
 
 void CustomLocaleTest::SetUp() {
-    APIBaseTest::SetUp();
     std::tie(localeName, target_device) = GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     function = makeTestModel();
 }

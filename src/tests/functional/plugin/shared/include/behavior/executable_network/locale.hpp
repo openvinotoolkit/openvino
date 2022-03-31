@@ -18,7 +18,7 @@ typedef std::tuple<
         std::string>    // Target device name
         LocaleParams;
 
-class CustomLocaleTest : public ov::test::behavior::APIBaseTest,
+class CustomLocaleTest : public virtual ov::test::behavior::APIBaseTest,
                          public ::testing::WithParamInterface<LocaleParams> {
 protected:
     std::shared_ptr<ngraph::Function> function;

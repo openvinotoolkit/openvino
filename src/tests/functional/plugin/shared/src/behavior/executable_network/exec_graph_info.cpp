@@ -250,7 +250,8 @@ std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<s
 }
 
 void ExecGraphSerializationTest::SetUp() {
-    APIBaseTest::SetUp();
+    target_device = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
@@ -259,7 +260,7 @@ void ExecGraphSerializationTest::SetUp() {
     m_out_xml_path = model_name + XML_EXT;
     m_out_bin_path = model_name + BIN_EXT;
 
-    target_device = this->GetParam();
+    APIBaseTest::SetUp();
 }
 
 void ExecGraphSerializationTest::TearDown() {
@@ -377,12 +378,12 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 }
 
 void ExecGraphUniqueNodeNames::SetUp() {
-    APIBaseTest::SetUp();
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    APIBaseTest::SetUp();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

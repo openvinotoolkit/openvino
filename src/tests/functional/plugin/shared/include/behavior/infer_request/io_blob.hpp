@@ -334,12 +334,12 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
 class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasic {
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; }

@@ -32,7 +32,7 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 };
 
-using OVClassImportExportNetTestP = OVCompiledModelClassBaseTestP;
+using OVClassImportExportTestP = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVCompiledModelClassBaseTestP;
@@ -53,11 +53,11 @@ protected:
 
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
-        OVClassNetworkTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         target_device = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
     }
 };
 
@@ -78,10 +78,10 @@ protected:
 
 public:
     void SetUp() override {
+        target_device = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        target_device = GetParam();
         heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + std::string(",") +
                            CommonTestUtils::DEVICE_CPU;
     }
@@ -95,7 +95,7 @@ using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeter
 // ImportExportNetwork
 //
 
-TEST_P(OVClassImportExportNetTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
+TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ov::Core ie = createCoreWithTemplate();
     std::stringstream strm;
     ov::CompiledModel executableNetwork;

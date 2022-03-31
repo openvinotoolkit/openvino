@@ -48,10 +48,10 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     }
 
     void SetUp() override {
-        APIBaseTest::SetUp();
+        std::tie(elementType, target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(elementType, target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
     }
 
     void TearDown() override {

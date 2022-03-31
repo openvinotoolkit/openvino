@@ -85,10 +85,10 @@ public:
     }
 
     void SetUp() override {
-        APIBaseTest::SetUp();
+        std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         ov::AnyMap params;
         for (auto&& v : configuration) {
@@ -157,14 +157,13 @@ class OVClassBaseTestP : public OVClassNetworkTest,
                          public APIBaseTest {
 public:
     void SetUp() override {
+        target_device = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         // TODO: Remove it after fixing issue 69529
         // w/a for myriad (cann't store 2 caches simultaneously)
         PluginCache::get().reset();
-
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
-        target_device = GetParam();
     }
 
 protected:
@@ -184,9 +183,9 @@ protected:
 
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
         simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
     }
 };

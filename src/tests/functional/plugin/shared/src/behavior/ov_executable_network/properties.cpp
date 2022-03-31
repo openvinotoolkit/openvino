@@ -15,9 +15,9 @@ std::string OVCompiledModelEmptyPropertiesTests::getTestCaseName(testing::TestPa
 }
 
 void OVCompiledModelEmptyPropertiesTests::SetUp() {
-    APIBaseTest::SetUp();
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     target_device = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
 }
 
@@ -34,9 +34,9 @@ std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamIn
 }
 
 void OVCompiledModelPropertiesTests::SetUp() {
-    APIBaseTest::SetUp();
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(target_device, properties) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    APIBaseTest::SetUp();
     model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
 }
 

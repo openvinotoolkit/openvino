@@ -37,9 +37,9 @@ protected:
 
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(pluginName, target_device) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
     }
 };
@@ -71,9 +71,9 @@ protected:
 
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
         actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
@@ -111,6 +111,8 @@ class OVClassSeveralDevicesTest : public APIBaseTest,
 public:
     std::vector<std::string> deviceNames;
     void SetUp() override {
+        target_device = CommonTestUtils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();
         deviceNames = GetParam();

@@ -18,7 +18,7 @@
 namespace ExecutionGraphTests {
 
 class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                                 public ov::test::behavior::APIBaseTest {
+                                 public virtual ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
     void SetUp() override;
@@ -28,7 +28,7 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 };
 
-class ExecGraphSerializationTest : public ov::test::behavior::APIBaseTest,
+class ExecGraphSerializationTest : public virtual ov::test::behavior::APIBaseTest,
                                    public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);

@@ -9,7 +9,7 @@
 #include "openvino/core/model.hpp"
 
 namespace BehaviorTestsDefinitions {
-class ExecutableNetworkBaseTest : public ov::test::behavior::APIBaseTest,
+class ExecutableNetworkBaseTest : public virtual ov::test::behavior::APIBaseTest,
                                   public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorTestsUtils::InferRequestParams> obj) {
@@ -26,10 +26,10 @@ public:
     }
 
     void SetUp() override {
-        ov::test::behavior::APIBaseTest::SetUp();
+        std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(target_device, configuration) = this->GetParam();
+        ov::test::behavior::APIBaseTest::SetUp();
         ie = PluginCache::get().ie(target_device);
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);

@@ -20,7 +20,7 @@ typedef std::tuple<
 > BehaviorBasicParams;
 
 class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
-                           public ov::test::behavior::APIBaseTest {
+                           public virtual ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
         InferenceEngine::Precision  netPrecision;
@@ -37,9 +37,9 @@ public:
     }
 
     void SetUp() override {
-        APIBaseTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
     void TearDown() override {
@@ -61,7 +61,7 @@ typedef std::tuple<
 > InferRequestParams;
 
 class InferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                          public ov::test::behavior::APIBaseTest {
+                          public virtual ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -78,10 +78,10 @@ public:
     }
 
     void SetUp() override {
-        APIBaseTest::SetUp();
+        std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
@@ -136,13 +136,13 @@ public:
 
 class IEClassBaseTestP : public IEClassNetworkTest,
                          public ::testing::WithParamInterface<std::string>,
-                         public ov::test::behavior::APIBaseTest {
+                         public virtual ov::test::behavior::APIBaseTest {
 public:
     void SetUp() override {
+        target_device = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        target_device = GetParam();
     }
 
 protected:

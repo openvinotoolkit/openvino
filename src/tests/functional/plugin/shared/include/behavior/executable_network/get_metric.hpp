@@ -32,7 +32,7 @@ namespace BehaviorTestsDefinitions {
 }
 
 class IEClassExecutableNetworkGetMetricTestForSpecificConfig :
-        public ov::test::behavior::APIBaseTest,
+        public virtual ov::test::behavior::APIBaseTest,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
 protected:
@@ -40,11 +40,12 @@ protected:
     std::string configValue;
 public:
     void SetUp() override {
-        ov::test::behavior::APIBaseTest::SetUp();
-        IEClassNetworkTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         target_device = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+        ov::test::behavior::APIBaseTest::SetUp();
+        IEClassNetworkTest::SetUp();
     }
 
 protected:
@@ -55,18 +56,17 @@ protected:
 // Hetero Executable network case
 //
 class IEClassHeteroExecutableNetworkGetMetricTest :
-        public ov::test::behavior::APIBaseTest,
+        public virtual ov::test::behavior::APIBaseTest,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::string> {
 protected:
     std::string heteroDeviceName;
 public:
     void SetUp() override {
+        target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + std::string(",") + CommonTestUtils::DEVICE_CPU;
     }
 
 protected:
