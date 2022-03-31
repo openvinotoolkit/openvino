@@ -32,9 +32,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         oh_params.on_value = arg.get_primitive()->on_value;
         oh_params.off_value = arg.get_primitive()->off_value;
 
-        auto output_sizes = arg.get_output_layout().format == format::bfzyx ?
-                            arg.get_output_layout().size.sizes(format::bfzyx) :
-                            arg.get_output_layout().size.sizes(format::bfyx);
+        auto output_sizes = arg.get_output_layout().get_dims();
 
         oh_params.one_hot_limit = output_sizes[oh_params.one_hot_axis];
 
