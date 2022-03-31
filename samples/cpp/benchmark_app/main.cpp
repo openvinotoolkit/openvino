@@ -56,9 +56,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
-        FLAGS_hint != "none") {
+        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "`throughput`(tput), `latency' value or 'none'.");
+                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
@@ -119,6 +119,9 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "latency") {
                 slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
+                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
                 slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
