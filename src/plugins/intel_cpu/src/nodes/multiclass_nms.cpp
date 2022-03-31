@@ -408,12 +408,12 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
 }
 
 void MultiClassNms::nmsWithEta(const float* boxes,
-                                            const float* scores,
-                                            const int* roisnum,
-                                            const SizeVector& boxesStrides,
-                                            const SizeVector& scoresStrides,
-                                            const SizeVector& roisnumStrides,
-                                            const bool shared) {
+                                const float* scores,
+                                const int* roisnum,
+                                const SizeVector& boxesStrides,
+                                const SizeVector& scoresStrides,
+                                const SizeVector& roisnumStrides,
+                                const bool shared) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -423,13 +423,20 @@ void MultiClassNms::nmsWithEta(const float* boxes,
     };
 
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
+        if (!shared) {
+            if (roisnum[batch_idx] <= 0) {
+                m_numFiltBox[batch_idx][class_idx] = 0;
+                return;
+            }
+        }
         if (class_idx != m_backgroundClass) {
             std::vector<filteredBoxes> fb;
-            const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
-            const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
+            const float* boxesPtr = slice_class(batch_idx, class_idx, boxes, boxesStrides, true, roisnum, roisnumStrides, shared);
+            const float* scoresPtr = slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-            for (int box_idx = 0; box_idx < m_numBoxes; box_idx++) {
+            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold)  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
             }
@@ -479,6 +486,38 @@ void MultiClassNms::nmsWithEta(const float* boxes,
     });
 }
 
+/* get boxes/scores for current class and image
+//                  shared         not-shared
+// boxes:      [in] N, M, 4         C, M, 4    -> [out] num_priors, 4
+// scores:     [in] N, C, M          C, M      -> [out] num_priors,
+*/
+const float* MultiClassNms::slice_class(const int batch_idx,
+                                        const int class_idx,
+                                        const float* dataPtr,
+                                        const SizeVector& dataStrides,
+                                        const bool is_boxes,
+                                        const int* roisnum,
+                                        const SizeVector& roisnumStrides,
+                                        const bool shared) {
+    if (shared) {
+        if (is_boxes)
+            return dataPtr + batch_idx * dataStrides[0];
+        else
+            return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
+    }
+
+    // get M boxes of current class_idx : 1, M, 4
+    const float* boxesPtr_cls = dataPtr + class_idx * dataStrides[0];
+
+    // then get Mi boxes of current batch_idx and current class_idx : M', 4
+    auto boxes_idx = 0;
+    for (auto i = 0; i < batch_idx; i++) {
+        boxes_idx += roisnum[i];
+    }
+    // auto boxes_num = roisnum[batch_idx];
+    return boxesPtr_cls + boxes_idx * dataStrides[1];
+}
+
 void MultiClassNms::nmsWithoutEta(const float* boxes,
                                 const float* scores,
                                 const int* roisnum,
@@ -486,31 +525,6 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                                 const SizeVector& scoresStrides,
                                 const SizeVector& roisnumStrides,
                                 const bool shared) {
-    /* get boxes/scores for current class and image
-    //                  shared         not-shared
-    // boxes:      [in] N, M, 4         C, M, 4    -> [out] num_priors, 4
-    // scores:     [in] N, C, M          C, M      -> [out] num_priors,
-    */
-    auto _slice_class = [roisnum, roisnumStrides, shared](int batch_idx, int class_idx, const float* dataPtr, const SizeVector& dataStrides, bool is_boxes) {
-        if (shared) {
-            if (is_boxes)
-                return dataPtr + batch_idx * dataStrides[0];
-            else
-                return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
-        }
-
-        // get M boxes of current class_idx : 1, M, 4
-        const float* boxesPtr_cls = dataPtr + class_idx * dataStrides[0];
-
-        // then get Mi boxes of current batch_idx and current class_idx : M', 4
-        auto boxes_idx = 0;
-        for (auto i = 0; i < batch_idx; i++) {
-            boxes_idx += roisnum[i];
-        }
-        // auto boxes_num = roisnum[batch_idx];
-        return boxesPtr_cls + boxes_idx * dataStrides[1];
-    };
-
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         /*
         // nms over a class over an image
@@ -518,11 +532,14 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
         // scores:      num_priors, 1
         */
         if (!shared) {
-            if (roisnum[batch_idx] <= 0) return;
+            if (roisnum[batch_idx] <= 0) {
+                m_numFiltBox[batch_idx][class_idx] = 0;
+                return;
+            }
         }
         if (class_idx != m_backgroundClass) {
-            const float* boxesPtr = _slice_class(batch_idx, class_idx, boxes, boxesStrides, true);
-            const float* scoresPtr = _slice_class(batch_idx, class_idx, scores, scoresStrides, false);
+            const float* boxesPtr = slice_class(batch_idx, class_idx, boxes, boxesStrides, true, roisnum, roisnumStrides, shared);
+            const float* scoresPtr = slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::vector<std::pair<float, int>> sorted_boxes;
             int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];

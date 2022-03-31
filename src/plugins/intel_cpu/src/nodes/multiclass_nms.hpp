@@ -99,6 +99,15 @@ private:
 
     void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
                        const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
+
+    const float* slice_class(const int batch_idx,
+                            const int class_idx,
+                            const float* dataPtr,
+                            const InferenceEngine::SizeVector& dataStrides,
+                            const bool is_boxes,
+                            const int* roisnum,
+                            const InferenceEngine::SizeVector& roisnumStrides,
+                            const bool shared);
 };
 
 }   // namespace node
