@@ -89,7 +89,7 @@ def check_arg_with_names(arg: Tuple[List[str], List[str]]) -> bool:
 
 
 def parse_args(separator: str = '=') -> argparse.Namespace:
-    """Parse and validate command-line arguments"""
+    """Parse and validate command-line arguments."""
     parser = build_arg_parser()
     args = parser.parse_args()
 

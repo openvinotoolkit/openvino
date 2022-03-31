@@ -33,7 +33,7 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
 
 
 def calculate_scale_factor(matrix: np.ndarray) -> float:
-    """Get scale factor for quantization using utterance matrix"""
+    """Get scale factor for quantization using utterance matrix."""
     # Max to find scale factor
     target_max = 16384
     max_val = np.max(matrix)
@@ -44,7 +44,7 @@ def calculate_scale_factor(matrix: np.ndarray) -> float:
 
 
 def set_scale_factors(plugin_config: Dict[str, str], scale_factors: List[str], inputs: List[Output]):
-    """Set a scale factor provided for each input"""
+    """Set a scale factor provided for each input."""
     for i in range(len(inputs)):
         log.info(f'For input {inputs[i].get_any_name()} using scale factor of {scale_factors[i]}')
         plugin_config[f'GNA_SCALE_FACTOR_{i}'] = scale_factors[i]
