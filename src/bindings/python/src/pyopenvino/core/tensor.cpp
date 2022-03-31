@@ -40,26 +40,25 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type"),
             R"(
                 Another Tensor's special constructor.
 
-                It takes an array or slice of it, and shape that will be
-                selected, starting from the first element of the given array/slice.
-                Please use it only in advanced cases if necessary!
+                Represents array in the memory with given shape and element type.
+                It's recommended to use this constructor only for wrapping array's
+                memory with the specific openvino element type parameter.
 
-                :param array: Underlaying methods will retrieve pointer on first element
-                              from it, which is simulating `host_ptr` from C++ API.
-                              Tensor memory is being shared with a host,
-                              that means the responsibility of keeping host memory is
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor with given parameters (shape
+                              and element_type). Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
                               on the side of a user. Any action performed on the host
                               memory will be reflected on this Tensor's memory!
-                              Data is required to be C_CONTIGUOUS.
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: openvino.runtime.Shape
-                :param type: Element type.
-                :type type: openvino.runtime.Type (optional).
+                :param type: Element type
+                :type type: openvino.runtime.Type
 
                 :Example:
                 .. code-block:: python
@@ -67,18 +66,7 @@ void regclass_Tensor(py::module m) {
                     import openvino.runtime as ov
                     import numpy as np
 
-                    arr = np.array([[1, 2, 3], [4, 5, 6]])
-
-                    t = ov.Tensor(arr[1][0:1], ov.Shape([3]))
-
-                    t.data[0] = 9
-
-                    print(arr)
-                    >>> [[1 2 3]
-                    >>>  [9 5 6]]
-
                     arr = np.array(shape=(100), dtype=np.uint8)
-
                     t = ov.Tensor(arr, ov.Shape([100, 8]), ov.Type.u1)
             )");
 
@@ -87,26 +75,25 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type"),
             R"(
-                Another Tensor's special constructor.
+                 Another Tensor's special constructor.
 
-                It takes an array or slice of it, and shape that will be
-                selected, starting from the first element of the given array/slice.
-                Please use it only in advanced cases if necessary!
+                Represents array in the memory with given shape and element type.
+                It's recommended to use this constructor only for wrapping array's
+                memory with the specific openvino element type parameter.
 
-                :param array: Underlaying methods will retrieve pointer on first element
-                              from it, which is simulating `host_ptr` from C++ API.
-                              Tensor memory is being shared with a host,
-                              that means the responsibility of keeping host memory is
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor with given parameters (shape
+                              and element_type). Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
                               on the side of a user. Any action performed on the host
                               memory will be reflected on this Tensor's memory!
-                              Data is required to be C_CONTIGUOUS.
                 :type array: numpy.array
                 :param shape: Shape of the new tensor.
                 :type shape: list or tuple
                 :param type: Element type.
-                :type type: openvino.runtime.Type (optional).
+                :type type: openvino.runtime.Type
 
                 :Example:
                 .. code-block:: python
@@ -114,18 +101,7 @@ void regclass_Tensor(py::module m) {
                     import openvino.runtime as ov
                     import numpy as np
 
-                    arr = np.array([[1, 2, 3], [4, 5, 6]])
-
-                    t = ov.Tensor(arr[1][0:1], [3])
-
-                    t.data[0] = 9
-
-                    print(arr)
-                    >>> [[1 2 3]
-                    >>>  [9 5 6]]
-
                     arr = np.array(shape=(100), dtype=np.uint8)
-
                     t = ov.Tensor(arr, [100, 8], ov.Type.u1)
             )");
 
@@ -240,6 +216,10 @@ void regclass_Tensor(py::module m) {
         },
         R"(
             Access to Tensor's data.
+
+            Returns numpy array with corresponding shape and dtype.
+            For tensors with openvino specific element type, such as u1, u4 or i4
+            it returns linear array, with uint8 / int8 numpy dtype.
 
             :rtype: numpy.array
         )");

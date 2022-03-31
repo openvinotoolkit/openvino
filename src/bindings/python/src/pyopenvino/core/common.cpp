@@ -51,9 +51,8 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type) {
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-    auto type = (ov_type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : ov_type;
 
     if (is_contiguous) {
         return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
