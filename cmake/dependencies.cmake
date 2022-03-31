@@ -276,8 +276,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.05.00.1429")
-        set(GNA_HASH "327264ef7dc2dc781cf90c96e309865a8901613ddee0c6d14b2134bbedde8dbf")
+        set(GNA_VERSION "03.05.00.1472")
+        set(GNA_HASH "57a0e9b877d1a7f532f4e566b86612d7f469c8a69907db9b53ebb4339e09cc4c")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
