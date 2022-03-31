@@ -358,9 +358,9 @@ def test_packing(shape, low, high, ov_type, dtype):
     (ov.Type.u32),
     (ov.Type.i64),
     (ov.Type.u64),
-    #(ov.Type.f16),
-    #(ov.Type.f32),
-    #(ov.Type.f64),
+    # (ov.Type.f16),
+    # (ov.Type.f32),
+    # (ov.Type.f64),
 ])
 def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
