@@ -265,6 +265,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -360,6 +363,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
