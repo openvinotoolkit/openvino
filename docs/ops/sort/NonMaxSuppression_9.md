@@ -17,7 +17,7 @@
 7.  For each input box `b_i` from `B` and the corresponding score `s_i`, set `s_i = s_i * func(IOU(b_i, b))` and go to step 3.
 8.  Return `D`, a collection of the corresponding scores `S`, and the number of elements in `D`.
 
-when `soft_nms_sigma == 0`, `func(iou) = 1 if iou <= iou_threshold else 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma) if soft_NMS_suppressed_by_IOU == false`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma) if iou <= iou_threshold else 0`.
+when `soft_nms_sigma == 0`, `func(iou) = 1 if iou <= iou_threshold else 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma)`.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
 class must not exceed `max_output_boxes_per_class`.
@@ -50,16 +50,6 @@ class must not exceed `max_output_boxes_per_class`.
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *no*
-  
-* *soft_NMS_suppressed_by_IOU*
-
-  * **Description**: *soft_NMS_suppressed_by_IOU* is a flag that specifies whenever soft NMS is suppressed by IOU. It is used only when `soft_nms_sigma != 0`.
-  * **Range of values**: true of false
-    * *true* - soft NMS is suppressed by IOU.
-    * *false* - soft NMS is not suppressed by IOU.
-  * **Type**: boolean
-  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
@@ -100,7 +90,7 @@ Plugins which do not support dynamic output tensors produce `selected_indices` a
 
 ```xml
 <layer ... type="NonMaxSuppression" ... >
-    <data box_encoding="corner" sort_result_descending="1" output_type="i64" soft_NMS_suppressed_by_IOU="0"/>
+    <data box_encoding="corner" sort_result_descending="1" output_type="i64"/>
     <input>
         <port id="0">
             <dim>3</dim>
