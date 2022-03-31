@@ -34,10 +34,17 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::map<std::string, py::object>& properties) {
+        [](ov::Core& self, const std::map<py::object, py::object>& properties) {
             std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
+                if (py::isinstance<ov::util::PropertyTag>(property.first)) {
+                    properties_to_cpp[property.first.attr("name")().cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+                } else if (py::isinstance<py::str>(property.first)) {
+                    properties_to_cpp[property.first.cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+                } else {
+                    py::print("Property is broken and unusable!");
+                    // TODO: raise error!
+                }
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -51,10 +58,17 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+        [](ov::Core& self, const std::string& device_name, const std::map<py::object, py::object>& properties) {
             std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
+                if (py::isinstance<ov::util::PropertyTag>(property.first)) {
+                    properties_to_cpp[property.first.attr("name")().cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+                } else if (py::isinstance<py::str>(property.first)) {
+                    properties_to_cpp[property.first.cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+                } else {
+                    py::print("Property is broken and unusable!");
+                    // TODO: raise error!
+                }
             }
             self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -67,6 +81,32 @@ void regclass_Core(py::module m) {
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value).
             :type properties: dict
+        )");
+
+    cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& device_name, const py::object& property) -> py::object {
+            if (py::isinstance<ov::util::PropertyTag>(property)) {
+                return Common::utils::from_ov_any(self.get_property(device_name, property.attr("name")().cast<std::string>()));
+            } else if (py::isinstance<py::str>(property)) {
+                return Common::utils::from_ov_any(self.get_property(device_name, property.cast<std::string>()));
+            } else {
+                py::print("Property is broken and unusable!");
+                return py::str("...").cast<py::object>();
+                // TODO: raise error!
+            }
+        },
+        py::arg("device_name"),
+        py::arg("property"),
+        R"(
+            Gets properties dedicated to device behaviour.
+
+            :param device_name: A name of a device to get a properties value.
+            :type device_name: str
+            :param property: Property or name of Property.
+            :type property: Union[str, openvino.runtime.properties.specializations.PropertyBase]
+            :return: Extracted information from property.
+            :rtype: object
         )");
 
     cls.def(
@@ -383,24 +423,6 @@ void regclass_Core(py::module m) {
                 # ...
 
                 new_compiled = core.import_model(user_stream, "CPU")
-        )");
-
-    cls.def(
-        "get_property",
-        [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::utils::from_ov_any(self.get_property(device_name, name));
-        },
-        py::arg("device_name"),
-        py::arg("name"),
-        R"(
-            Gets properties dedicated to device behaviour.
-
-            :param device_name: A name of a device to get a properties value.
-            :type device_name: str
-            :param name: Property name.
-            :type name: str
-            :return: Extracted information from property.
-            :rtype: object
         )");
 
     cls.def("register_plugin",
