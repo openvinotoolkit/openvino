@@ -115,3 +115,8 @@ div.highlight {
         max-width: 1800px;
     }
 }
+
+main  .searchForm {
+    margin-bottom: 2rem;
+    margin-top: 2rem;
+}
