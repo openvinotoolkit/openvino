@@ -71,7 +71,8 @@ TEST(type_prop, eye_batch_shape_param_and_const) {
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_TRUE(
+        eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, eye_type_shape_rectangle_params) {

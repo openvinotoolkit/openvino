@@ -91,14 +91,14 @@ void ov::op::v9::Eye::validate_and_infer_types() {
 
         input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape};
         if (get_input_size() == 4) {
-            const auto &batch_shape_et = get_input_element_type(3);
+            const auto& batch_shape_et = get_input_element_type(3);
             NODE_VALIDATION_CHECK(this,
                                   batch_shape_et == element::i32 || batch_shape_et == element::i64,
                                   "Type of the 'batch_shape' should be int32 or int64. Got: ",
                                   batch_shape_et);
-            const auto &batch_shape_pshape = get_input_partial_shape(3);
+            const auto& batch_shape_pshape = get_input_partial_shape(3);
             if (batch_shape_pshape.is_static()) {
-                const auto &diagonal_index_rank = batch_shape_pshape.rank().get_length();
+                const auto& diagonal_index_rank = batch_shape_pshape.rank().get_length();
                 NODE_VALIDATION_CHECK(this, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
             } else {
                 NODE_VALIDATION_CHECK(this,
