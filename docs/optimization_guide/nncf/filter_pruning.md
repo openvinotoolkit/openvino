@@ -1,3 +1,3 @@
-# Filter Pruning of Convolutional Models
+# Filter Pruning of Convolutional Models {#filter_pruning}
 
 # Introduction
