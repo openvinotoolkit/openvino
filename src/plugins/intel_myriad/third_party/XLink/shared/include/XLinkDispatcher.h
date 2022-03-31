@@ -36,13 +36,13 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
 
 char* TypeToStr(int type);
 int DispatcherUnblockEvent(eventId_t id,
-                             xLinkEventType_t type,
-                             streamId_t stream,
-                             void *xlinkFD);
-int DispatcherServeEvent(eventId_t id,
-                             xLinkEventType_t type,
-                             streamId_t stream,
-                             void *xlinkFD);
+                            xLinkEventType_t type,
+                            streamId_t stream,
+                            void *xlinkFD);
+int DispatcherServeOrDropEvent(eventId_t id,
+                            xLinkEventType_t type,
+                            streamId_t stream,
+                            void *xlinkFD);
 #ifdef __cplusplus
 }
 #endif
