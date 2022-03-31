@@ -10,7 +10,8 @@ from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNI
 from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-get_node_input, get_node_inputs, get_node_data_type, check_const_input
+get_node_input, get_node_inputs, get_node_data_type, check_const_input, reset_node_fullname
+from ...graph.passes import traverse_graph
 
 from ...utils.logger import get_logger
 
@@ -201,6 +202,9 @@ def get_configurations_by_preset(config, model, fq_to_hw_confs):
                 broadcasting = _test_shapes(bridge_input_shapes)
                 for fq in fqs:
                     if with_concat or unclear_layout or broadcasting:
+                        if not isinstance(cur_conf[fq]['activations'], list):
+                            cur_conf[fq]['activations'] = [cur_conf[fq]['activations']]
+
                         configuration = [c for c in cur_conf[fq]['activations'] if c['granularity'] == 'pertensor']
                     else:
                         configuration = cur_conf[fq]['activations']
@@ -262,6 +266,47 @@ def get_configurations_by_qscheme(fq_to_hw_confs, qscheme):
         fq_type, confs = list(value.items())[0]
         res[key] = {fq_type: _set_config(confs, fq_type)}
     return res
+
+
+def unify_LSTMCell_fqs(model):
+    lstm_fqs_to_unify = []
+
+    def source_fn(op):
+        return [p for p in get_node_inputs(op) if p and p.type != 'Const']
+
+    def criteria_fn(op):
+        return op.type == 'FakeQuantize'
+
+    def get_fqs_fullname(node, port):
+        input_node = get_node_input(node, port)
+        if criteria_fn(input_node):
+            return [input_node.fullname]
+        _, criteria = traverse_graph(input_node,
+                                     move_fn=source_fn,
+                                     stop_criteria_fn=criteria_fn,
+                                     criteria_fns=criteria_fn)
+        if criteria_fn in criteria:
+            input_fqs = [reset_node_fullname(input_node.fullname, node_name) for node_name in criteria[criteria_fn]]
+            return input_fqs
+        return []
+
+    def lstm_fq_to_unify(lstm_fullname, fq_1, fq_2):
+        fqs = set(fq_1).union(set(fq_2))
+        is_unified = all([get_node_input(get_node_by_name(model, name), 0).type != 'Const' for name in fqs])
+        if len(fqs) >= 2 and is_unified:
+            lstm_fqs_to_unify.append([[lstm_fullname], list(fqs)])
+
+    lstms = get_nodes_by_type(model, types=['LSTMCell'], recursively=True)
+    for lstm in lstms:
+        X = get_fqs_fullname(lstm, 0)
+        init_hidden_state = get_fqs_fullname(lstm, 1)
+        W = get_fqs_fullname(lstm, 3)
+        R = get_fqs_fullname(lstm, 4)
+
+        lstm_fq_to_unify(lstm.fullname, X, init_hidden_state)
+        lstm_fq_to_unify(lstm.fullname, W, R)
+
+    return lstm_fqs_to_unify
 
 
 def find_fqs_to_unify(model, config):
@@ -367,6 +412,10 @@ def find_fqs_to_unify(model, config):
                     any([_is_unified_scales_op(get_node_by_name(model, bridge)) for bridge in to_unify[0]]) and \
                     len(to_unify[1]) > 1:
                 fqs_to_unify.append(to_unify)
+
+    if {'type': 'LSTMCell'} in hw_ops:
+        lstm_fqs = unify_LSTMCell_fqs(model)
+        fqs_to_unify.extend(lstm_fqs)
 
     fqs_to_unify = sorted([[sorted(c[0]), sorted(c[1])] for c in fqs_to_unify])
     logger.debug('Operations and corresponding fake quantize nodes to unify scales:')
