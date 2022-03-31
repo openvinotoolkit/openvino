@@ -333,33 +333,25 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 }
 
 void LayerTestsCommon::InitInputsAndOutputs() {
-    int gapInLayout = cnnNetwork.getInputsInfo().size() - inLayout.size();
-    if (gapInLayout) {
-        auto inLayoutDefaultValue = inLayout[0];
-        for (int i = 1; i <= gapInLayout; i++) {
-            inLayout.push_back(inLayoutDefaultValue);
+    if (inLayout.size() == 1) {
+        for (size_t i = 1; i < cnnNetwork.getInputsInfo().size(); ++i) {
+            inLayout.push_back(inLayout.front());
         }
     }
-    int gapInPrc = cnnNetwork.getInputsInfo().size() - inPrc.size();
-    if (gapInPrc) {
-        auto inPrcDefaultValue = inPrc[0];
-        for (int i = 1; i <= gapInPrc; i++) {
-            inPrc.push_back(inPrcDefaultValue);
+    if (inPrc.size() == 1) {
+        for (size_t i = 1; i < cnnNetwork.getInputsInfo().size(); ++i) {
+            inPrc.push_back(inPrc.front());
         }
     }
 
-    int gapOutLayout = cnnNetwork.getOutputsInfo().size() - outLayout.size();
-    if (gapOutLayout) {
-        auto outLayoutDefaultValue = outLayout[0];
-        for (int i = 1; i <= gapOutLayout; i++) {
-            outLayout.push_back(outLayoutDefaultValue);
+    if (outLayout.size() == 1) {
+        for (size_t i = 1; i < cnnNetwork.getOutputsInfo().size(); ++i) {
+            outLayout.push_back(outLayout.front());
         }
     }
-    int gapOutPrc = cnnNetwork.getOutputsInfo().size() - outPrc.size();
-    if (gapOutPrc) {
-        auto outPrcDefaultValue = outPrc[0];
-        for (int i = 1; i <= gapOutPrc; i++) {
-            outPrc.push_back(outPrcDefaultValue);
+    if (outPrc.size() == 1) {
+        for (int i = 1; i < cnnNetwork.getOutputsInfo().size(); ++i) {
+            outPrc.push_back(outPrc.front());
         }
     }
 }
