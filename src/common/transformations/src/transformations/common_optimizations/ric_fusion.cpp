@@ -397,10 +397,8 @@ public:
         // a terminal node, so we do not propagate RIC attribute further and insert
         // final RIC attribute to the weights input.
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root =
-            pattern::wrap_type<opset8::Convolution>({input_p,
-                                                     pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>(
-                                                         pattern::has_static_dim(1 /*output channel*/))});
+        auto pattern_root = pattern::wrap_type<opset8::Convolution>(
+            {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
             auto ric = ric_attr::get(conv->input_value(0)).propagate();
@@ -704,21 +702,50 @@ public:
         register_matcher(m, callback);
     }
 };
-class Unsupported : public ngraph::pass::MatcherPass {
+
+class PassThrough : public ngraph::pass::MatcherPass {
 public:
-    Unsupported() {
-        MATCHER_SCOPE(Unsupported);
-        auto pattern_root = pattern::any_input();
+    PassThrough() {
+        MATCHER_SCOPE(PassThrough);
+        auto pattern_root = pattern::wrap_type<opset8::Convert>();
         auto callback = [=](pattern::Matcher& m) {
-            for (const auto& output : m.get_match_root()->outputs()) {
-                for (const auto& consumer : output.get_target_inputs()) {
-                    if (ric_attr::has(consumer)) {
-                        auto ric = ric_attr::get(consumer);
-                        ric.set_can_be_fused(false);
-                        NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
-                    }
+            auto root = m.get_match_root();
+            const auto& output = root->output(0);
+            auto consumers = output.get_target_inputs();
+            std::vector<ric_attr::Attribute> attrs;
+
+            for (const auto& consumer : consumers) {
+                if (ric_attr::has(consumer)) {
+                    attrs.push_back(ric_attr::get(consumer).propagate());
+                } else {
+                    return false;
                 }
             }
+
+            auto ric = attrs[0];
+            auto rank = root->get_output_partial_shape(0).rank();
+            if (rank.is_dynamic())
+                return false;
+            auto data_rank = rank.get_length();
+
+            for (const auto& item : attrs) {
+                if (ric.can_be_merged_with(item)) {
+                    ric.merge_with(item);
+                } else {
+                    return false;
+                }
+            }
+            auto input = root->input(0);
+            auto const_output = input.get_source_output();
+            const auto& shape = const_output.get_shape();
+            const int64_t& shape_rank = static_cast<int64_t>(shape.size());
+
+            const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
+
+            // finally, insert RIC
+            auto ric_const = ric;
+            ric_const.set_axis(new_axis);
+            ric_attr::set(input, ric_const);
             return true;
         };
 
@@ -726,6 +753,7 @@ public:
         register_matcher(m, callback);
     }
 };
+
 class Constant : public ngraph::pass::MatcherPass {
 public:
     Constant() {
@@ -749,6 +777,30 @@ public:
         register_matcher(m, callback);
     }
 };
+
+class Unsupported : public ngraph::pass::MatcherPass {
+public:
+    Unsupported() {
+        MATCHER_SCOPE(Unsupported);
+        auto pattern_root = pattern::any_input();
+        auto callback = [=](pattern::Matcher& m) {
+            for (const auto& output : m.get_match_root()->outputs()) {
+                for (const auto& consumer : output.get_target_inputs()) {
+                    if (ric_attr::has(consumer)) {
+                        auto ric = ric_attr::get(consumer);
+                        ric.set_can_be_fused(false);
+                        NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+                    }
+                }
+            }
+            return true;
+        };
+
+        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 }  // namespace back_prop
 
 bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -769,6 +821,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
 
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
     ric_back_prop->add_matcher<back_prop::Binary>();
+    ric_back_prop->add_matcher<back_prop::PassThrough>();
     ric_back_prop->add_matcher<back_prop::Constant>();
     ric_back_prop->add_matcher<back_prop::Unsupported>();
     // TODO: validate attributes by request
