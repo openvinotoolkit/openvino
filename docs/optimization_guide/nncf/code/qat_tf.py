@@ -39,9 +39,26 @@ compression_ctrl.export_model("compressed_model.pb", save_format='frozen_graph')
 #! [export] 
 
 #! [save_checkpoint]
-compression_ctrl.export_model("compressed_model", save_format='saved_model')
+from nncf.tensorflow.utils.state import TFCompressionState
+
+checkpoint = tf.train.Checkpoint(model=model,
+                                 compression_state=TFCompressionState(compression_ctrl),
+                                 ...)
+callbacks = []
+callbacks.append(CheckpointManagerCallback(checkpoint, path_to_checkpoint))
+...
+model.fit(..., callbacks=callbacks)
 #! [save_checkpoint]
 
 #! [load_checkpoint]
-compression_ctrl.export_model("compressed_model", save_format='saved_model')
+from nncf.tensorflow.utils.state import TFCompressionStateLoader
+
+checkpoint = tf.train.Checkpoint(compression_state=TFCompressionStateLoader())
+checkpoint.restore(path_to_checkpoint)
+compression_state = checkpoint.compression_state.state
+
+compression_ctrl, model = create_compressed_model(model, nncf_config, compression_state)
+checkpoint = tf.train.Checkpoint(model=model,
+                                 ...)
+checkpoint.restore(path_to_checkpoint)
 #! [load_checkpoint]

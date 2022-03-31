@@ -35,11 +35,24 @@ for epoch in range(0, 5):
     train(train_loader, model, criterion, optimizer, epoch)
 #! [tune_model]
 
-#! [save_checkpoint]
-torch.save(compressed_model.state_dict(), "compressed_model.pth")
-#! [save_checkpoint]
-
 #! [export]
 compression_ctrl.export_model("compressed_model.onnx")
 #! [export] 
+
+#! [save_checkpoint]
+checkpoint = {
+    'state_dict': model.state_dict(),
+    'compression_state': compression_ctrl.get_compression_state(),
+    ...
+}
+torch.save(checkpoint, path_to_checkpoint)
+#! [save_checkpoint]
+
+#! [load_checkpoint]
+resuming_checkpoint = torch.load(path_to_checkpoint)
+compression_state = resuming_checkpoint['compression_state'] 
+compression_ctrl, model = create_compressed_model(model, nncf_config, compression_state=compression_state)
+state_dict = resuming_checkpoint['state_dict'] 
+model.load_state_dict(state_dict)
+#! [load_checkpoint]
 
