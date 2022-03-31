@@ -346,13 +346,18 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
 }
 
 // FrontEndManager exception safety
-#define CHECK_EXCEPTION_FRONTEND(statement)        \
-    EXPECT_ANY_THROW({                             \
-        FrontEndManager fem;                       \
-        auto fe = fem.load_by_framework("mock1");  \
-        auto input_model = fe->load("throw_next"); \
-        statement;                                 \
-    });
+#define CHECK_EXCEPTION_FRONTEND(statement)                                                             \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_next");                                                      \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (std::exception & error) {                                                                  \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
 
 TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Load_By_Framework) {
     EXPECT_ANY_THROW({
@@ -391,13 +396,18 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Decode) {
 
 // InputModel exception safety
 
-#define CHECK_EXCEPTION_INPUT_MODEL(statement)      \
-    EXPECT_ANY_THROW({                              \
-        FrontEndManager fem;                        \
-        auto fe = fem.load_by_framework("mock1");   \
-        auto input_model = fe->load("throw_model"); \
-        statement;                                  \
-    });
+#define CHECK_EXCEPTION_INPUT_MODEL(statement)                                                          \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_model");                                                     \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (std::exception & error) {                                                                  \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
 
 TEST(FrontEndManagerTest,
      Exception_Safety_Input_Model_get_inputs){CHECK_EXCEPTION_INPUT_MODEL(input_model->get_inputs())}

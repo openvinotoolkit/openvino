@@ -133,20 +133,20 @@ class FrontEndMock : public FrontEnd {
 
 public:
     std::string get_name() const override {
-        OPENVINO_ASSERT(!m_throw_next, "Throw on get_name");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
         return "mock1";
     }
 
     bool supported_impl(const std::vector<ov::Any>& variants) const override {
         if (variants.size() == 1 && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
-            OPENVINO_ASSERT(command != "throw_now", "Test throw exception");
+            OPENVINO_ASSERT(command != "throw_now", "Test exception");
         }
         return false;
     }
 
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
-        OPENVINO_ASSERT(!m_throw_next, "Test_throw_exception");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
     }
 
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
@@ -165,21 +165,25 @@ public:
     }
 
     std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test throwing exception");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
         return nullptr;
     }
 
     std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test throwing exception");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
         return nullptr;
     }
 
+    void convert(const std::shared_ptr<ov::Model>& model) const override {
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
+    }
+
     void normalize(const std::shared_ptr<ov::Model>& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test throwing exception");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
     }
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
-        OPENVINO_ASSERT(!m_throw_next, "Test throwing exception");
+        OPENVINO_ASSERT(!m_throw_next, "Test exception");
         auto shape = Shape{1, 2, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         std::vector<float> data(ov::shape_size(shape), 1.f);
