@@ -28,6 +28,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests
 namespace ov {
@@ -42,7 +43,7 @@ using OVInferRequestDynamicParams = std::tuple<
 >;
 
 class OVInferRequestDynamicTests : public testing::WithParamInterface<OVInferRequestDynamicParams>,
-                                   public CommonTestUtils::TestsCommon {
+                                   virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj);
 

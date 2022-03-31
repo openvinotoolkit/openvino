@@ -27,7 +27,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
