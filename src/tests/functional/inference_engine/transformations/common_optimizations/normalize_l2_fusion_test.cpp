@@ -201,3 +201,141 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 }
+
+TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMul) {
+    const float eps_value = 0.000099f;
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto power_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {-0.5f});
+        auto unsqrt = std::make_shared<ngraph::opset8::Power>(max, power_const);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, unsqrt);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    }
+
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto normalize_l2 =
+            std::make_shared<ngraph::opset4::NormalizeL2>(input, axes_const, eps_value, ngraph::op::EpsMode::MAX);
+
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMulIncorrectSecondExp) {
+    const float eps_value = 0.000099f;
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto power_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {-0.6f});
+        auto unsqrt = std::make_shared<ngraph::opset8::Power>(max, power_const);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, unsqrt);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    }
+
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto power_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {-0.6f});
+        auto unsqrt = std::make_shared<ngraph::opset8::Power>(max, power_const);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, unsqrt);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
+    const float eps_value = 0.000099f;
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt_exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.5f});
+        auto sqrt = std::make_shared<ngraph::opset4::Power>(max, sqrt_exp);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
+
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    }
+
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto normalize_l2 =
+            std::make_shared<ngraph::opset4::NormalizeL2>(input, axes_const, eps_value, ngraph::op::EpsMode::MAX);
+
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPowerIncorrectPowerExp) {
+    const float eps_value = 0.0009f;
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt_exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.9f});
+        auto sqrt = std::make_shared<ngraph::opset4::Power>(max, sqrt_exp);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
+
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    }
+
+    {
+        auto input =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
+        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
+        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
+        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
+        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
+        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
+        auto sqrt_exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.9f});
+        auto sqrt = std::make_shared<ngraph::opset4::Power>(max, sqrt_exp);
+        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
+    }
+}
