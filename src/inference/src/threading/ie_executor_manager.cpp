@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "threading/ie_executor_manager.hpp"
-
 #include <memory>
+#include <mutex>
 #include <string>
+#include <threading/ie_cpu_streams_executor.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include <utility>
-
-#include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
 namespace {
@@ -90,14 +89,33 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
+namespace {
+
+class ExecutorManagerHolder {
+    std::mutex _mutex;
+    std::weak_ptr<ExecutorManager> _manager;
+
+public:
+    ExecutorManagerHolder() = default;
+
+    ExecutorManager::Ptr get() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto manager = _manager.lock();
+        if (!manager)
+            _manager = manager = std::make_shared<ExecutorManagerImpl>();
+        return manager;
+    }
+};
+
+}  // namespace
+
 ExecutorManager::Ptr executorManager() {
-    static auto manager = std::make_shared<ExecutorManagerImpl>();
-    return manager;
+    static ExecutorManagerHolder executorManagerHolder;
+    return executorManagerHolder.get();
 }
 
 ExecutorManager* ExecutorManager::getInstance() {
-    static auto ptr = executorManager().get();
-    return ptr;
+    return executorManager().get();
 }
 
 }  // namespace InferenceEngine
