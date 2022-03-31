@@ -9,12 +9,10 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import OVAny
-
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
-from openvino.runtime import Tensor
+from openvino.runtime import Tensor, OVAny
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime

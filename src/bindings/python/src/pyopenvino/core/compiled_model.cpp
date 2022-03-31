@@ -7,11 +7,10 @@
 #include <pybind11/iostream.h>
 #include <pybind11/stl.h>
 
-#include <pyopenvino/graph/any.hpp>
-
 #include "common.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
 PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
@@ -148,9 +147,9 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -166,7 +165,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+            return Common::utils::from_ov_any(self.get_property(name));
         },
         py::arg("name"),
         R"(

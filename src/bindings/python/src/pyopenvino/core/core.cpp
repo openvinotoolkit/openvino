@@ -10,9 +10,9 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
-#include <pyopenvino/graph/any.hpp>
 
 #include "common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -35,9 +35,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -52,9 +52,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -388,7 +388,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
+            return Common::utils::from_ov_any(self.get_property(device_name, name));
         },
         py::arg("device_name"),
         py::arg("name"),

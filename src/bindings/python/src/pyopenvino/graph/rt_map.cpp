@@ -4,6 +4,7 @@
 
 #include "pyopenvino/graph/rt_map.hpp"
 
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
@@ -18,6 +19,7 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -37,7 +39,7 @@ void regclass_graph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
-        return Common::from_ov_any(m[k]).as<py::object>();
+        return Common::utils::from_ov_any(m[k]);
     });
     py_map.def(
         "__bool__",

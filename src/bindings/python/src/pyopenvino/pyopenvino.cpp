@@ -26,7 +26,6 @@
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"
-#include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
@@ -199,7 +198,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
-    regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
