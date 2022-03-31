@@ -122,7 +122,7 @@ def main():
 
         # Set a GNA scale factor
         if args.import_gna_model:
-            if args.scale_factor:
+            if args.scale_factor[1]:
                 log.error(f'Custom scale factor can not be set for imported gna model: {args.import_gna_model}')
                 return 1
             else:
