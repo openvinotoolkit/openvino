@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
 namespace v9 {
-class OPENVINO_API SoftSign : public Op {
+class OPENVINO_API SoftSign : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SoftSign", "opset9");
     BWDCMP_RTTI_DECLARATION;
@@ -24,7 +24,6 @@ public:
     SoftSign(const Output<Node>& arg);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
