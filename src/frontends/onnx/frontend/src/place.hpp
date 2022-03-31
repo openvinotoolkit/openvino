@@ -9,15 +9,23 @@
 #include <openvino/frontend/place.hpp>
 #include <sstream>
 
+#include "place_cache.hpp"
+
 namespace ov {
 namespace frontend {
 namespace onnx {
 
-class PlaceInputEdge : public Place {
+class PlaceOnnx : public Place {
 public:
-    PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    void invalidate();
+    void check_if_valid() const;
 
+private:
+    bool m_invalidated = false;
+};
+
+class PlaceInputEdge : public PlaceOnnx {
+public:
     // internal usage
     onnx_editor::InputEdge get_input_edge() const;
 
@@ -33,15 +41,22 @@ public:
     Place::Ptr get_producing_port() const override;
 
 private:
+    friend class PlaceCache;
+    PlaceInputEdge(const onnx_editor::InputEdge& edge,
+                   std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                   std::shared_ptr<PlaceCache> place_cache);
+    PlaceInputEdge(onnx_editor::InputEdge&& edge,
+                   std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                   std::shared_ptr<PlaceCache> place_cache);
+
+private:
     onnx_editor::InputEdge m_edge;
     const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<PlaceCache> m_place_cache;
 };
 
-class PlaceOutputEdge : public Place {
+class PlaceOutputEdge : public PlaceOnnx {
 public:
-    PlaceOutputEdge(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-
     // internal usage
     onnx_editor::OutputEdge get_output_edge() const;
 
@@ -57,15 +72,22 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
 private:
+    friend class PlaceCache;
+    PlaceOutputEdge(const onnx_editor::OutputEdge& edge,
+                    std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                    std::shared_ptr<PlaceCache> place_cache);
+    PlaceOutputEdge(onnx_editor::OutputEdge&& edge,
+                    std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                    std::shared_ptr<PlaceCache> place_cache);
+
+private:
     onnx_editor::OutputEdge m_edge;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<PlaceCache> m_place_cache;
 };
 
-class PlaceTensor : public Place {
+class PlaceTensor : public PlaceOnnx {
 public:
-    PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-
     // external usage
     std::vector<std::string> get_names() const override;
     Place::Ptr get_producing_port() const override;
@@ -81,14 +103,22 @@ public:
     void set_name_for_dimension(size_t shape_dim_index, const std::string& dim_name);
 
 private:
+    friend class PlaceCache;
+    PlaceTensor(const std::string& name,
+                std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                std::shared_ptr<PlaceCache> place_cache);
+    PlaceTensor(std::string&& name,
+                std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+                std::shared_ptr<PlaceCache> place_cache);
+
+private:
     std::string m_name;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<PlaceCache> m_place_cache;
 };
 
-class PlaceOp : public Place {
+class PlaceOp : public PlaceOnnx {
 public:
-    PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
     std::vector<std::string> get_names() const override;
 
     // internal usage
@@ -126,8 +156,18 @@ public:
     bool is_output() const override;
 
 private:
+    friend class PlaceCache;
+    PlaceOp(const onnx_editor::EditorNode& node,
+            std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+            std::shared_ptr<PlaceCache> place_cache);
+    PlaceOp(onnx_editor::EditorNode&& node,
+            std::shared_ptr<onnx_editor::ONNXModelEditor> editor,
+            std::shared_ptr<PlaceCache> place_cache);
+
+private:
     onnx_editor::EditorNode m_node;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<PlaceCache> m_place_cache;
 };
 
 }  // namespace onnx

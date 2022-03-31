@@ -9,6 +9,7 @@
 #include <openvino/frontend/input_model.hpp>
 
 #include "openvino/frontend/extension/holder.hpp"
+#include "place_cache.hpp"
 
 namespace ov {
 namespace frontend {
@@ -78,6 +79,8 @@ public:
 
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<PlaceCache> m_place_cache;
+
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;

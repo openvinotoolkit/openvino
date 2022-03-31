@@ -16,18 +16,22 @@ using namespace ov::frontend::onnx;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))},
+      m_place_cache{std::make_shared<PlaceCache>(m_editor)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))},
+      m_place_cache{std::make_shared<PlaceCache>(m_editor)} {}
 #endif
 
 InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))},
+      m_place_cache{std::make_shared<PlaceCache>(m_editor)} {}
 
 InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))},
+      m_place_cache{std::make_shared<PlaceCache>(m_editor)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
@@ -39,7 +43,7 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     std::vector<ov::frontend::Place::Ptr> in_places;
     in_places.reserve(inputs.size());
     for (const auto& input : inputs) {
-        in_places.push_back(std::make_shared<PlaceTensor>(input, m_editor));
+        in_places.push_back(m_place_cache->get_tensor_place(input));
     }
     return in_places;
 }
@@ -49,14 +53,14 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
     std::vector<ov::frontend::Place::Ptr> out_places;
     out_places.reserve(outputs.size());
     for (const auto& output : outputs) {
-        out_places.push_back(std::make_shared<PlaceTensor>(output, m_editor));
+        out_places.push_back(m_place_cache->get_tensor_place(output));
     }
     return out_places;
 }
 
 ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
     if (m_editor->is_correct_tensor_name(tensor_name)) {
-        return std::make_shared<PlaceTensor>(tensor_name, m_editor);
+        return m_place_cache->get_tensor_place(tensor_name);
     }
     return nullptr;
 }
@@ -64,7 +68,7 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
         const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
-        return std::make_shared<PlaceOp>(onnx_editor::EditorNode{node_index}, m_editor);
+        return m_place_cache->get_op_place(onnx_editor::EditorNode{node_index});
     }
     return nullptr;
 }
@@ -295,6 +299,12 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
     std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
 
     m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
+
+    for (auto& place : m_place_cache->get_cached_places()) {
+        if (auto onnx_place = std::dynamic_pointer_cast<PlaceOnnx>(place)) {
+            onnx_place->invalidate();
+        }
+    }
 }
 
 ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& place) {
@@ -325,7 +335,7 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
         return nullptr;
     }
 
-    return std::make_shared<PlaceTensor>(name, m_editor);
+    return m_place_cache->get_tensor_place(name);
 }
 
 void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
