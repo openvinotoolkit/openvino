@@ -53,7 +53,7 @@ function getURLParameter(name) {
 function search(query, selectedVersion, page, key) {
     // make a query to Google Search API and render the results
     var start = getStartIndex(page); // get start index from page number
-    var documentationHost = documentationHost || 'https://docs.openvinotoolkit.org';
+    var documentationHost = 'https://docs.openvino.ai';
     if (selectedVersion === 'ALL') {
       var siteSearch = documentationHost;
     }
@@ -75,8 +75,6 @@ function search(query, selectedVersion, page, key) {
             })
         }).then(function(response) {
             handleResponse(response, selectedVersion, hasPot);
-            // store the response in sessionStorage
-            sessionStorage.setItem(key, JSON.stringify(response));
         }, function(err) {
             console.log(err);
             handleNoResults();
@@ -374,13 +372,5 @@ $(document).ready(function() {
     }
     catch(err) {};
   }
-  
-  // if data is found in the storage render it
-  // otherwise load query data using api
-  if (!$.isEmptyObject(data)) {
-    handleResponse(data, selectedVersion);
-  }
-  else {
-    gapi.load('client', search(query, selectedVersion,page, key));
-  }
+  gapi.load('client', search(query, selectedVersion,page, key));
 });
