@@ -142,7 +142,7 @@ protected:
         return core;
     }
 
-    virtual void AlignParameters();
+    virtual void InitInputsAndOutputs();
 
     virtual void ConfigureNetwork();
 

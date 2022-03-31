@@ -32,7 +32,7 @@ protected:
     virtual void compare(const std::vector<ov::Tensor> &expected,
                          const std::vector<ov::Tensor> &actual);
 
-    virtual void align_parameters();
+    virtual void init_inputs_and_outputs();
     virtual void configure_model();
     virtual void compile_model();
     virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);

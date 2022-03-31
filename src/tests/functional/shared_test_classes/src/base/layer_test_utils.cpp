@@ -340,7 +340,7 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
     ASSERT_EQ(actualDesc.getPrecision(), expectedDesc.getPrecision());
 }
 
-void LayerTestsCommon::AlignParameters() {
+void LayerTestsCommon::InitInputsAndOutputs() {
     int gapInLayout = cnnNetwork.getInputsInfo().size() - inLayout.size();
     if (gapInLayout) {
         auto inLayoutDefaultValue = inLayout[0];
@@ -373,7 +373,7 @@ void LayerTestsCommon::AlignParameters() {
 }
 
 void LayerTestsCommon::ConfigureNetwork() {
-    AlignParameters();
+    InitInputsAndOutputs();
 
     int inputCnt = 0;
     for (const auto &in : cnnNetwork.getInputsInfo()) {

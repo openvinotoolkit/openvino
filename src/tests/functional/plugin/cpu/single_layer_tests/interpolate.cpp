@@ -128,7 +128,7 @@ public:
     }
 
     void configure_model() override {
-        align_parameters();
+        init_inputs_and_outputs();
         ov::preprocess::PrePostProcessor p(function);
         {
             auto& params = function->get_parameters();

@@ -176,7 +176,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
     }
 }
 
-void SubgraphBaseTest::align_parameters() {
+void SubgraphBaseTest::init_inputs_and_outputs() {
     ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
@@ -202,7 +202,7 @@ void SubgraphBaseTest::align_parameters() {
 
 void SubgraphBaseTest::configure_model() {
     // align number of inputs outputs attributes to tensor inputs outputs
-    align_parameters();
+    init_inputs_and_outputs();
 
     // configure input precision
     ov::preprocess::PrePostProcessor p(function);
