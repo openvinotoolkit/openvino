@@ -121,6 +121,14 @@ def test_softmax_negative_axis():
     assert np.allclose(result, expected)
 
 
+def test_softsign():
+    input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
+    result = run_op_node([input_tensor], ng.softsign)
+    expected = [-0.5, 0.0, 0.5, 0.714285, 0, 758454, 0.8]
+
+    assert np.allclose(result, expected)
+
+
 def test_erf():
     input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
     expected = [-0.842701, 0.0, 0.842701, 0.999593, 0.999991, 1.0]

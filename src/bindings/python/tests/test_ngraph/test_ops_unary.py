@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset9 as ov
 from openvino.runtime import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -117,6 +117,14 @@ def test_softmax_negative_axis():
     result = run_op_node([input_tensor], ov.softmax, axis)
 
     expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
+
+    assert np.allclose(result, expected)
+
+
+def test_softsign():
+    input_tensor = np.array([-1.0, 0.0, 1.0, 2.5, 3.14, 4.0], dtype=np.float32)
+    result = run_op_node([input_tensor], ov.softsign)
+    expected = [-0.5, 0.0, 0.5, 0.714285, 0,758454, 0.8]
 
     assert np.allclose(result, expected)
 
