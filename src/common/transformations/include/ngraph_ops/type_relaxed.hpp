@@ -266,7 +266,8 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
         if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
-            original_outputs[i] = ov::Tensor(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i).get_shape());
+            original_outputs[i] =
+                ov::Tensor(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i).get_shape());
         }
     }
 
