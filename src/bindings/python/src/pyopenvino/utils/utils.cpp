@@ -4,6 +4,19 @@
 
 #include "pyopenvino/utils/utils.hpp"
 
+#include <pybind11/stl.h>
+
+#include <map>
+#include <string>
+#include <tuple>
+#include <vector>
+
+#include "Python.h"
+#include "openvino/runtime/properties.hpp"
+
+namespace Common {
+namespace utils {
+
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
@@ -138,3 +151,5 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast<py::object>((PyObject*)NULL);
     }
 }
+};  // namespace utils
+};  // namespace Common
