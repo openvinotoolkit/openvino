@@ -17,6 +17,8 @@ if(ENABLE_TBBBIND_2_5)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
+    else()
+        message(WARNING "Static tbbbind_2_5 package is not found")
     endif()
 endif()
 
@@ -38,7 +40,7 @@ endif()
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
-    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBB} OR ENABLE_SYSTEM_TBB))
+    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBBROOT} OR ENABLE_SYSTEM_TBB))
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
@@ -59,9 +61,21 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         # need to take locations of actual libraries and install them
         foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
             get_target_property(tbb_loc ${tbb_lib} IMPORTED_LOCATION_RELEASE)
-            install(FILES "${tbb_loc}"
-                    DESTINATION runtime/3rdparty/tbb/lib
-                    COMPONENT tbb ${exclude_from_all})
+            # depending on the TBB, tbb_loc can be in form:
+            # - libtbb.so.x.y
+            # - libtbb.so.x
+            # - libtbb.so
+            # We need to install such files
+            get_filename_component(name_we "${tbb_loc}" NAME_WE)
+            get_filename_component(dir "${tbb_loc}" DIRECTORY)
+            file(GLOB tbb_files "${dir}/${name_we}.*")
+            foreach(tbb_file IN LISTS tbb_files)
+                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                    install(FILES "${tbb_file}"
+                            DESTINATION runtime/3rdparty/tbb/lib
+                            COMPONENT tbb ${exclude_from_all})
+                endif()
+            endforeach()
         endforeach()
     else()
         if(WIN32)

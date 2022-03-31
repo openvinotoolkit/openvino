@@ -107,16 +107,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        if(ENABLE_TBBBIND_2_5)
-            RESOLVE_DEPENDENCY(TBBBIND_2_5
-                    ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
-                    TARGET_PATH "${TEMP}/tbbbind_2_5"
-                    ENVIRONMENT "TBBBIND_2_5_ROOT"
-                    SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
-        else()
-            message(WARNING "prebuilt TBBBIND_2_5 is not available.
-    Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
-        endif()
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -129,16 +119,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        if(ENABLE_TBBBIND_2_5)
-            RESOLVE_DEPENDENCY(TBBBIND_2_5
-                    ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
-                    TARGET_PATH "${TEMP}/tbbbind_2_5"
-                    ENVIRONMENT "TBBBIND_2_5_ROOT"
-                    SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
-        else()
-            message(WARNING "prebuilt TBBBIND_2_5 is not available.
-    Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
-        endif()
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -174,6 +154,38 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
+
+    if(DEFINED IE_PATH_TO_DEPS)
+        unset(IE_PATH_TO_DEPS)
+    endif()
+endif()
+
+## TBBBind_2_5 package
+if(ENABLE_TBBBIND_2_5)
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    endif()
+
+    if(WIN32 AND X86_64)
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+    else()
+        message(WARNING "prebuilt TBBBIND_2_5 is not available.
+Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+    endif()
+
+    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
 
     if(DEFINED IE_PATH_TO_DEPS)
         unset(IE_PATH_TO_DEPS)
