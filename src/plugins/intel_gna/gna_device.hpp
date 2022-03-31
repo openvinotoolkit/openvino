@@ -47,6 +47,7 @@ class GNADeviceHelper {
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
     bool isGnaLibVersion2_1 = false;
     bool isGnaLibVersion3_0 = false;
+    uint16_t layersCountMax = 1;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -86,6 +87,22 @@ public:
         if (gnaLibVersion.rfind("3.0", 0) == 0) {
             isGnaLibVersion3_0 = true;
         }
+
+        // set maximal layers amount depending on HW version
+        switch (getTargetDevice(true)) {
+            case Gna2DeviceVersion1_0 :
+                layersCountMax = 1023;
+                break;
+            case Gna2DeviceVersion2_0 :
+                layersCountMax = 4086;
+                break;
+            case Gna2DeviceVersion3_0 :
+            case Gna2DeviceVersion3_5 :
+                layersCountMax = 8191;
+                break;
+            default:
+                layersCountMax = 8191;
+        }
     }
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
@@ -103,6 +120,7 @@ public:
     uint32_t createModel(Gna2Model& gnaModel) const;
     void releaseModel(const uint32_t model_id);
     uint32_t createRequestConfig(const uint32_t model_id);
+    uint16_t getLayerCountMax();
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
     static bool isGnaHw(const Gna2DeviceVersion dev) {

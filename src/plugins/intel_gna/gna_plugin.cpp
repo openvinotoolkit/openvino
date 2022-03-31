@@ -452,7 +452,7 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
     }
 }
 
-void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model) {
+void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFModel");
 
     // update inputs
@@ -630,7 +630,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
-void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(const CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
@@ -1004,59 +1004,36 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
     }
 
-    if (gnaFlags->exclusive_async_requests == 1) {
-        auto numberOfOperations = std::get<0>(gnaModels.front())->obj.NumberOfOperations;
-        /// actual trim of array
-        auto fullModelHold = std::get<0>(gnaModels.front());
-        auto fullModel = fullModelHold->obj;
-        auto layersLimit = 100;
-        std::cout << "[DEBUG]: " << "gna operations: " << numberOfOperations << std::endl;
-        std::cout << "[DEBUG]: " << "gna operations limit: " << layersLimit << std::endl;
-        gnaModels.resize((numberOfOperations + layersLimit - 1) / layersLimit);
-        std::cout << "[DEBUG]: " << "models count: " << gnaModels.size() << std::endl;
-        for (int i = 0; i != gnaModels.size(); i++) {
-            auto startIdx = layersLimit * i;
-            auto operationsThisBatch  =
-                    ((i + 1) == gnaModels.size()) ? (numberOfOperations - startIdx) : layersLimit;
-            gnaModels[i] = std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(operationsThisBatch));
-            for (int j = 0; j != operationsThisBatch; j++) {
-                /// transferring operations from full model
-                auto & newOp = std::get<0>(gnaModels[i]);
-                CPPWrapper<Gna2Model>::moveOperation(&newOp->obj.Operations[j], &fullModel.Operations[startIdx + j]);
+    // creating same gna RW segment for parallel infer requests
+    for (int i = 1; i != gnaFlags->num_requests; i++) {
+        gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
+        // this can be improved by just copy all structures, but we are too lazy
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
+        // relocate rw pointers to new offset
+        auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
+
+        auto relocate = [basePtr, this](void *& ptr_out, void * ptr_in) {
+            if (ptr_in == nullptr) {
+                ptr_out = nullptr;
+            } else {
+                auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
+                ptr_out = basePtr + offset;
             }
+        };
+
+        for (auto &input : inputs_ptr_->Get()) {
+            relocate(input.ptrs[i], input.ptrs[0]);
         }
-    } else {
-        // creating same gna RW segment for parallel infer requests
-        for (int i = 1; i != gnaFlags->num_requests; i++) {
-            gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
-            // this can be improved by just copy all structures, but we are too lazy
-            dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
-            // relocate rw pointers to new offset
-            auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
 
-            auto relocate = [basePtr, this](void *& ptr_out, void * ptr_in) {
-                if (ptr_in == nullptr) {
-                    ptr_out = nullptr;
-                } else {
-                    auto offset = reinterpret_cast<uint8_t *>(ptr_in) - reinterpret_cast<uint8_t *>(gnamem->getBasePtr());
-                    ptr_out = basePtr + offset;
-                }
-            };
+        // relocating all output pointers
+        for (auto &output : outputs_.Get()) {
+            relocate(output.ptrs[i], output.ptrs[0]);
+        }
 
-            for (auto &input : inputs_ptr_->Get()) {
-                relocate(input.ptrs[i], input.ptrs[0]);
-            }
-
-            // relocating all output pointers
-            for (auto &output : outputs_.Get()) {
-                relocate(output.ptrs[i], output.ptrs[0]);
-            }
-
-            for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
-                auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
-                relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
-                relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
-            }
+        for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
+            auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
+            relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
+            relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
         }
     }
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
@@ -1137,8 +1114,34 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
         return;
     }
+
+    // split the model only for one infer request
+    if (gnaModels.size() == 1) {
+        auto model_holder = std::get<0>(gnaModels.front());
+        Gna2Model gna_model_full = model_holder->obj;
+        uint32_t ops_number = gna_model_full.NumberOfOperations;
+        uint16_t layers_limit = gnadevice->getLayerCountMax();
+        std::cout << "[DEBUG]: " << "gna operations: " << ops_number << std::endl;
+        std::cout << "[DEBUG]: " << "gna operations limit: " << layers_limit << std::endl;
+        gnaModels.resize((ops_number + layers_limit - 1) / layers_limit);
+        std::cout << "[DEBUG]: " << "models count: " << gnaModels.size() << std::endl;
+        for (int i = 0; i != gnaModels.size(); i++) {
+            size_t start_idx = layers_limit * i;
+            auto ops_batch  = ((i + 1) == gnaModels.size()) ? (ops_number - start_idx) : layers_limit;
+            gnaModels[i] = std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(ops_batch));
+            for (int j = 0; j != ops_batch; j++) {
+                /// transferring operations from full model
+                dnn_ptr & gna_model_part = std::get<0>(gnaModels[i]);
+                CPPWrapper<Gna2Model>::moveOperation(&gna_model_part->obj.Operations[j], &gna_model_full.Operations[start_idx + j]);
+            }
+        }
+    }
+
     for (auto& model : gnaModels) {
         auto& gnaNnet = std::get<0>(model).get()->obj;
+        if (gnaNnet.NumberOfOperations > gnadevice->getLayerCountMax()) {
+            THROW_GNA_EXCEPTION << "The GNA model exceeds the maximal layers amount (" << gnadevice->getLayerCountMax() << ")";
+        }
         const auto modelId = gnadevice->createModel(gnaNnet);
         const auto requestConfigId = gnadevice->createRequestConfig(modelId);
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
