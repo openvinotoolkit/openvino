@@ -4,11 +4,11 @@
 
 **Category**: *Arithmetic binary*
 
-**Short description**: *Divide* performs element-wise division operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
+**Short description**: *Divide* performs element-wise division operation with two given tensors, applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-After broadcasting *Divide* performs division operation for the input tensors *a* and *b* using the formula below:
+After broadcasting, *Divide* performs division operation for the input tensors *a* and *b*, using the formula below:
 
 \f[
 o_{i} = \frac{a_{i}}{b_{i}}
@@ -20,7 +20,7 @@ The result of division by zero is undefined.
 
 * *m_pythondiv*
 
-  * **Description**: specifies if floor division should be calculate. This attribute is supported only for integer data types.
+  * **Description**: specifies if floor division should be calculated. This attribute is supported only for integer data types.
   * **Range of values**:
     * false - regular division
     * true - floor division
