@@ -637,7 +637,9 @@ def append_ir_info(file: str,
                    mean_data: [list, None] = None,
                    input_names: list = None,
                    legacy_path: bool = True):
-    path_to_xml = file + ".xml"
+    path_to_xml = file
+    if not path_to_xml.endswith(".xml"):
+        path_to_xml = file + ".xml"
     path_to_bin = file + ".bin"
 
     et = ET.parse(path_to_xml)
