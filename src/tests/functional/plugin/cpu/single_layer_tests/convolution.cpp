@@ -1274,6 +1274,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerCh
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
                                  ::testing::Values(fusingScaleShiftAndFakeQuantizePerChannel),
+                                 ::testing::Values(false),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
