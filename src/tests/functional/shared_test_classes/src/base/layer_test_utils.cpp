@@ -23,14 +23,6 @@ namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
-    inLayout.reserve(10);
-    inLayout.push_back(InferenceEngine::Layout::ANY);
-    outLayout.reserve(10);
-    outLayout.push_back(InferenceEngine::Layout::ANY);
-    inPrc.reserve(10);
-    inPrc.push_back(InferenceEngine::Precision::UNSPECIFIED);
-    outPrc.reserve(10);
-    outPrc.push_back(InferenceEngine::Precision::UNSPECIFIED);
 }
 
 void LayerTestsCommon::Run() {
