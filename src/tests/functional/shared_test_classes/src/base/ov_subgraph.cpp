@@ -173,21 +173,17 @@ void SubgraphBaseTest::init_inputs_and_outputs() {
     ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
-        size_t gapSize = params.size() - inType.size();
-        if (gapSize) {
-            auto inTypeDefaultValue = inType[0];
-            for (size_t i = 1; i <= gapSize; i++) {
-                inType.push_back(inTypeDefaultValue);
+        if (inType.size() == 1) {
+            for (size_t i = 1; i < params.size(); ++i) {
+                inType.push_back(inType.front());
             }
         }
     }
     {
         auto& results = function->get_results();
-        size_t gapSize = results.size() - outType.size();
-        if (gapSize) {
-            auto outTypeDefaultValue = outType[0];
-            for (size_t i = 1; i <= gapSize; i++) {
-                outType.push_back(outTypeDefaultValue);
+        if (outType.size() == 1) {
+            for (size_t i = 1; i < results.size(); ++i) {
+                outType.push_back(outType.front());
             }
         }
     }
