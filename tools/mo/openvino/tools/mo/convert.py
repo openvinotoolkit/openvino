@@ -411,10 +411,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+    # needed for tmp IR generation
+    output_dir = os.getcwd()
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
+                    output_dir=output_dir,
                     output_model_name=argv.model_name,
                     mean_data=mean_data,
                     input_names=input_names,
@@ -425,7 +427,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
-        output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+        # needed for tmp IR generation
+        output_dir = os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         return_code = "not executed"
@@ -758,7 +761,6 @@ def convert(
         input_model,
         framework=None,
         model_name=None,
-        output_dir=None,
         input_shape=None,
         scale=None,
         reverse_input_channels=None,
@@ -811,7 +813,6 @@ def convert(
         input_model=path_to_str(input_model),
         framework=framework,
         model_name=model_name,
-        output_dir=path_to_str(output_dir),
         input_shape=input_shape_to_str(input_shape),
         scale=scale,
         reverse_input_channels=reverse_input_channels,

@@ -41,7 +41,6 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
         argv.input_model,
         framework,
         model_name,
-        argv.output_dir,
         argv.input_shape,
         argv.scale,
         argv.reverse_input_channels,

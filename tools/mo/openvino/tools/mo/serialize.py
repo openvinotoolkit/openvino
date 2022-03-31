@@ -1,9 +1,38 @@
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.utils.cli_parser import get_meta_info
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.version import get_simplified_mo_version
+from openvino.tools.mo.utils.telemetry_utils import get_tid
+from pathlib import Path
+
+import os
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
 
 
 def serialize(ngraph_function, xml_path, argv=None):
     from openvino.runtime import serialize  # pylint: disable=import-error,no-name-in-module
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    telemetry.start_session('mo')
+    telemetry.send_event('mo', 'version', get_simplified_mo_version())
+
+    output_dir = os.path.dirname(xml_path)
+    if not os.path.exists(output_dir):
+        try:
+            os.makedirs(output_dir)
+        except PermissionError as e:
+            raise Error("Failed to create directory {}. Permission denied! " +
+                        refer_to_faq_msg(22),
+                        output_dir) from e
+    else:
+        if not os.access(output_dir, os.W_OK):
+            raise Error("Output directory {} is not writable for current user. " +
+                        refer_to_faq_msg(22), output_dir)
+
     serialize(ngraph_function, xml_path.encode('utf-8'), xml_path.replace('.xml', '.bin').encode('utf-8'))
 
     if argv is not None:
@@ -20,3 +49,5 @@ def serialize(ngraph_function, xml_path, argv=None):
                        mean_data=None,
                        input_names=None,
                        legacy_path=False)
+
+    telemetry.end_session('mo')
