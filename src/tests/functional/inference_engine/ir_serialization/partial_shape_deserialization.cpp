@@ -296,7 +296,8 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) 
     </edges>
 </net>
 )V0G0N";
-    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+    // TODO: change to ov::Exception (69781)
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
@@ -322,7 +323,8 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
     </edges>
 </net>
 )V0G0N";
-    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+    // TODO: change to ov::Exception (69781)
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
@@ -348,7 +350,8 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
     </edges>
 </net>
 )V0G0N";
-    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+    // TODO: change to ov::Exception (69781)
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
@@ -374,5 +377,6 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
     </edges>
 </net>
 )V0G0N";
-    ASSERT_THROW(getWithIRFrontend(model), InferenceEngine::Exception);
+    // TODO: change to ov::Exception (69781)
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
 }
