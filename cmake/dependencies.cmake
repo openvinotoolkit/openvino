@@ -5,7 +5,7 @@
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.7.1")
+    set(protoc_version "3.15.0")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
         ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
