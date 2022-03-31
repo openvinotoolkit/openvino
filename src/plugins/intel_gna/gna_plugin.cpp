@@ -1322,7 +1322,6 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice && !trivialTopology) {
-        //const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
         for (auto &nnet : nnets) {
             const auto waitStatus = gnadevice->wait(std::get<1>(nnet), millisTimeout);
             if (waitStatus == GNA_REQUEST_ABORTED) {
