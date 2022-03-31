@@ -192,8 +192,7 @@ __kernel void cvtf32f16(__global float* restrict inImage, __global half*  restri
     outImage[idx] = convert_half(inImage[idx]*scale+bais);
 }
 ```
-However, this work-group based vectorizer (WGV) conflicts with the default LLVM vectorizer based on superword level parallelism (SLP) for the current compiler version. Manual vectorization is recommended to provide the best performance for non-uniform code
-patterns. WGV works if and only if vector types are not used in the code.
+However, this work-group based vectorizer (WGV) conflicts with the default LLVM vectorizer based on superword level parallelism (SLP) for the current compiler version. Manual vectorization is recommended to provide the best performance for non-uniform code patterns. WGV works if and only if vector types are not used in the code.
 
 Here is a short list of optimization tips:
 
