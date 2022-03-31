@@ -45,7 +45,7 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
 using OVInferRequestCheckTensorPrecisionParams = OVInferRequestSetPrecisionParams;
 
 struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
-                                            public CommonTestUtils::TestsCommon {
+                                            public APIBaseTest {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
@@ -56,8 +56,7 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
     CompiledModel compModel;
     InferRequest req;
     AnyMap  config;
-    std::string         target_device;
-    element::Type       element_type;
+    element::Type  element_type;
 };
 
 } // namespace behavior

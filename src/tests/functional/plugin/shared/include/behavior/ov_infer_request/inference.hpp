@@ -71,7 +71,7 @@ inline OVInferReqInferParam roi_1d() {
 } // namespace tensor_roi
 
 class OVInferRequestInferenceTests : public testing::WithParamInterface<OVInferRequestInferenceTestsParams>,
-                                     public CommonTestUtils::TestsCommon {
+                                     public APIBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestInferenceTestsParams>& device_name);
 

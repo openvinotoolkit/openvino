@@ -134,20 +134,6 @@ void OVInferenceChaining::Run() {
     }
 }
 
-void OVInferenceChaining::TearDown() {
-    if (!configuration.empty()) {
-        utils::PluginCache::get().reset();
-    }
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    if (this->HasFailure()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-    } else if (this->IsSkipped()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-    } else {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-    }
-}
-
 TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

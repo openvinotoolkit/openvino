@@ -42,18 +42,17 @@ using OVInferRequestDynamicParams = std::tuple<
 >;
 
 class OVInferRequestDynamicTests : public testing::WithParamInterface<OVInferRequestDynamicParams>,
-                                   public CommonTestUtils::TestsCommon {
+                                   public APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj);
 
 protected:
     void SetUp() override;
-
     void TearDown() override;
+    void set_api_entity() override { api_entity = utils::ov_entity::ov_infer_request; }
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
-    std::string targetDevice;
     ov::AnyMap configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };

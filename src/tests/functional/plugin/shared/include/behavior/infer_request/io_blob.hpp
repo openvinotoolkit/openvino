@@ -341,7 +341,7 @@ public:
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
-protected:
+    protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; }
     InferenceEngine::ExecutableNetwork execNet;
     InferenceEngine::CNNNetwork cnnNet;
@@ -388,16 +388,16 @@ typedef std::tuple<
 > InferRequestIOBBlobSetLayoutParams;
 
 class InferRequestIOBBlobSetLayoutTest : public testing::WithParamInterface<InferRequestIOBBlobSetLayoutParams>,
-                                         public CommonTestUtils::TestsCommon {
+                                         public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestIOBBlobSetLayoutParams> obj) {
         InferenceEngine::Layout  layout;
-        std::string targetDevice;
+        std::string target_device;
         std::map<std::string, std::string> configuration;
-        std::tie(layout, targetDevice, configuration) = obj.param;
+        std::tie(layout, target_device, configuration) = obj.param;
         std::ostringstream result;
         result << "layout=" << layout << "_";
-        result << "targetDevice=" << targetDevice << "_";
+        result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
             result << "config=" << configuration;
         }
@@ -405,25 +405,18 @@ public:
     }
 
     void SetUp()  override {
+        std::tie(layout, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(layout, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
+        APIBaseTest::SetUp();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -431,7 +424,6 @@ public:
     InferenceEngine::Layout layout;
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::string targetDevice;
     std::map<std::string, std::string> configuration;
 };
 

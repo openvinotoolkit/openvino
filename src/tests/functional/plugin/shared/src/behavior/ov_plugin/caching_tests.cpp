@@ -140,6 +140,7 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
 void CompileModelCacheTestBase::SetUp() {
     ovModelWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    utils::ApiSummary::getInstance().updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {

@@ -87,6 +87,7 @@ public:
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
+
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
@@ -102,7 +103,6 @@ protected:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::ie_infer_request;
 };
 
 inline InferenceEngine::Core createIECoreWithTemplate() {

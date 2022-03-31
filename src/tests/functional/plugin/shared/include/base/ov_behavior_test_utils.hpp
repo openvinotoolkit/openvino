@@ -97,6 +97,13 @@ public:
         execNet = core->compile_model(function, target_device, params);
     }
 
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
 protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_infer_request; };
 

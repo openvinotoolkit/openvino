@@ -30,6 +30,13 @@ public:
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string target_device;
         size_t streamExecutorNumber;
@@ -59,7 +66,8 @@ protected:
         configuration.insert({CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)});
         if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
             target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
+                target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
             ie->SetConfig(configuration, target_device);
         }
         // Load CNNNetwork to target plugins
@@ -74,7 +82,8 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
         target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
@@ -84,7 +93,8 @@ TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
         target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
@@ -99,7 +109,8 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
         config.insert(configuration.begin(), configuration.end());
         if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
             target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
+            target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
             ASSERT_NO_THROW(ie->SetConfig(config, target_device));
         }
         // Load CNNNetwork to target plugins
