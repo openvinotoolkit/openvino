@@ -33,20 +33,20 @@ class INFERENCE_ENGINE_API_CLASS(PropertyAccess) {
         virtual bool is_mutable() const {
             return false;
         };
-        virtual SubAccess* sub_access_ptr() {
+        virtual PropertyAccess* sub_access_ptr() {
             return nullptr;
         }
-        const SubAccess* sub_access_ptr() const {
+        const PropertyAccess* sub_access_ptr() const {
             return const_cast<Access*>(this)->sub_access_ptr();
         }
         bool is_sub_access() const {
             return sub_access_ptr() != nullptr;
         }
-        SubAccess& sub_access() {
+        PropertyAccess& sub_access() {
             OPENVINO_ASSERT(is_sub_access(), "Not property sub access");
             return *sub_access_ptr();
         }
-        const SubAccess& sub_access() const {
+        const PropertyAccess& sub_access() const {
             OPENVINO_ASSERT(is_sub_access(), "Not property sub access");
             return *sub_access_ptr();
         }

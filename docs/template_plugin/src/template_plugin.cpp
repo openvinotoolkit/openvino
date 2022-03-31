@@ -40,8 +40,14 @@ Plugin::Plugin() {
     // create default stream executor with a given name
     _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 
-    // Add common read write properties
-    _properties.set_name(_pluginName).add(_cfg._properties);
+    // Add plugin specific properties
+    _properties.set_name(_pluginName)
+        .add(ov::device::architecture, "TEMPLATE")
+        .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
+        .add(ov::range_for_async_infer_requests, std::make_tuple(uint{1}, uint{1}, uint{1}));
+
+    // Add common read write properties used in template plugin and template compiled model
+    _properties.add(_cfg._properties);
 
     // If plugin has several devices we can add property for each device
     for (auto device_id : {"0"}) {

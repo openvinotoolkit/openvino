@@ -11,19 +11,25 @@
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
-struct PropertyAccess::SubAccess : public Access, public PropertyAccess {
-    SubAccess(PropertyAccess property_access, const std::shared_ptr<void>& so_) :
-    PropertyAccess{std::move(property_access)},
+struct PropertyAccess::SubAccess : public Access {
+    SubAccess(PropertyAccess property_access_, const std::shared_ptr<void>& so_) :
+    property_access{std::move(property_access_)},
     so{so_} {}
-    SubAccess* sub_access_ptr() override {
-        return this;
+    ~SubAccess() {
+        property_access = {};
+        so = {};
+    }
+
+    PropertyAccess* sub_access_ptr() override {
+        return &property_access;
     }
     Any get(const AnyMap&) const override {
-        return PropertyAccess::get();
+        return property_access.get();
     }
     void ro() override {
-        PropertyAccess::ro();
+        property_access.ro();
     }
+    PropertyAccess property_access;
     std::shared_ptr<void> so;
 };
 
