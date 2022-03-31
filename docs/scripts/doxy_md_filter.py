@@ -65,7 +65,7 @@ class DoxyMDFilter:
         """
         for link in self.md_links:
             link_path = self.parent_folder.joinpath(link).resolve()
-            if os.path.exists(link_path):
+            if os.path.exists(link_path) and link_path in self.file_to_label_mapping:
                 self.content = self.content.replace(link, '@ref ' + self.file_to_label_mapping[link_path])
             else:
                 rel_path = os.path.relpath(link_path, self.input_dir).replace('\\', '/')
@@ -127,7 +127,7 @@ class DoxyMDFilter:
         reference_links = set(re.findall(REFERENCE_LINKS_PATTERN, self.content))
         md_links = inline_links
         md_links.update(reference_links)
-        return md_links
+        return sorted(md_links, key=len, reverse=True)
 
 
 def get_label(file):

@@ -11,10 +11,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNConcatNode : public MKLDNNNode {
+class Concat : public Node {
 public:
-    MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Concat(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -45,5 +46,6 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -298,6 +298,8 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
         m_cached_ordered_ops.push_back(node);
         node->insert_info(m_shared_rt_info);
     });
+    m_cached_output_names.clear();
+    m_cached_op_names.clear();
     m_shared_rt_info->set_use_topological_cache(true);
 
     return order;
@@ -896,35 +898,58 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const std::string& tensor_name) {
-    for (const auto& op : get_ops()) {
-        if (ov::op::util::is_output(op))
-            continue;
-        for (const auto& output : op->outputs()) {
-            const auto& names = output.get_tensor().get_names();
-            if (names.find(tensor_name) != names.end()) {
-                return add_output(output);
+    auto cache_valid = [&]() {
+        return m_cached_output_names.count(tensor_name) &&
+               m_cached_output_names[tensor_name].get_names().count(tensor_name) > 0;
+    };
+    if (!m_shared_rt_info->get_use_topological_cache() || !cache_valid()) {
+        m_cached_output_names.clear();
+        // get_ordered_ops will update topological cache if necessary
+        for (const auto& op : get_ordered_ops()) {
+            for (const auto& output : op->outputs()) {
+                for (const auto& name : output.get_names()) {
+                    m_cached_output_names[name] = output;
+                }
             }
         }
     }
-    throw ov::Exception("Tensor name " + tensor_name + " was not found.");
+    OPENVINO_ASSERT(m_cached_output_names.count(tensor_name),
+                    "Model::add_output. Tensor name '",
+                    tensor_name + "' was not found.");
+    return add_output(m_cached_output_names.at(tensor_name));
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const std::string& op_name, size_t output_idx) {
-    for (const auto& op : get_ops()) {
-        if (op->get_friendly_name() == op_name) {
-            OPENVINO_ASSERT(output_idx < op->get_output_size(),
-                            "Cannot add output to port ",
-                            std::to_string(output_idx),
-                            " operation ",
-                            op->get_friendly_name(),
-                            " has only ",
-                            std::to_string(op->get_output_size()),
-                            " outputs.");
-            return add_output(op->output(output_idx));
+    auto cache_valid = [&]() {
+        if (m_cached_op_names.count(op_name)) {
+            auto op = m_cached_op_names[op_name].lock();
+            return op && op->get_friendly_name() == op_name && op->get_output_size() > output_idx;
+        }
+        return false;
+    };
+    if (!m_shared_rt_info->get_use_topological_cache() || !cache_valid()) {
+        m_cached_op_names.clear();
+        // get_ordered_ops will update topological cache to 'true' if necessary
+        for (const auto& op : get_ordered_ops()) {
+            m_cached_op_names[op->get_friendly_name()] = op;
         }
     }
-    throw ov::Exception("Port " + std::to_string(output_idx) + " for operation with name " + op_name +
-                        " was not found.");
+    OPENVINO_ASSERT(m_cached_op_names.count(op_name),
+                    "Model::add_output. Operation with name '",
+                    op_name,
+                    "' was not found.");
+    auto op = m_cached_op_names[op_name].lock();
+    OPENVINO_ASSERT(op, "Model::add_output. Operation with name '", op_name, "' is expired.");
+    OPENVINO_ASSERT(output_idx < op->get_output_size(),
+                    "Cannot add output to port ",
+                    std::to_string(output_idx),
+                    " operation ",
+                    op->get_friendly_name(),
+                    " has only ",
+                    std::to_string(op->get_output_size()),
+                    " outputs.");
+
+    return add_output(op->output(output_idx));
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
@@ -937,7 +962,12 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
         }
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
-    add_results({result});
+    m_results.push_back(result);
+    if (m_shared_rt_info->get_use_topological_cache()) {
+        // Full update of topological cache is not needed, 'result' can be just inserted to the end
+        m_cached_ordered_ops.push_back(result);
+        result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+    }
     return result->output(0);
 }
 

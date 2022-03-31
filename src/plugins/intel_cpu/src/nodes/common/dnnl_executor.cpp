@@ -5,7 +5,9 @@
 #include "dnnl_executor.h"
 
 using namespace mkldnn;
-using namespace ov::intel_cpu;
+
+namespace ov {
+namespace intel_cpu {
 
 DnnlExecutor::IntermReorder::IntermReorder(const mkldnn::memory::desc& descSrc,
                                            const mkldnn::memory::desc& descDst,
@@ -47,3 +49,6 @@ void DnnlExecutor::exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn
 bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

@@ -39,6 +39,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -403,18 +404,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5});
     test_case.add_expected_output<float>({0, 2, 6, 12, 20, 30});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
-
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
-    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
-    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
-    test_case.add_expected_output<uint8_t>(Shape{}, {255});
     test_case.run();
 }
 

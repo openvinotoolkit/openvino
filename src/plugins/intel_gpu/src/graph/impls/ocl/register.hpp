@@ -55,6 +55,7 @@
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/softmax.hpp"
@@ -136,6 +137,7 @@ REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
+REGISTER_OCL(shape_of);
 REGISTER_OCL(shuffle_channels);
 REGISTER_OCL(slice);
 REGISTER_OCL(softmax);

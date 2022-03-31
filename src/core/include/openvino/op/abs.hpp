@@ -13,6 +13,7 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise absolute value operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Abs : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Abs", "opset1", util::UnaryElementwiseArithmetic);

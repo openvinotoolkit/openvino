@@ -13,10 +13,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGatherNode : public MKLDNNNode {
+class Gather : public Node {
 public:
-    MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Gather(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -87,5 +88,6 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

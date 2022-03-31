@@ -38,7 +38,6 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def("convert",
             static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),
-            py::keep_alive<0, 1>(),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
 
@@ -63,7 +62,6 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def("convert_partially",
             &FrontEnd::convert_partially,
             py::arg("model"),
-            py::keep_alive<0, 1>(),
             R"(
                 Convert only those parts of the model that can be converted leaving others as-is.
                 Converted parts are not normalized by additional transformations; normalize function or
@@ -78,7 +76,6 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def("decode",
             &FrontEnd::decode,
             py::arg("model"),
-            py::keep_alive<0, 1>(),
             R"(
                 Convert operations with one-to-one mapping with decoding nodes.
                 Each decoding node is an nGraph node representing a single FW operation node with
