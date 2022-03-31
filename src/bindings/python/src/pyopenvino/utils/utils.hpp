@@ -6,6 +6,8 @@
 
 #include <pybind11/pybind11.h>
 #include <openvino/core/any.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <openvino/runtime/properties.hpp>
 
 namespace py = pybind11;
 
@@ -60,8 +62,22 @@ inline ov::Any py_object_to_any(const py::object& py_obj) {
             default:
                 OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
-
+    } else if (py::isinstance<ov::element::Type>(py_obj)) {
+        return py::cast<ov::element::Type>(py_obj);
+    } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
+        return py::cast<ov::hint::Priority>(py_obj);
+    } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
+        return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::log::Level>(py_obj)) {
+        return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::device::Type>(py_obj)) {
+        return py::cast<ov::device::Type>(py_obj);
+    } else if (py::isinstance<ov::streams::Num>(py_obj)) {
+        return py::cast<ov::streams::Num>(py_obj);
+    } else if (py::isinstance<ov::Affinity>(py_obj)) {
+        return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<py::object>(py_obj)) {
+        py::print("Hmmmm!1");
         return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
