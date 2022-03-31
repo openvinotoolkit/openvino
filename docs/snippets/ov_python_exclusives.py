@@ -137,3 +137,39 @@ from openvino.helpers import unpack_data
 unpacked_data = unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
+
+#! [releasing_gil]
+import openvino.runtime as ov
+import cv2 as cv
+from threading import Thread
+
+input_data = []
+
+# Processing input data will be done in a separate thread
+# while compilation of the model and creation of the infer request
+# is going to be executed in the main thread.
+def prepare_data(input, image_path):
+    image = cv.imread(image_path)
+    h, w = list(input.shape)[-2:]
+    image = cv.resize(image, (h, w))
+    image = image.transpose((2, 0, 1))
+    image = np.expand_dims(image, 0)
+    input_data.append(image)
+
+core = ov.Core()
+model = core.read_model("model.xml")
+# Create thread with prepare_data function as target and start it
+thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
+thread.start()
+# The GIL will be released in compile_model.
+# It allows a thread above to start the job,
+# while main thread is running in the background.
+compiled = core.compile_model(model, "GPU")
+# After returning from compile_model, the main thread acquires the GIL
+# and starts create_infer_request which releases it once again.
+request = compiled.create_infer_request()
+# Join the thread to make sure the input_data is ready
+thread.join()
+# running the inference
+request.infer(input_data)
+#! [releasing_gil]

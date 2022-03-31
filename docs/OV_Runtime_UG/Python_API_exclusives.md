@@ -78,3 +78,35 @@ To create an input tensor with such element types you may need to pack your data
 
 To extract low precision values from tensor into numpy array you can use next helper:
 @snippet docs/snippets/ov_python_exclusives.py unpacking
+
+### Releasing the GIL
+
+Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. It can help you to achieve more parallelism in your application using Python threads. For more information about GIL please refer to the Python documentation.
+
+@snippet docs/snippets/ov_python_exclusives.py releasing_gil
+
+> **NOTE**: While GIL is released functions can still modify and/or operate on Python objects in C++, thus there is no reference counting. User is responsible for thread safety if sharing of these objects with other thread occurs. It can affects your code only if multiple threads are spawned in Python.:
+
+#### List of functions that release the GIL
+- openvino.runtime.AsyncInferQueue.start_async
+- openvino.runtime.AsyncInferQueue.is_ready
+- openvino.runtime.AsyncInferQueue.wait_all
+- openvino.runtime.AsyncInferQueue.get_idle_request_id
+- openvino.runtime.CompiledModel.create_infer_request
+- openvino.runtime.CompiledModel.infer_new_request
+- openvino.runtime.CompiledModel.__call__
+- openvino.runtime.CompiledModel.export
+- openvino.runtime.CompiledModel.get_runtime_model
+- openvino.runtime.Core.compile_model
+- openvino.runtime.Core.read_model
+- openvino.runtime.Core.import_model
+- openvino.runtime.Core.query_model
+- openvino.runtime.Core.get_available_devices
+- openvino.runtime.InferRequest.infer
+- openvino.runtime.InferRequest.start_async
+- openvino.runtime.InferRequest.wait
+- openvino.runtime.InferRequest.wait_for
+- openvino.runtime.InferRequest.get_profiling_info
+- openvino.runtime.InferRequest.query_state
+- openvino.runtime.Model.reshape
+- openvino.preprocess.PrePostProcessor.build
