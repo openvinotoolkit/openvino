@@ -75,3 +75,12 @@ Another feature of `AsyncInferQueue` is ability of setting callbacks. When callb
 The callback of `AsyncInferQueue` is uniform for every job. When executed, GIL is acquired to ensure safety of data manipulation inside the function.
 
 @snippet docs/snippets/ov_python_exclusives.py asyncinferqueue_set_callback
+
+### Working with u1, u4 and i4 element types
+
+Since openvino supports low precision element types there are few ways how to handle them in python.
+To create an input tensor with such element types you may need to pack your data in new numpy array which byte size matches original input size:
+@snippet docs/snippets/ov_python_exclusives.py packing_data
+
+To extract low precision values from tensor into numpy array you can use next helper:
+@snippet docs/snippets/ov_python_exclusives.py unpacking

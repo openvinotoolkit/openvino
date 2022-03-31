@@ -131,3 +131,20 @@ infer_queue.wait_all()
 
 assert all(data_done)
 #! [asyncinferqueue_set_callback]
+
+unt8_data = np.ones([100])
+
+#! [packing_data]
+from openvino.helpers import pack_data
+
+packed_buffer = pack_data(unt8_data, ov.Type.u4)
+# Create tensor with shape in element types
+t = ov.Tensor(packed_buffer, [1, 128], ov.Type.u4)
+#! [packing_data]
+
+#! [unpacking]
+from openvino.helpers import unpack_data
+
+unpacked_data = unpack_data(t.data, t.element_type, t.shape)
+assert np.array_equal(unpacked_data , unt8_data)
+#! [unpacking]
