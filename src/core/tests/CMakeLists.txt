@@ -421,7 +421,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
@@ -581,9 +581,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads

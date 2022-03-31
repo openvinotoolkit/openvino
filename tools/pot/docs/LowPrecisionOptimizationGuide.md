@@ -1,4 +1,4 @@
-# Low Precision Optimization Guide {#pot_docs_LowPrecisionOptimizationGuide}
+# Low Precision Optimization Guide
 
 ## Introduction
 This document provides the best-known methods on how to use low-precision capabilities of the OpenVINO™ toolkit to transform models
