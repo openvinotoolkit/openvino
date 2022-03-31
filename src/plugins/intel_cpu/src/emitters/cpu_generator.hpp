@@ -19,7 +19,6 @@ public:
     bool is_supported() const override;
     ngraph::snippets::code get_snippet() const override;
     size_t get_lanes() const override;
-    ov::element::TypeVector get_supported_exec_types() const override;
 
 private:
     std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;
@@ -29,6 +28,8 @@ private:
 class CPUGenerator : public ngraph::snippets::Generator {
 public:
     CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa);
+
+    element::Type get_supported_exec_precision() const override;
 };
 
 }   // namespace intel_cpu

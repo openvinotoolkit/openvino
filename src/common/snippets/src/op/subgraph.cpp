@@ -242,7 +242,7 @@ void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputSha
     // because at the moment scalar is constant node, not parameter as other constant node. Thus we check all ops to find scalars
     // Also we should use ConstantFolding pass after that in "convert_to_snippet_dialect"
     // TODO: Need to unit behavior with common constants or to come up with another solution
-    const auto supported_exec_type = m_generator->get_target_machine()->get_supported_exec_types().front();
+    const auto supported_exec_type = m_generator->get_supported_exec_precision();
     for (auto& node : m_body->get_ops()) {
         if (op::is_scalar_constant(node) && node->get_element_type() != supported_exec_type) {
             insertConvertAfterNode(node, supported_exec_type);
@@ -302,12 +302,12 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     //                        Result
     // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
     if (!exec_domain.empty() && exec_domain.back() != 1) {
-        manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
-        manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
+        manager.register_pass<snippets::pass::SetScalarCountForLoad>();
+        manager.register_pass<snippets::pass::SetScalarCountForStore>();
         manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
+        set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
         manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::ReplaceStoresWithScalarStores>(skip_matching_domain);
+        set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
     }
     manager.run_passes(m_body);
 }

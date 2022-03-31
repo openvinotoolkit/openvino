@@ -41,11 +41,6 @@ public:
      */
     virtual size_t get_lanes() const = 0;
 
-    /**
-    * @brief gets vector of supported element types for execution
-    * @return vector of element types
-    */
-    virtual element::TypeVector get_supported_exec_types() const = 0;
 
     /**
      * @brief called by generator to all the emitter for a target machine
@@ -129,6 +124,12 @@ public:
      * @return pointer to target machine
      */
     std::shared_ptr<TargetMachine> get_target_machine() const { return target; }
+
+    /**
+     * @brief gets supported element type for execution
+     * @return element type
+     */
+    virtual element::Type get_supported_exec_precision() const = 0;
 
 protected:
     std::shared_ptr<TargetMachine> target;

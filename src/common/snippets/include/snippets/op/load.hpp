@@ -28,6 +28,8 @@ public:
 
     size_t get_count() const { return m_count; }
 
+    void set_count(const size_t count) { m_count = count; }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

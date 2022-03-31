@@ -4,21 +4,20 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
-#include "store.hpp"
+#include "ngraph/op/op.hpp"
+#include "snippets/op/store.hpp"
 
-namespace ngraph {
-namespace snippets {
-namespace op {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface StoreConvert
  * @brief Generated for store and convert at the same time
  * @ingroup snippets
  */
-class StoreConvert : public Store {
+class StoreConvert : public ngraph::snippets::op::Store {
 public:
-    OPENVINO_OP("StoreConvert", "SnippetsOpset", ngraph::snippets::op::Store);
+    OPENVINO_OP("StoreConvert", "cpu_plugin_opset", ngraph::snippets::op::Store);
 
     StoreConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 0lu);
     StoreConvert() = default;
@@ -37,6 +36,5 @@ protected:
     ov::element::Type m_destination_type;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ngraph
+} // namespace intel_cpu
+} // namespace ov

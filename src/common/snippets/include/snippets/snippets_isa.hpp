@@ -15,17 +15,13 @@
 #include "op/load.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
-#include "op/scalarload.hpp"
-#include "op/scalarstore.hpp"
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/tile.hpp"
 #include "op/vectorload.hpp"
 #include "op/vectorstore.hpp"
-#include "op/storeconvert.hpp"
-#include "op/scalarstoreconvert.hpp"
-#include "op/loadconvert.hpp"
-#include "op/scalarloadconvert.hpp"
+#include "../../../../plugins/intel_cpu/src/ngraph_transformations/op/storeconvert.hpp"
+#include "../../../../plugins/intel_cpu/src/ngraph_transformations/op/loadconvert.hpp"
 
 namespace ngraph {
 namespace snippets {

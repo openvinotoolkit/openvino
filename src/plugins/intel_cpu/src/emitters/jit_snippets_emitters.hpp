@@ -459,13 +459,8 @@ class StoreEmitter : public MemoryEmitter  {
 public:
     StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
-        if (auto node = ov::as_type_ptr<ngraph::snippets::op::StoreConvert>(n)) {
-            if (n->get_input_element_type(0) != ov::element::f32)
-                IE_THROW() << "StoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
-        } else {
-            if (src_prc != dst_prc)
-                IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
-        }
+        if (src_prc != dst_prc)
+            IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
         store_emitter.reset(new jit_store_emitter(h, isa));
         count = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_count();
@@ -512,72 +507,12 @@ private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
-class ScalarStoreEmitter : public MemoryEmitter {
-public:
-    ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    : MemoryEmitter(h, isa, n) {
-        if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarStoreConvert>(n)) {
-            if (n->get_input_element_type(0) != ov::element::f32)
-                IE_THROW() << "ScalarStoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
-        } else {
-            if (src_prc != dst_prc)
-                IE_THROW() << "ScalarStoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
-        }
-
-        store_emitter.reset(new jit_store_emitter(h, isa));
-    }
-
-private:
-    void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override {
-        if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-            emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
-            emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
-        } else {
-            IE_THROW() << host_isa_;
-            assert(!"unsupported isa");
-        }
-    }
-
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-        if (!store_emitter)
-            IE_THROW() << "Store CPU emitter isn't initialized for ScalarStoreEmitter!";
-        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, 1),
-                                 aux_vec_idxs, aux_gpr_idxs);
-
-        Reg64 out_reg(ea);
-        h->add(out_reg, dst_prc.size());
-    }
-
-    void emit_data() const override {
-        store_emitter->emit_data();
-    }
-
-    size_t aux_vecs_count() const override { return 1lu; }
-    size_t aux_gprs_count() const override { return 1lu; }
-
-private:
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
-};
-
 class LoadEmitter : public MemoryEmitter {
 public:
     LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
-        if (auto node = ov::as_type_ptr<ngraph::snippets::op::LoadConvert>(n)) {
-            if (n->get_output_element_type(0) != ov::element::f32)
-                IE_THROW() << "LoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
-        } else {
-            if (src_prc != dst_prc)
-                IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
-        }
+        if (src_prc != dst_prc)
+            IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
         load_emitter.reset(new jit_load_emitter(h, isa));
         count = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_count();
@@ -671,28 +606,77 @@ private:
     }
 };
 
-class ScalarLoadEmitter : public MemoryEmitter {
+class StoreConvertEmitter : public MemoryEmitter {
 public:
-    ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
-    : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
-        if (auto node = ov::as_type_ptr<ngraph::snippets::op::ScalarLoadConvert>(n)) {
-            if (n->get_output_element_type(0) != ov::element::f32)
-                IE_THROW() << "ScalarLoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
+    StoreConvertEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+            : MemoryEmitter(h, isa, n) {
+        if (n->get_input_element_type(0) != ov::element::f32)
+            IE_THROW() << "StoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
+
+        store_emitter.reset(new jit_store_emitter(h, isa));
+        count = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_count();
+    }
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
+        if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
+            emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+            emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
         } else {
-            if (src_prc != dst_prc)
-                IE_THROW() << "ScalarLoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+            IE_THROW() << host_isa_;
+            assert(!"unsupported isa");
         }
+    }
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+        if (!store_emitter)
+            IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
+        store_emitter->emit_code({in[0]}, {ea}, std::make_shared<store_emitter_context>(src_prc, dst_prc, count),
+                                 aux_vec_idxs, aux_gpr_idxs);
+
+        Reg64 out_reg(ea);
+        h->add(out_reg, count * dst_prc.size());
+    }
+
+    void emit_data() const override {
+        store_emitter->emit_data();
+    }
+
+    size_t aux_vecs_count() const override { return 1lu; }
+    size_t aux_gprs_count() const override { return 1lu; }
+
+private:
+    size_t count;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+};
+
+class LoadConvertEmitter : public MemoryEmitter {
+public:
+    LoadConvertEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+            : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+        if (n->get_output_element_type(0) != ov::element::f32)
+            IE_THROW() << "LoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
 
         load_emitter.reset(new jit_load_emitter(h, isa));
+        count = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_count();
     }
+
     size_t get_inputs_num() const override {return 0;}
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override {
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -708,14 +692,13 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
         if (!load_emitter)
-            IE_THROW() << "Load CPU emitter isn't initialized for ScalarLoadEmitter!";
-        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, 1),
+            IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
+        load_emitter->emit_code({ea}, {out[0]}, std::make_shared<load_emitter_context>(src_prc, dst_prc, count),
                                 aux_vec_idxs, aux_gpr_idxs);
 
-        // Doesn't work if the same pointer comes with multiple load operations
         if (shouldPostIncrement) {
             Reg64 in_reg(ea);
-            h->add(in_reg, src_prc.size());
+            h->add(in_reg, count * src_prc.size());
         }
     }
 
@@ -727,6 +710,7 @@ private:
 
 private:
     bool shouldPostIncrement;
+    size_t count;
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 

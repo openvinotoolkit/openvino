@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "ngraph/pass/graph_rewrite.hpp"
+#include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
-namespace snippets {
+namespace ov {
+namespace intel_cpu {
 namespace pass {
 
 /**
@@ -35,5 +35,5 @@ public:
 
 
 }  // namespace pass
-}  // namespace snippets
-}  // namespace ngraph
+}  // namespace intel_cpu
+}  // namespace ov

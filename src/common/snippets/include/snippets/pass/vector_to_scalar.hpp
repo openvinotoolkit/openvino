@@ -12,27 +12,27 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface ReplaceLoadsWithScalarLoads
- * @brief Replaces vector loads with scalar versions.
- * The pass is used to cange element type of function in a canonical form vector to scalar.
+ * @interface SetScalarCountForLoad
+ * @brief Set count `1` for Load to represent as ScalarLoad
+ * The pass is used to range element type of function in a canonical form vector to scalar.
  * Used for tail generation
  * @ingroup snippets
  */
-class ReplaceLoadsWithScalarLoads: public ngraph::pass::MatcherPass {
+class SetScalarCountForLoad: public ngraph::pass::MatcherPass {
 public:
-    ReplaceLoadsWithScalarLoads();
+    SetScalarCountForLoad();
 };
 
 /**
- * @interface ReplaceStoresWithScalarStores
- * @brief Replaces vector stores with scalar versions.
- * The pass is used to cange element type of model in a canonical form vector to scalar.
+ * @interface SetScalarCountForStore
+ * @brief Set count `1` for Store to represent as ScalarStore
+ * The pass is used to range element type of function in a canonical form vector to scalar.
  * Used for tail generation
  * @ingroup snippets
  */
-class ReplaceStoresWithScalarStores: public ngraph::pass::MatcherPass {
+class SetScalarCountForStore: public ngraph::pass::MatcherPass {
 public:
-    ReplaceStoresWithScalarStores();
+    SetScalarCountForStore();
 };
 
 } // namespace pass

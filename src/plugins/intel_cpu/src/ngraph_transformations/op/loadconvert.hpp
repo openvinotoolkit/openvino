@@ -4,21 +4,20 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
-#include "load.hpp"
+#include "ngraph/op/op.hpp"
+#include "snippets/op/load.hpp"
 
-namespace ngraph {
-namespace snippets {
-namespace op {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface LoadConvert
  * @brief Generated for load and convert at the same time
  * @ingroup snippets
  */
-class LoadConvert : public Load {
+class LoadConvert : public ngraph::snippets::op::Load {
 public:
-    OPENVINO_OP("LoadConvert", "SnippetsOpset", ngraph::snippets::op::Load);
+    OPENVINO_OP("LoadConvert", "cpu_plugin_opset", ngraph::snippets::op::Load);
 
     LoadConvert(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 0lu);
     LoadConvert() = default;
@@ -37,6 +36,5 @@ protected:
     ov::element::Type m_destination_type;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ngraph
+} // namespace intel_cpu
+} // namespace ov

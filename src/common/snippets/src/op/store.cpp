@@ -4,7 +4,7 @@
 
 #include <snippets/itt.hpp>
 
-#include "snippets/op/scalarstore.hpp"
+#include "snippets/op/store.hpp"
 
 #include <ngraph/runtime/host_tensor.hpp>
 

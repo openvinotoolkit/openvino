@@ -46,16 +46,12 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
     jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
+    jitters[ov::intel_cpu::LoadConvert::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
-    jitters[ngraph::snippets::op::LoadConvert::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::ScalarLoadConvert::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
     jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
-    jitters[ngraph::snippets::op::StoreConvert::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::ScalarStoreConvert::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
+    jitters[ov::intel_cpu::StoreConvert::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);
@@ -134,10 +130,6 @@ size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
     }
 }
 
-ov::element::TypeVector ov::intel_cpu::CPUTargetMachine::get_supported_exec_types() const {
-    return { ov::element::f32 };
-}
-
 bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
     return dnnl::impl::cpu::x64::mayiuse(isa);
 }
@@ -148,4 +140,8 @@ code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
 }
 
 ov::intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+}
+
+ov::element::Type ov::intel_cpu::CPUGenerator::CPUGenerator::get_supported_exec_precision() const {
+    return ov::element::f32;
 }
