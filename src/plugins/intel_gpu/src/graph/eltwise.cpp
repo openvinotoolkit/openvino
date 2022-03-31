@@ -18,13 +18,25 @@ primitive_type_id eltwise::type_id() {
 }
 
 layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
-    auto input_node_layout = node.input().get_non_padded_output_layout();
+    size_t primary_input_idx = 0;
+    if (node.input(primary_input_idx).is_constant()) {
+        for (size_t i = 1; i < node.get_dependencies().size(); i++) {
+            if (!node.input(i).is_constant()) {
+                primary_input_idx = i;
+                break;
+            }
+        }
+    }
+    auto input_node_layout = node.input(primary_input_idx).get_non_padded_output_layout();
 
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
 
     auto size = input_node_layout.size;
     auto format = input_node_layout.format;
-    for (size_t i = 1; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.inputs_count(); i++) {
+        if (i == primary_input_idx)
+            continue;
+
         auto l = node.input(i).get_non_padded_output_layout();
         size = tensor::max(size, l.size);
         if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
