@@ -27,11 +27,8 @@ public:
     virtual void query_model();
 
 protected:
-    SubgraphBaseTest();
-
     virtual void compare(const std::vector<ov::Tensor> &expected,
                          const std::vector<ov::Tensor> &actual);
-
     virtual void init_inputs_and_outputs();
     virtual void configure_model();
     virtual void compile_model();
@@ -50,8 +47,8 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    std::vector<ElementType> inType;
-    std::vector<ElementType> outType;
+    std::vector<ElementType> inType = { ElementType::undefined };
+    std::vector<ElementType> outType = { ElementType::undefined };
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
