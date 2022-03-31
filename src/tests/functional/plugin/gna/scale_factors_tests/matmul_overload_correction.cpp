@@ -67,6 +67,8 @@ protected:
         const ngraph::Shape shape2 = {1, inputShape[1] * inputShape[1]};
         const float maxInputValue = 10.0f;
         auto params = ngraph::builder::makeParams(ngPrc, {shape1});
+        auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
+
         std::shared_ptr<ngraph::Node> input2;
         if (isSecondInputConst) {
             input2 = ngraph::builder::makeConstant<float>(ngPrc, ngraph::Shape{shape1[1], shape1[1]},
@@ -78,7 +80,7 @@ protected:
 
         auto lowNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { -maxInputValue });
         auto highNodeIn1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { maxInputValue });
-        auto fqIn1 = std::make_shared<ngraph::opset8::FakeQuantize>(params[0], lowNodeIn1, highNodeIn1,
+        auto fqIn1 = std::make_shared<ngraph::opset8::FakeQuantize>(relu, lowNodeIn1, highNodeIn1,
             lowNodeIn1, highNodeIn1, levels16);
 
         auto lowNodeIn2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, { -maxInputValue });
