@@ -15,7 +15,8 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-using InputPrecisions = std::tuple<ElementType,   // boxes and scores precisions
+using InputPrecisions = std::tuple<ElementType,   // input 'boxes' and 'scores' precisions
+                                   ElementType,   // input 'roisnum' precision
                                    ElementType,   // max_output_boxes_per_class
                                                   // precision
                                    ElementType>;  // iou_threshold, score_threshold,
@@ -28,7 +29,7 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                    // Params using to create 1st and 2nd inputs
+using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                    // Params using to create inputs
                                        InputPrecisions,                            // Input precisions
                                        int32_t,                                    // Max output boxes per class
                                        InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta
