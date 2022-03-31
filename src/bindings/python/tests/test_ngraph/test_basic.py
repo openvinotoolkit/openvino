@@ -327,6 +327,30 @@ def test_set_argument():
     assert np.allclose(data1 + data2, output)
 
 
+def test_clone_model():
+    # Create an original model
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    # Make copies of it
+    model_copy1 = ov.utils.clone_model(model_original)
+    model_copy2 = model_original.clone()
+
+    # Make changes to the copied models' inputs
+    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
+    model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
+
+    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
+    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
+    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
+
+    assert original_model_shapes != model_copy1_shapes
+    assert original_model_shapes != model_copy2_shapes
+    assert model_copy1_shapes == model_copy2_shapes
+
+
 def test_result():
     node = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.float32)
     result = run_op_node([node], ops.result)
