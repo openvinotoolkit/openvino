@@ -1121,16 +1121,13 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         Gna2Model gna_model_full = model_holder->obj;
         uint32_t ops_number = gna_model_full.NumberOfOperations;
         uint16_t layers_limit = gnadevice->getLayerCountMax();
-        std::cout << "[DEBUG]: " << "gna operations: " << ops_number << std::endl;
-        std::cout << "[DEBUG]: " << "gna operations limit: " << layers_limit << std::endl;
         gnaModels.resize((ops_number + layers_limit - 1) / layers_limit);
-        std::cout << "[DEBUG]: " << "models count: " << gnaModels.size() << std::endl;
         for (int i = 0; i != gnaModels.size(); i++) {
             size_t start_idx = layers_limit * i;
             auto ops_batch  = ((i + 1) == gnaModels.size()) ? (ops_number - start_idx) : layers_limit;
             gnaModels[i] = std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(ops_batch));
             for (int j = 0; j != ops_batch; j++) {
-                /// transferring operations from full model
+                // transferring operations from full model
                 dnn_ptr & gna_model_part = std::get<0>(gnaModels[i]);
                 CPPWrapper<Gna2Model>::moveOperation(&gna_model_part->obj.Operations[j], &gna_model_full.Operations[start_idx + j]);
             }
