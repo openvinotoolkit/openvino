@@ -55,6 +55,11 @@ public:
         m_output_type = output_type;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
+
 protected:
     ov::element::Type m_output_type;
 };
