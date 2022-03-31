@@ -212,12 +212,10 @@ bool Validator_35::IsPaddingSupported() const {
 }
 
 std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
-    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_5) {
-        return make_unique<Validator_35>();
-    } else if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
         return make_unique<Validator_30>();
     }
-    return nullptr;
+    return make_unique<Validator_35>();
 }
 
 void AbstractValidator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {

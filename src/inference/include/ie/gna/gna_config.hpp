@@ -183,8 +183,6 @@ DECLARE_GNA_CONFIG_KEY(EXEC_TARGET);
 DECLARE_GNA_CONFIG_VALUE(TARGET_2_0);
 DECLARE_GNA_CONFIG_VALUE(TARGET_3_0);
 
-DECLARE_GNA_CONFIG_VALUE(TARGET_3_5);
-
 /**
  * @brief The option to override the GNA HW compile target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
  * By default the same as GNA_EXEC_TARGET.

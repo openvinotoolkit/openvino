@@ -194,7 +194,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
 void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
     if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 == target) {
         cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_30());
-    } else if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_5 == target) {
+    } else {
         cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_35());
     }
 }
