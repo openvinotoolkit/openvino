@@ -164,9 +164,12 @@ void regclass_InferRequest(py::module m) {
             // Update inputs if there are any
             Common::set_request_tensors(self._request, inputs);
             // Call Infer function
-            self._start_time = Time::now();
-            self._request.infer();
-            self._end_time = Time::now();
+            {
+                py::gil_scoped_release release;
+                self._start_time = Time::now();
+                self._request.infer();
+                self._end_time = Time::now();
+            }
             return Common::outputs_to_dict(self._outputs, self._request);
         },
         py::arg("inputs"),
@@ -174,6 +177,8 @@ void regclass_InferRequest(py::module m) {
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
             Calling any method will lead to throwing exceptions.
+
+            GIL is released while running the inference.
 
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
@@ -203,8 +208,7 @@ void regclass_InferRequest(py::module m) {
             Starts inference of specified input(s) in asynchronous mode.
             Returns immediately. Inference starts also immediately.
 
-            This function releases the GIL, so another Python thread can
-            work while this function runs in the background.
+            GIL is released while running the inference.
 
             Calling any method on this InferRequest while the request is
             running will lead to throwing exceptions.
@@ -234,7 +238,7 @@ void regclass_InferRequest(py::module m) {
             Waits for the result to become available. 
             Blocks until the result becomes available.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
         )");
 
     cls.def(
@@ -249,7 +253,7 @@ void regclass_InferRequest(py::module m) {
             Blocks until specified timeout has elapsed or
             the result becomes available, whichever comes first.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
 
             :param timeout: Maximum duration in milliseconds (ms) of blocking call.
             :type timeout: int
@@ -512,10 +516,13 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
             meaningful data.
+
+            GIL is released while running this function.
 
             :return: List of profiling information for operations in model.
             :rtype: List[openvino.runtime.ProfilingInfo]
@@ -526,8 +533,11 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.query_state();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Gets state control interface for given infer request.
+
+            GIL is released while running this function.
 
             :return: List of VariableState objects.
             :rtype: List[openvino.runtime.VariableState]
@@ -615,9 +625,12 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
+
+            GIL is released while running this function.
             
             :return: Inference time.
             :rtype: List[openvino.runtime.ProfilingInfo]
