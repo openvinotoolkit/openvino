@@ -85,10 +85,6 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
-    auto RW_property = [](const std::string& propertyName) {
-        return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-    };
-
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
     // TODO: recall plugin for supported metrics
@@ -98,23 +94,15 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
             RO_property(ov::available_devices.name()),
             RO_property(ov::device::full_name.name()),
         };
-        // the whole config is RW before network is loaded.
-        std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
-            RW_property(ov::inference_num_threads.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
-        };
 
         std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size() + rwProperties.size());
+        supportedProperties.reserve(roProperties.size());
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-        supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
+    } else if (name == "SUPPORTED_CONFIG_KEYS") {
+        std::vector<std::string> configs;
+        return configs;
     } else if (name == "SUPPORTED_METRICS") {
         std::vector<std::string> metrics;
         metrics.push_back("AVAILABLE_DEVICES");
@@ -131,7 +119,7 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     }
 
     if (device_id.empty())
-        IE_THROW(NotImplemented);
+        IE_THROW(NotImplemented) << " to call " << name;
     size_t idx = string_to_size_t(device_id);
     return GetCore()->GetMetric(get_primary_device(idx), name, options);
 }
