@@ -312,7 +312,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
         if (net) {
             remote_context = net->GetContext();
         }
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (remote_context) {
         mem_blob = remote_context->CreateHostBlob(batched_desc);
