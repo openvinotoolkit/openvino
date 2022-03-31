@@ -1,6 +1,8 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+
 import numpy as np
 from typing import Union
 from openvino.runtime import Type, Shape
