@@ -17,6 +17,7 @@
 #include <legacy/ngraph_ops/power.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include "ops/pwl.hpp"
+#include "layers/gna_crop_layer.hpp"
 
 namespace GNAPluginNS {
 
@@ -363,8 +364,10 @@ class LayerInfo {
             // currently crop layer only supports 2 bytes in int16 and int8 mode.
             // In fp32 mode this is not necessary but is useful for testing
             auto bytesPerCropElement = 2;
-            size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
-            return (ALIGN64(cropOffset) != cropOffset);
+            size_t offset;
+            std::tie(offset, std::ignore, std::ignore) = GetCropParams(cropLayer);
+            size_t bytesOffset = offset * bytesPerCropElement;
+            return (ALIGN64(bytesOffset) != bytesOffset);
         }
         return false;
     }

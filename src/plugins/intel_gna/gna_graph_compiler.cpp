@@ -1053,38 +1053,11 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     IE_ASSERT(!layer->insData.empty());
     auto inputs = layer->insData.begin()->lock();
 
-    IE_ASSERT(!cropLayer->axis.empty());
-    IE_ASSERT(cropLayer->axis.size() == cropLayer->dim.size());
-    IE_ASSERT(cropLayer->axis.size() == cropLayer->offset.size());
-
-    std::vector<int> axis, dim, offset;
-    for (int n = 0; n < cropLayer->axis.size(); n++) {
-        uint32_t input_dim = GetDataDimSize(inputs, inputs->getDims().size() - cropLayer->axis[n]);
-        // Exclude crop layer components that do nothing
-        if (cropLayer->offset[n] == 0 && cropLayer->dim[n] == input_dim) {
-            continue;
-        }
-        axis.push_back(cropLayer->axis[n]);
-        dim.push_back(cropLayer->dim[n]);
-        offset.push_back(cropLayer->offset[n]);
-    }
-
-    if (axis.size() != 1) {
-        THROW_GNA_EXCEPTION <<
-            "Crop layer does not support the number of (non-trivial) cropped dimensions more than 1, provided: "
-            << axis.size() << ".";
-    }
-
-    size_t cropOffset = offset.front() * cropLayer->precision.size();
-    size_t cropOutputSize = dim.front() * cropLayer->precision.size();
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
-        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
-
-    // fix for crop on tensor dim > 2D
-    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++) {
-        cropOffset *= cropLayer->dim[n];
-        cropOutputSize *= cropLayer->dim[n];
-    }
+    size_t cropOffset, cropOutputSize;
+    std::vector<int32_t> axis;
+    std::tie(cropOffset, cropOutputSize, axis) = GetCropParams(cropLayer);
+    size_t cropOffsetBytes = cropOffset * cropLayer->precision.size();
+    size_t cropOutputSizeBytes = cropOutputSize * cropLayer->precision.size();
 
     if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
@@ -1099,13 +1072,13 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
 
         // calculate index idx for connectInput last parameter
-        connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset, 0);
+        connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSizeBytes + cropOffsetBytes, cropOffsetBytes, 0);
 
         // cases for certain output layers
         for (auto&& outLayer : getInputTo(layer->outData.front())) {
             auto& nextLayer = outLayer.second;
             if (LayerInfo(nextLayer).isConcat()) {
-                connectOutput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize);
+                connectOutput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSizeBytes);
             }
         }
     } else {
@@ -1119,10 +1092,12 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
 
         // TODO: add unit tests for 4d crops blobs
-        uint32_t num_rows_in = GetDataDimSize(inputs, inputs->getDims().size() - axis.front());
+        uint32_t num_rows_in = InferenceEngine::details::product(begin(inputs->getDims()), end(inputs->getDims()));
         uint32_t num_columns_in = 1;
 
-        uint32_t num_rows_out = GetDataDimSize(outputs, inputs->getDims().size() - axis.front());
+        uint32_t num_rows_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
+        const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+            GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
         uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
 
         void* ptr_inputs = nullptr;
@@ -1158,7 +1133,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
         connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-        FillWeightOfAligningFilter(layer, ptr_weights, offset.front(), (quantized == nullptr) ? false : true);
+        FillWeightOfAligningFilter(layer, ptr_weights, cropOffset, (quantized == nullptr) ? false : true);
 
         (quantized == nullptr) ?
             gnamem->readonly().push_value(layer, ptr_biases, 0.0f, num_rows_out, 64) :
@@ -1589,8 +1564,8 @@ void GNAGraphCompiler::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    uint32_t num_rows_in = InferenceEngine::details::product(++begin(inputs->getDims()), end(inputs->getDims()));
-    uint32_t num_rows_out = InferenceEngine::details::product(++begin(outputs->getDims()), end(outputs->getDims()));
+    uint32_t num_rows_in = InferenceEngine::details::product(begin(inputs->getDims()), end(inputs->getDims()));
+    uint32_t num_rows_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
     if (!ptrWeights) {
         THROW_GNA_EXCEPTION << "Weights memory is not allocated!!!";
