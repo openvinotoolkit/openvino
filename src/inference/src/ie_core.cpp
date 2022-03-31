@@ -66,6 +66,13 @@ struct Parsed {
 
 namespace {
 
+size_t string_to_size_t(const std::string& s) {
+    std::stringstream sstream(s);
+    size_t idx;
+    sstream >> idx;
+    return idx;
+}
+
 #ifndef OPENVINO_STATIC_LIBRARY
 
 std::string parseXmlConfig(const std::string& xmlFile) {
@@ -504,9 +511,15 @@ public:
             // fill value in plugin registry for later lazy initialization
             {
                 PluginDescriptor desc{pluginPath, config, listOfExtentions};
+                if (config.find("PROXY_NAME") != config.end()) {
+                    desc.proxy_name = config.at("PROXY_NAME");
+                    if (config.find("PROXY_PRIORITY") != config.end()) {
+                        desc.proxy_priority = string_to_size_t(config.at("PROXY_PRIORITY"));
+                    }
+                    RegisterProxyPlugin(desc.proxy_name);
+                }
                 pluginRegistry[deviceName] = desc;
             }
-            // TODO: Add registration of proxy plugin
         }
     }
 
@@ -527,6 +540,13 @@ public:
             }
             const auto& value = plugin.second;
             PluginDescriptor desc{value.m_create_plugin_func, value.m_default_config, value.m_create_extension_func};
+            if (value.m_default_config.find("PROXY_NAME") != value.m_default_config.end()) {
+                desc.proxy_name = value.m_default_config.at("PROXY_NAME");
+                if (value.m_default_config.find("PROXY_PRIORITY") != value.m_default_config.end()) {
+                    desc.proxy_priority = string_to_size_t(value.m_default_config.at("PROXY_PRIORITY"));
+                }
+                RegisterProxyPlugin(desc.proxy_name);
+            }
             pluginRegistry[deviceName] = desc;
         }
     }

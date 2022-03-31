@@ -13,6 +13,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               SKIP_INSTALL
               SKIP_REGISTRATION
+              DEFAULT_CONFIG
+                  PROXY_NAME:MOCK;PROXY_PRIORITY:2
               ADD_CLANG_FORMAT)
 
 target_link_libraries(${TARGET_NAME} PRIVATE mock_plugin_shared)
