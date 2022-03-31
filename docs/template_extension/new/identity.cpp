@@ -38,7 +38,7 @@ bool Identity::evaluate(ov::TensorVector& outputs, const ov::TensorVector& input
     auto in = inputs[0];
     auto out = outputs[0];
     out.set_shape(in.get_shape());
-    memcpy(out.data(), in.data(), in.get_size());
+    memcpy(out.data(), in.data(), in.get_byte_size());
     return true;
 }
 
