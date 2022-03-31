@@ -220,6 +220,10 @@ jobs:
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
+    - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onn_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-ONNX.xml
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
