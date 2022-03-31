@@ -141,3 +141,7 @@ code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
 
 ov::intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
 }
+
+std::vector<size_t> ov::intel_cpu::CPUGenerator::get_gprs_for_data_pointers() const {
+    return {0, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15};
+}

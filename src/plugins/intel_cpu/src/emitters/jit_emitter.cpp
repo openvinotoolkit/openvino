@@ -46,6 +46,10 @@ size_t jit_emitter::aux_vecs_count() const {
     return 0;
 }
 
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
+}
+
 size_t jit_emitter::aux_gprs_count() const {
     // We need one gpr to load table address
     return entry_map_.empty() ? 0 : 1;

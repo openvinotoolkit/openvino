@@ -11,6 +11,38 @@ using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
+// Define some helper functions in the anonymous namespace
+namespace {
+
+void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
+    auto regs_removed = std::remove_if(pool.begin(), pool.end(),
+                                      [&to_remove](size_t reg_num) {
+                                          return to_remove.count(reg_num) != 0;
+                                      });
+    if (pool.end() - regs_removed != to_remove.size())
+        IE_THROW() << "Attempt to remove regs that are not in the pool";
+    pool.erase(regs_removed, pool.end());
+}
+//template<typename Type>
+//void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<Type>& to_remove) {
+//    auto regs_removed = std::remove_if(pool.begin(), pool.end(),
+//                                       [&to_remove](size_t reg_num) {
+//                                           return to_remove.count(static_cast<Type>(reg_num)) != 0;
+//                                       });
+//    if (pool.end() - regs_removed != to_remove.size())
+//        IE_THROW() << "Attempt to remove regs that are not in the pool";
+//    pool.erase(regs_removed, pool.end());
+//}
+//void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove){
+//    auto regs_removed = std::remove_if(pool.begin(), pool.end(),
+//                                      [&to_remove](size_t reg_num) {
+//                                          return to_remove.count(reg_num) != 0;
+//                                      });
+//    if (pool.end() - regs_removed != to_remove.size())
+//        IE_THROW() << "Attempt to remove regs that are not in the pool";
+//    pool.erase(regs_removed, pool.end());
+//}
+} // namespace
 
 KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
@@ -53,9 +85,18 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& pool,
                               const std::vector<size_t>& gpr,
                               const ov::intel_cpu::emitter_context *emit_context) const {
+    // Initialize pools of gp and vec registers
+    std::vector<size_t> gp_regs_pool(16);
+    std::iota(gp_regs_pool.begin(), gp_regs_pool.end(), 0);
+    // Reserve stack base and pointer for push(...) and pop(...) operations
+    remove_regs_from_pool(gp_regs_pool, {Xbyak::Operand::RSP, Xbyak::Operand::RBP});
+
+    std::vector<size_t> vec_regs_pool(16);
+    std::iota(vec_regs_pool.begin(), vec_regs_pool.end(), 0);
+
     h->preamble();
     for (auto& c : body) {
-        c.first->emit_code(c.second.first, c.second.second, pool, gpr);
+        c.first->emit_code(c.second.first, c.second.second, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();
 }
@@ -84,8 +125,8 @@ void TileSchedulerEmitter::emit_code(const std::vector<size_t> &in,
 
 void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out,
-                                     const std::vector<size_t>& pool,
-                                     const std::vector<size_t>& gpr,
+                                     const std::vector<size_t>& vec_pool,
+                                     const std::vector<size_t>& gpr_pool,
                                      const ov::intel_cpu::emitter_context *emit_context) const {
     const size_t num_inputs = in[0];
     const size_t num_outputs = in[1];
@@ -96,30 +137,23 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
 //    const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 
-    // These are kernel runtime input arguments
-    Reg64 reg_indexes   {dnnl::impl::cpu::x64::abi_param1};
-    Reg64 reg_const_params {dnnl::impl::cpu::x64::abi_param2};
-    Reg64 reg_tmp_64 = {dnnl::impl::cpu::x64::abi_not_param1};
-    // By the time we need to store amount, we can reuse reg_indexes.
-    Reg64 reg_amount = reg_indexes;
+    // It is critical that reg_outer_amount and reg_inner_amount represent the
+    // first two runtime arguments, since they are used to calculating offsets
+    Reg64 reg_outer_amount{dnnl::impl::cpu::x64::abi_param1};
+    Reg64 reg_inner_amount{dnnl::impl::cpu::x64::abi_param2};
+    Reg64 reg_tmp_64{dnnl::impl::cpu::x64::abi_not_param1};
+    std::vector<size_t> gp_regs_pool(gpr_pool);
+    // do not evict reg_tmp_64, since it can be reused in enclosed kernels
+    remove_regs_from_pool(gp_regs_pool, {static_cast<size_t>(reg_outer_amount.getIdx()),
+                                         static_cast<size_t>(reg_inner_amount.getIdx()),
+                                         static_cast<size_t>(reg_tmp_64.getIdx())});
 
-    std::vector<int> available_registers{0, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15};
-//    std::set<int> reserved_registers{reg_indexes.getIdx(), reg_const_params.getIdx(), reg_tmp_64.getIdx()};
-////    for (int reg_num = 0; reg_num < 16; reg_num++) {
-//    for (int reg_num = 0; reg_num < 3; reg_num++) {
-//        if (reserved_registers.count(reg_num) == 0)
-//            available_registers.push_back(reg_num);
-//    }
-//    for (int reg_num = 6; reg_num < 16; reg_num++) {
-//        if (reserved_registers.count(reg_num) == 0)
-//            available_registers.push_back(reg_num);
-//    }
+//    std::vector<int> available_registers{0, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15};
     Label for_body;
 
     // We won't need them after offsets are calculated, so pass further to Tiles
-//    std::vector<size_t> local_gpr = {(size_t) reg_indexes.getIdx(), (size_t) reg_const_params.getIdx()};
-    std::vector<Reg64> regs(num_params);
-
+    Reg64 reg_indexes = reg_outer_amount;
+    Reg64 reg_const_params = reg_inner_amount;
     auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
         for (int j = 0; j < harness_num_dims; j++) {
             if (jcp.output_dims[j] != 1 && offsets[j] != 0) {
@@ -129,29 +163,36 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
             }
         }
     };
+    std::vector<Reg64> regs(num_params);
     for (auto i = 0; i < num_params; i++) {
-        regs[i] = Reg64(available_registers[i]);
+        regs[i] = Reg64(static_cast<int>(gp_regs_pool[i]));
         if (i < num_inputs)
             h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         else
             h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptrs_with_offsets(regs[i], &jcp.data_offsets[i * harness_num_dims]);
     }
-
+    remove_regs_from_pool(gp_regs_pool, std::set<size_t>(gp_regs_pool.begin(), gp_regs_pool.begin() + num_params));
+    // We don't need tmp_reg anymore
+    gp_regs_pool.push_back(static_cast<size_t>(reg_tmp_64.getIdx()));
     auto emit_tiles = [&]() {
+        bool inner_work_amount_is_set = false;
         auto process_tile =
                 [&](bool body_condition, const std::vector<EmitterCode>& body,
                                     bool tile_condition, const EmitterCode& tile) {
             if (body_condition) {
                 // emit Tile body directly if only one tile iteration is needed
                 for (auto& c : body)
-                    c.first->emit_code(c.second.first, c.second.second);
+                    // todo: pass vec pool the same way
+                    c.first->emit_code(c.second.first, c.second.second, {}, gp_regs_pool);
             } else if (tile_condition) {
                 // Need to set proper work amount for inner tiles before code emission
-                Reg64 reg_inner_amount {dnnl::impl::cpu::x64::abi_param2};
-                h->mov(reg_inner_amount, inner_work_amount);
+                if (!inner_work_amount_is_set) {
+                    h->mov(reg_inner_amount, inner_work_amount);
+                    inner_work_amount_is_set = true;
+                }
                 const ngraph::snippets::RegInfo &regInfo = tile.second;
-                tile.first->emit_code(regInfo.first, regInfo.second);
+                tile.first->emit_code(regInfo.first, regInfo.second, {}, gp_regs_pool);
             }
         };
         process_tile(inner_work_amount == vector_size, vector_tile_body, inner_work_amount > vector_size, vector_tile);
@@ -163,12 +204,12 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
         emit_tiles();
     } else if (outer_work_amount > 1) {
         // We need to create a Loop in this case
-        h->mov(reg_amount, outer_work_amount);
+        h->mov(reg_outer_amount, outer_work_amount);
         h->L(for_body);
         {
-            h->push(reg_amount);
+//            h->push(reg_amount);
             emit_tiles();
-            h->pop(reg_amount);
+//            h->pop(reg_amount);
 
             // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
             //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
@@ -179,8 +220,8 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
                 }
             }
             // Note that outer dimensions are always incremented by 1 (outer tiles are always scalar)
-            h->sub(reg_amount, 1);
-            h->cmp(reg_amount, 1);
+            h->sub(reg_outer_amount, 1);
+            h->cmp(reg_outer_amount, 1);
             h->jge(for_body, CodeGenerator::T_NEAR);
         }
     }
@@ -215,27 +256,28 @@ void TileEmitter::validate_arguments(const std::vector<size_t> &in,
 void TileEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& out,
                             const std::vector<size_t>& pool,
-                            const std::vector<size_t>& gpr,
+                            const std::vector<size_t>& gpr_pool,
                             const ov::intel_cpu::emitter_context *emit_context) const {
     const size_t inc = in[0];
-    // Note that both Tiles use the same reg for amount;
+    // Todo: Note that both Tiles use the same reg for amount and this is a problem,
+    //  since we can't just pop it from the pool (we don't know whether it's first/second or the only tile at this point)
     Reg64 amount = Reg64(dnnl::impl::cpu::x64::abi_param2);
     std::array<Label, 2> for_body;
 
     // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
     // todo: Do we need explicitly check that code contains ScalarEmitter?
-    std::vector<size_t> local_gpr = {(size_t) dnnl::impl::cpu::x64::abi_not_param1.getIdx()};
+//    std::vector<size_t> local_gpr = {(size_t) dnnl::impl::cpu::x64::abi_not_param1.getIdx()};
 
     // Note that:
     // * Work amount must be set by TileScheduler that executes Tiles
     // * TileScheduler execute Tile only if it has to perform >= 1 iterations
     h->L(for_body[1]);
     {
-        h->push(amount);
+//        h->push(amount);
         for (auto& c : body) {
-            c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
+            c.first->emit_code(c.second.first, c.second.second, pool, gpr_pool);
         }
-        h->pop(amount);
+//        h->pop(amount);
         h->sub(amount, inc);
         h->cmp(amount, inc);
         h->jge(for_body[1], CodeGenerator::T_NEAR);
@@ -326,7 +368,7 @@ size_t MemoryEmitter::getEA(const std::shared_ptr<ov::Node>& n) {
     size_t ea = 0;
     auto it = rt.find("effectiveAddress");
     if (it != rt.end()) {
-        ea = it->second.as<int64_t>();
+        ea = it->second.as<size_t>();
     } else {
         throw ov::Exception("effective address for Load generation cannot be determined");
     }
@@ -336,6 +378,7 @@ size_t MemoryEmitter::getEA(const std::shared_ptr<ov::Node>& n) {
 
 StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                            const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+    in_out_type_ == emitter_in_out_map::vec_to_gpr;
 }
 
 void StoreEmitter::emit_impl(const std::vector<size_t>& in,
@@ -367,6 +410,7 @@ void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<siz
 
 ScalarStoreEmitter::ScalarStoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                        const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+    in_out_type_ == emitter_in_out_map::vec_to_gpr;
 }
 
 void ScalarStoreEmitter::emit_impl(const std::vector<size_t>& in,
@@ -399,6 +443,7 @@ void ScalarStoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vect
 LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n)
                          : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+    in_out_type_ == emitter_in_out_map::gpr_to_vec;
 }
 
 void LoadEmitter::emit_impl(const std::vector<size_t>& in,
@@ -433,6 +478,7 @@ void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+    in_out_type_ == emitter_in_out_map::gpr_to_vec;
 }
 
 void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
@@ -468,6 +514,7 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 ScalarLoadEmitter::ScalarLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                      const std::shared_ptr<ov::Node>& n)
                                     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
+    in_out_type_ == emitter_in_out_map::gpr_to_vec;
 }
 
 void ScalarLoadEmitter::emit_impl(const std::vector<size_t>& in,

@@ -50,6 +50,7 @@ public:
                       const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
+    emitter_in_out_map get_in_out_type() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 protected:
