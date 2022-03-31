@@ -50,17 +50,6 @@ shared_tensor.data[0][2] = 0.6
 assert data_to_share[0][2] == 0.6
 #! [tensor_shared_mode]
 
-#! [tensor_slice_mode]
-data_to_share = np.ones(shape=(2,8))
-
-# Specify slice of memory and the shape
-shared_tensor = ov.Tensor(data_to_share[1][:] , shape=ov.Shape([8]))
-
-# Editing of the numpy array affects Tensor's data
-data_to_share[1][:] = 2
-assert np.array_equal(shared_tensor.data, data_to_share[1][:])
-#! [tensor_slice_mode]
-
 infer_request = compiled.create_infer_request()
 data = np.random.randint(-5, 3 + 1, size=(8))
 
