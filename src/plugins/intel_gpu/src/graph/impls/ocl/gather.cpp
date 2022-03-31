@@ -15,7 +15,7 @@ using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 namespace {
-static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
+kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
     if (axis == 0) {
         return kernel_selector::gather_axis::BATCH;
     } else if (axis == 1) {

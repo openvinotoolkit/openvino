@@ -21,7 +21,7 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         return make_unique<shape_of_impl>(*this);
     }
 
-    static primitive_impl* create(const shape_of_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const shape_of_node& arg) {
         auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(arg);
         auto shape_of_optional_params =
             get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
@@ -29,16 +29,14 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         shape_of_params.input_rank = arg.get_dependency(0).get_output_layout().get_rank();
         shape_of_params.input_dims = arg.get_dependency(0).get_output_layout().get_dims();
 
-        auto& kernel_selector = kernel_selector::shape_of_instance();
-        auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);
+        const auto& kernel_selector = kernel_selector::shape_of_instance();
+        const auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);
         CLDNN_ERROR_BOOL(arg.id(),
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto shape_of = new shape_of_impl(arg, best_kernels[0]);
-
-        return shape_of;
+        return make_unique<shape_of_impl>(arg, best_kernels.front());
     }
 };
 
