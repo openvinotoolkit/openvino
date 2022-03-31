@@ -334,3 +334,43 @@ def test_packing(shape, low, high, ov_type, dtype):
     ov_tensor.data[:] = packed_data
     unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
     assert np.array_equal(unpacked, data)
+
+
+@pytest.mark.parametrize("dtype", [
+    (np.uint8),
+    (np.int8),
+    (np.int16),
+    (np.uint16),
+    (np.int32),
+    (np.uint32),
+    (np.int64),
+    (np.uint64),
+    (np.float16),
+    (np.float32),
+    (np.float64),
+])
+@pytest.mark.parametrize("element_type", [
+    (ov.Type.u8),
+    (ov.Type.i8),
+    (ov.Type.i16),
+    (ov.Type.u16),
+    (ov.Type.i32),
+    (ov.Type.u32),
+    (ov.Type.i64),
+    (ov.Type.u64),
+    #(ov.Type.f16),
+    #(ov.Type.f32),
+    #(ov.Type.f64),
+])
+def test_viewed_tensor(dtype, element_type):
+    buffer = np.random.normal(size=(2, 16)).astype(dtype)
+    fit = (dtype().nbytes * 8) / element_type.bitwidth
+    t = Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
+    assert np.array_equal(t.data, buffer.view(ov.utils.types.get_dtype(element_type)))
+
+
+def test_viewed_tensor_default_type():
+    buffer = np.random.normal(size=(2, 16))
+    new_shape = (4, 8)
+    t = Tensor(buffer, new_shape)
+    assert np.array_equal(t.data, buffer.reshape(new_shape))

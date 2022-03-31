@@ -40,7 +40,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type"),
+            py::arg("type") = ov::element::undefined,
             R"(
                 Another Tensor's special constructor.
 
@@ -75,7 +75,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type"),
+            py::arg("type") = ov::element::undefined,
             R"(
                  Another Tensor's special constructor.
 
