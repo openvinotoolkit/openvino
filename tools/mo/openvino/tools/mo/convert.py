@@ -382,7 +382,10 @@ def prepare_ir(argv: argparse.Namespace):
             if legacy_extensions_used(argv):
                 raise Error('Legacy transformations configuration is not supported for the new frontend')
             if new_transformations_config_used(argv):
-                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
+                if isinstance(argv.transformations_config, str):
+                    moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
+                else:
+                    moc_front_end.add_extension(argv.transformations_config)
             if new_extensions_used(argv):
                 for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
@@ -555,6 +558,12 @@ def extension_path_to_str_or_extensions_class(extension):
         # Return unknown object as is.
         # The type of the object will be checked by frontend.add_extension() method
         return extension
+
+
+def transformations_config_to_str(value):
+    if value is None:
+        return value
+    return extension_path_to_str_or_extensions_class(value)
 
 
 def extensions_to_str_or_extensions_class(extensions):
@@ -761,6 +770,18 @@ def layout_param_to_str(value):
                     "Layout or LayoutMap. Got {}".format(value))
 
 
+def batch_to_int(value):
+    if value is None or isinstance(value, int):
+        return value
+    if isinstance(value, Dimension):
+        if not value.is_static:
+            #TODO: Add dynamic batch support when MO supports dynamic batch
+            raise Exception("Dynamic batch is not supported.")
+        else:
+            return value.get_length()
+    raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
+
+
 def convert(
         input_model,
         framework=None,
@@ -830,12 +851,12 @@ def convert(
         layout=layout_param_to_str(layout),
         transform=transform,
         extensions=extensions_to_str_or_extensions_class(extensions),
-        batch=batch,
+        batch=batch_to_int(batch),
         silent=silent,
         static_shape=static_shape,
         progress=progress,
         stream_output=stream_output,
-        transformations_config=path_to_str(transformations_config),
+        transformations_config=transformations_config_to_str(transformations_config),
         use_new_frontend=use_new_frontend,
         use_legacy_frontend=use_legacy_frontend,
         disable_omitting_optional=disable_omitting_optional,

@@ -77,9 +77,10 @@ def is_new_json_config(json_file_path: str):
 def get_transformations_config_path(argv: argparse.Namespace) -> Path:
     if hasattr(argv, 'transformations_config') \
         and argv.transformations_config is not None and len(argv.transformations_config):
-        path = Path(argv.transformations_config)
-        if path.is_file():
-            return path
+        if isinstance(argv.transformations_config, str):
+            path = Path(argv.transformations_config)
+            if path.is_file():
+                return path
     return None
 
 
@@ -87,6 +88,13 @@ def new_transformations_config_used(argv: argparse.Namespace):
     path = get_transformations_config_path(argv)
     if path != None:
         return is_new_json_config(path)
+
+    if hasattr(argv, 'transformations_config') \
+            and argv.transformations_config is not None and not isinstance(argv.transformations_config, str):
+        # Unknown non-string object is treated as new extension object,
+        # the exact type is checked by frontend.add_extension()
+        return True
+
     return False
 
 

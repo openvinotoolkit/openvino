@@ -25,6 +25,9 @@ class TransformationsConfig(FrontReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         argv = graph.graph['cmd_params']
         transformations_config = argv.transformations_config
+        if not isinstance(transformations_config, str):
+            raise Exception("Incorrect type of transformations_config. "
+                            "Expected string, got {}.".format(type(transformations_config)))
         registry = CustomReplacementRegistry()
         registry.add_custom_replacement_description_from_config(transformations_config)
 
