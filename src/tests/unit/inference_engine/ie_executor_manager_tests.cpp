@@ -10,27 +10,29 @@ using namespace std;
 using namespace InferenceEngine;
 
 TEST(ExecutorManagerTests, canCreateSingleExecutorManager) {
+    auto execManager = executorManager();
     auto executorManager1 = executorManager();
-
     auto executorManager2 = executorManager();
 
     ASSERT_EQ(executorManager1, executorManager2);
 }
 
 TEST(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
-    auto executor1 = executorManager()->getExecutor("CPU");
-    auto executor2 = executorManager()->getExecutor("GPU");
+    auto execManager = executorManager();
+    auto executor1 = execManager->getExecutor("CPU");
+    auto executor2 = execManager->getExecutor("GPU");
 
     ASSERT_NE(executor1, executor2);
-    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
+    ASSERT_EQ(2, execManager->getExecutorsNumber());
 }
 
 TEST(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
-    auto executor1 = executorManager()->getExecutor("CPU");
-    auto executor2 = executorManager()->getExecutor("GPU");
+    auto execManager = executorManager();
+    auto executor1 = execManager->getExecutor("CPU");
+    auto executor2 = execManager->getExecutor("GPU");
 
-    auto executor = executorManager()->getExecutor("GPU");
+    auto executor = execManager->getExecutor("GPU");
 
     ASSERT_EQ(executor, executor2);
-    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
+    ASSERT_EQ(2, execManager->getExecutorsNumber());
 }
