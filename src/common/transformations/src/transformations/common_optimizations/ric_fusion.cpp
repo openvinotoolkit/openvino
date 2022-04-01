@@ -419,8 +419,8 @@ public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::GroupConvolution>(
-            {input_p, pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>(pattern::has_static_shape())});
+        auto pattern_root =
+            pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();

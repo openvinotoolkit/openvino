@@ -858,3 +858,40 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
     }
 }
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
+        auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+
+        auto conv = std::make_shared<opset8::GroupConvolution>(data, multiply, Strides{1, 1},
+                                                               CoordinateDiff{1, 1}, CoordinateDiff{3, 3}, Shape{1, 1},
+                                                               op::PadType::EXPLICIT);
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    //manager.register_pass<ov::pass::Serialize>("/tmp/model_orig.xml", "/tmp/model_orig.bin");
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    //manager.register_pass<ov::pass::Serialize>("/tmp/model_trans.xml", "/tmp/model_trans.bin");
+    disable_rt_info_check();
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
+        auto gather = create_gather(weights, {2, 1, 0}, 1);
+        auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+
+        auto conv = std::make_shared<opset8::GroupConvolution>(data, multiply, Strides{1, 1},
+                                                               CoordinateDiff{1, 1}, CoordinateDiff{3, 3}, Shape{1, 1},
+                                                               op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+//        ov::pass::Manager m;
+//        m.register_pass<ngraph::pass::Serialize>("/tmp/model_ref.xml", "/tmp/model_ref.bin");
+//        m.run_passes(function_ref);
+    }
+}
