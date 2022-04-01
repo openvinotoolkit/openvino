@@ -51,7 +51,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
     if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBB})
+    elseif(DEFINED ENV{TBBROOT})
         set(tbb_custom ON)
     endif()
 
