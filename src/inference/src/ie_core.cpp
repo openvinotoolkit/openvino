@@ -66,6 +66,11 @@ struct Parsed {
 
 namespace {
 
+std::mutex& get_plugin_mutex(const std::string& plugin_name) {
+    static std::map<std::string, std::mutex> mutexes;
+    return mutexes[plugin_name];
+}
+
 size_t string_to_size_t(const std::string& s) {
     std::stringstream sstream(s);
     size_t idx;
@@ -1010,10 +1015,10 @@ public:
     ov::InferencePlugin GetCPPPluginByName(const std::string& pluginName) const {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "CoreImpl::GetCPPPluginByName");
 
-        std::lock_guard<std::mutex> lock(pluginsMutex);
         auto deviceName = pluginName;
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
+        std::lock_guard<std::mutex> lock(get_plugin_mutex(deviceName));
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
@@ -1110,6 +1115,7 @@ public:
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
 
+                std::lock_guard<std::mutex> lock_plugins(pluginsMutex);
                 return plugins.emplace(deviceName, plugin).first->second;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
@@ -1201,7 +1207,7 @@ public:
         InferenceEngine::DeviceIDParser parser(deviceName);
         std::string clearDeviceName = parser.getDeviceName();
 
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_plugin_mutex(deviceName));
 
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
