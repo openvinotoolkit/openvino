@@ -10,7 +10,7 @@ from nncf.torch import create_compressed_model, register_default_init_args
 
 #! [nncf_congig]
 nncf_config_dict = {
-    "input_info": {"sample_size": [1, 3, 224, 224]}, # image size
+    "input_info": {"sample_size": [1, 3, 224, 224]}, # input shape required for model tracing
     "compression": {
         "algorithm": "quantization",  # 8-bit quantization with default settings
     },

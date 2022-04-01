@@ -3,13 +3,13 @@
 ## Introduction
 Quantization-aware Training is a popular method that allows quantizing a model and applying fine-tuning to restore accuracy degradation caused by quantization. In fact, this is the most accurate quantization method. This document describes how to apply QAT from the Neural Network Compression Framework (NNCF) to get 8-bit quantized models. This assumes that you are knowledgeable in Python* programming and familiar with the training code for the model in the source DL framework.
 
-> **NOTE**: Currently NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model).
+> **NOTE**: Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model).
 
 ## Using NNCF QAT
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with PyTorch or TensorFlow 2:
 
 ### 1. Import NNCF API
-In this step, you add NNCF-related imports in the beginning of the file:
+In this step, you add NNCF-related imports in the beginning of the training script:
 
 @sphinxtabset
 
@@ -28,7 +28,7 @@ In this step, you add NNCF-related imports in the beginning of the file:
 @endsphinxtabset
 
 ### 2. Create NNCF configuration
-Here, you should define NNCF configuration which consists of model-related parameters (`"input_info"` section) and parameters optimization methods (`"compression"` section). For faster convergence, it is also recommended to register a dataset object specific to the using DL framework. It will be used at the model creation step to initialize quantization parameters.
+Here, you should define NNCF configuration which consists of model-related parameters (`"input_info"` section) and parameters optimization methods (`"compression"` section). For faster convergence, it is also recommended to register a dataset object specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
 
 @sphinxtabset
 
@@ -65,25 +65,6 @@ In the next step, you need to wrap the original model object with the `create_co
 
 @endsphinxtabset
 
-### 4. (Optional) Enable distributed training
-In the case of distributed multi-GPU training, you should call a special API that will inform optimization methods to do some adjustments to function in the distributed mode.
-
-@sphinxtabset
-
-@sphinxtab{PyTorch}
-
-@snippet docs/optimization_guide/nncf/code/qat_torch.py distributed
-
-@endsphinxtab
-
-@sphinxtab{TensorFlow 2}
-
-@snippet docs/optimization_guide/nncf/code/qat_tf.py distributed
-
-@endsphinxtab
-
-@endsphinxtabset
-
 ### 5. Fine-tune the model
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle, you can skip this step which means that the post-training optimization will be applied to the model.
 
@@ -104,7 +85,7 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 @endsphinxtabset
 
 ### 6. Export quantized model
-After fine-tuning finished the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorh and frozen graph - for TensorFlow 2.
+When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorh and frozen graph - for TensorFlow 2.
 
 @sphinxtabset
 
@@ -122,7 +103,25 @@ After fine-tuning finished the quantized model can be exported to the correspond
 
 @endsphinxtabset
 
-These were the basic steps to applying the QAT method from the NNCF. However, it is required to save/load model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
+> **NOTE**: In the case of distributed multi-GPU training (not DataParallel), you should call `compression_ctrl.distributed()` before the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
+
+These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
+
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/code/qat_torch.py distributed
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow 2}
+
+@snippet docs/optimization_guide/nncf/code/qat_tf.py distributed
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### 7. (Optional) Save checkpoint
 To save model checkpoint use the following API:

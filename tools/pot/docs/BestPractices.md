@@ -103,4 +103,4 @@ Since the Accuracy-aware Quantization calls the Default Quantization at the firs
 To improve model performance after Accuracy-aware Quantization, you can try the `"tune_hyperparams"` setting and set it to `True`. It will enable searching for optimal quantization parameters before reverting layers to the "backup" precision. Note, that this can increase the overall quantization time.
 
 If you do not achieve the desired accuracy and performance after applying the 
-Accuracy-aware Quantization algorithm or you need an accurate fully-quantized model, we recommend either using Quantization-Aware Training from [NNCF](@ref docs_nncf_introduction).
+Accuracy-aware Quantization algorithm or you need an accurate fully-quantized model, we recommend either using Quantization-Aware Training from [NNCF](@ref tmo_introduction).
