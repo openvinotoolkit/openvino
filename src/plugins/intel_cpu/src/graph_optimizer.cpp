@@ -2161,8 +2161,7 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
         if (node->type != Type::RNNSeq)
             return false;
         auto rnnNode = std::dynamic_pointer_cast<RNN>(node);
-        return rnnNode && (!rnnNode->hasNativeOrder() || node->isDynamicNode()) && node->outputShapes[0].getRank() == 4 &&
-                node->outputShapes[0].getDims()[1] == 1;
+        return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
