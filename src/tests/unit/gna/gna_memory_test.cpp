@@ -359,7 +359,7 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
 }
 
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
     float input[]  = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture2 = nullptr;
@@ -389,7 +389,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
     ASSERT_FLOAT_EQ(pFuture[8], 0);
 }
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
     float input[]  = {1, 2, 3};
     float input2[]  = {6, 7, 8};
 
@@ -421,7 +421,7 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush
     ASSERT_FLOAT_EQ(pFutureInput2[2], 8);
 }
 
-TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
+TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
     float input[]  = {1, 2, 3};
 
     float *pFutureInput = nullptr;

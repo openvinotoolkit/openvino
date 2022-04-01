@@ -82,28 +82,35 @@ private:
     Gna2MemoryTag tag = Gna2MemoryTagScratch;
     bool isTagSet = false;
 };
-typedef std::list<GnaAllocation> GnaAllAllocations;
 
-namespace {
-uint32_t getAllAllocationSize(const GnaAllAllocations& all) {
+class GnaAllAllocations : public std::list<GnaAllocation> {
+public:
+
+GnaAllAllocations() = default;
+
+template<class T>
+explicit GnaAllAllocations(T b, T e) : std::list<GnaAllocation>(b, e) {
+}
+
+uint32_t getAllAllocationSize() const {
     uint32_t total = 0;
-    for (auto& a : all) {
+    for (auto& a : *this) {
         total += a.sizeForExport();
     }
     return total;
 }
 
-GnaAllAllocations orderedAllocations(const GnaAllAllocations& all) {
-    std::vector<GnaAllocation> allVector(all.begin(), all.end());
+GnaAllAllocations orderedAllocations() const {
+    std::vector<GnaAllocation> allVector(begin(), end());
     std::sort(allVector.begin(), allVector.end(), [](const GnaAllocation& l, const GnaAllocation& r) {
         return l.GetRegionOrder() <= r.GetRegionOrder();
     });
     return GnaAllAllocations(allVector.begin(), allVector.end());
 }
 
-std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(const GnaAllAllocations& all, void* ptr) {
+std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(void* ptr) const {
     uint64_t curOffset = 0;
-    for (auto& r : orderedAllocations(all)) {
+    for (auto& r : orderedAllocations()) {
         auto ptrBegin = static_cast<uint8_t*>(r.ptr);
         const auto size = r.sizeForExport();
         if (ptr >= ptrBegin && ptr < ptrBegin + size) {
@@ -114,4 +121,4 @@ std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(const GnaAllAll
     }
     return {false, 0};
 }
-}  // namespace
+};

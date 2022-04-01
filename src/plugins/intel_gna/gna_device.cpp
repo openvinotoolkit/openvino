@@ -127,29 +127,6 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
-#ifdef GNA_DUMP_TLV_ALLOCATIONS
-    static int idx = 0;
-    for (auto&& a : allAllocations) {
-        auto name = a.GetTagName();
-        std::ofstream file(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.bin", std::ios::out | std::ios::binary);
-        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
-        if (a.isTag(Gna2MemoryTagInput)) {
-            std::ofstream f(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.txt", std::ios::out);
-            auto inputs = static_cast<int16_t*>(a.ptr);
-            for (int i = 0; i < 200; i++) {
-                f << inputs[i] << " ";
-            }
-        }
-        if (a.isTag(Gna2MemoryTagOutput)) {
-            std::ofstream f(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.txt", std::ios::out);
-            auto inputs = static_cast<int32_t*>(a.ptr);
-            for (int i = 0; i < 88; i++) {
-                f << inputs[i] << " ";
-            }
-        }
-    }
-    idx++;
-#endif
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
@@ -462,7 +439,6 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
-    static int idx;
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusWarningDeviceBusy) {
@@ -473,28 +449,7 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return GNA_REQUEST_ABORTED;
     }
     checkGna2Status(status, "Gna2RequestWait");
-#ifdef GNA_DUMP_TLV_ALLOCATIONS
-    for (auto&& a : allAllocations) {
-        auto name = a.GetTagName();
-        std::ofstream file(std::to_string(idx) + name + ".AfterGna2RequestWait.bin", std::ios::out | std::ios::binary);
-        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
-        if (a.isTag(Gna2MemoryTagInput)) {
-            std::ofstream f(std::to_string(idx) + name + ".AfterGna2RequestWait.txt", std::ios::out);
-            auto inputs = static_cast<int16_t*>(a.ptr);
-            for (int i = 0; i < 200; i++) {
-                f << inputs[i] << " ";
-            }
-        }
-        if (a.isTag(Gna2MemoryTagOutput)) {
-            std::ofstream f(std::to_string(idx) + name + ".AfterGna2RequestWait.txt", std::ios::out);
-            auto inputs = static_cast<int32_t*>(a.ptr);
-            for (int i = 0; i < 88; i++) {
-                f << inputs[i] << " ";
-            }
-        }
-    }
-#endif
-    idx++;
+
     updateGnaPerfCounters();
     return GNA_REQUEST_COMPLETED;
 }
@@ -536,9 +491,9 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
 }
 
 void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-    Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+    uint32_t input_size, uint32_t output_size,
     float inSF, float outSF) {
-    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, targetDeviceVersion, input_size, output_size, inSF, outSF);
+    ExportTlvModel(modelId, nGnaDeviceIndex, outStream, exportGeneration, input_size, output_size, inSF, outSF);
 }
 
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {

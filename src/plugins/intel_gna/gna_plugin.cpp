@@ -335,10 +335,8 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
         return gnadevice->GetCompileTarget();
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
-    } else if (GNADeviceHelper::isGnaLibVersionSupportGna3()) {
-        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
     }
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -369,7 +367,7 @@ void GNAPlugin::InitGNADevice() {
                     config.swExactMode,
                     gnaFlags->performance_counting,
                     !config.dumpXNNPath.empty(),
-                    GetDeviceVersionFromString(config.dumpXNNGeneration));
+                    GetDeviceVersionFromString(config.gnaCompileTarget));
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     }
@@ -1146,12 +1144,10 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 }
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    if (deviceString == "GNA35") {
-        return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
-    }
-    if (deviceString.empty())
+    if (deviceString.empty() || deviceString == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
-    THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << deviceString;
+    }
+    return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
 }
 
 void GNAPlugin::DumpXNNToFile() const {
@@ -1186,7 +1182,7 @@ void GNAPlugin::DumpXNNToFile() const {
             output_size += o.get_required_size();
         auto inSF = inputsDesc.begin()->scale_factor;
         auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, Gna2DeviceVersionEmbedded3_5,
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
             input_size, output_size, inSF, outSF);
     }
     gnadevice->releaseModel(modelId);

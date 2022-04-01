@@ -138,7 +138,7 @@ public:
         Gna2DeviceVersion targetDeviceVersion);
 
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+        uint32_t input_size, uint32_t output_size,
         float inSF, float outSF);
 
     void free(void * ptr);
