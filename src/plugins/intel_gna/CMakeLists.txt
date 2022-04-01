@@ -79,7 +79,7 @@ foreach(gna_lib IN LISTS gna_libraries)
     # and don't install global symlink libgna.so. Exceptions:
     # 1. On Windows we don't have libraries versioning and need to install all .dlls
     # 2. For case of static libraries we also need to install .so since it's required for linkage with final application
-    if(gna_lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR
+    if(gna_lib MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR
        WIN32 OR NOT BUILD_SHARED_LIBS)
         install(FILES ${gna_lib}
                 DESTINATION ${IE_CPACK_RUNTIME_PATH}
