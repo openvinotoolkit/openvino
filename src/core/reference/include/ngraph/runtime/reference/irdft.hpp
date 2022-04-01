@@ -38,6 +38,7 @@ void irdft(const float* input_data,
            const Shape& input_data_shape,
            const std::vector<int64_t>& axes_data,
            float* fft_result,
+           const Shape& fft_output_shape,
            const Shape& output_shape);
 }  // namespace reference
 }  // namespace runtime
