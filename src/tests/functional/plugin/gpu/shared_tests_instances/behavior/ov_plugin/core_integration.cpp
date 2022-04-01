@@ -48,6 +48,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassGetMetricTest_DEVICE_UUID,
+        ::testing::Values("GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GPU"));
 

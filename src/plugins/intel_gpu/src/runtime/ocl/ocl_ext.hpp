@@ -8,6 +8,7 @@
 
 #pragma once
 #include <CL/opencl.hpp>
+#include <CL/cl_ext.h>
 #define NOMINMAX
 #ifdef _WIN32
 #include <CL/cl_d3d11.h>
