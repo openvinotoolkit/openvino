@@ -31,7 +31,7 @@ def legacy_extensions_used(argv: argparse.Namespace):
         extensions = argv.extensions
         legacy_ext_counter = 0
         for extension in extensions:
-            if isinstance(extension, str):
+            if isinstance(extension, str) and extension != import_extensions.default_path():
                 path = Path(extension)
                 if not path.is_file():
                     legacy_ext_counter += 1
