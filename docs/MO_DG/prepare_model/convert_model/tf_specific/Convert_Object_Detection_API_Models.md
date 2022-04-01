@@ -1,7 +1,7 @@
 # Convert TensorFlow Object Detection API Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models}
 
 > **NOTES**:
-> * Starting with the 2022.1 release, the Model Optimizer can convert the TensorFlow\* Object Detection API Faster and Mask RCNNs topologies differently. By default, the Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the pre-processing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info" and moreover, for some models the produced inference results are closer to the original TensorFlow\* model. In order to trigger new behaviour the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
+> * Starting with the 2022.1 release, the Model Optimizer can convert the TensorFlow\* Object Detection API Faster and Mask RCNNs topologies differently. By default, the Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the pre-processing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info" and moreover, for some models the produced inference results are closer to the original TensorFlow\* model. In order to trigger new behavior the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
 > * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
 > * To generate IRs for TF 1 SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
@@ -9,9 +9,9 @@
 
 You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
-<strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
 
-To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo` script with the following required parameters:
+To convert a TensorFlow\* Object Detection API model, run the `mo` command with the following required parameters:
 
 * `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
 * `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf` directory. Use:
@@ -43,7 +43,7 @@ To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/t
     * `rfcn_support_api_v1.13.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X
     * `rfcn_support_api_v1.14.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.14.0 or higher
 * `--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>` --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow\* Object Detection API zoo, the configuration file is named `pipeline.config`. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
-* `--input_shape` (optional) --- A custom input image shape. Refer to [Custom Input Shape](#tf_od_custom_input_shape) for more information how the `--input_shape` parameter is handled for the TensorFlow* Object Detection API models.
+* `--input_shape` (optional) --- A custom input image shape. Refer to [Custom Input Shape](#custom-input-shape) for more information how the `--input_shape` parameter is handled for the TensorFlow* Object Detection API models.
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. If you convert a TensorFlow\* Object Detection API model to use with the OpenVINO sample applications, you must specify the `--reverse_input_channels` parameter. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
@@ -55,11 +55,11 @@ For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http:/
 mo --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
-## OpenVINO&; Toolkit Samples and Open Model Zoo Demos
+## OpenVINO™ Toolkit Samples and Open Model Zoo Demos
 
 OpenVINO comes with a number of samples to demonstrate use of OpenVINO Runtime API, additionally,
 Open Model Zoo provides set of demo applications to show implementation of close to real life applications
-based on deep learning in various tasks, including Image Classifiacton, Visual Object Detection, Text Recognition,
+based on deep learning in various tasks, including Image Classification, Visual Object Detection, Text Recognition,
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
 
@@ -78,7 +78,8 @@ There are several important notes about feeding input images to the samples:
 
 4. Read carefully messaged printed by the Model Optimizer during a model conversion. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
 
-## Custom Input Shape <a name="tf_od_custom_input_shape"></a>
+@anchor custom-input-shape
+## Custom Input Shape
 Model Optimizer handles the command line parameter `--input_shape` for TensorFlow\* Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow\* Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
 * `fixed_shape_resizer` --- *Stretches* input image to the specific height and width. The `pipeline.config` snippet below shows a `fixed_shape_resizer` sample definition:
 ```
@@ -134,4 +135,5 @@ It is also important to open the model in the [TensorBoard](https://www.tensorfl
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model
 * `--tensorboard_logdir` --- Path to the directory where TensorBoard looks for the event files.
 
-Implementation of the transformations for Object Detection API models is located in the file `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`. Refer to the code in this file to understand the details of the conversion process.
+Implementation of the transformations for Object Detection API models is located in the file [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py). Refer to the code in this file to understand the details of the conversion process.
+
