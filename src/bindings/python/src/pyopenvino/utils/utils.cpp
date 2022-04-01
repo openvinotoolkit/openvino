@@ -19,7 +19,6 @@ namespace utils {
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
-        py::print("Hmmmm!2");
         return any.as<py::object>();
     }
     // Check for std::string
@@ -114,6 +113,21 @@ py::object from_ov_any(const ov::Any& any) {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
     }
+}
+
+std::map<std::string, ov::Any> properties_to_any_map(const std::map<py::object, py::object>& properties) {
+    std::map<std::string, ov::Any> properties_to_cpp;
+    for (const auto& property : properties) {
+        if (py::isinstance<ov::util::PropertyTag>(property.first)) {
+            properties_to_cpp[property.first.attr("name")().cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+        } else if (py::isinstance<py::str>(property.first)) {
+            properties_to_cpp[property.first.cast<std::string>()] = ov::Any(py_object_to_any(property.second));
+        } else {
+            py::print("Property is broken and unusable!");
+            // TODO: raise error!
+        }
+    }
+    return properties_to_cpp;
 }
 };  // namespace utils
 };  // namespace Common

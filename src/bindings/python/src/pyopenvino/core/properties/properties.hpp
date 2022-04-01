@@ -26,7 +26,20 @@ void register_property_class(
     });
 
     cls.def("__repr__", [](ov::Property<T, mutability_>& self) {
-        return py::str("<class Property[" + std::string(self.name()) + "]>");
+        return py::str("<class Property: \"" + std::string(self.name()) + "\">");
+    });
+
+    // Minimal set of functions that allows to pass it as dictionary entries
+    cls.def("__gt__", [](const ov::Property<T, mutability_>& self, py::str& other) {
+        return self.name() > py::cast<std::string>(other);
+    });
+
+    cls.def("__lt__", [](const ov::Property<T, mutability_>& self, py::str& other) {
+        return self.name() < py::cast<std::string>(other);
+    });
+
+    cls.def("__lt__", [](const ov::Property<T, mutability_>& self, const py::object& other) {
+        return self.name() < py::cast<std::string>(other.attr("name")());
     });
 }
 

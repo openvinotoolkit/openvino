@@ -13,12 +13,40 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
-
     py::object from_ov_any(const ov::Any &any);
+
+    std::map<std::string, ov::Any> properties_to_any_map(const std::map<py::object, py::object>& properties);
+
+    template <typename T>
+    py::object property_as_py_object(const T& self, const py::object& property) {
+        if (py::isinstance<ov::util::PropertyTag>(property)) {
+            return Common::utils::from_ov_any(self.get_property(property.attr("name")().cast<std::string>()));
+        } else if (py::isinstance<py::str>(property)) {
+            return Common::utils::from_ov_any(self.get_property(property.cast<std::string>()));
+        } else {
+            py::print("Property is broken and unusable!");
+            return py::str("...").cast<py::object>();
+            // TODO: raise error!
+        }
+    }
+
+    template <typename T>
+    py::object property_as_py_object(const T& self, const std::string& device_name, const py::object& property) {
+        if (py::isinstance<ov::util::PropertyTag>(property)) {
+            return Common::utils::from_ov_any(self.get_property(device_name, property.attr("name")().cast<std::string>()));
+        } else if (py::isinstance<py::str>(property)) {
+            return Common::utils::from_ov_any(self.get_property(device_name, property.cast<std::string>()));
+        } else {
+            py::print("Property is broken and unusable!");
+            return py::str("...").cast<py::object>();
+            // TODO: raise error!
+        }
+    }
 }; // namespace utils
 }; // namespace Common
 
 inline ov::Any py_object_to_any(const py::object& py_obj) {
+    // Python types
     if (py::isinstance<py::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
@@ -62,6 +90,9 @@ inline ov::Any py_object_to_any(const py::object& py_obj) {
             default:
                 OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
+    // OV types
+    } else if (py::isinstance<ov::Any>(py_obj)) {
+        return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
         return py::cast<ov::element::Type>(py_obj);
     } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
@@ -76,8 +107,8 @@ inline ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
-        py::print("Hmmmm!1");
         return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");

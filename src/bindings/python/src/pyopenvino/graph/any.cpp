@@ -28,6 +28,10 @@ void regclass_graph_Any(py::module m) {
         return ret.str();
     });
 
+    ov_any.def("__hash__", [](ov::Any& self) {
+        return Common::utils::from_ov_any(self).attr("__hash__")();
+    });
+
     ov_any.def("__getitem__", [](const ov::Any& self, py::object& k) {
         return Common::utils::from_ov_any(self).attr("__getitem__")(k);
     });

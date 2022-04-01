@@ -35,18 +35,8 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::map<py::object, py::object>& properties) {
-            std::map<std::string, ov::Any> properties_to_cpp;
-            for (const auto& property : properties) {
-                if (py::isinstance<ov::util::PropertyTag>(property.first)) {
-                    properties_to_cpp[property.first.attr("name")().cast<std::string>()] = ov::Any(py_object_to_any(property.second));
-                } else if (py::isinstance<py::str>(property.first)) {
-                    properties_to_cpp[property.first.cast<std::string>()] = ov::Any(py_object_to_any(property.second));
-                } else {
-                    py::print("Property is broken and unusable!");
-                    // TODO: raise error!
-                }
-            }
-            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            self.set_property({_properties.begin(), _properties.end()});
         },
         py::arg("properties"),
         R"(
@@ -59,18 +49,8 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::map<py::object, py::object>& properties) {
-            std::map<std::string, ov::Any> properties_to_cpp;
-            for (const auto& property : properties) {
-                if (py::isinstance<ov::util::PropertyTag>(property.first)) {
-                    properties_to_cpp[property.first.attr("name")().cast<std::string>()] = ov::Any(py_object_to_any(property.second));
-                } else if (py::isinstance<py::str>(property.first)) {
-                    properties_to_cpp[property.first.cast<std::string>()] = ov::Any(py_object_to_any(property.second));
-                } else {
-                    py::print("Property is broken and unusable!");
-                    // TODO: raise error!
-                }
-            }
-            self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            self.set_property(device_name, {_properties.begin(), _properties.end()});
         },
         py::arg("device_name"),
         py::arg("properties"),
@@ -86,15 +66,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const py::object& property) -> py::object {
-            if (py::isinstance<ov::util::PropertyTag>(property)) {
-                return Common::utils::from_ov_any(self.get_property(device_name, property.attr("name")().cast<std::string>()));
-            } else if (py::isinstance<py::str>(property)) {
-                return Common::utils::from_ov_any(self.get_property(device_name, property.cast<std::string>()));
-            } else {
-                py::print("Property is broken and unusable!");
-                return py::str("...").cast<py::object>();
-                // TODO: raise error!
-            }
+            return Common::utils::property_as_py_object<ov::Core>(self, device_name, property);
         },
         py::arg("device_name"),
         py::arg("property"),
