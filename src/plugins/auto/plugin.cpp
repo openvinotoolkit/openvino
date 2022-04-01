@@ -361,7 +361,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             }
         }
 
-        return std::make_shared<MultiDeviceExecutableNetwork>(clonedModelPath, clonedNetwork, supportDevices, strDevices, this, context, context.needPerfCounters);
+        return std::make_shared<MultiDeviceExecutableNetwork>(clonedModelPath, clonedNetwork, supportDevices, strDevices,
+                                                            this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
