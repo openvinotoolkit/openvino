@@ -24,6 +24,7 @@
 #include <functional>
 #include <iostream>
 #include <ngraph/runtime/reference/utils/fft_common.hpp>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -79,12 +80,38 @@ std::vector<int64_t> get_outer_axes(const std::vector<int64_t>& inner_axes, int6
     return outer_axes;
 }
 
+template <typename T>
+void print_vector(const std::vector<T>& v, const std::string& prefix) {
+    std::cout << prefix;
+    for (const auto& x : v) {
+        std::cout << x << " ";
+    }
+    std::cout << "\n";
+}
+
+inline bool is_power_of_two(int64_t x) {
+    return (x != 0) && ((x & (x - 1)) == 0);
+}
+
+// This function calculates internal FFT buffer size using lengths of FFT axes.
+int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths) {
+    int64_t buffer_size = 0;
+
+    for (int64_t length : fft_lengths) {
+        int64_t current_size = is_power_of_two(length) ? (2 * length) : length;
+        buffer_size = std::max(buffer_size, current_size);
+    }
+
+    return buffer_size;
+}
+
 // Calculation of IRDFT
 void irdft_calculation(const float* input_data,
                        const Shape& input_data_shape,
                        const std::vector<int64_t>& axes_data,
                        float* fft_result,
                        const Shape& fft_output_shape) {
+    std::cout << "We are in the function irdft_calculation()...\n";
     std::cout << "input_data_shape: " << input_data_shape << "\n";
     std::cout << "fft_output_shape: " << fft_output_shape << "\n";
 
@@ -93,54 +120,52 @@ void irdft_calculation(const float* input_data,
     std::cout << "input_data pointer:  " << complex_input_data_ptr << "\n";
     std::cout << "output data pointer: " << complex_output_ptr << "\n";
 
-    const auto fft_axes = axes_data;
-    std::cout << "fft_axes: ";
-    for (const auto a : fft_axes) {
-        std::cout << a << " ";
-    }
-    std::cout << "\n";
-
-    const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(fft_output_shape);
-    std::cout << "reversed_output_shape: ";
-    for (const auto d : reversed_output_shape) {
-        std::cout << d << " ";
-    }
-    std::cout << "\n";
+    print_vector(axes_data, "axes_data: ");
 
     const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size()) - 1;
-    const auto reversed_fft_axes = reverse_fft_axes(axes_data, complex_data_rank);
     std::cout << "complex_data_rank: " << complex_data_rank << "\n";
-    std::cout << "reversed_fft_axes: ";
-    for (const auto a : reversed_fft_axes) {
-        std::cout << a << " ";
-    }
-    std::cout << "\n";
+    const auto fft_axes = reverse_fft_axes(axes_data, complex_data_rank);
+    print_vector(fft_axes, "fft_axes: ");
 
-    const int64_t fft_rank = reversed_fft_axes.size();
+    const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(fft_output_shape);
+    print_vector(reversed_output_shape, "reversed_output_shape: ");
+
+    const int64_t fft_rank = fft_axes.size();
     std::cout << "fft_rank: " << fft_rank << "\n";
 
     const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
-    std::cout << "fft_lengths: ";
-    for (const auto a : fft_lengths) {
-        std::cout << a << " ";
-    }
-    std::cout << "\n";
+    print_vector(fft_lengths, "fft_lengths: ");
 
     const auto fft_strides = fft_common::compute_strides(fft_lengths);
-    const int64_t fft_size = fft_strides[fft_rank];
-    std::cout << "fft_strides: ";
-    for (const auto a : fft_strides) {
-        std::cout << a << " ";
-    }
-    std::cout << "\n";
+    print_vector(fft_strides, "fft_strides: ");
 
+    const int64_t fft_size = fft_strides[fft_rank];
     std::cout << "fft_size: " << fft_size << "\n";
+
     const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
-    std::cout << "outer_axes: ";
-    for (const auto a : outer_axes) {
-        std::cout << a << " ";
-    }
-    std::cout << "\n";
+    print_vector(outer_axes, "outer_axes: ");
+
+    const int64_t outer_rank = outer_axes.size();
+    std::cout << "outer_rank: " << outer_rank << "\n";
+
+    const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
+    print_vector(outer_lengths, "outer_lengths: ");
+
+    const auto outer_strides = fft_common::compute_strides(outer_lengths);
+    print_vector(outer_strides, "outer_strides: ");
+
+    const int64_t outer_size = outer_strides[outer_rank];
+    std::cout << "outer_size: " << outer_size << "\n";
+
+    const int64_t buffer_size = compute_buffer_size(fft_lengths);
+    std::cout << "buffer_size: " << buffer_size << "\n";
+
+    const auto output_strides = fft_common::compute_strides(reversed_output_shape);
+    const auto output_fft_strides = get_lengths(output_strides, fft_axes);
+    const auto output_outer_strides = get_lengths(output_strides, outer_axes);
+    print_vector(output_strides, "output_strides: ");
+    print_vector(output_fft_strides, "output_fft_strides: ");
+    print_vector(output_outer_strides, "output_outer_strides: ");
 }
 
 void irdft_postprocessing(const complex_type* intermediate_results,
