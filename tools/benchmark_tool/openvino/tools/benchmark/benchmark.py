@@ -30,10 +30,15 @@ class Benchmark:
     def __del__(self):
         del self.core
 
-    def add_extension(self, extensions_str: str):
-        for extension in extensions_str.split(","):
-            logger.info(f"Loading extension {extension}")
-            self.core.add_extension(extension)
+    def add_extension(self, path_to_extensions: str=None, path_to_cldnn_config: str=None):
+        if path_to_cldnn_config:
+            self.core.set_property(GPU_DEVICE_NAME, {'CONFIG_FILE': path_to_cldnn_config})
+            logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
+
+        if path_to_extensions:
+            for extension in path_to_extensions.split(","):
+                logger.info(f"Loading extension {extension}")
+                self.core.add_extension(extension)
 
     def get_version_info(self) -> str:
         logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")

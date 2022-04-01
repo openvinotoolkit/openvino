@@ -100,46 +100,16 @@ Depending on the type, the report is stored to benchmark_no_counters_report.csv,
 Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
-<<<<<<< HEAD
 benchmark_app -h
 [Step 1/11] Parsing and validating input arguments
-usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
+usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-extensions PATH_TO_EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
                      [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE] [-stream_output [STREAM_OUTPUT]] [-t TIME] [-progress [PROGRESS]] [-shape SHAPE]
                      [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS]
                      [--latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}]
-                     [-enforcebf16 [{True,False}]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
+                     [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
                      [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
-                     [-load_config LOAD_CONFIG] [-qb {8,16}] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
+                     [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                      [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
-=======
-usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL 
-                     [-d TARGET_DEVICE] 
-                     [-extensions PATH_TO_EXTENSIONS]
-                     [-api {sync,async}]
-                     [-niter NUMBER_ITERATIONS]
-                     [-nireq NUMBER_INFER_REQUESTS]
-                     [-b BATCH_SIZE]
-                     [-stream_output [STREAM_OUTPUT]]
-                     [-t TIME]
-                     [-progress [PROGRESS]]
-                     [-shape SHAPE]
-                     [-layout LAYOUT]
-                     [-nstreams NUMBER_STREAMS]
-                     [-nthreads NUMBER_THREADS]
-                     [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                     [-exec_graph_path EXEC_GRAPH_PATH]
-                     [-pc [PERF_COUNTS]]
-                     [-report_type {no_counters,average_counters,detailed_counters}]
-                     [-report_folder REPORT_FOLDER]
-                     [-dump_config DUMP_CONFIG]
-                     [-load_config LOAD_CONFIG]
-                     [-infer_precision INFER_PRECISION]
-                     [-ip {U8,FP16,FP32}]
-                     [-op {U8,FP16,FP32}]
-                     [-iop INPUT_OUTPUT_PRECISION]
-                     [-cdir CACHE_DIR]
-                     [-lfile [LOAD_FROM_FILE]]
->>>>>>> c0971d2290... Replace -l and -c by --extensions
 
 Options:
   -h [HELP], --help [HELP]
@@ -150,23 +120,16 @@ Options:
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-<<<<<<< HEAD
                         Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to
                         specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-  -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
-                        Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+  -extensions PATH_TO_EXTENSIONS, --extensions PATH_TO_EXTENSIONS
+                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
   -hint {throughput,latency,none}, --perf_hint {throughput,latency,none}
                         Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings. 'throughput': device
                         performance mode will be set to THROUGHPUT. 'latency': device performance mode will be set to LATENCY. 'none': no device performance mode will be set. Using explicit 'nstreams'
                         or other device-specific options, please set hint to 'none'
-=======
-                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to specify
-                        HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-  -extensions PATH_TO_EXTENSIONS, --extensions PATH_TO_EXTENSIONS
-                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
->>>>>>> c0971d2290... Replace -l and -c by --extensions
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value is async.
   -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
@@ -186,22 +149,12 @@ Options:
                         for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.
   -layout LAYOUT        Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-<<<<<<< HEAD
                         Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
                         <nstreams>). Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it still may be
                         non - optimal for some cases, especially for very small networks. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the
                         number of streams should be set to 1. See samples README for more details.
   --latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}
                         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
-  -enforcebf16 [{True,False}], --enforce_bfloat16 [{True,False}]
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'True' - enable bfloat16 regardless of platform support.
-                        'False' - disable bfloat16 regardless of platform support.
-=======
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                        Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for
-                        some cases, especially for very small networks. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be
-                        set to 1. See samples README for more details.
->>>>>>> c0971d2290... Replace -l and -c by --extensions
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
@@ -224,17 +177,10 @@ Options:
   -dump_config DUMP_CONFIG
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
-<<<<<<< HEAD
                         Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
-  -qb {8,16}, --quantization_bits {8,16}
-                        Optional. Weight bits for quantization: 8 (I8) or 16 (I16)
-  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
-=======
-                        Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
   -infer_precision INFER_PRECISION
                         Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32'.
-  -ip {U8,FP16,FP32}, --input_precision {U8,FP16,FP32}
->>>>>>> c0971d2290... Replace -l and -c by --extensions
+  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all input layers of the network.
   -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all output layers of the network.
