@@ -644,7 +644,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n->GetContext();
-        } catch (const NotImplemented&) {}
+        } catch (const InferenceEngine::NotImplemented&) {}
     }
     IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
