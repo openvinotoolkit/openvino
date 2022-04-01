@@ -27,8 +27,10 @@ add_subdirectory(thirdparty)
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "CPU"
+              DEVICE_NAME "Intel_CPU"
               AS_EXTENSION
+              DEFAULT_CONFIG 
+                  PROXY_NAME:CPU;PROXY_PRIORITY:1
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})

@@ -29,8 +29,10 @@ file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${
 addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "GPU"
+              DEVICE_NAME "Intel_GPU"
               SOURCES ${PLUGIN_SOURCES}
+              DEFAULT_CONFIG 
+                  PROXY_NAME:GPU;PROXY_PRIORITY:1
               VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
