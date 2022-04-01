@@ -29,18 +29,21 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
         std::vector<ov::Output<ov::Node>> defaultInputs;
 
+        std::string device_prefix = device.substr(0, device.find(':'));  // for `AUTO:CPU`, `AUTO:GPU`, `AUTO:GPU,CPU`
+
         bool reshape = false;
         if (!reshapeShapes.empty()) {
             reshape = true;
         }
 
-         // first_inference_latency = time_to_inference + first_inference
+        // first_inference_latency = time_to_inference + first_inference
         {
             SCOPED_TIMER(time_to_inference);
             {
                 SCOPED_TIMER(load_plugin);
-                TimeTest::setPerformanceConfig(ie, device.substr(0, device.find(':')));
-                ie.get_versions(device.substr(0, device.find(':')));
+
+                TimeTest::setPerformanceConfig(ie, device_prefix);
+                ie.get_versions(device_prefix);
 
                 if (isCacheEnabled)
                     ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});

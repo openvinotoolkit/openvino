@@ -26,13 +26,15 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
 
+        std::string device_prefix = device.substr(0, device.find(':'));  // for `AUTO:CPU`, `AUTO:GPU`, `AUTO:GPU,CPU`
+
         // first_inference_latency = time_to_inference + first_inference
         {
             SCOPED_TIMER(time_to_inference);
             {
                 SCOPED_TIMER(load_plugin);
-                TimeTest::setPerformanceConfig(ie, device.substr(0, device.find(':')));
-                ie.GetVersions(device.substr(0, device.find(':')));
+                TimeTest::setPerformanceConfig(ie, device_prefix);
+                ie.GetVersions(device_prefix);
 
                 if (isCacheEnabled)
                     ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
