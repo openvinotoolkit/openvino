@@ -16,7 +16,7 @@
    :caption: Deploying Inference
    :hidden:
 
-   openvino_docs_OV_Runtime_User_Guide
+   openvino_docs_OV_UG_OV_Runtime_User_Guide
    openvino_2_0_transition_guide
    openvino_deployment_guide
    openvino_inference_engine_tools_compile_tool_README
@@ -82,7 +82,7 @@
    
    openvino_docs_security_guide_introduction
    openvino_docs_security_guide_workbench
-   openvino_docs_IE_DG_protecting_model_guide
+   openvino_docs_OV_UG_protecting_model_guide
    ovsa_get_started
 
 @endsphinxdirective

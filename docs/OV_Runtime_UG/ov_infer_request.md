@@ -1,4 +1,4 @@
-# OpenVINO™ Inference Request {#openvino_docs_OV_Runtime_UG_Infer_request}
+# OpenVINO™ Inference Request {#openvino_docs_OV_UG_Infer_request}
 
 OpenVINO™ Runtime uses Infer Request mechanism which allows to run models on different devices in asynchronous or synchronous manners.
 `ov::InferRequest` class is used for this purpose inside the OpenVINO™ Runtime.

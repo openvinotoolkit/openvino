@@ -1,4 +1,4 @@
-# ConvolutionTransformation transformation {#openvino_docs_IE_DG_lpt_ConvolutionTransformation}
+# ConvolutionTransformation transformation {#openvino_docs_OV_UG_lpt_ConvolutionTransformation}
 
 ngraph::pass::low_precision::ConvolutionTransformation class represents the `Convolution` operation transformation.
 

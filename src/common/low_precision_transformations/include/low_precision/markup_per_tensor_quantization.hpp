@@ -28,7 +28,7 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
  * provided restrictions.
  *
  * For more details about the transformation, refer to
- * [MarkupPerTensorQuantization](@ref openvino_docs_IE_DG_lpt_MarkupPerTensorQuantization) page
+ * [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {

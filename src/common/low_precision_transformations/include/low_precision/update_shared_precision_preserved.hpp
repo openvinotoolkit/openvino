@@ -31,7 +31,7 @@ class UpdateSharedPrecisionPreserved;
  * for precision preserved operations if ExpectedAttributeType exist.
  *
  * For more details about the transformation, refer to
- * [UpdateSharedPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_UpdateSharedPrecisionPreserved) page
+ * [UpdateSharedPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>

@@ -509,7 +509,7 @@ There are a number of common attributes used in the operations. Here is the list
 Model Optimizer operations this attribute should be set to `None`. The model conversion fails if an operation with
 `type` equal to `None` comes to the IR emitting phase. **Mandatory**.
 * `version` — the operation set (opset) name the operation belongs to. If not specified, the Model Optimizer sets it
-equal to `experimental`. Refer to [OpenVINO Model Representation](@ref openvino_docs_OV_Runtime_UG_Model_Representation) for more
+equal to `experimental`. Refer to [OpenVINO Model Representation](@ref openvino_docs_OV_UG_Model_Representation) for more
 information about operation sets. **Mandatory**.
 * `op` — Model Optimizer type of the operation. In many cases, the value of `type` is equal to the value of `op`. But
 when the Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal

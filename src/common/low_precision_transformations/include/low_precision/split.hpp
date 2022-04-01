@@ -18,7 +18,7 @@ namespace low_precision {
  * @brief SplitTransformation propagates dequantization operations through Split operation.
  *
  * For more details about the transformation, refer to
- * [SplitTransformation](@ref openvino_docs_IE_DG_lpt_SplitTransformation) page
+ * [SplitTransformation](@ref openvino_docs_OV_UG_lpt_SplitTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {

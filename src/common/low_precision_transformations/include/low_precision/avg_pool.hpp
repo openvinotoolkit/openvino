@@ -16,7 +16,7 @@ namespace low_precision {
  * @brief AvgPoolTransformation propagates dequantization operations through AvgPool operation.
  *
  * For more details about the transformation, refer to
- * [AvgPoolTransformation](@ref openvino_docs_IE_DG_lpt_AvgPoolTransformation) page
+ * [AvgPoolTransformation](@ref openvino_docs_OV_UG_lpt_AvgPoolTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {

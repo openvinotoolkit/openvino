@@ -1,4 +1,4 @@
-# Automatic device selection {#openvino_docs_IE_DG_supported_plugins_AUTO}
+# Automatic device selection {#openvino_docs_OV_UG_supported_plugins_AUTO}
 
 @sphinxdirective
 
@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   Debugging Auto-Device Plugin <openvino_docs_IE_DG_supported_plugins_AUTO_debugging>
+   Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
 @endsphinxdirective
 

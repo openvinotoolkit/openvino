@@ -1,4 +1,4 @@
-# OpenVINO™ Python API exclusives {#openvino_docs_OV_Runtime_UG_Python_API_exclusives}
+# OpenVINO™ Python API exclusives {#openvino_docs_OV_UG_Python_API_exclusives}
 
 OpenVINO™ Runtime Python API is exposing additional features and helpers to elevate user experience. Main goal of Python API is to provide user-friendly and simple, still powerful, tool for Python users.
 
