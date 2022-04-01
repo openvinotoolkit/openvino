@@ -13,7 +13,6 @@
 
 #include <common/memory_desc_wrapper.hpp>
 #include <dnnl.hpp>
-#include <typeinfo>
 #include <utility>
 
 #include "../../../ie_test_utils/common_test_utils/common_utils.hpp"
@@ -108,23 +107,19 @@ struct ReorderCPUTestParamSet {
 class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
-                    const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc,
-                    const ov::intel_cpu::Shape& srcShape,
-                    const ov::intel_cpu::Shape& dstShape) {
+                    const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         const mkldnn::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
         ov::intel_cpu::WeightsSharing::Ptr weightsCache;
 
-        auto inputNode = std::make_shared<ov::intel_cpu::node::Input>(srcShape,
-                                                                      prec,
+        inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
                                                                       "Reorder_Input",
-                                                                      "Input",
+                                                                      "Parameter",
                                                                       cpuEngine,
                                                                       weightsCache);
         reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", cpuEngine, weightsCache);
-        auto outputNode = std::make_shared<ov::intel_cpu::node::Input>(dstShape,
-                                                                       prec,
+        outputNode = std::make_shared<ov::intel_cpu::node::Input>(outputDesc.clone(),
                                                                        "Reorder_Output",
-                                                                       "Output",
+                                                                       "Result",
                                                                        cpuEngine,
                                                                        weightsCache);
 
@@ -152,15 +147,16 @@ public:
             n->init();
             n->getSupportedDescriptors();
             n->initSupportedPrimitiveDescriptors();
+            n->selectPrimitiveDescriptorByIndex(0);
         }
-        // Select inputDesc as primitive descriptor for reorder node
-        reorderNode->selectPrimitiveDescriptorByIndex(0);
         stream = mkldnn::stream{cpuEngine};
     }
 
 protected:
     mkldnn::stream stream;
+    std::shared_ptr<ov::intel_cpu::node::Input> inputNode;
     std::shared_ptr<ov::intel_cpu::node::Reorder> reorderNode;
+    std::shared_ptr<ov::intel_cpu::node::Input> outputNode;
     std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
     std::shared_ptr<ov::intel_cpu::Edge> childEdge;
     InferenceEngine::Precision prec;
@@ -261,9 +257,7 @@ protected:
                                                              0,
                                                              offsetPaddingToData,
                                                              dstStrides);
-        const auto& srcShape = ov::intel_cpu::Shape{srcDims};
-        const auto& destShape = ov::intel_cpu::Shape{dstDims};
-        buildReorderGraph(inputDesc, outputDesc, srcShape, destShape);
+        buildReorderGraph(inputDesc, outputDesc);
     }
 
     void infer() {
@@ -347,9 +341,8 @@ public:
     }
 
 protected:
-    void generate_inputs(const std::vector<size_t> inputShape) {
-        auto memDesc = inputDesc.cloneWithNewDims(inputShape);
-        parentEdge->getMemoryPtr()->redefineDesc(memDesc);
+    void generate_inputs(const std::vector<size_t>& inputShape) {
+        parentEdge->getParent()->redefineOutputMemory({inputShape});
         fillData(parentEdge->getMemory(), prec);
     }
     void infer() {
@@ -384,17 +377,16 @@ protected:
         auto srcBlockedDescCreator = blockCreatorMap[reorderParams.srcLayout];
         auto dstBlockedDescCreator = blockCreatorMap[reorderParams.dstLayout];
 
-        inputDesc = srcBlockedDescCreator->createDesc(prec, reorderParams.srcShape);
-        const auto& reorderInputDesc = inputDesc;
+        const ov::intel_cpu::CpuBlockedMemoryDesc inputDesc =
+            srcBlockedDescCreator->createDesc(prec, reorderParams.srcShape);
 
         const ov::intel_cpu::CpuBlockedMemoryDesc outputDesc =
             dstBlockedDescCreator->createDesc(prec, reorderParams.dstShape);
 
-        buildReorderGraph(reorderInputDesc, outputDesc, reorderParams.srcShape, reorderParams.dstShape);
+        buildReorderGraph(inputDesc, outputDesc);
     }
 
 private:
-    ov::intel_cpu::CpuBlockedMemoryDesc inputDesc{InferenceEngine::Precision::FP32, ov::intel_cpu::Shape{}};
     std::vector<std::vector<size_t>> inputShapes;
 };
 
