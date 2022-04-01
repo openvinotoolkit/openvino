@@ -1350,10 +1350,9 @@ void InsertSplitAligningFilterPass::run() {
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
                 } else {
-                    auto lastDimSize = GetDataDimSize(splitOutput, 1);
-                    if (lastDimSize != outputSize) {
-                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support these input dimensions: lastDimSize="
-                            << lastDimSize << ", outputSize=" << outputSize;
+                    if (splitOutput->getDims().size() > 1 && splitOutput->getDims().front() > 1) {
+                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support batch="
+                            << splitOutput->getDims().front();
                     }
 
                     // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer

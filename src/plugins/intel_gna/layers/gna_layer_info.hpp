@@ -358,7 +358,7 @@ class LayerInfo {
     bool isCrop() const noexcept {
         return isOfType("crop");
     }
-    bool isCropAffined() const noexcept {
+    bool isCropAffined() const {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             // currently crop layer only supports 2 bytes in int16 and int8 mode.
