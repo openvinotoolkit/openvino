@@ -65,6 +65,6 @@ public:
     void AddExtension(const ov::Extension::Ptr& extension) override;
 
 private:
-    std::map<std::string, std::string> m_config;
     std::vector<ov::Extension::Ptr> m_extensions;
+    bool m_profiling{false};
 };

@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/op/relu.hpp"
 #include "proxy_tests.hpp"
 
 using namespace ov::proxy::tests;

@@ -24,23 +24,19 @@ size_t string_to_size_t(const std::string& s) {
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
 
-bool ov::proxy::Plugin::has_device_in_config(const std::map<std::string, std::string>& config) const {
-    return config.find("DEVICE_ID") != config.end();
-}
 size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std::string>& config) const {
-    OPENVINO_ASSERT(config.find("DEVICE_ID") != config.end());
-    return string_to_size_t(config.at("DEVICE_ID"));
+    if (config.find("DEVICE_ID") != config.end())
+        return string_to_size_t(config.at("DEVICE_ID"));
+    return 0;
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
     // Set config for primary device
-    m_config = config;
     ov::AnyMap property;
     for (const auto it : config) {
         property[it.first] = it.second;
     }
-    if (has_device_in_config(config))
-        GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
+    GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
 }
 
 InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
@@ -71,47 +67,55 @@ void ov::proxy::Plugin::AddExtension(const std::shared_ptr<InferenceEngine::IExt
 InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
     const std::string& name,
     const std::map<std::string, InferenceEngine::Parameter>& options) const {
-    std::string device_id;
+    std::string device_id = "0";
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
     if (name == ov::device::id)
         return device_id;
 
-    if (device_id.empty())
-        IE_THROW(NotImplemented);
     size_t idx = string_to_size_t(device_id);
     return GetCore()->GetConfig(get_primary_device(idx), name);
 }
 InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     const std::string& name,
     const std::map<std::string, InferenceEngine::Parameter>& options) const {
-    auto RO_property = [](const std::string& propertyName) {
-        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-    };
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    std::string device_name = get_primary_device(string_to_size_t(GetConfig(ov::device::id.name(), options)));
 
-    // TODO: recall plugin for supported metrics
     if (name == ov::supported_properties) {
-        std::vector<ov::PropertyName> roProperties{
-            RO_property(ov::supported_properties.name()),
-            RO_property(ov::available_devices.name()),
-            RO_property(ov::device::full_name.name()),
-        };
+        const static std::unordered_set<std::string> property_names = {ov::supported_properties.name(),
+                                                                       ov::available_devices.name()};
 
         std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size());
-        supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+        supportedProperties.reserve(property_names.size());
+        for (const auto& property : property_names) {
+            supportedProperties.emplace_back(ov::PropertyName(property, ov::PropertyMutability::RO));
+        }
+
+        auto dev_properties = GetCore()->GetMetric(device_name, name, options).as<std::vector<ov::PropertyName>>();
+
+        for (const auto& property : dev_properties) {
+            if (property_names.find(property) != property_names.end())
+                continue;
+            supportedProperties.emplace_back(property);
+        }
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
-    } else if (name == "SUPPORTED_CONFIG_KEYS") {
-        std::vector<std::string> configs;
-        return configs;
     } else if (name == "SUPPORTED_METRICS") {
+        const static std::unordered_set<std::string> metric_names = {"SUPPORTED_METRICS", ov::available_devices.name()};
+
         std::vector<std::string> metrics;
-        metrics.push_back("AVAILABLE_DEVICES");
-        metrics.push_back("SUPPORTED_METRICS");
-        metrics.push_back("FULL_DEVICE_NAME");
+        metrics.reserve(metric_names.size());
+        for (const auto& metric : metric_names)
+            metrics.emplace_back(metric);
+
+        auto dev_properties = GetCore()->GetMetric(device_name, name, options).as<std::vector<std::string>>();
+
+        for (const auto& property : dev_properties) {
+            if (metric_names.find(property) != metric_names.end())
+                continue;
+            metrics.emplace_back(property);
+        }
         return metrics;
     } else if (name == ov::available_devices) {
         auto hidden_devices = get_hidden_devices();
@@ -122,10 +126,7 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         return decltype(ov::available_devices)::value_type(availableDevices);
     }
 
-    if (device_id.empty())
-        IE_THROW(NotImplemented) << " to call " << name;
-    size_t idx = string_to_size_t(device_id);
-    return GetCore()->GetMetric(get_primary_device(idx), name, options);
+    return GetCore()->GetMetric(device_name, name, options);
 }
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,

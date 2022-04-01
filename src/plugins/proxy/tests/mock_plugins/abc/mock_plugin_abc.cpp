@@ -26,12 +26,20 @@ bool support_model(const std::shared_ptr<const ov::Model>& model,
     }
     return true;
 }
+
+size_t string_to_size_t(const std::string& s) {
+    std::stringstream sstream(s);
+    size_t idx;
+    sstream >> idx;
+    return idx;
+}
 }  // namespace
 
 MockPluginAbc::MockPluginAbc() {}
 
 void MockPluginAbc::SetConfig(const std::map<std::string, std::string>& _config) {
-    this->m_config = _config;
+    if (_config.find("NUM_STREAMS") != _config.end())
+        num_streams = string_to_size_t(_config.at("NUM_STREAMS"));
 }
 
 void MockPluginAbc::AddExtension(const ov::Extension::Ptr& extension) {
@@ -57,6 +65,8 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         configs.push_back("NUM_STREAMS");
         configs.push_back("PERF_COUNT");
         return configs;
+    } else if (name == "NUM_STREAMS") {
+        return num_streams;
     } else if (name == ov::device::full_name) {
         std::string deviceFullName = "";
         if (device_id == "abc_a")
@@ -68,7 +78,7 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     }
 
-    IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented) << name;
 }
 
 Parameter MockPluginAbc::GetMetric(const std::string& name,
@@ -91,7 +101,6 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
-            RW_property(ov::enable_profiling.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -109,7 +118,6 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
         configs.push_back("NUM_STREAMS");
-        configs.push_back("PERF_COUNT");
         return configs;
     } else if (name == ov::device::full_name) {
         std::string deviceFullName = "";

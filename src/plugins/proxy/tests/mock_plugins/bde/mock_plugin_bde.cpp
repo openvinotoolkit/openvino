@@ -25,12 +25,18 @@ bool support_model(const std::shared_ptr<const ov::Model>& model,
     }
     return true;
 }
+
+bool string_to_bool(const std::string& s) {
+    return s == "YES";
+}
 }  // namespace
 
 MockPluginBde::MockPluginBde() {}
 
 void MockPluginBde::SetConfig(const std::map<std::string, std::string>& _config) {
-    this->m_config = _config;
+    if (_config.find("PERF_COUNT") != _config.end()) {
+        m_profiling = string_to_bool(_config.at("PERF_COUNT"));
+    }
 }
 
 void MockPluginBde::AddExtension(const ov::Extension::Ptr& extension) {
@@ -53,7 +59,6 @@ Parameter MockPluginBde::GetConfig(const std::string& name,
         return metrics;
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
-        configs.push_back("NUM_STREAMS");
         configs.push_back("PERF_COUNT");
         return configs;
     } else if (name == ov::device::full_name) {
@@ -89,13 +94,7 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
-            RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -110,6 +109,8 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         metrics.push_back("SUPPORTED_METRICS");
         metrics.push_back("FULL_DEVICE_NAME");
         return metrics;
+    } else if (name == "PERF_COUNT") {
+        return m_profiling;
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
         configs.push_back("NUM_STREAMS");

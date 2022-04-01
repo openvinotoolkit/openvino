@@ -20,6 +20,26 @@ TEST_F(ProxyTests, get_available_devices) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
+TEST_F(ProxyTests, load_and_infer_on_device_without_split_on_default_device) {
+    // Model has only add (+ 1) op and reshape
+    auto model = create_model_with_reshape();
+    auto infer_request = core.compile_model(model, "MOCK").create_infer_request();
+    auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
+    infer_request.set_input_tensor(input_tensor);
+    infer_request.infer();
+    auto output_tensor = infer_request.get_output_tensor();
+    EXPECT_EQ(input_tensor.get_size(), output_tensor.get_size());
+    EXPECT_EQ(input_tensor.get_element_type(), output_tensor.get_element_type());
+    EXPECT_NE(memcmp(input_tensor.data(), output_tensor.data(), input_tensor.get_byte_size()), 0);
+    // Change input tensor
+    {
+        auto* data = input_tensor.data<int64_t>();
+        for (size_t i = 0; i < input_tensor.get_size(); i++)
+            data[i] += 1;
+    }
+    EXPECT_EQ(memcmp(input_tensor.data(), output_tensor.data(), input_tensor.get_byte_size()), 0);
+}
+
 TEST_F(ProxyTests, load_and_infer_on_device_without_split) {
     auto model = create_model_with_subtract();
     auto infer_request = core.compile_model(model, "MOCK.3").create_infer_request();

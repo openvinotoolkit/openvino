@@ -35,14 +35,11 @@ public:
         const std::map<std::string, std::string>& config) override;
 
 private:
-    std::map<std::string, std::string> m_config;
-
     std::vector<std::pair<std::string, std::vector<std::string>>> get_hidden_devices() const;
     std::string get_fallback_device(size_t idx) const;
     std::vector<std::string> get_primary_devices() const;
     std::string get_primary_device(size_t idx) const;
     size_t get_device_from_config(const std::map<std::string, std::string>& config) const;
-    bool has_device_in_config(const std::map<std::string, std::string>& config) const;
 };
 
 }  // namespace proxy

@@ -76,6 +76,22 @@ public:
         return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
 
+    std::shared_ptr<ov::Model> create_model_with_reshape() {
+        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto const_value = ov::opset8::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
+        const_value->set_friendly_name("const_val");
+        auto add = std::make_shared<ov::opset8::Add>(param, const_value);
+        add->set_friendly_name("add");
+        auto reshape_val = ov::opset8::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        reshape_val->set_friendly_name("reshape_val");
+        auto reshape = std::make_shared<ov::opset8::Reshape>(add, reshape_val, true);
+        reshape->set_friendly_name("reshape");
+        auto result = std::make_shared<ov::opset8::Result>(reshape);
+        result->set_friendly_name("res");
+        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    }
+
     ov::Tensor create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape) {
         switch (type) {
         case ov::element::Type_t::i64:
