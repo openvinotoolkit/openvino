@@ -412,8 +412,8 @@ void GenerateProposals::execute(mkldnn::stream strm) {
             const float img_H = p_img_info_cpu[0];
             const float img_W = p_img_info_cpu[1];
             // scale factor for height & width
-            float scale_h;
-            float scale_w;
+            float scale_h = 1.0;
+            float scale_w = 1.0;
             if (im_info_dims_size == 3) {
                 scale_h = p_img_info_cpu[2];
                 scale_w = p_img_info_cpu[2];
