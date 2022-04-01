@@ -50,7 +50,7 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
 
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None])
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
+LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None])
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -539,12 +539,10 @@ def str_list_to_str(values):
     if isinstance(values, str):
         return values
     elif isinstance(values, list):
-        values_str = []
         for value in values:
             if not isinstance(value, str):
                 raise Error("Incorrect argument. {} expected to string, got type {}.".format(value, type(value)))
-            values_str.append(value)
-        return ','.join(values_str)
+        return ','.join(values)
     else:
         Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
 
@@ -585,17 +583,19 @@ def dimension_to_str(dim: Dimension):
         return str(dim.get_length())
     if dim.get_min_length() > 0:
         dim_str = str(dim.get_min_length()) + ".."
-        if dim.get_max_length() < np.iinfo(np.int64).max:
+        if dim.get_max_length() != -1:
             dim_str += str(dim.get_max_length())
-    elif dim.get_max_length() < np.iinfo(np.int64).max:
-        return ".." + str(dim.get_min_length())
+        return dim_str
+    elif dim.get_max_length() != -1:
+        return ".." + str(dim.get_max_length())
     else:
         return "?"
 
 
 def partial_shape_to_str(shape: PartialShape, separator: str):
     # TODO: replace this code with PartialShape to string conversion method from openvino.runtime when 69092 is done
-
+    if shape.rank.is_dynamic:
+        return "[...]"
     dims = []
     for i in range(shape.rank.get_length()):
         dims.append(dimension_to_str(shape.get_dimension(i)))
@@ -628,6 +628,10 @@ def input_shape_to_str(input_shape):
     if input_shape is None or isinstance(input_shape, str):
         return input_shape
     if isinstance(input_shape, list):
+        if len(input_shape) > 0 and isinstance(input_shape[0], int) or isinstance(input_shape[0], Dimension):
+            # The case when shape is specified as list of int or Dimension
+            return shape_to_str(input_shape, ',')
+        # The case when list of shapes is specified
         shapes = []
         for shape in input_shape:
             shapes.append(shape_to_str(shape, ','))
@@ -720,10 +724,10 @@ def source_target_layout_to_str(value):
         return value
     if isinstance(value, dict):
         values_str = []
-        for op_name, layout in value.values():
+        for op_name, layout in value.items():
             if not isinstance(op_name, str):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layout_to_str(layout)) + ")"
+            values_str.append(op_name + "(" + layout_to_str(layout) + ")")
         return ",".join(values_str)
 
     raise Exception("Incorrect layout. Expected dictionary, where key is operation name and value is Layout. Got {}".format(value))
@@ -733,20 +737,11 @@ def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
     if isinstance(value, LayoutMap):
-        source_layout = None
-        target_layout = None
-        if value.source_layout is not None:
-            source_layout = layout_to_str(value.source_layout)
+        source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
             target_layout = layout_to_str(value.target_layout)
-        if source_layout is not None and target_layout is not None:
-            return source_layout + "->" + target_layout
-        if source_layout is not None:
-            return source_layout
-        elif target_layout is not None:
-            return target_layout
-        else:
-            raise Exception("Incorrect LayoutMap, source or target layout should be specified.")
+            source_layout += "->" + target_layout
+        return source_layout
     return layout_to_str(value)
 
 
@@ -760,10 +755,10 @@ def layout_param_to_str(value):
 
     if isinstance(value, dict):
         values_str = []
-        for op_name, layout in value.values():
+        for op_name, layout in value.items():
             if not isinstance(op_name, str):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layoutmap_to_str(layout)) + ")"
+            values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
 
     raise Exception("Incorrect layout. Expected dictionary, where key is operation name and value is "
@@ -780,6 +775,63 @@ def batch_to_int(value):
         else:
             return value.get_length()
     raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
+
+
+def transform_param_value_to_str(value):
+    # This function supports parsing of parameters of MakeStateful, LowLatency2, Pruning.
+    # If available transforms list is extended this method should be extended for new transforms.
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, dict):
+        # param_res_names dictionary for MakeStateful transform
+        values_str = []
+        for input_name, output_name in value.items():
+            assert isinstance(input_name, str), "Incorrect input name. " \
+                                                "Expected string, got {}".format(type(input_name))
+            assert isinstance(output_name, str), "Incorrect output name. " \
+                                                 "Expected string, got {}".format(type(output_name))
+            values_str.append("\'{}\':\'{}\'".format(input_name, output_name))
+        return "{" + ','.join(values_str) + "}"
+    raise Exception("Unknown parameter type.")
+
+
+def transform_to_str(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, tuple):
+        assert 1 <= len(value) <= 2, "Incorrect transform. Expected tuple with transform name " \
+                                     "and dictionary with transform parameters. " \
+                                     "Got tuple with length = {}".format(len(value))
+        transform_name = value[0]
+        assert isinstance(transform_name, str), "Incorrect transform name type. " \
+                                                "Expected string, got {}".format(type(transform_name))
+        if len(value) == 2:
+            params = value[1]
+            assert isinstance(params, dict), "Incorrect transform params type. " \
+                                             "Expected dictionary, got {}".format(type(params))
+            params_str_list = []
+            for param_name, val in params.items():
+                assert isinstance(param_name, str), "Incorrect transform parameter name type. " \
+                                                    "Expected string, got {}".format(type(param_name))
+                val_str = transform_param_value_to_str(val)
+                params_str_list.append(param_name + "=" + val_str)
+            transform_name += '[' + ','.join(params_str_list) + ']'
+        return transform_name
+    raise Exception("Incorrect transform type. Expected tuple with transform name and "
+                    "dictionary with transform parameters. Got object of type {}".format(type(value)))
+
+
+def transform_param_to_str(value):
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        transforms_str = []
+        for transform in value:
+            transforms_str.append(transform_to_str(transform))
+        return ','.join(transforms_str)
+    return transform_to_str(value)
 
 
 def convert(
@@ -831,6 +883,218 @@ def convert(
         remove_output_softmax=None,
         remove_memory=None
 ):
+    """
+    Converts the model from original framework to nGraph function.
+    :param input_model: path to input model. Tensorflow*: a file with a pre-trained model (binary
+                        or text .pb file after freezing). Caffe*: a model proto file with model weights.
+    :param framework: Name of the framework used to train the input model.Name of the framework
+                        used to train the input model.
+    :param model_name: Model_name parameter passed to the final create_ir
+                        transform. This parameter is used to name a network in
+                        a generated IR and output .xml/.bin files.
+    :param input_shape: Input shape(s) that should be fed to an input node(s)
+                        of the model. Shape is defined as a comma-separated
+                        list of integer numbers enclosed in parentheses or
+                        square brackets, for example [1,3,227,227] or
+                        (1,227,227,3), where the order of dimensions depends
+                        on the framework input layout of the model. For
+                        example, [N,C,H,W] is used for ONNX* models and
+                        [N,H,W,C] for TensorFlow* models. The shape can
+                        contain undefined dimensions (? or -1) and should fit
+                        the dimensions defined in the input operation of the
+                        graph. Boundaries of undefined dimension can be
+                        specified with ellipsis, for example
+                        [1,1..10,128,128]. One boundary can be undefined, for
+                        example [1,..100] or [1,3,1..,1..]. If there are
+                        multiple inputs in the model, --input_shape should
+                        contain definition of shape for each input separated
+                        by a comma, for example: [1,3,227,227],[2,4] for a
+                        model with two inputs with 4D and 2D shapes.
+                        Alternatively, specify shapes with the --input option.
+    :param scale: All input values coming from original network inputs
+                        will be divided by this value. When a list of inputs
+                        is overridden by the --input parameter, this scale is
+                        not applied for any input that does not match with the
+                        original input of the model.If both --mean_values and
+                        --scale are specified, the mean is subtracted first
+                        and then scale is applied regardless of the order of
+                        options in command line.
+    :param reverse_input_channels: Switch the input channels order from RGB to BGR (or
+                        vice versa). Applied to original inputs of the model
+                        if and only if a number of channels equals 3. When
+                        --mean_values/--scale_values are also specified,
+                        reversing of channels will be applied to user's input
+                        data first, so that numbers in --mean_values and
+                        --scale_values go in the order of channels used in the
+                        original model. In other words, if both options are
+                        specified, then the data flow in the model looks as
+                        following: Parameter -> ReverseInputChannels -> Mean
+                        apply-> Scale apply -> the original body of the model.
+    :param log_level: Logger level
+    :param input: Quoted list of comma-separated input nodes names with
+                        shapes, data types, and values for freezing. The order
+                        of inputs in converted model is the same as order of
+                        specified operation names. The shape and value are
+                        specified as space-separated lists. The data type of
+                        input node is specified in braces and can have one of
+                        the values: f64 (float64), f32 (float32), f16
+                        (float16), i64 (int64), i32 (int32), u8 (uint8),
+                        boolean (bool). Data type is optional. If it's not
+                        specified explicitly then there are two options: if
+                        input node is a parameter, data type is taken from the
+                        original node dtype, if input node is not a parameter,
+                        data type is set to f32. Example, to set `input_1`
+                        with shape [1 100], and Parameter node `sequence_len`
+                        with scalar input with value `150`, and boolean input
+                        `is_training` with `False` value use the following
+                        format: "input_1[1
+                        10],sequence_len->150,is_training->False". Another
+                        example, use the following format to set input port 0
+                        of the node `node_name1` with the shape [3 4] as an
+                        input node and freeze output port 1 of the node
+                        `node_name2` with the value [20 15] of the int32 type
+                        and shape [2]: "0:node_name1[3
+                        4],node_name2:1[2]{i32}->[20 15]".
+    :param output: The name of the output operation of the model. For
+                        TensorFlow*, do not add :0 to this name.The order of
+                        outputs in converted model is the same as order of
+                        specified operation names.
+    :param mean_values: Mean values to be used for the input image per
+                        channel. Values to be provided in the (R,G,B) or
+                        [R,G,B] format. Can be defined for desired input of
+                        the model, for example: "--mean_values
+                        data[255,255,255],info[255,255,255]". The exact
+                        meaning and order of channels depend on how the
+                        original model was trained.
+    :param scale_values: Scale values to be used for the input image per
+                        channel. Values are provided in the (R,G,B) or [R,G,B]
+                        format. Can be defined for desired input of the model,
+                        for example: "--scale_values
+                        data[255,255,255],info[255,255,255]". The exact
+                        meaning and order of channels depend on how the
+                        original model was trained.If both --mean_values and
+                        --scale_values are specified, the mean is subtracted
+                        first and then scale is applied regardless of the
+                        order of options in command line.
+    :param source_layout: Layout of the input or output of the model in the
+                        framework. Layout can be specified in the short form,
+                        e.g. nhwc, or in complex form, e.g. [n,h,w,c]. Example
+                        for many names: in_name1([n,h,w,c]),in_name2(nc),out_n
+                        ame1(n),out_name2(nc). Layout can be partially
+                        defined, "?" can be used to specify undefined layout
+                        for one dimension, "..." can be used to specify
+                        undefined layout for multiple dimensions, for example
+                        ?c??, nc..., n...c, etc.
+    :param target_layout: Same as --source_layout, but specifies target layout
+                        that will be in the model after processing by
+                        ModelOptimizer.
+    :param layout: Combination of --source_layout and --target_layout.
+                        Can't be used with either of them. If model has one
+                        input it is sufficient to specify layout of this
+                        input, for example --layout nhwc. To specify layouts
+                        of many tensors, names must be provided, for example:
+                        --layout name1(nchw),name2(nc). It is possible to
+                        instruct ModelOptimizer to change layout, for example:
+                        --layout name1(nhwc->nchw),name2(cn->nc). Also "*" in
+                        long layout form can be used to fuse dimensions, for
+                        example [n,c,...]->[n*c,...].
+    :param transform: Apply additional transformations. Usage: "--transform
+                        transformation_name1[args],transformation_name2..."
+                        where [args] is key=value pairs separated by
+                        semicolon. Examples: "--transform LowLatency2" or "--
+                        transform LowLatency2[use_const_initializer=False]" or
+                        "--transform "MakeStateful[param_res_names={'input_nam
+                        e_1':'output_name_1','input_name_2':'output_name_2'}]"
+                        " Available transformations: "LowLatency2",
+                        "MakeStateful"
+    :param extensions: Paths or a comma-separated list of paths to libraries
+                        (.so or .dll) with extensions. For the legacy MO path
+                        (if `--use_legacy_frontend` is used), a directory or a
+                        comma-separated list of directories with extensions
+                        are supported. To disable all extensions including
+                        those that are placed at the default location, pass an
+                        empty string.
+    :param     batch: Input batch size.
+    :param     silent: Prevent any output messages except those that
+                        correspond to log level equals ERROR, that can be set
+                        with the following option: --log_level. By default,
+                        log level is already ERROR.
+    :param     static_shape: Enables IR generation for fixed input shape (folding
+                        `ShapeOf` operations and shape-calculating sub-graphs
+                        to `Constant`). Changing model input shape using the
+                        OpenVINO Runtime API in runtime may fail for such an
+                        IR.
+    :param progress: Enable model conversion progress display.
+    :param stream_output: Switch model conversion progress display to a
+                        multiline mode.
+    :param transformations_config: Use the configuration file with transformations
+                        description. File can be specified as relative path
+                        from the current directory, as absolute path or as
+                        arelative path from the mo root directory
+    :param use_new_frontend: Force the usage of new Frontend of Model Optimizer for
+                        model conversion into IR. The new Frontend is C++
+                        based and is available for ONNX* and PaddlePaddle*
+                        models. Model optimizer uses new Frontend for ONNX*
+                        and PaddlePaddle* by default that means
+                        `--use_new_frontend` and `--use_legacy_frontend`
+                        options are not specified.
+    :param use_legacy_frontend: Force the usage of legacy Frontend of Model Optimizer
+                        for model conversion into IR. The legacy Frontend is
+                        Python based and is available for TensorFlow*, ONNX*,
+                        MXNet*, Caffe*, and Kaldi* models.
+    :param disable_omitting_optional: Disable omitting optional attributes to be used for
+                        custom layers. Use this option if you want to transfer
+                        all attributes of a custom layer to IR. Default
+                        behavior is to transfer the attributes with default
+                        values and the attributes defined by the user to IR
+    :param enable_flattening_nested_params: Enable flattening optional params to be used for
+                        custom layers. Use this option if you want to transfer
+                        attributes of a custom layer to IR with flattened
+                        nested parameters. Default behavior is to transfer the
+                        attributes without flattening nested parameters.
+    :param input_model_is_text: TensorFlow*: treat the input model file as a text
+                        protobuf format. If not specified, the Model Optimizer
+                        treats it as a binary file by default.
+    :param input_checkpoint: TensorFlow*: variables file to load.
+    :param input_meta_graph: Tensorflow*: a file with a meta-graph of the model
+                        before freezing
+    :param saved_model_dir: TensorFlow*: directory with a model in SavedModel
+                        format of TensorFlow 1.x or 2.x version.
+    :param saved_model_tags: Group of tag(s) of the MetaGraphDef to load, in string
+                        format, separated by ','. For tag-set contains
+                        multiple tags, all tags must be passed in.
+    :param tensorflow_custom_operations_config_update: TensorFlow*: update the configuration file with node
+                        name patterns with input/output nodes information.
+    :param tensorflow_object_detection_api_pipeline_config: TensorFlow*: path to the pipeline configuration file
+                        used to generate model created with help of Object
+                        Detection API.
+    :param tensorboard_logdir: TensorFlow*: dump the input graph to a given directory
+                        that should be used with TensorBoard.
+    :param tensorflow_custom_layer_libraries: TensorFlow*: comma separated list of shared libraries
+                        with TensorFlow* custom operations implementation.
+    :param input_proto: Deploy-ready prototxt file that contains a topology
+                        structure and layer attributes
+    :param caffe_parser_path: Path to Python Caffe* parser generated from
+                        caffe.proto
+    :param k: Path to CustomLayersMapping.xml to register custom
+                        layers
+    :param input_symbol: Symbol file (for example, model-symbol.json) that
+                        contains a topology structure and layer attributes
+    :param nd_prefix_name: Prefix name for args.nd and argx.nd files.
+    :param pretrained_model_name: Name of a pretrained MXNet model without extension and
+                        epoch number. This model will be merged with args.nd
+                        and argx.nd files
+    :param save_params_from_nd: Enable saving built parameters file from .nd files
+    :param legacy_mxnet_model: Enable MXNet loader to make a model compatible with
+                        the latest MXNet version. Use only if your model was
+                        trained with MXNet version lower than 1.0.0
+    :param enable_ssd_gluoncv: Enable pattern matchers replacers for converting
+                        gluoncv ssd topologies.
+    :param counts: Path to the counts file
+    :param remove_output_softmax: Removes the SoftMax layer that is the output layer
+    :param remove_memory: Removes the Memory layer and use additional inputs
+                        outputs instead
+    """
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
@@ -849,7 +1113,7 @@ def convert(
         source_layout=source_target_layout_to_str(source_layout),
         target_layout=source_target_layout_to_str(target_layout),
         layout=layout_param_to_str(layout),
-        transform=transform,
+        transform=transform_param_to_str(transform),
         extensions=extensions_to_str_or_extensions_class(extensions),
         batch=batch_to_int(batch),
         silent=silent,

@@ -14,6 +14,12 @@ except ImportError:
 
 
 def serialize(ngraph_function, xml_path, argv=None):
+    """
+    Serializes nGraph function to IR.
+    :param ngraph_function: nGraph function to serialze.
+    :xml_path: path to IR.
+    :argv: Command line arguments info which will be appended to IR.
+    """
     from openvino.runtime import serialize  # pylint: disable=import-error,no-name-in-module
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
