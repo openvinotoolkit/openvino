@@ -7,7 +7,7 @@ set (TARGET_NAME "inference_engine_snippets")
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/snippets/*.hpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -21,38 +21,31 @@ add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-add_library(${TARGET_NAME}_static_ie STATIC EXCLUDE_FROM_ALL
-            ${LIBRARY_SRC}
-            ${PUBLIC_HEADERS})
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)
 
-target_compile_definitions(${TARGET_NAME}_static_ie PRIVATE USE_STATIC_IE)
+if (ENABLE_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE DEBUG_CAPS)
+endif()
 
-macro(finalize_libs)
-    foreach(lib IN ITEMS ${ARGN})
-        ie_faster_build(${lib}
-            UNITY
-        )
-
-        if (ENABLE_DEBUG_CAPS)
-            target_compile_definitions(${lib} PRIVATE DEBUG_CAPS)
-        endif()
-
-        target_link_libraries(${lib} PUBLIC openvino::runtime
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
                                      PRIVATE ngraph_reference openvino::runtime::dev)
 
-        target_include_directories(${lib} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
-        add_cpplint_target(${lib}_cpplint FOR_TARGETS ${lib})
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-        ie_mark_target_as_cc(${lib})
+ie_mark_target_as_cc(${TARGET_NAME})
 
-        # LTO
-        set_target_properties(${lib} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+# LTO
 
-        # install
-        ov_install_static_lib(${lib} core)
-    endforeach()
-endmacro()
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-finalize_libs(${TARGET_NAME} ${TARGET_NAME}_static_ie)
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests)
+endif()
+
+# install
+
+ov_install_static_lib(${TARGET_NAME} core)

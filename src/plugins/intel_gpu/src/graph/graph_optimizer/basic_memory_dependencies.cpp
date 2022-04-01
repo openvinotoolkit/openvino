@@ -8,6 +8,7 @@
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>
@@ -62,7 +63,14 @@ void basic_memory_dependencies::run(program& p) {
         // this output has to land on the primitve restriction list. Otherwise memory reuse can corrupt final results.
         node->add_memory_dependency(past_outputs);
         // if current node is an output add it to the outputs list after restriction.
-        if (node->is_output())
+        if (node->is_output()) {
             past_outputs.push_back(node->id());
+            if (node->is_type<mutable_data>()) {
+                // if output is mutable data, then propagate output flag to its dependencies
+                for (auto& dep : node->get_dependencies()) {
+                    dep->set_output(true);
+                }
+            }
+        }
     }
 }

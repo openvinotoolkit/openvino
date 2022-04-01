@@ -91,6 +91,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
     }
+    if (_networksPerDevice.size() == 1)
+        _passthroughExeNet = _networksPerDevice.begin()->second;
 }
 
 void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
@@ -328,6 +330,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
+        _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
     }
     WaitFirstNetworkReady();
 }
@@ -641,7 +644,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n->GetContext();
-        } catch (const NotImplemented&) {}
+        } catch (const InferenceEngine::NotImplemented&) {}
     }
     IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
@@ -706,6 +709,11 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 }
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
+    if (_passthroughExeNet) {
+        auto res = _passthroughExeNet->CreateInferRequest();
+        res->setPointerToExecutableNetworkInternal(shared_from_this());
+        return res;
+    }
     IInferRequestInternal::Ptr syncRequestImpl;
     if (this->_plugin) {
         const auto& core = _plugin->GetCore();
