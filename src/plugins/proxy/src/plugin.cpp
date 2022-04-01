@@ -141,7 +141,12 @@ std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin:
 
     auto hidden_devices = GetCore()->GetHiddenDevicesFor(this->_pluginName);
     for (const auto& device : hidden_devices) {
-        auto full_name = GetCore()->GetConfig(device, ov::device::full_name.name()).as<std::string>();
+        std::string full_name = "unknown";
+        // TODO: Allow to use different plugins for different plugins (option of xml file)
+        try {
+            full_name = GetCore()->GetConfig(device, ov::device::full_name.name()).as<std::string>();
+        } catch (...) {
+        }
         result[full_name].emplace_back(device);
     }
 

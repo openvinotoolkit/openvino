@@ -1092,6 +1092,14 @@ public:
                                 plugin.set_config(pluginDesc.second.defaultConfig);
                             }
                         }
+                        // TODO: Remove in more generic place before update default config
+                        // Remove PROXY_NAME and PROXY_PRIORITY from config
+                        auto it_conf = desc.defaultConfig.find("PROXY_NAME");
+                        if (it_conf != desc.defaultConfig.end())
+                            desc.defaultConfig.erase(it_conf);
+                        it_conf = desc.defaultConfig.find("PROXY_PRIORITY");
+                        if (it_conf != desc.defaultConfig.end())
+                            desc.defaultConfig.erase(it_conf);
                         plugin.set_config(desc.defaultConfig);
                     });
 
