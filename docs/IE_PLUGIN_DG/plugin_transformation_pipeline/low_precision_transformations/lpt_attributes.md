@@ -1,4 +1,4 @@
-# Attributes {#openvino_docs_IE_DG_lpt_attributes}
+# Attributes {#openvino_docs_OV_UG_lpt_attributes}
 
 @sphinxdirective
 
@@ -7,12 +7,12 @@
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <openvino_docs_IE_DG_lpt_IntervalsAlignment>
-   PerTensorQuantization <openvino_docs_IE_DG_lpt_PerTensorQuantization>
-   PrecisionPreserved <openvino_docs_IE_DG_lpt_PrecisionPreserved>
-   Precisions <openvino_docs_IE_DG_lpt_Precisions>
-   QuantizationAlignment <openvino_docs_IE_DG_lpt_QuantizationAlignment>
+   AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>
+   IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>
+   PerTensorQuantization <openvino_docs_OV_UG_lpt_PerTensorQuantization>
+   PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>
+   Precisions <openvino_docs_OV_UG_lpt_Precisions>
+   QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
 
 @endsphinxdirective
 
@@ -20,12 +20,12 @@
 
 | Name                                                                                | Target                 | Required | Mutable |
 |-------------------------------------------------------------------------------------|------------------------|----------|---------|
-| [AvgPoolPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved) | Precision              | No       | Yes     |
-| [IntervalsAlignment](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment)               | Quantization interval  | Yes      | Yes     |
-| [PerTensorQuantization](@ref openvino_docs_IE_DG_lpt_PerTensorQuantization)         | Precision              | Yes      | No      |
-| [PrecisionPreserved](@ref openvino_docs_IE_DG_lpt_PrecisionPreserved)               | Precision              | Yes      | Yes     |
-| [Precisions](@ref openvino_docs_IE_DG_lpt_Precisions)                               | Precision              | Yes      | Yes     |
-| [QuantizationAlignment](@ref openvino_docs_IE_DG_lpt_QuantizationAlignment)         | Quantization alignment | Yes      | Yes     |
+| [AvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved) | Precision              | No       | Yes     |
+| [IntervalsAlignment](@ref openvino_docs_OV_UG_lpt_IntervalsAlignment)               | Quantization interval  | Yes      | Yes     |
+| [PerTensorQuantization](@ref openvino_docs_OV_UG_lpt_PerTensorQuantization)         | Precision              | Yes      | No      |
+| [PrecisionPreserved](@ref openvino_docs_OV_UG_lpt_PrecisionPreserved)               | Precision              | Yes      | Yes     |
+| [Precisions](@ref openvino_docs_OV_UG_lpt_Precisions)                               | Precision              | Yes      | Yes     |
+| [QuantizationAlignment](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment)         | Quantization alignment | Yes      | Yes     |
 
 > `Target` attribute group defines attribute usage during model transformation for the best performance:
 >  - `Precision` - the attribute defines the most optimal output port precision.
