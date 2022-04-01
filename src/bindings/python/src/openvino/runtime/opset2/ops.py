@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -57,7 +58,7 @@ def batch_to_space(
     :return: The new node performing a BatchToSpace operation.
     """
     return _get_node_factory_opset2().create(
-        "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
+        "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end),
     )
 
 
@@ -103,12 +104,16 @@ def mvn(
     return _get_node_factory_opset2().create(
         "MVN",
         [data],
-        {"across_channels": across_channels, "normalize_variance": normalize_variance, "eps": eps},
+        {
+            "across_channels": across_channels,
+            "normalize_variance": normalize_variance,
+            "eps": eps,
+        },
     )
 
 
 @nameable_op
-def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
+def reorg_yolo(input_node: Node, stride: List[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
     :param input:   Input data.
@@ -116,12 +121,12 @@ def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> No
     :param name:    Optional name for output node.
     :return: ReorgYolo node.
     """
-    return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
+    return _get_node_factory_opset2().create("ReorgYolo", [input_node], {"stride": stride})
 
 
 @nameable_op
 def roi_pooling(
-    input: NodeInput,
+    input_node: NodeInput,
     coords: NodeInput,
     output_size: TensorShape,
     spatial_scale: NumericData,
@@ -140,8 +145,12 @@ def roi_pooling(
     method = method.lower()
     return _get_node_factory_opset2().create(
         "ROIPooling",
-        as_nodes(input, coords),
-        {"output_size": Shape(output_size), "spatial_scale": spatial_scale, "method": method},
+        as_nodes(input_node, coords),
+        {
+            "output_size": Shape(output_size),
+            "spatial_scale": spatial_scale,
+            "method": method,
+        },
     )
 
 
@@ -167,5 +176,5 @@ def space_to_batch(
     :return: The new node performing a SpaceToBatch operation.
     """
     return _get_node_factory_opset2().create(
-        "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)
+        "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end),
     )

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -80,7 +81,7 @@ def gather_nd(
     inputs = as_nodes(data, indices)
 
     attributes = {
-        "batch_dims": batch_dims
+        "batch_dims": batch_dims,
     }
 
     return _get_node_factory_opset5().create("GatherND", inputs, attributes)
@@ -133,11 +134,11 @@ def non_max_suppression(
         score_threshold = make_constant_node(0, np.float32)
     if soft_nms_sigma is None:
         inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold
+            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
         )
     else:
         inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma
+            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma,
         )
 
     attributes = {
@@ -165,13 +166,13 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
 
 @nameable_op
 def lstm_sequence(
-        X: NodeInput,
+        inputs: NodeInput,
         initial_hidden_state: NodeInput,
         initial_cell_state: NodeInput,
         sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
+        weights_w: NodeInput,
+        weights_r: NodeInput,
+        biases: NodeInput,
         hidden_size: int,
         direction: str,
         activations: List[str] = None,
@@ -182,20 +183,20 @@ def lstm_sequence(
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
-    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param inputs: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
     :param initial_cell_state:      The cell state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
               Expected format: fico
               Shape: [num_directions, 4*hidden_size, input_size].
-    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param weights_r: The tensor with weights for matrix multiplication operation with hidden state.
               Expected format: fico
               Shape: [num_directions, 4*hidden_size, hidden_size].
-    :param B: The sum of biases (weight and recurrence). Expected format: fico
+    :param biases: The sum of biases (weight and recurrence). Expected format: fico
               Shape: [num_directions, 4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
@@ -214,7 +215,7 @@ def lstm_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B)
+    node_inputs = as_nodes(inputs, initial_hidden_state, initial_cell_state, sequence_lengths, weights_w, weights_r, biases)
 
     attributes = {
         "hidden_size": hidden_size,
@@ -227,7 +228,7 @@ def lstm_sequence(
     return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
 
 
-def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
+def hsigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which performs HSigmoid.
 
     :param data: Tensor with input data floating point type.
@@ -238,12 +239,12 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 @nameable_op
 def gru_sequence(
-        X: NodeInput,
+        inputs: NodeInput,
         initial_hidden_state: NodeInput,
         sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
+        weights_w: NodeInput,
+        weights_r: NodeInput,
+        biases: NodeInput,
         hidden_size: int,
         direction: str,
         activations: List[str] = None,
@@ -255,16 +256,16 @@ def gru_sequence(
 ) -> Node:
     """Return a node which performs GRUSequence operation.
 
-    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param inputs: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 3*hidden_size, input_size].
-    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param weights_r: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, 3*hidden_size, hidden_size].
-    :param B: The sum of biases (weight and recurrence).
+    :param biases: The sum of biases (weight and recurrence).
               For linear_before_reset set True the shape is [num_directions, 4*hidden_size].
               Otherwise the shape is [num_directions, 3*hidden_size].
     :param hidden_size: Specifies hidden state size.
@@ -286,7 +287,7 @@ def gru_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
+    node_inputs = as_nodes(inputs, initial_hidden_state, sequence_lengths, weights_w, weights_r, biases)
 
     attributes = {
         "hidden_size": hidden_size,
@@ -302,12 +303,12 @@ def gru_sequence(
 
 @nameable_op
 def rnn_sequence(
-        X: NodeInput,
+        inputs: NodeInput,
         initial_hidden_state: NodeInput,
         sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
+        weights_w: NodeInput,
+        weights_h: NodeInput,
+        biases: NodeInput,
         hidden_size: int,
         direction: str,
         activations: List[str] = None,
@@ -318,16 +319,16 @@ def rnn_sequence(
 ) -> Node:
     """Return a node which performs RNNSequence operation.
 
-    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param inputs: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, hidden_size, input_size].
-    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param weights_h: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, hidden_size, hidden_size].
-    :param B: The sum of biases (weight and recurrence).
+    :param biases: The sum of biases (weight and recurrence).
               Shape: [num_directions, hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
@@ -346,7 +347,7 @@ def rnn_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
+    inputs = as_nodes(inputs, initial_hidden_state, sequence_lengths, weights_w, weights_h, biases)
 
     attributes = {
         "hidden_size": hidden_size,

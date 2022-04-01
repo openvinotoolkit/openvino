@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9,13 +10,13 @@ from tests.test_ngraph.util import run_op_node
 
 def test_gather():
     input_data = np.array(
-        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32
+        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32,
     ).reshape((3, 3))
     input_indices = np.array([0, 2], np.int32).reshape(1, 2)
     input_axis = np.array([1], np.int32)
 
     expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape(
-        (3, 1, 2)
+        (3, 1, 2),
     )
 
     result = run_op_node([input_data], ov.gather, input_indices, input_axis)
@@ -24,13 +25,13 @@ def test_gather():
 
 def test_gather_with_scalar_axis():
     input_data = np.array(
-        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32
+        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32,
     ).reshape((3, 3))
     input_indices = np.array([0, 2], np.int32).reshape(1, 2)
     input_axis = np.array(1, np.int32)
 
     expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape(
-        (3, 1, 2)
+        (3, 1, 2),
     )
 
     result = run_op_node([input_data], ov.gather, input_indices, input_axis)
@@ -56,13 +57,13 @@ def test_gather_batch_dims_1():
 
 def test_gather_negative_indices():
     input_data = np.array(
-        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32
+        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32,
     ).reshape((3, 3))
     input_indices = np.array([0, -1], np.int32).reshape(1, 2)
     input_axis = np.array([1], np.int32)
 
     expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape(
-        (3, 1, 2)
+        (3, 1, 2),
     )
 
     result = run_op_node([input_data], ov.gather, input_indices, input_axis)

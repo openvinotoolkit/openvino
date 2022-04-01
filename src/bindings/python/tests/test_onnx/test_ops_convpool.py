@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,10 +12,10 @@ from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 
 
-@pytest.fixture
+@pytest.fixture()
 def ndarray_1x1x4x4():
     return np.array(
-        [[11, 12, 13, 14], [15, 16, 17, 18], [19, 20, 21, 22], [23, 24, 25, 26]], dtype=np.float32
+        [[11, 12, 13, 14], [15, 16, 17, 18], [19, 20, 21, 22], [23, 24, 25, 26]], dtype=np.float32,
     ).reshape([1, 1, 4, 4])
 
 
@@ -40,12 +41,12 @@ def make_onnx_model_for_conv_op(x_shape, weights_shape, transpose=False, **attri
     return model
 
 
-def import_and_compute_conv(x, weights, transpose=False, **attributes):
-    x, weights = np.array(x), np.array(weights)
-    onnx_model = make_onnx_model_for_conv_op(x.shape, weights.shape, transpose=transpose, **attributes)
+def import_and_compute_conv(inputs, weights, transpose=False, **attributes):
+    inputs, weights = np.array(inputs), np.array(weights)
+    onnx_model = make_onnx_model_for_conv_op(inputs.shape, weights.shape, transpose=transpose, **attributes)
     ng_model_function = import_onnx_model(onnx_model)
     computation = get_runtime().computation(ng_model_function)
-    return computation(x, weights)[0]
+    return computation(inputs, weights)[0]
 
 
 def test_2d_conv():
@@ -67,7 +68,7 @@ def test_2d_conv():
 
     # filter weights should have shape M x C x kH x kW
     input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
-        [1, 1, 3, 3]
+        [1, 1, 3, 3],
     )
 
     # convolution with padding=1 should produce 9 x 9 output:
@@ -87,8 +88,8 @@ def test_2d_conv():
                         [0.0, -20.0, -20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0],
                         [0.0, -20.0, -20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0],
                         [0.0, -15.0, -15.0, 15.0, 15.0, 0.0, 0.0, 0.0, 0.0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -109,8 +110,8 @@ def test_2d_conv():
                         [-20, -20, 20, 20, 0, 0, 0],
                         [-20, -20, 20, 20, 0, 0, 0],
                         [-20, -20, 20, 20, 0, 0, 0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -128,8 +129,8 @@ def test_2d_conv():
                         [-20.0, 20.0, 0.0, 0.0],
                         [-20.0, 20.0, 0.0, 0.0],
                         [-20.0, 20.0, 0.0, 0.0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -148,8 +149,8 @@ def test_2d_conv():
                         [0, 0, 20, 20, 0],
                         [0, 0, 20, 20, 0],
                         [0, 0, 20, 20, 0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -176,13 +177,13 @@ def test_3d_conv():
 
     # filter weights should have shape M x C x kH x kW x kD
     input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
-        [1, 1, 3, 3, 1]
+        [1, 1, 3, 3, 1],
     )
     input_filter = np.broadcast_to(input_filter, (1, 1, 3, 3, 3))
 
     # convolution with padding=0 should produce 7 x 7 x 2 output:
     result = import_and_compute_conv(
-        input_x, input_filter, dilations=(1, 1, 1), pads=(0, 0, 0, 0, 0, 0), strides=(1, 1, 1)
+        input_x, input_filter, dilations=(1, 1, 1), pads=(0, 0, 0, 0, 0, 0), strides=(1, 1, 1),
     )
 
     assert np.array_equal(
@@ -232,7 +233,7 @@ def test_2d_conv_transpose():
 
     # filter weights should have shape M x C x kH x kW
     input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
-        [1, 1, 3, 3]
+        [1, 1, 3, 3],
     )
 
     # deconvolution with padding=1 should produce 9 x 9 output:
@@ -258,145 +259,141 @@ def test_2d_conv_transpose():
 
 
 def test_pad_opset_1():
-    x = np.ones((2, 2), dtype=np.float32)
-    y = np.pad(x, pad_width=1, mode="constant")
+    inputs = np.ones((2, 2), dtype=np.float32)
+    outputs = np.pad(inputs, pad_width=1, mode="constant")
 
-    model = get_node_model("Pad", x, paddings=[1, 1, 1, 1])
-    ng_results = run_model(model, [x])
-    assert np.array_equal(ng_results, [y])
+    model = get_node_model("Pad", inputs, paddings=[1, 1, 1, 1])
+    ng_results = run_model(model, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
-    x = np.random.randn(1, 3, 4, 5).astype(np.float32)
-    y = np.pad(x, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
+    inputs = np.random.randn(1, 3, 4, 5).astype(np.float32)
+    outputs = np.pad(inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
 
-    model = get_node_model("Pad", x, mode="constant", paddings=[0, 0, 1, 3, 0, 0, 2, 4])
-    ng_results = run_model(model, [x])
-    assert np.array_equal(ng_results, [y])
+    model = get_node_model("Pad", inputs, mode="constant", paddings=[0, 0, 1, 3, 0, 0, 2, 4])
+    ng_results = run_model(model, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
     # incorrect paddings rank
-    x = np.ones((2, 2), dtype=np.float32)
-    model = get_node_model("Pad", x, paddings=[0, 1, 1, 3, 1, 2])
+    inputs = np.ones((2, 2), dtype=np.float32)
+    model = get_node_model("Pad", inputs, paddings=[0, 1, 1, 3, 1, 2])
     with pytest.raises(RuntimeError):
-        run_model(model, [x])
+        run_model(model, [inputs])
 
     # no paddings arttribute
-    model = get_node_model("Pad", x)
+    model = get_node_model("Pad", inputs)
     with pytest.raises(ValidationError):
         import_onnx_model(model)
 
 
 def test_pad_opset_2():
-    x = np.ones((2, 2), dtype=np.float32)
-    y = np.pad(x, pad_width=1, mode="constant")
+    inputs = np.ones((2, 2), dtype=np.float32)
+    outputs = np.pad(inputs, pad_width=1, mode="constant")
 
-    model = get_node_model("Pad", x, opset=2, pads=[1, 1, 1, 1])
-    ng_results = run_model(model, [x])
-    assert np.array_equal(ng_results, [y])
+    model = get_node_model("Pad", inputs, opset=2, pads=[1, 1, 1, 1])
+    ng_results = run_model(model, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
-    x = np.random.randn(1, 3, 4, 5).astype(np.float32)
-    y = np.pad(x, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
+    inputs = np.random.randn(1, 3, 4, 5).astype(np.float32)
+    outputs = np.pad(inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
 
-    model = get_node_model("Pad", x, opset=2, mode="constant", pads=[0, 0, 1, 3, 0, 0, 2, 4])
-    ng_results = run_model(model, [x])
-    assert np.array_equal(ng_results, [y])
+    model = get_node_model("Pad", inputs, opset=2, mode="constant", pads=[0, 0, 1, 3, 0, 0, 2, 4])
+    ng_results = run_model(model, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
     # incorrect pads rank
-    x = np.ones((2, 2), dtype=np.float32)
-    model = get_node_model("Pad", x, opset=2, pads=[0, 1, 1, 3, 1, 2])
+    inputs = np.ones((2, 2), dtype=np.float32)
+    model = get_node_model("Pad", inputs, opset=2, pads=[0, 1, 1, 3, 1, 2])
     with pytest.raises(RuntimeError):
-        run_model(model, [x])
+        run_model(model, [inputs])
 
 
 def test_pad_negative_values_begin():
-    x = np.ones((2, 2), dtype=np.float32)
+    inputs = np.ones((2, 2), dtype=np.float32)
 
     # Axis 1 begin
-    model = get_node_model("Pad", x, opset=2, pads=[-1, 0, 0, 0])
-    ng_result = run_model(model, [x])[0]
+    model = get_node_model("Pad", inputs, opset=2, pads=[-1, 0, 0, 0])
+    ng_result = run_model(model, [inputs])[0]
     assert np.array_equal(ng_result, np.array([[1, 1]]))
 
     # Axis 2 begin
-    model = get_node_model("Pad", x, opset=2, pads=[0, -1, 0, 0])
-    ng_result = run_model(model, [x])[0]
+    model = get_node_model("Pad", inputs, opset=2, pads=[0, -1, 0, 0])
+    ng_result = run_model(model, [inputs])[0]
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
 def test_pad_negative_values_end():
-    x = np.ones((2, 2), dtype=np.float32)
+    inputs = np.ones((2, 2), dtype=np.float32)
 
     # Axis 1 end
-    model = get_node_model("Pad", x, opset=2, pads=[0, 0, -1, 0])
-    ng_result = run_model(model, [x])[0]
+    model = get_node_model("Pad", inputs, opset=2, pads=[0, 0, -1, 0])
+    ng_result = run_model(model, [inputs])[0]
     assert np.array_equal(ng_result, np.array([[1.0, 1.0]]))
 
     # Axis 2 end
-    model = get_node_model("Pad", x, opset=2, pads=[0, 0, 0, -1])
-    ng_result = run_model(model, [x])[0]
+    model = get_node_model("Pad", inputs, opset=2, pads=[0, 0, 0, -1])
+    ng_result = run_model(model, [inputs])[0]
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
 def test_pool_average(ndarray_1x1x4x4):
-    x = ndarray_1x1x4x4
-    node = onnx.helper.make_node(
-        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2)
-    )
-    y = np.array([[13.5, 15.5], [21.5, 23.5]], dtype=np.float32).reshape([1, 1, 2, 2])
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    inputs = ndarray_1x1x4x4
+    node = onnx.helper.make_node("AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2))
+    outputs = np.array([[13.5, 15.5], [21.5, 23.5]], dtype=np.float32).reshape([1, 1, 2, 2])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
     node = onnx.helper.make_node(
-        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2), pads=(1, 1, 1, 1)
+        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2), pads=(1, 1, 1, 1),
     )
-    y = np.array([[11, 12.5, 14], [17, 18.5, 20], [23, 24.5, 26]], dtype=np.float32).reshape([1, 1, 3, 3])
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    outputs = np.array([[11, 12.5, 14], [17, 18.5, 20], [23, 24.5, 26]], dtype=np.float32).reshape([1, 1, 3, 3])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
 
 def test_pool_average_3d(ndarray_1x1x4x4):
-    x = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
-    node = onnx.helper.make_node(
-        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2, 2), strides=(2, 2, 2)
+    inputs = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
+    node = onnx.helper.make_node("AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2, 2), strides=(2, 2, 2))
+    outputs = np.array([[[13.5, 15.5], [21.5, 23.5]], [[13.5, 15.5], [21.5, 23.5]]], dtype=np.float32).reshape(
+        [1, 1, 2, 2, 2],
     )
-    y = np.array([[[13.5, 15.5], [21.5, 23.5]], [[13.5, 15.5], [21.5, 23.5]]], dtype=np.float32).reshape(
-        [1, 1, 2, 2, 2]
-    )
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
 
 def test_pool_max(ndarray_1x1x4x4):
     node = onnx.helper.make_node("MaxPool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2))
 
-    x = ndarray_1x1x4x4
-    y = np.array([[16, 18], [24, 26]], dtype=np.float32).reshape([1, 1, 2, 2])
+    inputs = ndarray_1x1x4x4
+    outputs = np.array([[16, 18], [24, 26]], dtype=np.float32).reshape([1, 1, 2, 2])
 
-    ng_results = run_node(node, [x], opset_version=7)
-    assert np.array_equal(ng_results, [y])
+    ng_results = run_node(node, [inputs], opset_version=7)
+    assert np.array_equal(ng_results, [outputs])
 
 
 def test_pool_global_max(ndarray_1x1x4x4):
     node = onnx.helper.make_node("GlobalMaxPool", inputs=["x"], outputs=["y"])
 
-    x = ndarray_1x1x4x4
-    y = np.array([26], dtype=np.float32).reshape([1, 1, 1, 1])
+    inputs = ndarray_1x1x4x4
+    outputs = np.array([26], dtype=np.float32).reshape([1, 1, 1, 1])
 
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
 
 def test_pool_global_average(ndarray_1x1x4x4):
     node = onnx.helper.make_node("GlobalAveragePool", inputs=["x"], outputs=["y"])
 
-    x = ndarray_1x1x4x4
-    y = np.array([18.5], dtype=np.float32).reshape([1, 1, 1, 1])
+    inputs = ndarray_1x1x4x4
+    outputs = np.array([18.5], dtype=np.float32).reshape([1, 1, 1, 1])
 
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])
 
 
 def test_pool_global_average_3d(ndarray_1x1x4x4):
-    x = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
+    inputs = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
 
     node = onnx.helper.make_node("GlobalAveragePool", inputs=["x"], outputs=["y"])
-    y = np.array([18.5], dtype=np.float32).reshape([1, 1, 1, 1, 1])
-    ng_results = run_node(node, [x])
-    assert np.array_equal(ng_results, [y])
+    outputs = np.array([18.5], dtype=np.float32).reshape([1, 1, 1, 1, 1])
+    ng_results = run_node(node, [inputs])
+    assert np.array_equal(ng_results, [outputs])

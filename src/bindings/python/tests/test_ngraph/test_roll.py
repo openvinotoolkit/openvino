@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,8 +9,8 @@ from tests.runtime import get_runtime
 
 def test_roll():
     runtime = get_runtime()
-    input = np.reshape(np.arange(10), (2, 5))
-    input_tensor = ov.constant(input)
+    input_vals = np.reshape(np.arange(10), (2, 5))
+    input_tensor = ov.constant(input_vals)
     input_shift = ov.constant(np.array([-10, 7], dtype=np.int32))
     input_axes = ov.constant(np.array([-1, 0], dtype=np.int32))
 

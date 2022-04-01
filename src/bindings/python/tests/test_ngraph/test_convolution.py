@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -29,7 +30,7 @@ def test_convolution_2d():
 
     # filter weights should have shape M x C x kH x kW
     input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
-        1, 1, 3, 3
+        1, 1, 3, 3,
     )
 
     strides = np.array([1, 1])
@@ -55,8 +56,8 @@ def test_convolution_2d():
                         [0.0, -20.0, -20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0],
                         [0.0, -20.0, -20.0, 20.0, 20.0, 0.0, 0.0, 0.0, 0.0],
                         [0.0, -15.0, -15.0, 15.0, 15.0, 0.0, 0.0, 0.0, 0.0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -81,8 +82,8 @@ def test_convolution_2d():
                         [-20, -20, 20, 20, 0, 0, 0],
                         [-20, -20, 20, 20, 0, 0, 0],
                         [-20, -20, 20, 20, 0, 0, 0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -106,8 +107,8 @@ def test_convolution_2d():
                         [-20.0, 20.0, 0.0, 0.0],
                         [-20.0, 20.0, 0.0, 0.0],
                         [-20.0, 20.0, 0.0, 0.0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -131,8 +132,8 @@ def test_convolution_2d():
                         [0, 0, 20, 20, 0],
                         [0, 0, 20, 20, 0],
                         [0, 0, 20, 20, 0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),
@@ -164,14 +165,14 @@ def test_convolution_backprop_data():
                     [-20, -20, 20, 20, 0, 0, 0],
                     [-20, -20, 20, 20, 0, 0, 0],
                     [-20, -20, 20, 20, 0, 0, 0],
-                ]
-            ]
+                ],
+            ],
         ],
         dtype=np.float32,
     )
 
     filter_data = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
-        1, 1, 3, 3
+        1, 1, 3, 3,
     )
 
     model = runtime.computation(deconvolution, data_node, filter_node)
@@ -191,8 +192,8 @@ def test_convolution_backprop_data():
                         [-80.0, -80.0, 160.0, 160.0, -80.0, -80.0, 0.0, 0.0, 0.0],
                         [-60.0, -60.0, 120.0, 120.0, -60.0, -60.0, 0.0, 0.0, 0.0],
                         [-20.0, -20.0, 40.0, 40.0, -20.0, -20.0, 0.0, 0.0, 0.0],
-                    ]
-                ]
+                    ],
+                ],
             ],
             dtype=np.float32,
         ),

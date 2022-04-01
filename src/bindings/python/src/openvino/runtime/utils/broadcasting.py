@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -5,13 +6,18 @@ import logging
 from typing import List
 
 from openvino.runtime import AxisSet, Node
-from openvino.runtime.utils.types import NodeInput, TensorShape, get_dtype, make_constant_node
+from openvino.runtime.utils.types import (
+    NodeInput,
+    TensorShape,
+    get_dtype,
+    make_constant_node,
+)
 
 log = logging.getLogger(__name__)
 
 
 def get_broadcast_axes(
-    output_shape: TensorShape, input_shape: TensorShape, axis: int = None
+    output_shape: TensorShape, input_shape: TensorShape, axis: int = None,
 ) -> AxisSet:
     """Generate a list of broadcast axes for openvino broadcast.
 
@@ -22,7 +28,8 @@ def get_broadcast_axes(
     :param output_shape: The new shape for the output tensor.
     :param input_shape: The shape of input tensor.
     :param axis: The axis along which we want to replicate elements.
-    returns The indices of added axes.
+
+    returns: The indices of added axes.
     """
     axes_indexes = list(range(0, len(output_shape)))
     if axis is None:

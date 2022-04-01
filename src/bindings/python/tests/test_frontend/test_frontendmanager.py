@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,8 +14,14 @@ import pytest
 
 mock_available = True
 try:
-    from pybind_mock_frontend import get_fe_stat, clear_fe_stat,\
-        get_mdl_stat, clear_mdl_stat, get_place_stat, clear_place_stat
+    from pybind_mock_frontend import (
+        get_fe_stat,
+        clear_fe_stat,
+        get_mdl_stat,
+        clear_mdl_stat,
+        get_place_stat,
+        clear_place_stat,
+    )
 except Exception:
     print("No mock frontend available")
     mock_available = False
@@ -23,8 +30,7 @@ except Exception:
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-mock_needed = pytest.mark.skipif(not mock_available,
-                                 reason="mock fe is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="mock fe is not available")
 
 
 def clear_all_stat():
@@ -39,8 +45,8 @@ def test_pickle():
 
 
 def test_load_by_unknown_framework():
-    frontEnds = fem.get_available_front_ends()
-    assert not ("UnknownFramework" in frontEnds)
+    frontends = fem.get_available_front_ends()
+    assert not ("UnknownFramework" in frontends)
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
@@ -494,7 +500,7 @@ def test_place_get_consuming_operations():
     assert stat.get_consuming_operations == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_consuming_operations(output_name="3", output_port_index=33) is not None
+    assert (place.get_consuming_operations(output_name="3", output_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_consuming_operations == 4
     assert stat.lastArgInt == 33
@@ -540,7 +546,7 @@ def test_place_get_producing_operation():
     assert stat.get_producing_operation == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_producing_operation(input_name="3", input_port_index=33) is not None
+    assert (place.get_producing_operation(input_name="3", input_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_producing_operation == 4
     assert stat.lastArgInt == 33

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -129,7 +130,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def mish(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which performs Mish.
 
     :param data: Tensor with input data floating point type.
@@ -139,7 +140,7 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 
 @nameable_op
-def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def hswish(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which performs HSwish (hard version of Swish).
 
     :param data: Tensor with input data floating point type.
@@ -212,6 +213,7 @@ def proposal(
     :param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
     :param  attrs:              The dictionary containing key, value pairs for attributes.
     :param  name:               Optional name for the output node.
+
     * base_size     The size of the anchor to which scale and ratio attributes are applied.
                     Range of values: a positive unsigned integer number
                     Default value: None
@@ -272,6 +274,7 @@ def proposal(
                     Range of values: "" (empty string) - calculate box coordinates like in Caffe*
                                      tensorflow - calculate box coordinates like in the TensorFlow*
                                                   Object Detection API models
+
                     Default value: "" (empty string)
                     Required: no
 
@@ -314,13 +317,13 @@ def proposal(
     check_valid_attributes("Proposal", attrs, requirements)
 
     return _get_node_factory_opset4().create(
-        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
+        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs,
     )
 
 
 @nameable_op
 def reduce_l1(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None,
 ) -> Node:
     """L1-reduction operation on input tensor, eliminating the specified reduction axes.
 
@@ -331,13 +334,13 @@ def reduce_l1(
     :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
-        "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+        "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
     )
 
 
 @nameable_op
 def reduce_l2(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None,
 ) -> Node:
     """L2-reduction operation on input tensor, eliminating the specified reduction axes.
 
@@ -348,18 +351,18 @@ def reduce_l2(
     :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
-        "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+        "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
     )
 
 
 @nameable_op
 def lstm_cell(
-    X: NodeInput,
+    inputs: NodeInput,
     initial_hidden_state: NodeInput,
     initial_cell_state: NodeInput,
-    W: NodeInput,
-    R: NodeInput,
-    B: NodeInput,
+    weights_w: NodeInput,
+    weights_r: NodeInput,
+    biases: NodeInput,
     hidden_size: int,
     activations: List[str] = None,
     activations_alpha: List[float] = None,
@@ -369,12 +372,12 @@ def lstm_cell(
 ) -> Node:
     """Return a node which performs LSTMCell operation.
 
-    :param X: The input tensor with shape: [batch_size, input_size].
+    :param inputs: The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
     :param initial_cell_state: The cell state tensor with shape: [batch_size, hidden_size].
-    :param W: The weight tensor with shape: [4*hidden_size, input_size].
-    :param R: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
-    :param B: The bias tensor for gates with shape: [4*hidden_size].
+    :param weights_w: The weight tensor with shape: [4*hidden_size, input_size].
+    :param weights_r: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
+    :param biases: The bias tensor for gates with shape: [4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param activations: The list of three activation functions for gates.
     :param activations_alpha: The list of alpha parameters for activation functions.
@@ -391,7 +394,7 @@ def lstm_cell(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B)
+    node_inputs = as_nodes(inputs, initial_hidden_state, initial_cell_state, weights_w, weights_r, biases)
 
     attributes = {
         "hidden_size": hidden_size,

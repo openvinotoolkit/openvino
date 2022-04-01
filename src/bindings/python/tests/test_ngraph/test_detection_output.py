@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -19,7 +20,7 @@ integral_np_types = [
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.int8, np.float32),
         (np.int16, np.float32),
@@ -53,7 +54,7 @@ def test_detection_output(int_dtype, fp_dtype):
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.int8, np.float32),
         (np.int16, np.float32),

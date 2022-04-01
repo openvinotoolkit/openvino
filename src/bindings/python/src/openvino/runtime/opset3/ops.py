@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -49,7 +50,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     return _get_node_factory_opset3().create(
         "Assign",
         [as_node(new_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -76,7 +77,7 @@ def broadcast(
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset3().create(
-        "Broadcast", inputs, {"mode": broadcast_spec.upper()}
+        "Broadcast", inputs, {"mode": broadcast_spec.upper()},
     )
 
 
@@ -122,7 +123,7 @@ def cum_sum(
     :return: New node performing the operation
     """
     return _get_node_factory_opset3().create(
-        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse}
+        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse},
     )
 
 
@@ -246,11 +247,11 @@ def extract_image_patches(
 
 @nameable_op
 def gru_cell(
-    X: NodeInput,
+    inputs: NodeInput,
     initial_hidden_state: NodeInput,
-    W: NodeInput,
-    R: NodeInput,
-    B: NodeInput,
+    weights_w: NodeInput,
+    weights_r: NodeInput,
+    biases: NodeInput,
     hidden_size: int,
     activations: List[str] = None,
     activations_alpha: List[float] = None,
@@ -266,14 +267,14 @@ def gru_cell(
 
     Note this class represents only single *cell* and not whole *layer*.
 
-    :param X:                       The input tensor with shape: [batch_size, input_size].
+    :param inputs:                       The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state:    The hidden state tensor at current time step with shape:
                                     [batch_size, hidden_size].
-    :param W:                       The weights for matrix multiplication, gate order: zrh.
+    :param weights_w:                       The weights for matrix multiplication, gate order: zrh.
                                     Shape: [3*hidden_size, input_size].
-    :param R:                       The recurrence weights for matrix multiplication.
+    :param weights_r:                       The recurrence weights for matrix multiplication.
                                     Shape: [3*hidden_size, hidden_size].
-    :param B:                       The sum of biases (weight and recurrence).
+    :param biases:                       The sum of biases (weight and recurrence).
                                     For linear_before_reset set True the shape is [4*hidden_size].
                                     Otherwise the shape is [3*hidden_size].
     :param hidden_size:             The number of hidden units for recurrent cell.
@@ -297,7 +298,7 @@ def gru_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
+    input_nodes = as_nodes(inputs, initial_hidden_state, weights_w, weights_r, biases)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -353,7 +354,7 @@ def non_max_suppression(
 
 
 @nameable_op
-def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None,) -> Node:
+def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
     """Return the indices of the elements that are non-zero.
 
     :param data: Input data.
@@ -364,7 +365,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "NonZero",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -380,17 +381,17 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
 @nameable_op
 def rnn_cell(
-    X: NodeInput,
+    inputs: NodeInput,
     initial_hidden_state: NodeInput,
-    W: NodeInput,
-    R: NodeInput,
-    B: NodeInput,
+    weights_w: NodeInput,
+    weights_r: NodeInput,
+    biases: NodeInput,
     hidden_size: int,
     activations: List[str],
     activations_alpha: List[float],
@@ -405,13 +406,13 @@ def rnn_cell(
 
     Note this class represents only single *cell* and not whole RNN *layer*.
 
-    :param X:                       The input tensor with shape: [batch_size, input_size].
+    :param inputs:                       The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state:    The hidden state tensor at current time step with shape:
                                     [batch_size, hidden_size].
-    :param W:                       The weight tensor with shape: [hidden_size, input_size].
-    :param R:                       The recurrence weight tensor with shape: [hidden_size,
+    :param weights_w:                       The weight tensor with shape: [hidden_size, input_size].
+    :param weights_r:                       The recurrence weight tensor with shape: [hidden_size,
                                     hidden_size].
-    :param B:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
+    :param biases:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
     :param hidden_size:             The number of hidden units for recurrent cell.
                                     Specifies hidden state size.
     :param activations:             The vector of activation functions used inside recurrent cell.
@@ -431,7 +432,7 @@ def rnn_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
+    input_nodes = as_nodes(inputs, initial_hidden_state, weights_w, weights_r, biases)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -507,13 +508,13 @@ def scatter_elements_update(
 
     """
     return _get_node_factory_opset3().create(
-        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis)
+        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis),
     )
 
 
 @nameable_op
 def scatter_update(
-    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
+    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None,
 ) -> Node:
     """Return a node which produces a ScatterUpdate operation.
 
@@ -527,7 +528,7 @@ def scatter_update(
     """
     return _get_node_factory_opset3().create(
         "ScatterUpdate",
-        as_nodes(data, indices, updates, axis)
+        as_nodes(data, indices, updates, axis),
     )
 
 
@@ -542,7 +543,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     return _get_node_factory_opset3().create(
         "ShapeOf",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -571,7 +572,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
 
     For example:
 
-    .. code-block:: ipython
+    .. code-block:: python
 
         Inputs: tensor of shape [1, 6, 2, 2]
 
@@ -595,14 +596,14 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
                            [[20., 21.], [22., 23.]]]]
     """
     return _get_node_factory_opset3().create(
-        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group}
+        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group},
     )
 
 
 @nameable_op
 def topk(
     data: NodeInput,
-    k: NodeInput,
+    k_val: NodeInput,
     axis: int,
     mode: str,
     sort: str,
@@ -612,7 +613,7 @@ def topk(
     """Return a node which performs TopK.
 
     :param data: Input data.
-    :param k: K.
+    :param k_val: K.
     :param axis: TopK Axis.
     :param mode: Compute TopK largest ('max') or smallest ('min')
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
@@ -621,6 +622,6 @@ def topk(
     """
     return _get_node_factory_opset3().create(
         "TopK",
-        as_nodes(data, k),
+        as_nodes(data, k_val),
         {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},
     )

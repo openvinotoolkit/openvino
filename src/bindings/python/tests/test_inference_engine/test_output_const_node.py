@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,7 +9,6 @@ import openvino.runtime.opset8 as ops
 from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
     Output, RTMap, OVAny
 
-from openvino.runtime import Core
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)

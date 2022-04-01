@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -26,18 +27,18 @@ def convert_dict_items(inputs: dict, py_types: dict) -> dict:
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
     new_inputs = {}
-    for k, val in inputs.items():
-        if not isinstance(k, (str, int, ConstOutput)):
-            raise TypeError("Incompatible key type for tensor: {}".format(k))
+    for key, value in inputs.items():
+        if not isinstance(key, (str, int, ConstOutput)):
+            raise TypeError(f"Incompatible key type for tensor: {key}")
         try:
-            ov_type = py_types[k]
+            ov_type = py_types[key]
         except KeyError:
-            raise KeyError("Port for tensor {} was not found!".format(k))
+            raise KeyError(f"Port for tensor {key} was not found!")
         # Convert numpy arrays or copy Tensors
-        new_inputs[k] = (
-            val
-            if isinstance(val, Tensor)
-            else Tensor(np.array(val, get_dtype(ov_type), copy=False))
+        new_inputs[key] = (
+            value
+            if isinstance(value, Tensor)
+            else Tensor(np.array(value, get_dtype(ov_type), copy=False))
         )
     return new_inputs
 
@@ -49,13 +50,11 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
     elif isinstance(inputs, list):
         # Lists are required to be represented as dictionaries with int keys
         return convert_dict_items(
-            {index: input for index, input in enumerate(inputs)}, py_types
+            {index: input for index, input in enumerate(inputs)}, py_types,
         )
     else:
         raise TypeError(
-            "Inputs should be either list or dict! Current type: {}".format(
-                type(inputs)
-            )
+            f"Inputs should be either list or dict! Current type: {type(inputs)}",
         )
 
 
@@ -65,18 +64,18 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
         return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
 
-    def map_tensor_names_to_types(input: ConstOutput) -> dict:
-        return {n: input.get_element_type() for n in input.get_names()}
+    def map_tensor_names_to_types(inpt: ConstOutput) -> dict:
+        return {n: inpt.get_element_type() for n in inpt.get_names()}
 
     input_types: dict = {}
-    for idx, input in enumerate(get_inputs(obj)):
+    for idx, inpt in enumerate(get_inputs(obj)):
         # Add all possible "accessing aliases" to dictionary
         # Key as a ConstOutput port
-        input_types[input] = input.get_element_type()
+        input_types[inpt] = inpt.get_element_type()
         # Key as an integer
-        input_types[idx] = input.get_element_type()
+        input_types[idx] = inpt.get_element_type()
         # Multiple possible keys as Tensor names
-        input_types.update(map_tensor_names_to_types(input))
+        input_types.update(map_tensor_names_to_types(inpt))
     return input_types
 
 
@@ -106,11 +105,11 @@ class InferRequest(InferRequestBase):
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         return super().infer(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
         )
 
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self, inputs: Union[dict, list] = None, userdata: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -183,7 +182,7 @@ class CompiledModel(CompiledModelBase):
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         return super().infer_new_request(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
         )
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
@@ -202,18 +201,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __getitem__(self, i: int) -> InferRequest:
-        """Gets InferRequest from the pool with given i id.
-
-        :param i:  InferRequest id.
-        :type i: int
-        :return: InferRequests from the pool with given id.
-        :rtype: openvino.runtime.InferRequest
-        """
-        return InferRequest(super().__getitem__(i))
-
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self, inputs: Union[dict, list] = None, userdata: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -237,10 +226,20 @@ class AsyncInferQueue(AsyncInferQueueBase):
             {}
             if inputs is None
             else normalize_inputs(
-                inputs, get_input_types(self[self.get_idle_request_id()])
+                inputs, get_input_types(self[self.get_idle_request_id()]),
             ),
             userdata,
         )
+
+    def __getitem__(self, i: int) -> InferRequest:
+        """Gets InferRequest from the pool with given i id.
+
+        :param i:  InferRequest id.
+        :type i: int
+        :return: InferRequests from the pool with given id.
+        :rtype: openvino.runtime.InferRequest
+        """
+        return InferRequest(super().__getitem__(i))
 
 
 class Core(CoreBase):
@@ -253,7 +252,7 @@ class Core(CoreBase):
     """
 
     def compile_model(
-        self, model: Union[Model, str], device_name: str = None, config: dict = None
+        self, model: Union[Model, str], device_name: str = None, config: dict = None,
     ) -> CompiledModel:
         """Creates a compiled model.
 
@@ -278,11 +277,11 @@ class Core(CoreBase):
         """
         if device_name is None:
             return CompiledModel(
-                super().compile_model(model, {} if config is None else config)
+                super().compile_model(model, {} if config is None else config),
             )
 
         return CompiledModel(
-            super().compile_model(model, device_name, {} if config is None else config)
+            super().compile_model(model, device_name, {} if config is None else config),
         )
 
     def import_model(
