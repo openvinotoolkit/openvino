@@ -23,7 +23,7 @@ namespace GNAPluginNS {
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeMemoryLayer, "InsertCopyBeforeMemoryLayer", 0);
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer", 0);
 NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory", 0);
-NGRAPH_RTTI_DEFINITION(MatchNonFunctionalLayers, "MatchNonFunctionalLayers", 0);
+NGRAPH_RTTI_DEFINITION(MatchNonComputationalLayers, "MatchNonComputationalLayers", 0);
 NGRAPH_RTTI_DEFINITION(HandleNonComputationalSubgraphs, "HandleNonComputationalSubgraphs", 0);
 
 
@@ -222,8 +222,16 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
     return is_graph_modified;
 }
 
-MatchNonFunctionalLayers::MatchNonFunctionalLayers() {
-    MATCHER_SCOPE(MatchNonFunctionalLayers);
+/* The main idea, is that we match the non-computational layers
+ * one-by-one when traversing graph in reverse order.
+ * For each match we check, that node contains non-computational property,
+ * and then assign it for each input. We have to pass the result node too, because
+ * we need to insert the copy operation before it.
+ * If we found the "parameter" node with both of properties, it indicates that we found the
+ * non-computational subgraph, and we insert the copy layer.
+ */
+MatchNonComputationalLayers::MatchNonComputationalLayers() {
+    MATCHER_SCOPE(MatchNonComputationalLayers);
 
     auto noncompute_op = ngraph::pattern::wrap_type<ngraph::opset8::Reshape,
                                                 ngraph::opset8::Squeeze,
@@ -251,16 +259,20 @@ MatchNonFunctionalLayers::MatchNonFunctionalLayers() {
         std::string noncomp_prop("non_compute_node");
         std::string result_prop("result_vector");
 
+        // Since we traverse graph in reverse order, the result should be one of the first nodes
         auto& rt_info = node->get_rt_info();
         auto res_node = std::dynamic_pointer_cast<ngraph::opset8::Result>(node);
         if (res_node) {
             rt_info[noncomp_prop] = true;
+            // We collect the results to the vector, because it possible to have
+            // two different non-computational subgraphs with different results
             rt_info[result_prop] = ngraph::ResultVector{res_node};
         }
 
         if (!rt_info.count(noncomp_prop) || !rt_info[noncomp_prop].as<bool>())
             return false;
 
+        // if current node is non-computational, pass the properties for each input
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto& input_rti = node->get_input_node_shared_ptr(i)->get_rt_info();
             input_rti[noncomp_prop] = true;
@@ -273,13 +285,17 @@ MatchNonFunctionalLayers::MatchNonFunctionalLayers() {
             }
         }
 
+        // Found parameter node with non-computational property, so we detected desired subgraph
+        // Need to insert a copy op for each pre-result node, that runs out to this parameter
         if (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node)) {
             auto result_vec = rt_info[result_prop].as<ngraph::ResultVector>();
             for (auto&& result_node : result_vec) {
                 auto copy_out = result_node->get_input_node_shared_ptr(0);
                 for (size_t i = 0; i < copy_out->get_input_size(); i++) {
                     auto copy_in = copy_out->get_input_node_shared_ptr(i);
-                    if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(copy_in))
+                    if (!std::dynamic_pointer_cast<ngraph::opset8::Constant>(copy_in) &&
+                        // Copy already inserted from different result
+                        !std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(copy_in))
                         insert_copy_layer_between(copy_in, copy_out, i);
                 }
             }

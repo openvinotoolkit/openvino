@@ -14,7 +14,6 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace testing {
 
@@ -316,7 +315,6 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
-        m.register_pass<ngraph::pass::VisualizeTree>("1graph.svg");
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -944,7 +942,7 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTest) {
         ASSERT_TRUE(result.first);
 }
 
-TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
+TEST(TransformationTests, InsertCopyLayerNonfuncTwoSubgraphsTest) {
         std::shared_ptr<ngraph::Function> func, ref_func;
         std::vector<int64_t> axes   = {0, 1, 2, 3};
         std::vector<int64_t> dim    = {1, 1, 2, 2};
@@ -970,6 +968,46 @@ TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
             auto reshape2 = ngraph::op::util::reshapeTo(copy, shape);
             auto result1 = std::make_shared<ngraph::opset8::Result>(reshape1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(reshape2);
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                            ngraph::ParameterVector{params},
+                                                            "nonfunc");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::HandleNonComputationalSubgraphs>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+TEST(TransformationTests, InsertCopyLayerNonfuncTwoResultsTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::vector<int64_t> axes   = {0, 1, 2, 3};
+        std::vector<int64_t> dim    = {1, 1, 2, 2};
+        std::vector<int64_t> offset = {0, 0, 0, 0};
+        ngraph::Shape shape         = {1, 1, 2, 4};
+        ngraph::Shape in_shape      = {1, 2, 4};
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape = ngraph::op::util::reshapeTo(params, shape);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(reshape);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(reshape);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                        ngraph::ParameterVector{params},
+                                                        "nonfunc");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto copy = std::make_shared<ov::intel_gna::op::Copy>(params);
+            auto reshape = ngraph::op::util::reshapeTo(copy, shape);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(reshape);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(reshape);
             ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                             ngraph::ParameterVector{params},
                                                             "nonfunc");

@@ -118,9 +118,9 @@ public:
 
 
 /**
- * @brief Matching the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info to inputs nodes
- * to identify the subgraph which contains only layers mentioned above. If find the parameter with non-functional rt_info, than inserts:
- * Inserts copy layer in subgraph.
+ * @brief Matchs the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info to inputs nodes
+ * to identify the subgraph which contains only layers mentioned above. If find the parameter with non-functional rt_info,
+ * then inserts copy layer in subgraph:
  * [Parameter]         [Parameter]
  *     |                    |
  *     |                  [Copy]
@@ -142,20 +142,20 @@ public:
  * [Result]   [Result]     [Result]     [Result]
  */
 
-class MatchNonFunctionalLayers : public ngraph::pass::MatcherPass {
+class MatchNonComputationalLayers : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    MatchNonFunctionalLayers();
+    MatchNonComputationalLayers();
 };
 
 /**
- * @brief Runs MatchNonFunctionalLayers transformation in reverse order to passthru rt_info and identify the noncomputing subgraphs.
+ * @brief Runs MatchNonComputationalLayers transformation in reverse order to passthru rt_info and identify the non-computational subgraphs.
  */
 class HandleNonComputationalSubgraphs : public ngraph::pass::BackwardGraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     HandleNonComputationalSubgraphs() {
-        add_matcher<MatchNonFunctionalLayers>();
+        add_matcher<MatchNonComputationalLayers>();
     }
 };
 
