@@ -9,10 +9,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNExperimentalDetectronROIFeatureExtractorNode : public MKLDNNNode {
+class ExperimentalDetectronROIFeatureExtractor : public Node {
 public:
-    MKLDNNExperimentalDetectronROIFeatureExtractorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ExperimentalDetectronROIFeatureExtractor(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -39,5 +40,6 @@ private:
     bool aligned_ = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

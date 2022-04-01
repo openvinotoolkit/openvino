@@ -6,6 +6,7 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -283,6 +284,11 @@ TEST(constant_folding, constant_unary_binary) {
     auto j = make_shared<op::Constant>(element::i8, Shape{2}, values_j);
     auto k = make_shared<op::Constant>(element::u8, Shape{2}, values_k);
     auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
+    auto doubles2 = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 1.0});
+    auto shorts = make_shared<op::Constant>(element::i16, Shape{3}, std::vector<int16_t>{14, -3, -3});
+    auto shorts2 = make_shared<op::Constant>(element::i16, Shape{1}, std::vector<int16_t>{-3});
+    auto unsigned_shorts = make_shared<op::Constant>(element::u16, Shape{3}, std::vector<uint16_t>{14, 300, 14});
+    auto unsigned_shorts2 = make_shared<op::Constant>(element::u16, Shape{1}, std::vector<uint16_t>{300});
 
     auto add = make_shared<op::v1::Add>(a, b);
     auto sub = make_shared<op::v1::Subtract>(a, b);
@@ -312,6 +318,10 @@ TEST(constant_folding, constant_unary_binary) {
     auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
     auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
     auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
+    auto equal_doubles = make_shared<op::v1::Equal>(doubles, doubles2, op::AutoBroadcastType::NUMPY);
+    auto equal_shorts = make_shared<op::v1::Equal>(shorts, shorts2, op::AutoBroadcastType::NUMPY);
+    auto equal_unsigned_shorts =
+        make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
@@ -342,7 +352,10 @@ TEST(constant_folding, constant_unary_binary) {
                                                  logical_xor_autob_numpy,
                                                  doubles_sqrt,
                                                  sub_int8,
-                                                 sub_uint8},
+                                                 sub_uint8,
+                                                 equal_doubles,
+                                                 equal_shorts,
+                                                 equal_unsigned_shorts},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
@@ -378,6 +391,9 @@ TEST(constant_folding, constant_unary_binary) {
     vector<double> doubles_sqrt_expected{2.0, 3.0};
     vector<int8_t> sub_int8_expected{0, 0};
     vector<uint8_t> sub_uint8_expected{0, 0};
+    vector<char> equal_doubles_expected{1, 0};
+    vector<char> equal_shorts_expected{0, 1, 1};
+    vector<char> equal_unsigned_shorts_expected{0, 1, 0};
 
     ASSERT_EQ(get_result_constant<int>(func, 0), add_expected);
     ASSERT_EQ(get_result_constant<int>(func, 1), sub_expected);
@@ -407,6 +423,9 @@ TEST(constant_folding, constant_unary_binary) {
     ASSERT_EQ(get_result_constant<double>(func, 25), doubles_sqrt_expected);
     ASSERT_EQ(get_result_constant<int8_t>(func, 26), sub_int8_expected);
     ASSERT_EQ(get_result_constant<uint8_t>(func, 27), sub_uint8_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 28), equal_doubles_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 29), equal_shorts_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 30), equal_unsigned_shorts_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 

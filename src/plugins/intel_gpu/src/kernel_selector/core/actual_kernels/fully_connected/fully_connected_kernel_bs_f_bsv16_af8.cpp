@@ -26,7 +26,7 @@ FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDe
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
-    dispatchData.gws[0] = Align(arg.output.LogicalSize() / (GetBatchesPerWorkItem(arg) * groups_per_batches), 16);
+    dispatchData.gws[0] = Align(arg.outputs[0].LogicalSize() / (GetBatchesPerWorkItem(arg) * groups_per_batches), 16);
     dispatchData.gws[1] = groups_per_batches;
     dispatchData.lws[0] = 16;
     dispatchData.lws[1] = 1;

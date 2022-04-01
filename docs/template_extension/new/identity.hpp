@@ -4,7 +4,9 @@
 
 #pragma once
 
+//! [op:common_include]
 #include <openvino/op/op.hpp>
+//! [op:common_include]
 
 //! [op:header]
 namespace TemplateExtension {

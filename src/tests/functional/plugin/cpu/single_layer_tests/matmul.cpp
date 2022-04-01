@@ -142,7 +142,7 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
-        // see comment in MKLDNNMatMulNode::canFuse
+        // see comment in MatMul::canFuse
         if (!(nodeType == MatMulNodeType::MatMul &&
               std::get<0>(fusingParams) && std::get<0>(fusingParams)->getFusedOpsNames().find("(PerChannel)") != std::string::npos &&
               std::max(inShapeA.size(), inShapeB.size()) > 2))
@@ -175,7 +175,7 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, cpuNodeType);
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
 namespace {
@@ -427,6 +427,7 @@ std::vector<fusingSpecificParams> fusingParamsSet3D_smoke {
         fusingBias,
         fusingMultiplyPerChannel,
         fusingFakeQuantizePerChannel,
+        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D_nightly {
@@ -866,6 +867,7 @@ std::vector<fusingSpecificParams> matmulFusingParams {
          * so Relu cannot be fused in this case. Should be analysed */
         // fusingFakeQuantizePerChannelRelu,
         fusingFakeQuantizePerTensorRelu,
+        fusingScaleShiftAndFakeQuantizePerChannel,
 };
 
 const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),

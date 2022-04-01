@@ -3,13 +3,13 @@
 //
 
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "itt.hpp"
+#include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax1ToSoftMax8, "ConvertSoftMax1ToSoftMax8", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
     MATCHER_SCOPE(ConvertSoftMax1ToSoftMax8);

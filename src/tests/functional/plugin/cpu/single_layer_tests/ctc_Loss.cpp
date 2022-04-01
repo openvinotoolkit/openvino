@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <string>
 #include <tuple>
@@ -189,7 +189,7 @@ TEST_P(CTCLossLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "CTCLoss");
+    CheckPluginRelatedResults(compiledModel, "CTCLoss");
 }
 
 namespace {

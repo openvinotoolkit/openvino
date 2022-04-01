@@ -298,8 +298,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             output_ids_offsets.push_back(e.second.first);
         }
         primitive_id concatenation_id = node.id() + ":concat";
-        auto concatenation_primitive =
-            std::make_shared<concatenation>(concatenation_id, output_ids_offsets, concatenation::along_f);
+        auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);
         auto& concatenation_node = p.get_or_create(concatenation_primitive);
         for (auto& e : output_map) {
             p.add_connection(*e.second.second, concatenation_node);

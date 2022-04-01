@@ -9,15 +9,15 @@
 #include <vector>
 #include <ngraph/node.hpp>
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPerTensorQuantization, "MarkupPerTensorQuantization", 0);
 
 ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantization(
     const std::vector<OperationPerTensorQuantizationRestriction>& restrictions) {
     for (const OperationPerTensorQuantizationRestriction& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             PerTensorQuantization r(restriction.specifyVersion);
             r.portsByVersion.emplace(restriction.operationType.version, restriction.restrictedPorts);
@@ -25,10 +25,12 @@ ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantiz
         } else {
             it->second.add(restriction.operationType.version, restriction.restrictedPorts);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
 bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<size_t>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();
@@ -68,7 +70,9 @@ bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_model(cons
         }
 
         if (restriction.versionIsRequired) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const auto it2 = restriction.portsByVersion.find(node->get_type_info().version);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (it2 == restriction.portsByVersion.end()) {
                 continue;
             }

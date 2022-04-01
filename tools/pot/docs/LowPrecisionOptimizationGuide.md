@@ -1,4 +1,4 @@
-# Low Precision Optimization Guide {#pot_docs_LowPrecisionOptimizationGuide}
+# Low Precision Optimization Guide
 
 ## Introduction
 This document provides the best-known methods on how to use low-precision capabilities of the OpenVINO™ toolkit to transform models
@@ -32,15 +32,14 @@ generic component translating the model to real integer representation and HW-sp
 
 ## Model Optimization Workflow
 We propose a common workflow which aligns with what other DL frameworks have. It contains two main components: post-training quantization and Quantization-Aware Training (QAT). 
-The first component is the the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
+The first component is the easiest way to get optimized models where the latter one can be considered as an alternative or an addition when the first does not give
 accurate results.
 
 The diagram below shows the optimization flow for the new model with OpenVINO and relative tools.
 
 ![](images/low_precision_flow.png)
 
-- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with OpenVINO 
-[Inference Engine](@ref openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide) in floating-point precision.
+- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with [OpenVINO™ Runtime](@ref openvino_docs_OV_Runtime_User_Guide) in floating-point precision.
 This process involves use of [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool to convert the model from the source framework 
 to the OpenVINO Intermediate Representation (IR) and run it on CPU with Inference Engine. 
   > **NOTE**: This step presumes that the model has the same accuracy as in the original training framework and enabled in the [Accuracy Checker](@ref omz_tools_accuracy_checker) tool or through the custom validation sample.

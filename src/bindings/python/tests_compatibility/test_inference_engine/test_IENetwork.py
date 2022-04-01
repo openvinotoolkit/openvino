@@ -135,17 +135,21 @@ def test_batch_size_after_reshape():
 
 
 def test_serialize():
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.serialize("./serialized_net.xml", "./serialized_net.bin")
-    serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
-    func_net = ng.function_from_cnn(net)
-    ops_net = func_net.get_ordered_ops()
-    ops_net_names = [op.friendly_name for op in ops_net]
-    func_serialized_net = ng.function_from_cnn(serialized_net)
-    ops_serialized_net = func_serialized_net.get_ordered_ops()
-    ops_serialized_net_names = [op.friendly_name for op in ops_serialized_net]
-    assert ops_serialized_net_names == ops_net_names
+    def run():
+        ie = IECore()
+        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+        net.serialize("./serialized_net.xml", "./serialized_net.bin")
+        serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
+        func_net = ng.function_from_cnn(net)
+        ops_net = func_net.get_ordered_ops()
+        ops_net_names = [op.friendly_name for op in ops_net]
+        func_serialized_net = ng.function_from_cnn(serialized_net)
+        ops_serialized_net = func_serialized_net.get_ordered_ops()
+        ops_serialized_net_names = [op.friendly_name for op in ops_serialized_net]
+        assert ops_serialized_net_names == ops_net_names
+
+    run()
+    # xml/bin files shall not be acquired after by 'net' here, can be removed
     os.remove("./serialized_net.xml")
     os.remove("./serialized_net.bin")
 
@@ -155,6 +159,14 @@ def test_reshape():
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.reshape({"data": (2, 3, 32, 32)})
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
+
+
+def test_reshape_dynamic():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(ValueError) as e:
+        net.reshape({"data": (-1, 3, 32, 32)})
+    assert "Detected dynamic dimension in the shape (-1, 3, 32, 32) of the `data` input" in str(e.value)
 
 
 def test_net_from_buffer_valid():

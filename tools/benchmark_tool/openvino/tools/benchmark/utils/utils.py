@@ -3,9 +3,8 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -246,13 +245,15 @@ def can_measure_as_static(app_input_info):
 def parse_devices(device_string):
     if device_string in ['MULTI', 'HETERO']:
         return list()
+    if device_string.find("AUTO") != -1:
+        return ['AUTO']
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
     return [d for d in devices.split(',')]
 
 
-def parse_nstreams_value_per_device(devices, values_string):
+def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
@@ -262,16 +263,16 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = device_value_vec[1]
+            value = device_value_vec[1]
             if device_name in devices:
-                result[device_name] = nstreams
+                result[device_name] = value
             else:
-                raise Exception("Can't set nstreams value " + str(nstreams) +
-                                " for device '" + device_name + "'! Incorrect device name!");
+                raise Exception(f"Can't set {value_type} for {device_name}!" \
+                                 " Incorrect device name!")
         elif len(device_value_vec) == 1:
-            nstreams = device_value_vec[0]
+            value = device_value_vec[0]
             for device in devices:
-                result[device] = nstreams
+                result[device] = value
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
@@ -306,11 +307,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(compiled_model, model_path):
-    weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    pass_manager = Manager()
-    pass_manager.register_pass("Serialize", model_path, weight_path)
-    pass_manager.run_passes(compiled_model.get_runtime_model())
-
+    serialize(compiled_model.get_runtime_model(), model_path)
 
 
 def print_perf_counters(perf_counts_list):
@@ -373,9 +370,9 @@ def get_data_shapes_map(data_shape_string, input_names):
                 input_name = match[:match.find('[')]
                 shapes = re.findall(r'\[(.*?)\]', match[len(input_name):])
                 if input_name:
-                    return_value[input_name] = list(parse_partial_shape(shape_str) for shape_str in shapes)
+                    return_value[input_name] = list(PartialShape(shape_str) for shape_str in shapes)
                 else:
-                    data_shapes = list(parse_partial_shape(shape_str) for shape_str in shapes)
+                    data_shapes = list(PartialShape(shape_str) for shape_str in shapes)
                     num_inputs, num_shapes = len(input_names), len(data_shapes)
                     if num_shapes != 1 and num_shapes % num_inputs != 0:
                         raise Exception(f"Number of provided data_shapes is not a multiple of the number of model inputs!")
@@ -503,52 +500,13 @@ class AppInputInfo:
         return self.partial_shape.is_dynamic
 
 
-def parse_partial_shape(shape_str):
-    dims = []
-    for dim in shape_str.split(','):
-        if '.. ' in dim:
-            range = list(int(d) for d in dim.split('..'))
-            assert len(range) == 2
-            dims.append(Dimension(range))
-        elif dim == '?':
-            dims.append(Dimension())
-        else:
-            dims.append(Dimension(int(dim)))
-    return PartialShape(dims)
-
-
-def parse_batch_size(batch_size_str):
-    if batch_size_str:
-        error_message = f"Can't parse batch size '{batch_size_str}'"
-        dims = batch_size_str.split("..")
-        if len(dims) > 2:
-            raise Exception(error_message)
-        elif len(dims) == 2:
-            range = []
-            for d in dims:
-                if d.isnumeric():
-                    range.append(int(d))
-                else:
-                    raise Exception(error_message)
-            return Dimension(*range)
-        else:
-            if dims[0].lstrip("-").isnumeric():
-                return Dimension(int(dims[0]))
-            elif dims[0] == "?":
-                return Dimension()
-            else:
-                raise Exception(error_message)
-    else:
-        return Dimension(0)
-
-
 def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, inputs):
     input_names = get_input_output_names(inputs)
     input_node_names = get_node_names(inputs)
     shape_map = parse_input_parameters(shape_string, input_names)
     data_shape_map = get_data_shapes_map(data_shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
-    batch_size = parse_batch_size(batch_size)
+    batch_size = Dimension(batch_size)
     reshape = False
     batch_found = False
     input_info = []
@@ -563,10 +521,10 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Shape
         info.original_shape = inputs[i].partial_shape
         if info.name in shape_map:
-            info.partial_shape = parse_partial_shape(shape_map[info.name])
+            info.partial_shape = PartialShape(shape_map[info.name])
             reshape = True
         elif info.node_name in shape_map:
-            info.partial_shape = parse_partial_shape(shape_map[info.node_name])
+            info.partial_shape = PartialShape(shape_map[info.node_name])
             reshape = True
         else:
             info.partial_shape = inputs[i].partial_shape

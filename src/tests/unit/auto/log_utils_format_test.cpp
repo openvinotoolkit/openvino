@@ -112,6 +112,18 @@ TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu2) {
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
+TEST_F(LogUtilsFormatTest, format_lf) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult = stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%lfabc", 1.33);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
+}
+
 TEST_F(LogUtilsFormatTest, format_p) {
     std::string printResult = "";
     std::string pattern{"not valid"};

@@ -5,7 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -183,7 +183,7 @@ TEST_P(ReduceCPULayerTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "Reduce");
+    CheckPluginRelatedResults(compiledModel, "Reduce");
 }
 namespace {
 const std::vector<ElementType> inpOutPrc = {ElementType::bf16, ElementType::f32};

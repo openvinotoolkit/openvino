@@ -14,8 +14,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(ReorderActivationAndPooling, "ReorderActivationAndPooling", 0);
-
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
     MATCHER_SCOPE(ReorderActivationAndPooling);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),

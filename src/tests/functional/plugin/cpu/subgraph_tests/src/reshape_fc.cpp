@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 
@@ -96,7 +96,7 @@ TEST_P(ReshapeFcCPUTest, CompareWithRefs) {
    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
    run();
-   CheckPluginRelatedResults(executableNetwork, "FullyConnected");
+   CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
 
 const std::vector<ReshapeFcSpecParams> reshFcParams = {

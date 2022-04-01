@@ -1,6 +1,6 @@
 # OpenVINO™ Model Server Benchmark Results {#openvino_docs_performance_benchmarks_ovms}
 
-OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the inference engine libraries for from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
+OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
 
 ![OpenVINO™ Model Server](../img/performance_benchmarks_ovms_01.png)
 
@@ -22,30 +22,43 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 ![](../img/throughput_ovms_resnet50_int8.png)
 ## resnet-50-TF (FP32)
 ![](../img/throughput_ovms_resnet50_fp32_bs_1.png)
-## 3D U-Net (FP32)
-![](../img/throughput_ovms_3dunet.png)
+## googlenet-v4-TF (FP32)
+![](../img/throughput_ovms_googlenet4_fp32.png)
 ## yolo-v3-tf (FP32)
 ![](../img/throughput_ovms_yolo3_fp32.png)
-## yolo-v3-tiny-tf (FP32)
-![](../img/throughput_ovms_yolo3tiny_fp32.png)
 ## yolo-v4-tf (FP32)
 ![](../img/throughput_ovms_yolo4_fp32.png)
-## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
-![](../img/throughput_ovms_bertsmall_fp32.png)
+## brain-tumor-segmentation-0002
+![](../img/throughput_ovms_braintumorsegmentation.png)
+## alexnet
+![](../img/throughput_ovms_alexnet.png)
+## mobilenet-v3-large-1.0-224-TF (FP32)
+![](../img/throughput_ovms_mobilenet3large_fp32.png)
+## deeplabv3 (FP32)
+![](../img/throughput_ovms_deeplabv3_fp32.png)
 ## bert-small-uncased-whole-word-masking-squad-int8-0002 (INT8)
 ![](../img/throughput_ovms_bertsmall_int8.png)
-## bert-large-uncased-whole-word-masking-squad-0001 (FP32)
-![](../img/throughput_ovms_bertlarge_fp32.png)
-## bert-large-uncased-whole-word-masking-squad-int8-0001 (INT8)
-![](../img/throughput_ovms_bertlarge_int8.png)
-## mobilenet-v3-large-1.0-224-tf (FP32)
-![](../img/throughput_ovms_mobilenet3large_fp32.png)
-## ssd_mobilenet_v1_coco (FP32)
-![](../img/throughput_ovms_ssdmobilenet1_fp32.png)
+## bert-small-uncased-whole-word-masking-squad-0002 (FP32)
+![](../img/throughput_ovms_bertsmall_fp32.png)
+## 3D U-Net (FP32)
+![](../img/throughput_ovms_3dunet.png)
+
+## Image Compression for Improved Throughput
+OpenVINO Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
+feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. A good example of such use could be wireless 5G communication, a typical 1 Gbit/sec Ethernet network or a usage scenario with many client machines issuing a high rate of inference requests to one single central OpenVINO model server. Generally the performance improvement increases with increased compressibility of the data/image. The decompression on the server-side is performed by the OpenCV library. Please refer to [Supported Image Formats](#supported-image-formats-for-ovms-compression).
+
+### googlenet-v4-tf (FP32)
+![](../img/throughput_ovms_1gbps_googlenet4_fp32.png)
+
+### resnet-50-tf (INT8)
+![](../img/throughput_ovms_1gbps_resnet50_int8.png)
+
+### resnet-50-tf (FP32)
+![](../img/throughput_ovms_1gbps_resnet50_fp32.png)
 
 ## Platform Configurations
 
-OpenVINO™ Model Server performance benchmark numbers are based on release 2021.4. Performance results are based on testing as of June 17, 2021 and may not reflect all publicly available updates. 
+OpenVINO™ Model Server performance benchmark numbers are based on release 2021.4. Performance results are based on testing as of June 17, 2021 and may not reflect all publicly available updates.
 
 ### Platform with Intel® Xeon® Platinum 8260M
 
@@ -463,6 +476,22 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
     </tr>
     </table>
 
-@endsphinxdirective    
+@endsphinxdirective
 
-Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
+## Supported Image Formats for OVMS Compression
+- Always supported:
+
+  - Portable image format - *.pbm, *.pgm, *.ppm *.pxm, *.pnm
+  - Radiance HDR - *.hdr, *.pic
+  - Sun rasters - *.sr, *.ras
+  - Windows bitmaps - *.bmp, *.dib
+
+- Limited support (please see OpenCV documentation):
+
+  - Raster and Vector geospatial data supported by GDAL
+  - JPEG files - *.jpeg, *.jpg, *.jpe
+  - Portable Network Graphics - *.png
+  - TIFF files - *.tiff, *.tif
+  - OpenEXR Image files - *.exr
+  - JPEG 2000 files - *.jp2
+  - WebP - *.webp

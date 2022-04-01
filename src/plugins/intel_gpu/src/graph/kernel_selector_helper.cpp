@@ -839,7 +839,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(program.get_id()) + "_"  + node.get_unique_id();
+    params.uniqueID = std::to_string(node.get_unique_id());
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
