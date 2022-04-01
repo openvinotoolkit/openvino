@@ -45,8 +45,12 @@ ApiSummary &ApiSummary::getInstance() {
 }
 
 void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status) {
-    if (extendReport && !isReported) {
-//        apiStats = getStatisticFromReport();
+    if (apiStats.empty()) {
+        std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + reportFilename + CommonTestUtils::REPORT_EXTENSION;
+        const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+        if (extendReport && !isReported && fileExists) {
+            getStatisticFromReport(outputFilePath);
+        }
     }
     std::string real_device = target_device.substr(0, target_device.find(':'));
     if (apiStats.find(entity) == apiStats.end()) {
@@ -94,38 +98,31 @@ ov_entity ApiSummary::getOvEntityByName(const std::string& name) {
     return ov_entity::undefined;
 }
 
-void ApiSummary::getStatisticFromReport() {
+void ApiSummary::getStatisticFromReport(const std::string& filePath) {
     pugi::xml_document doc;
 
-    std::ifstream file;
-    file.open(reportFilename);
-
-    pugi::xml_node root;
-    doc.load_file(reportFilename);
-    root = doc.child("report");
+    doc.load_file(filePath.c_str());
+    pugi::xml_node root = doc.child("report");
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
-//    for (const auto& ie_entity_node : currentDeviceNode) {
-//        for (const auto& attr : ie_entity_node.attributes()) {
-//            std::cout << attr.name() << " " << attr.value() << std::endl;
-//        }
-//        std::string ie_entity_name = ie_entity_node.value();
-//        ov_entity entity = getOvEntityByName(ie_entity_name);
-//        for (const auto& real_device_node : ie_entity_node) {
-//            std::string real_device_name = real_device_node.name();
-//            auto p = std::stoi(real_device_node.attribute("passed").value());
-//            auto f = std::stoi(real_device_node.attribute("failed").value());
-//            auto s = std::stoi(real_device_node.attribute("skipped").value());
-//            auto c = std::stoi(real_device_node.attribute("crashed").value());
-//            auto h = std::stoi(real_device_node.attribute("hanged").value());
-//            PassRate entity_stat(p, f, s, c, h);
-//            if (apiStats.find(entity) == apiStats.end()) {
-//                apiStats.insert({entity, {}});
-//            }
-//            apiStats[entity].insert({real_device_name, entity_stat});
-//        }
-//    }
+    for (auto &entityNode : currentDeviceNode.children()) {
+        std::string entityName = entityNode.name();
+        ov_entity entity = getOvEntityByName(entityName);
+        for (const auto& realDeviceNode : entityNode.children()) {
+            std::string realDeviceName = realDeviceNode.name();
+            auto p = std::stoi(realDeviceNode.attribute("passed").value());
+            auto f = std::stoi(realDeviceNode.attribute("failed").value());
+            auto s = std::stoi(realDeviceNode.attribute("skipped").value());
+            auto c = std::stoi(realDeviceNode.attribute("crashed").value());
+            auto h = std::stoi(realDeviceNode.attribute("hanged").value());
+            PassRate entity_stat(p, f, s, c, h);
+            if (apiStats.find(entity) == apiStats.end()) {
+                apiStats.insert({entity, {}});
+            }
+            apiStats[entity].insert({realDeviceName, entity_stat});
+        }
+    }
 }
 
 void ApiSummary::saveReport() {
@@ -148,10 +145,6 @@ void ApiSummary::saveReport() {
     pugi::xml_document doc;
 
     const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
-
-    if (extendReport && fileExists && !isReported) {
-        getStatisticFromReport();
-    }
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -202,42 +195,6 @@ void ApiSummary::saveReport() {
             entry.append_attribute("passrate").set_value(stat_device.second.getPassrate());
         }
     }
-
-//    if (extendReport && fileExists) {
-//        auto opStataFromReport = summary.getStatisticFromReport();
-//        for (auto &item : opStataFromReport) {
-//            pugi::xml_node entry;
-//            if (opList.find(item.first) == opList.end()) {
-//                entry = currentDeviceNode.append_child(item.first.c_str());
-//                entry.append_attribute("implemented").set_value(item.second.isImplemented);
-//                entry.append_attribute("passed").set_value(item.second.passed);
-//                entry.append_attribute("failed").set_value(item.second.failed);
-//                entry.append_attribute("skipped").set_value(item.second.skipped);
-//                entry.append_attribute("crashed").set_value(item.second.crashed);
-//                entry.append_attribute("hanged").set_value(item.second.hanged);
-//                entry.append_attribute("passrate").set_value(item.second.getPassrate());
-//            } else {
-//                entry = currentDeviceNode.child(item.first.c_str());
-//                auto implStatus = entry.attribute("implemented").value() == std::string("true") ? true : false;
-//                auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
-//                auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
-//                auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
-//                auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
-//                auto h = std::stoi(entry.attribute("hanged").value()) + item.second.hanged;
-//                PassRate obj(p, f, s, c, h);
-//
-//                (implStatus || obj.isImplemented)
-//                ? entry.attribute("implemented").set_value(true)
-//                : entry.attribute("implemented").set_value(false);
-//                entry.attribute("passed").set_value(obj.passed);
-//                entry.attribute("failed").set_value(obj.failed);
-//                entry.attribute("skipped").set_value(obj.skipped);
-//                entry.attribute("crashed").set_value(obj.crashed);
-//                entry.attribute("hanged").set_value(obj.hanged);
-//                entry.attribute("passrate").set_value(obj.getPassrate());
-//            }
-//        }
-//    }
 
     auto exitTime = std::chrono::system_clock::now() + std::chrono::seconds(saveReportTimeout);
     bool result = false;

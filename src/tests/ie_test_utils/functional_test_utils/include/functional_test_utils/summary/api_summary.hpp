@@ -37,7 +37,6 @@ private:
     static ApiSummary *p_instance;
     std::map<ov_entity, std::map<std::string, PassRate>> apiStats;
     static const std::map<ov_entity, std::string> apiInfo;
-
     ov_entity getOvEntityByName(const std::string& name);
 
 protected:
@@ -47,7 +46,7 @@ protected:
 
 public:
     static ApiSummary &getInstance();
-    void getStatisticFromReport();
+    inline void getStatisticFromReport(const std::string& filePath);
     std::map<ov_entity, std::map<std::string, PassRate>> getApiStats() { return apiStats; }
     void updateStat(ov_entity, const std::string& device, PassRate::Statuses);
     void saveReport() override;
