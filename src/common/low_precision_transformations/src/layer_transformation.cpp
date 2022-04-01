@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <vector>
 #include <queue>
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -433,6 +434,7 @@ void LayerTransformation::updateOutput(
 }
 
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
+    MATCHER_SCOPE(SingleNodeMatcher);
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         const bool result = transform(context, m);
         (void)result;
@@ -449,7 +451,7 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
         return false;
     };
     // TODO: better name for matcher? required?
-    auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
