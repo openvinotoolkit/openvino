@@ -72,6 +72,8 @@
 #include "transformations/insert_reshape_around_matmul.hpp"
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/gru_cell_decomposition.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/remove_converts.hpp"
 #include "transformations/broadcast_const.hpp"
@@ -662,6 +664,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<RemoveInputConvert>();
         manager.register_pass<RemoveOutputConvert>();
+        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
