@@ -11,7 +11,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-/// \brief      Creates nGraph node representing ONNX Scan operator.
+/// \brief      Creates OpenVino node representing ONNX Scan operator.
 ///
 /// \note       Details available here:
 ///             https://github.com/onnx/onnx/blob/main/docs/Operators.md#Scan

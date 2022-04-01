@@ -157,7 +157,7 @@ OutputVector import_onnx_scan(const Node& node,
 namespace set_1 {
 
 OutputVector scan(const Node& node) {
-    // ONNX Scan-8 can has optional `sequence_lens` input,
+    // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
     OPENVINO_ASSERT(ngraph::op::is_null(node.get_ng_inputs().at(0)),
                     node.get_description(),
