@@ -26,11 +26,11 @@ shared_ptr<Node> op::v9::GenerateProposals::clone_with_new_inputs(const OutputVe
     NGRAPH_OP_SCOPE(v9_GenerateProposals_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ov::op::v9::GenerateProposals>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  new_args.at(2),
-                                                  new_args.at(3),
-                                                  m_attrs,
-                                                  m_roi_num_type);
+                                                      new_args.at(1),
+                                                      new_args.at(2),
+                                                      new_args.at(3),
+                                                      m_attrs,
+                                                      m_roi_num_type);
 }
 
 bool op::v9::GenerateProposals::visit_attributes(AttributeVisitor& visitor) {
