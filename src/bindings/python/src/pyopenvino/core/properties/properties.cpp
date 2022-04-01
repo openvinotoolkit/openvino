@@ -157,7 +157,7 @@ void regmodule_properties(py::module m) {
         .value("TRACE", ov::log::Level::TRACE);
 
     //Submodule log - properties
-    wrap_property_RW(m_log, ov::log::level, "allow_auto_batching");
+    wrap_property_RW(m_log, ov::log::level, "level");
 
     // Submodule streams
     py::module m_streams =
