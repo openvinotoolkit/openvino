@@ -86,10 +86,13 @@
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 
+namespace ov {
+namespace intel_cpu {
+
 #define INTEL_CPU_NODE(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)
 
-ov::intel_cpu::Node::NodesFactory::NodesFactory()
+Node::NodesFactory::NodesFactory()
     : Factory("NodesFactory") {
     using namespace node;
     INTEL_CPU_NODE(Generic, Type::Generic);
@@ -112,8 +115,8 @@ ov::intel_cpu::Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Eltwise, Type::Eltwise);
     INTEL_CPU_NODE(SoftMax, Type::Softmax);
     INTEL_CPU_NODE(EmbeddingBagPackedSum, Type::EmbeddingBagPackedSum);
-    INTEL_CPU_NODE(node::Input, Type::Input);
-    INTEL_CPU_NODE(node::Input, Type::Output);
+    INTEL_CPU_NODE(Input, Type::Input);
+    INTEL_CPU_NODE(Input, Type::Output);
     INTEL_CPU_NODE(MemoryInput, Type::MemoryInput);
     INTEL_CPU_NODE(MemoryOutput, Type::MemoryOutput);
     INTEL_CPU_NODE(Tile, Type::Tile);
@@ -182,3 +185,6 @@ ov::intel_cpu::Node::NodesFactory::NodesFactory()
 }
 
 #undef INTEL_CPU_NODE
+
+}   // namespace intel_cpu
+}   // namespace ov

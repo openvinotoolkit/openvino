@@ -589,14 +589,14 @@ struct base_params : public Params {
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
-    DataTensor output;
+    MultiDataTensor outputs;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 
 protected:
-    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1) {}
+    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

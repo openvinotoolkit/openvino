@@ -31,7 +31,6 @@
 #include "frontend/model_quantizer.hpp"
 #include "gna_fused_iterator.hpp"
 #include "backend/am_intel_dnn.hpp"
-#include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
@@ -60,6 +59,7 @@
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include <transformations/utils/utils.hpp>
 
+#include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
@@ -323,11 +323,13 @@ void GNAPlugin::ImportFrames(void *ptr_dst,
 GNAPlugin::GNAPlugin() {
     Init();
     UpdateFieldsFromConfig();
+    InitGNADevice();
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
+    InitGNADevice();
 }
 
 void GNAPlugin::Init() {
@@ -344,14 +346,18 @@ void GNAPlugin::Init() {
 
 void GNAPlugin::InitGNADevice() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGNADevice");
-    gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
-                config.gnaCompileTarget,
-                config.swExactMode,
-                gnaFlags->performance_counting,
-                !config.dumpXNNPath.empty(),
-                GetDeviceVersionFromString(config.dumpXNNGeneration));
-    size_t page_size_bytes = 4096;
-    gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
+    if (gnaFlags->sw_fp32) {
+        gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
+    } else {
+        gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
+                    config.gnaCompileTarget,
+                    config.swExactMode,
+                    gnaFlags->performance_counting,
+                    !config.dumpXNNPath.empty(),
+                    GetDeviceVersionFromString(config.dumpXNNGeneration));
+        size_t page_size_bytes = 4096;
+        gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
+    }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
@@ -634,10 +640,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    if (!gnaFlags->sw_fp32) {
-        InitGNADevice();
-    }
-
     std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
     if (gnadevice) {
         effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
@@ -705,6 +707,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
               transormations
         */
         manager.register_pass<BroadcastAddMultiplyConst>();
+        if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
+            manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+        }
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
@@ -754,7 +760,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         UpdateInputScaleFromNetwork(network);
     }
 
-    if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
+    if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
 
@@ -889,15 +895,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     graphCompiler.fillMemoryConnections(memoryPairs);
 
     if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
-        // TODO: check if updating the number of threads is needed for sw_fp32
         gnaFlags->num_requests = 1;
-        if (!gnaFlags->sw_fp32)
-            InitGNADevice();
-    }
-
-    if (gnaFlags->sw_fp32) {
-        gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
-        graphCompiler.setGNAMemoryPtr(gnamem);
     }
 
     // keep inputs information and create input primitives
@@ -1212,7 +1210,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
+        auto  importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
         auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
 
@@ -1326,7 +1324,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto isScalar = outputBlob->getTensorDesc().getLayout() == Layout::SCALAR;
         auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
         auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
-        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
+        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : InferenceEngine::details::product(++std::begin(dims), std::end(dims)));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
         if (transpose_output_info != std::end(transpose_outputs_info) && FoundPartToTranspose(transpose_output_info->second)) {
@@ -1503,9 +1501,6 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
 InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
-    InitGNADevice();
-
-    graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
     gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();

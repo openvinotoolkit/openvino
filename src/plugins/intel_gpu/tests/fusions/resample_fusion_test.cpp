@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 
 #include <cmath>
 
@@ -32,7 +33,7 @@ struct resample_test_params {
 class ResamplePrimitiveFusingTest : public ::BaseFusingTest<resample_test_params> {
 public:
 
-    void execute(resample_test_params& p) {
+    void execute(resample_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -40,6 +41,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p);
+        check_fusions_correctness(network_fused, expected_fused_primitives_ids);
     }
 
     layout get_input_layout(resample_test_params& p) {
@@ -307,4 +309,83 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_concat, ::testing::ValuesIn
     resample_test_params{ CASE_RESAMPLE_U8_2, 3, 6 },
     resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
     resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
+}));
+
+class resample_scale_fusing_through : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_scale_fusing_through, reshape) {
+    auto p = GetParam();
+    auto reshape_shape = p.out_shape;
+    reshape_shape.feature[0] *= reshape_shape.spatial[0];
+    reshape_shape.spatial[0] = 1;
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scale_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
+        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        reshape("reshape", "resample_prim", reshape_shape),
+        eltwise("scale", "reshape", "scale_data", eltwise_mode::prod),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p, {{"resample_prim", {"scale"}}});
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_fusing_through, ::testing::ValuesIn(std::vector<resample_test_params>{
+    resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 3 },
+
+    resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 3 },
+
+    resample_test_params{ CASE_RESAMPLE_I8_1, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_I8_2, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_I8_3, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_I8_4, 2, 4 },
+
+    resample_test_params{ CASE_RESAMPLE_U8_1, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_U8_2, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_U8_3, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_U8_4, 2, 4 },
+}));
+
+class resample_scale_fusing_through_not_allowed : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_scale_fusing_through_not_allowed, reshape_two_users) {
+    auto p = GetParam();
+    auto reshape_shape = p.out_shape;
+    reshape_shape.feature[0] *= reshape_shape.spatial[0];
+    reshape_shape.spatial[0] = 1;
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("scale_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
+        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        reshape("reshape", "resample_prim", reshape_shape),
+        eltwise("scale", "reshape", "scale_data", eltwise_mode::prod),
+        eltwise("sum", "reshape", "scale", eltwise_mode::sum),
+        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_fusing_through_not_allowed, ::testing::ValuesIn(std::vector<resample_test_params>{
+    resample_test_params{ CASE_RESAMPLE_FP32_1, 4, 4 },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, 4, 4 },
+
+    resample_test_params{ CASE_RESAMPLE_FP16_1, 4, 4 },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, 4, 4 },
 }));

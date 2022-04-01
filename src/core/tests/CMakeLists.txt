@@ -13,8 +13,6 @@ set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(util)
-    add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -265,6 +263,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asin.cpp
     visitors/op/asinh.cpp
+    visitors/op/assign.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
     visitors/op/avg_pool.cpp
@@ -364,6 +363,7 @@ set(SRC
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
     visitors/op/rdft.cpp
+    visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -421,7 +421,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
@@ -581,9 +581,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads

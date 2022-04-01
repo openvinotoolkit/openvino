@@ -31,7 +31,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault
                                                                                  int) const {
     DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto b = out.Batch().v;
     auto f = out.Feature().v;
