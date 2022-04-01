@@ -14,11 +14,9 @@
 #include <iterator>
 
 #include "Python.h"
-#include "ie_common.h"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
@@ -49,8 +47,6 @@ const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
 const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
-
-PyAny from_ov_any(const ov::Any& any);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
