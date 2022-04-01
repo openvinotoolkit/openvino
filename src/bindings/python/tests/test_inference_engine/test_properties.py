@@ -9,26 +9,50 @@ from openvino.runtime import properties
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_properties_core():
+@pytest.mark.parametrize("properties_to_set", [
+# Dict from list of tuples
+dict([
+    properties.enable_profiling(True),
+    properties.cache_dir("./"),
+    # properties.auto_batch_timeout(21), # Unreachable: Bad cast from: N8pybind116objectE to: St3mapINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEN2ov3AnyESt4lessIS5_ESaISt4pairIKS5_S7_EEE
+    # properties.num_streams(9),
+    properties.inference_num_threads(9),
+    # properties.compilation_num_threads(7), # [ NOT_FOUND ] Unsupported property COMPILATION_NUM_THREADS by CPU plugin
+    properties.affinity(properties.Affinity.NONE),
+    properties.hint.inference_precision(Type.f32),
+    # properties.hint.model_priority(properties.hint.Priority.HIGH), # E [ NOT_FOUND ] Unsupported property MODEL_PRIORITY by CPU plugin
+    properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
+    properties.hint.num_requests(12),
+    # properties.hint.model(...), # untested
+    # properties.hint.allow_auto_batching(False), # [ NOT_FOUND ] Unsupported property ALLOW_AUTO_BATCHING by CPU plugin
+    # properties.device.id("9"), # [ NOT_FOUND ] Unsupported property DEVICE_ID by CPU plugin
+    # properties.log.level(properties.log.Level.INFO), # [ NOT_FOUND ] Unsupported property LOG_LEVEL by CPU plugin
+]),
+# Pure dict
+{
+    properties.enable_profiling(): True,
+    properties.cache_dir(): "./",
+    properties.inference_num_threads(): 9,
+    properties.affinity(): properties.Affinity.NONE,
+    properties.hint.inference_precision(): Type.f32,
+    properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+    properties.hint.num_requests(): 12
+},
+# Mixed dict
+{
+    properties.enable_profiling(): True,
+    "CACHE_DIR": "./",
+    properties.inference_num_threads(): 9,
+    properties.affinity(): properties.Affinity.NONE,
+    "INFERENCE_PRECISION_HINT": Type.f32,
+    properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+    properties.hint.num_requests(): 12
+}
+])
+def test_properties_core(properties_to_set):
     core = Core()
 
-    properties_to_set = dict([
-                                properties.enable_profiling(True),
-                                properties.cache_dir("./"),
-                                # properties.auto_batch_timeout(21), # Unreachable: Bad cast from: N8pybind116objectE to: St3mapINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEN2ov3AnyESt4lessIS5_ESaISt4pairIKS5_S7_EEE
-                                # properties.num_streams(9),
-                                properties.inference_num_threads(9),
-                                # properties.compilation_num_threads(7), # [ NOT_FOUND ] Unsupported property COMPILATION_NUM_THREADS by CPU plugin
-                                properties.affinity(properties.Affinity.NONE),
-                                properties.hint.inference_precision(Type.f32),
-                                # properties.hint.model_priority(properties.hint.Priority.HIGH), # E [ NOT_FOUND ] Unsupported property MODEL_PRIORITY by CPU plugin
-                                properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
-                                properties.hint.num_requests(12),
-                                # properties.hint.model(...), # untested
-                                # properties.hint.allow_auto_batching(False), # [ NOT_FOUND ] Unsupported property ALLOW_AUTO_BATCHING by CPU plugin
-                                # properties.device.id("9"), # [ NOT_FOUND ] Unsupported property DEVICE_ID by CPU plugin
-                                # properties.log.level(properties.log.Level.INFO), # [ NOT_FOUND ] Unsupported property LOG_LEVEL by CPU plugin
-                             ])
+    print(properties_to_set)
 
     core.set_property(properties_to_set)
 
