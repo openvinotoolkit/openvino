@@ -9,7 +9,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -467,6 +468,13 @@ int main(int argc, char* argv[]) {
 
             auto startTime = Time::now();
             auto model = core.read_model(FLAGS_m);
+            for (const auto& op : model->get_ordered_ops()) {
+                if (const auto& _c = ov::as_type_ptr<ov::opset8::Constant>(op)) {
+                    std::cout << "XXXXX" << _c->get_friendly_name() << " " << _c->get_shape() << std::endl;
+                }
+            }
+            ov::pass::Manager manager;
+
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original network I/O parameters:" << slog::endl;

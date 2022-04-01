@@ -167,6 +167,14 @@ bool Matcher::match(const Output<Node>& graph_value, const PatternValueMap& prev
     clear_state();
 
     // insert previous matches
+    std::cout << "Previous match!!!!" << std::endl;
+    for (const auto& prev_match : previous_matches) {
+        if (!prev_match.second.get_node_shared_ptr()->get_friendly_name().empty())
+            std::cout << "YYYYY" <<  prev_match.second.get_node_shared_ptr()->get_friendly_name() << std::endl;
+        else
+            std::cout << "XXXXX" << std::endl;
+    }
+    std::cout << std::endl << std::endl;
     m_pattern_map.insert(previous_matches.cbegin(), previous_matches.cend());
     auto saved = start_match();
     bool is_match = saved.finish(match_value(m_pattern_node, graph_value));

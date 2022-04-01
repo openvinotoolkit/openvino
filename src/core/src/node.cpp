@@ -530,13 +530,23 @@ const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
 bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,
                            const Output<Node>& graph_value) {
-    if (pattern_value.get_index() != graph_value.get_index() ||
-        (matcher->is_strict_mode() &&
-         (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
-          !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
-        return false;
+//    if (pattern_value.get_index() != graph_value.get_index() ||
+//        (matcher->is_strict_mode() &&
+//         (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
+//          !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+//        return false;
+//
+    auto flag = match_node(matcher, graph_value);
+    std::cout << "compare" << std::endl;
+    std::cout << pattern_value.get_node_shared_ptr()->get_friendly_name() << std::endl;
+    std::cout << graph_value.get_node_shared_ptr()->get_friendly_name() << std::endl;
+    if (flag) {
+        std::cout << "TRUE" << std::endl;
+    } else {
+        std::cout << "FALSE" << std::endl;
     }
-    return match_node(matcher, graph_value);
+    std::cout << std::endl << std::endl;
+    return flag;
 }
 
 bool ov::Node::match_node(ngraph::pattern::Matcher* matcher, const Output<Node>& graph_value) {

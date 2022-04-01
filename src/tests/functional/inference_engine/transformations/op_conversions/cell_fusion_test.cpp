@@ -16,11 +16,27 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
-
+#include <openvino/runtime/core.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 
 using namespace testing;
 using namespace ov;
+
+TEST(TransformationTests, GRUCellFusion) {
+    ov::Core core;
+    auto model = core.read_model("/home/itikhonov/OpenVINO/tmp/DIEN.xml",
+                                 "/home/itikhonov/OpenVINO/tmp/DIEN.bin");
+    ov::pass::Manager manager;
+    manager.register_pass<pass::GRUCellFusion>();
+    //manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+    manager.register_pass<pass::Serialize>("/home/itikhonov/OpenVINO/tmp/after_fusion.xml", "/home/itikhonov/OpenVINO/tmp/after_fusion.bin");
+    manager.run_passes(model);
+
+    auto hw_specific_model = core.compile_model(model, "CPU");
+    auto infer_request = hw_specific_model.create_infer_request();
+    infer_request.infer();
+}
 
 TEST_F(TransformationTestsF, RNNCellFusion) {
     const size_t batch_size = 2;
@@ -56,3 +72,5 @@ TEST_F(TransformationTestsF, RNNCellFusion) {
         function_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{X, H_t, W, R, B});
     }
 }
+
+
