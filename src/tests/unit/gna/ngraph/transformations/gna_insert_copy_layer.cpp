@@ -239,7 +239,7 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
 }
 
 TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
-        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::shared_ptr<ngraph::Function> func, ref_func1, ref_func2;
         size_t axis = 0;
         ngraph::Shape in_shape{10};
 
@@ -259,10 +259,17 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
             auto add = std::make_shared<ngraph::opset8::Add>(params, params);
             auto copy = std::make_shared<ov::intel_gna::op::Copy>(add);
 
-            ngraph::OutputVector concat_inputs{copy, add};
-            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
-            auto result = std::make_shared<ngraph::opset8::Result>(concat);
-            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+            ngraph::OutputVector concat_inputs1{copy, add};
+            auto concat1 = std::make_shared<ngraph::opset8::Concat>(concat_inputs1, axis);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(concat1);
+            ref_func1 = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1},
+                                                            ngraph::ParameterVector{params},
+                                                            "Concat");
+
+            ngraph::OutputVector concat_inputs2{add, copy};
+            auto concat2 = std::make_shared<ngraph::opset8::Concat>(concat_inputs2, axis);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(concat2);
+            ref_func2 = std::make_shared<ngraph::Function>(ngraph::ResultVector{result2},
                                                             ngraph::ParameterVector{params},
                                                             "Concat");
         }
@@ -274,12 +281,16 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
 
         ASSERT_NO_THROW(check_rt_info(func));
 
-        auto result = compare_functions(func, ref_func);
-        ASSERT_TRUE(result.first);
+        // Transformation is based on outputs order and insert copy layer in one of the branches,
+        // so this is right, that we have two different result graph based on output order.
+        auto result1 = compare_functions(func, ref_func1);
+        auto result2 = compare_functions(func, ref_func2);
+
+        ASSERT_TRUE(result1.first || result2.first);
 }
 
 TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
-        std::shared_ptr<ngraph::Function> func, ref_func;
+        std::shared_ptr<ngraph::Function> func, ref_func1, ref_func2;
         size_t axis = 0;
         ngraph::Shape shape    = {1, 1, 2, 4};
         ngraph::Shape in_shape = {1, 2, 4};
@@ -304,10 +315,17 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
             auto reshape_copy = ngraph::op::util::reshapeTo(copy, shape);
             auto reshape2 = ngraph::op::util::reshapeTo(add, shape);
 
-            ngraph::OutputVector concat_inputs{reshape_copy, reshape2};
-            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
-            auto result = std::make_shared<ngraph::opset8::Result>(concat);
-            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+            ngraph::OutputVector concat_inputs1{reshape_copy, reshape2};
+            auto concat1 = std::make_shared<ngraph::opset8::Concat>(concat_inputs1, axis);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(concat1);
+            ref_func1 = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1},
+                                                            ngraph::ParameterVector{params},
+                                                            "Concat");
+
+            ngraph::OutputVector concat_inputs2{reshape2, reshape_copy};
+            auto concat2 = std::make_shared<ngraph::opset8::Concat>(concat_inputs2, axis);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(concat2);
+            ref_func2 = std::make_shared<ngraph::Function>(ngraph::ResultVector{result2},
                                                             ngraph::ParameterVector{params},
                                                             "Concat");
         }
@@ -319,8 +337,12 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
 
         ASSERT_NO_THROW(check_rt_info(func));
 
-        auto result = compare_functions(func, ref_func);
-        ASSERT_TRUE(result.first);
+        // Transformation is based on outputs order and insert copy layer in one of the branches,
+        // so this is right, that we have two different result graph based on output order.
+        auto result1 = compare_functions(func, ref_func1);
+        auto result2 = compare_functions(func, ref_func2);
+
+        ASSERT_TRUE(result1.first || result2.first);
 }
 
 TEST(TransformationTests, InsertCopyLayerMultiParamMemoryTest) {

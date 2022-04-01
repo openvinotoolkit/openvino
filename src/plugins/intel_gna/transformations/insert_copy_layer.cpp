@@ -209,7 +209,7 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
 
             if (memory_nodes.empty() && concat_nodes.empty()) continue;
             auto count_to_copy = memory_nodes.size() + concat_nodes.size() - (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node) ? 0 : 1);
-            // Insertion of copy to memory layers have a priority on the concat layers
+            // Insertion of copy to memory layers has a priority on the concat layers
             for (size_t i = 0; i < count_to_copy; i++) {
                 auto out_layer = (i < memory_nodes.size()) ? memory_nodes[i].first : concat_nodes[i - memory_nodes.size()].first;
                 auto input_id = (i < memory_nodes.size()) ? memory_nodes[i].second : concat_nodes[i - memory_nodes.size()].second;
