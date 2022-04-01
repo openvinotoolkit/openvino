@@ -24,6 +24,9 @@ size_t string_to_size_t(const std::string& s) {
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
 
+bool ov::proxy::Plugin::has_device_in_config(const std::map<std::string, std::string>& config) const {
+    return config.find("DEVICE_ID") != config.end();
+}
 size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std::string>& config) const {
     OPENVINO_ASSERT(config.find("DEVICE_ID") != config.end());
     return string_to_size_t(config.at("DEVICE_ID"));
@@ -36,7 +39,8 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
     for (const auto it : config) {
         property[it.first] = it.second;
     }
-    GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
+    if (has_device_in_config(config))
+        GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
 }
 
 InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
