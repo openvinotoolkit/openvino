@@ -146,7 +146,7 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
         # custom downloaded or user provided TBB
         update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB cmake folder")
     else()
-        message(FATAL_ERROR "Failed to find TBBConfig.cmake in ${TBBROOT} tree")
+        message(WARNING "Failed to find TBBConfig.cmake in ${TBBROOT} tree. Custom TBBConfig.cmake will be used")
     endif()
 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
