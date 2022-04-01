@@ -118,7 +118,7 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     // TODO: creation of copy in 'openvino' library context via FrontEnd::create_copy doesn't work here as nodes can be
     // 'framework' nodes which are not copyable
     FRONTEND_RETURN_STATEMENT("Decoding model",
-                              FrontEnd::create_copy(m_actual->decode(model->m_actual), m_shared_object))
+                              m_actual->decode(model->m_actual))
 }
 
 void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
