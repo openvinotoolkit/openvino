@@ -23,9 +23,9 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      Dynamic:
-        CMAKE_BUILD_SHARED_LIBS: 'ON'
-        PYTHON_STATIC_ARGS:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
@@ -239,6 +239,22 @@ jobs:
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
+    continueOnError: false
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph and IE Python Bindings Tests'
+    continueOnError: false
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+    displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
   - script: |
