@@ -3,7 +3,8 @@
 Model Optimizer provides the option of making models more efficient by providing additional shape definition.
 It is achieved with two parameters: `--input_shape` and `--static_shape`, used under certain conditions.
 
-## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
+@anchor when_to_specify_input_shapes
+## When to Specify --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
@@ -60,7 +61,7 @@ mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1
 
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
-Learn more about shape inference <a href="_docs_OV_Runtime_UG_ShapeInference.html#troubleshooting">troubleshooting</a> and ways to <a href="_docs_OV_Runtime_UG_ShapeInference.html#how-to-fix-non-reshape-able-model">relax shape inference flow</a>.
+Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
 
 ## When to Specify --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
