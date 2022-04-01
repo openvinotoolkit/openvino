@@ -295,6 +295,9 @@ void Deconvolution::getSupportedDescriptors() {
        inputDataType = outputDataType = memory::data_type::bf16;
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        // TODO: We have to extend jit_avx512_core_x8s8s32x_deconv_fwd_kernel from oneDNN to support BF16 output data type
+        if (isInt8 && outputDataType == memory::data_type::bf16)
+            outputDataType = memory::data_type::f32;
     }
 
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)

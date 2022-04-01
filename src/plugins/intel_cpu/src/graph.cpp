@@ -1361,7 +1361,7 @@ void Graph::EnforceBF16() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (node->getType() != Type::Input && node->getType() != Type::Output) {
+        if (!ov::intel_cpu::one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
             for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                 const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
