@@ -1,4 +1,4 @@
-## MaxPool <a name="MaxPool"></a> {#openvino_docs_ops_pooling_MaxPool_8}
+## MaxPool {#openvino_docs_ops_pooling_MaxPool_8}
 
 **Versioned name**: *MaxPool-8*
 

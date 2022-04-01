@@ -1,4 +1,4 @@
-## Gather <a name="Gather"></a> {#openvino_docs_ops_movement_Gather_8}
+## Gather {#openvino_docs_ops_movement_Gather_8}
 
 **Versioned name**: *Gather-8*
 

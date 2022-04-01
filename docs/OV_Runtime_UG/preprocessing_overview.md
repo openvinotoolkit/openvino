@@ -87,7 +87,8 @@ Here we've specified all information about user's input:
  - [Layout](./layout_overview.md) is "NHWC". It means that 'height=480, width=640, channels=3'
  - Color format is `BGR`
 
-### Declare model's layout <a name="declare_model_s_layout"></a>
+@anchor declare_model_s_layout
+### Declare model's layout
 
 Model's input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input's data [layout](./layout_overview.md)
 

@@ -1,4 +1,4 @@
-## RandomUniform <a name="RandomUniform"></a> {#openvino_docs_ops_generation_RandomUniform_8}
+## RandomUniform {#openvino_docs_ops_generation_RandomUniform_8}
 
 **Versioned name**: *RandomUniform-8*
 
