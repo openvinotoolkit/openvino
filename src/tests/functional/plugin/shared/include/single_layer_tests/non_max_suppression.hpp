@@ -12,4 +12,7 @@ TEST_P(NmsLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(NmsLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions
