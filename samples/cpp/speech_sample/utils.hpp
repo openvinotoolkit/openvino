@@ -432,7 +432,7 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
 
 /**
  * @brief Parse scale factors per input
- * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
  * @param inputs model inputs
  * @param values_string values_string input string
  * @return map of scale factors per input
@@ -454,11 +454,11 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
     std::map<std::string, float> result;
     auto scale_factor_strings = split(values_string, ',');
     for (auto& scale_factor_string : scale_factor_strings) {
-        auto values = split(scale_factor_string, ':');
+        auto values = split(scale_factor_string, '=');
         if (values.size() == 1) {
             if (scale_factor_strings.size() != 1) {
                 throw std::logic_error("Unrecognized scale factor format! "
-                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "Please specify <input_name1>=<sf1>,<input_name2>=<sf2> or "
                                        "just <sf> to be applied to all inputs");
             }
             auto scale_factor = get_sf(values.at(0));
@@ -468,8 +468,7 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
         } else if (values.size() > 0) {
             auto sf_sting = values.back();
             values.pop_back();
-            // input name can contain port, concat back
-            auto input_name = concat(values, ':');
+            auto input_name = values.back();
             check_name(inputs, input_name);
             result[input_name] = get_sf(sf_sting, input_name);
         }
@@ -534,4 +533,38 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + layout_string);
     return return_value;
+}
+
+/**
+ * @brief Parse parameters for inputs/outputs like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output
+ * @param file_paths_string input/output path
+ * @return pair of filename and vector of tensor_names
+ */
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string file_paths_string) {
+    auto search_string = file_paths_string;
+    char comma_delim = ',';
+    char equal_delim = '=';
+    std::string filename = "";
+    std::vector<std::string> tensor_names;
+    std::vector<std::string> filenames;
+    if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
+        !std::count(search_string.begin(), search_string.end(), equal_delim)) {
+        return {search_string, tensor_names};
+    }
+    search_string += comma_delim;
+    std::vector<std::string> splitted = split(search_string, comma_delim);
+    for (size_t j = 0; j < splitted.size(); j++) {
+        auto semicolon_pos = splitted[j].find_first_of(equal_delim);
+        if (semicolon_pos != std::string::npos) {
+            tensor_names.push_back(splitted[j].substr(0, semicolon_pos));
+            filenames.push_back(splitted[j].substr(semicolon_pos + 1, std::string::npos));
+        }
+    }
+    for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
+        filename += *name;
+        if (name != filenames.end() - 1)
+            filename += comma_delim;
+    }
+    return {filename, tensor_names};
 }
