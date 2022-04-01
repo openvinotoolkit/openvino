@@ -43,6 +43,7 @@ new_format_test_data = get_tests(cmd_params={'i': ['Parameter=' + os.path.join(E
                                            'qb': [8],
                                            'sf': ["Parameter=2175.43"],
                                            'q': ["static"],
+                                           'disable_compact_mode',
                                            'd': ['GNA_SW_EXACT']},
                                use_device=False
                                )
