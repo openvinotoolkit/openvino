@@ -12,4 +12,7 @@ TEST_P(LogSoftmaxLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(LogSoftmaxLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

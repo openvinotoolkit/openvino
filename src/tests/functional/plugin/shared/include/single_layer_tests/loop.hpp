@@ -229,4 +229,5 @@ TEST_P(TrivialLoopTest, AutoSlicingInputWithDynCondition_CheckReference) {
     Run();
 }
 
+// TODO: QueryNetwork test
 }  // namespace LayerTestsDefinitions

@@ -10,4 +10,8 @@ namespace LayerTestsDefinitions {
 TEST_P(LogicalLayerTest, LogicalTests) {
     Run();
 }
+
+TEST_P(LogicalLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

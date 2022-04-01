@@ -14,6 +14,7 @@ TEST_P(EltwiseLayerTest, EltwiseTests) {
     run();
 }
 
+// TODO: QueryNetwork test
 } // namespace subgraph
 } // namespace test
 } // namespace ov

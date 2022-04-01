@@ -12,4 +12,7 @@ TEST_P(ReshapeLayerTest, CompareWithRefsDynamicBath) {
     Run();
 }
 
+TEST_P(ReshapeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

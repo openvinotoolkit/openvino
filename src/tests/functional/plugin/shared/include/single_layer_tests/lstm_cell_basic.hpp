@@ -12,4 +12,7 @@ TEST_P(LSTMCellBasicTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(LSTMCellBasicTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

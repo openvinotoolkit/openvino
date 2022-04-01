@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(ClampLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(ClampLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

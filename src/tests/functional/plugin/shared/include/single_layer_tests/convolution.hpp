@@ -12,4 +12,7 @@ TEST_P(ConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ConvolutionLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(GRUCellTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(GRUCellTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

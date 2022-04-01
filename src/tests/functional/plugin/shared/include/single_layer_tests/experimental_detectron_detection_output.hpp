@@ -14,6 +14,7 @@ TEST_P(ExperimentalDetectronDetectionOutputLayerTest, ExperimentalDetectronDetec
     run();
 }
 
+// TODO: QueryNetwork test
 } // namespace subgraph
 } // namespace test
 } // namespace ov

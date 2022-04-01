@@ -16,4 +16,12 @@ TEST_P(ConvertColorNV12AccuracyTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ConvertColorNV12LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(ConvertColorNV12AccuracyTest, QueryNetwork) {
+    QueryNetwork();
+}
+
 } // namespace LayerTestsDefinitions

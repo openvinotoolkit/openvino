@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(BroadcastLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(BroadcastLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

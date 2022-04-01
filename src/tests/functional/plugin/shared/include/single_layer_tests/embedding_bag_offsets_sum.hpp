@@ -12,4 +12,7 @@ TEST_P(EmbeddingBagOffsetsSumLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(EmbeddingBagOffsetsSumLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

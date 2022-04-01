@@ -12,4 +12,7 @@ TEST_P(SpaceToDepthLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(SpaceToDepthLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

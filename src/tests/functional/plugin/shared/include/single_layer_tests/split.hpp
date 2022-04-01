@@ -12,4 +12,7 @@ TEST_P(SplitLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(SplitLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

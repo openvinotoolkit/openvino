@@ -12,4 +12,7 @@ TEST_P(ConstantLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ConstantLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

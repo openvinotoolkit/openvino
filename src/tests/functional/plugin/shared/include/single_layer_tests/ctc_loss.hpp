@@ -12,4 +12,7 @@ TEST_P(CTCLossLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(CTCLossLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

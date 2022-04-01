@@ -14,6 +14,7 @@ TEST_P(ExperimentalDetectronPriorGridGeneratorLayerTest, ExperimentalDetectronPr
     run();
 }
 
+// TODO: QueryNetwork test
 } // namespace subgraph
 } // namespace test
 } // namespace ov

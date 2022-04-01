@@ -12,4 +12,7 @@ TEST_P(NonZeroLayerTest, CompareWithReference) {
     Run();
 }
 
+TEST_P(NonZeroLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

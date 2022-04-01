@@ -12,4 +12,7 @@ TEST_P(ScatterElementsUpdateLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ScatterElementsUpdateLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

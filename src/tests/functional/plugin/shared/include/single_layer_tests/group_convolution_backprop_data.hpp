@@ -17,4 +17,11 @@ TEST_P(GroupConvBackpropLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(GroupConvBackpropDataLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(GroupConvBackpropLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

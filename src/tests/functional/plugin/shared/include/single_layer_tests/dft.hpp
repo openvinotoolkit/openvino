@@ -12,4 +12,7 @@ TEST_P(DFTLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(DFTLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

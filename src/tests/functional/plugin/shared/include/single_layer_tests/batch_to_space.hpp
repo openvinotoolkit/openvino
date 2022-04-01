@@ -17,4 +17,7 @@ TEST_P(BatchToSpaceLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(BatchToSpaceLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

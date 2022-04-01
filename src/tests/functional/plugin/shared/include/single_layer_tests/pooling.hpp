@@ -24,4 +24,19 @@ TEST_P(MaxPoolingV8LayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(PoolingLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(GlobalPoolingLayerTest, QueryNetwork) {
+    QueryNetwork();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
+}
+
+TEST_P(MaxPoolingV8LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

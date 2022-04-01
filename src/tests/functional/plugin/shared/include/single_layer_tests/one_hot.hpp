@@ -12,4 +12,7 @@ TEST_P(OneHotLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(OneHotLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

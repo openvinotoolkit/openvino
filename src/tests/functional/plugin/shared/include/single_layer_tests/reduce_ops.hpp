@@ -15,4 +15,12 @@ TEST_P(ReduceOpsLayerTest, CompareWithRefs) {
 TEST_P(ReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(ReduceOpsLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(ReduceOpsLayerWithSpecificInputTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(CTCGreedyDecoderSeqLenLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(CTCGreedyDecoderSeqLenLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

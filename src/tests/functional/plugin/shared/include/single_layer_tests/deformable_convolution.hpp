@@ -12,4 +12,7 @@ TEST_P(DeformableConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(DeformableConvolutionLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

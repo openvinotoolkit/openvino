@@ -12,4 +12,7 @@ TEST_P(EmbeddingSegmentsSumLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(EmbeddingSegmentsSumLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

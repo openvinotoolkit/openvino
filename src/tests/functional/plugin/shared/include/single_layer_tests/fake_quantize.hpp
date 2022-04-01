@@ -26,4 +26,5 @@ TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
     }
 }
 
+// TODO: QueryNetwork test
 }  // namespace LayerTestsDefinitions

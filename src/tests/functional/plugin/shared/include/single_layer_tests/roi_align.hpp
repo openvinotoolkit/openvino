@@ -12,4 +12,7 @@ TEST_P(ROIAlignLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ROIAlignLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

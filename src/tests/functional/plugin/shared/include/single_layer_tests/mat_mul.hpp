@@ -12,4 +12,7 @@ TEST_P(MatMulTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(MatMulTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

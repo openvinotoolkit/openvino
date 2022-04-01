@@ -12,4 +12,7 @@ TEST_P(GatherElementsLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(GatherElementsLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(SelectLayerTest, CompareWithRefImpl) {
     Run();
 }
 
+TEST_P(SelectLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

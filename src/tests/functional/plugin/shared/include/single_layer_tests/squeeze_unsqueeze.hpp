@@ -12,4 +12,7 @@ TEST_P(SqueezeUnsqueezeLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(SqueezeUnsqueezeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

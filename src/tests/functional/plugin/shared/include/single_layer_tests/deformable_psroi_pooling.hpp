@@ -12,4 +12,7 @@ TEST_P(DeformablePSROIPoolingLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(DeformablePSROIPoolingLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

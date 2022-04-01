@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(ShuffleChannelsLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(ShuffleChannelsLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(BucketizeLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(BucketizeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(RandomUniformLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(RandomUniformLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

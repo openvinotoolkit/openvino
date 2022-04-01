@@ -12,4 +12,7 @@ TEST_P(ReorgYoloLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ReorgYoloLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

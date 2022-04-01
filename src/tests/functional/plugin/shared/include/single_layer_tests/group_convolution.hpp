@@ -10,4 +10,8 @@ namespace LayerTestsDefinitions {
 TEST_P(GroupConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(GroupConvolutionLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

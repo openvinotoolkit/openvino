@@ -13,4 +13,7 @@ TEST_P(BatchNormLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(BatchNormLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(TopKLayerTest, CompareWithRefsDynamicBath) {
     Run();
 }
 
+TEST_P(TopKLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

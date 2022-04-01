@@ -12,4 +12,7 @@ TEST_P(PriorBoxLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(PriorBoxLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

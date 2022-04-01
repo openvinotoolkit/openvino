@@ -10,4 +10,8 @@ namespace LayerTestsDefinitions {
 TEST_P(GrnLayerTest, CompareWithRefs) {
     Run();
 };
+
+TEST_P(GrnLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

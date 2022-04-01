@@ -13,4 +13,7 @@ TEST_P(ConvolutionBackpropDataLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ConvolutionBackpropDataLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }

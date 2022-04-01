@@ -12,4 +12,7 @@ TEST_P(LSTMSequenceTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(LSTMSequenceTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ namespace LowPrecisionTestDefinitions {
         Run();
     }
 
+    TEST_P(LowPrecisionTest, QueryNetwork) {
+        QueryNetwork();
+    }
 }  // namespace LowPrecisionTestDefinitions

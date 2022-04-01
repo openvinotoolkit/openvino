@@ -16,4 +16,11 @@ TEST_P(ConvertColorI420AccuracyTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ConvertColorI420LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(ConvertColorI420AccuracyTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

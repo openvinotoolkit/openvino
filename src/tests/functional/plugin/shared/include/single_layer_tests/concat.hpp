@@ -12,4 +12,7 @@ TEST_P(ConcatLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ConcatLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

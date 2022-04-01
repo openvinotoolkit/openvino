@@ -12,4 +12,7 @@ TEST_P(PowerLayerTest, CompareWithRefs){
     Run();
 };
 
+TEST_P(PowerLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

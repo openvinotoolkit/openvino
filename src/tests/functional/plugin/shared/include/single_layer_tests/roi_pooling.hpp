@@ -12,4 +12,7 @@ TEST_P(ROIPoolingLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(ROIPoolingLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

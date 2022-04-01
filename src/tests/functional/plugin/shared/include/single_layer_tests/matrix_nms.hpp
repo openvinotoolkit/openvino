@@ -14,6 +14,7 @@ TEST_P(MatrixNmsLayerTest, CompareWithRefs) {
     run();
 };
 
+// TODO: QueryNetwork test
 } // namespace subgraph
 } // namespace test
 } // namespace ov

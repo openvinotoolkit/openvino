@@ -18,6 +18,7 @@ TEST_P(SoftMaxLayerTest, CompareQueryModel) {
     query_model();
 }
 
+// TODO: QueryNetwork test
 }  // namespace subgraph
 }  // namespace test
 }  // namespace ov

@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(BinaryConvolutionLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(BinaryConvolutionLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

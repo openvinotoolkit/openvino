@@ -12,4 +12,8 @@ TEST_P(MaxMinLayerTest, CompareWithRefs){
     Run();
 };
 
+TEST_P(MaxMinLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(GatherTreeLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(GatherTreeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(RegionYoloLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(RegionYoloLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

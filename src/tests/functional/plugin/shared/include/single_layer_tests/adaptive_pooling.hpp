@@ -12,4 +12,8 @@ TEST_P(AdaPoolLayerTest, CompareWithRefs) {
 Run();
 }
 
+TEST_P(AdaPoolLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
 }  // namespace LayerTestsDefinitions

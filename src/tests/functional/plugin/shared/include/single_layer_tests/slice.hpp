@@ -10,4 +10,5 @@ namespace LayerTestsDefinitions {
 TEST_P(Slice8LayerTest, CompareWithRefs) {
     run();
 }
+// TODO: QueryNetwork test
 }  // namespace LayerTestsDefinitions

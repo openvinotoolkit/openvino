@@ -12,5 +12,8 @@ TEST_P(TileLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(TileLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions
 

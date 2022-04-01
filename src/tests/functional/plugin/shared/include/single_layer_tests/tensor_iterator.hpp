@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(TensorIteratorTest, CompareWithRefs) {
     Run();
 };
+
+TEST_P(TensorIteratorTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

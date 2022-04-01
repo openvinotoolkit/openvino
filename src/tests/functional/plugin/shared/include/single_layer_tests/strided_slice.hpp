@@ -10,4 +10,8 @@ namespace LayerTestsDefinitions {
 TEST_P(StridedSliceLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(StridedSliceLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

@@ -12,4 +12,5 @@ TEST_P(LSTMCellTest, CompareWithRefs) {
     Run();
 };
 
+
 }  // namespace LayerTestsDefinitions

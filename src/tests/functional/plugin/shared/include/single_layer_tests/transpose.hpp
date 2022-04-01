@@ -12,4 +12,7 @@ TEST_P(TransposeLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(TransposeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

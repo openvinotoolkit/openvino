@@ -11,4 +11,8 @@ namespace LayerTestsDefinitions {
 TEST_P(EmbeddingBagPackedSumLayerTest, CompareWithRefs) {
     Run();
 }
+
+TEST_P(EmbeddingBagPackedSumLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

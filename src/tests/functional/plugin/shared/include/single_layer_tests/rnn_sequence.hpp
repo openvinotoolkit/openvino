@@ -12,4 +12,7 @@ TEST_P(RNNSequenceTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(RNNSequenceTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

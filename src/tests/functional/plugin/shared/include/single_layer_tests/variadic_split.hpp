@@ -12,4 +12,7 @@ TEST_P(VariadicSplitLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(VariadicSplitLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

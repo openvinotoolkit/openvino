@@ -12,4 +12,7 @@ TEST_P(NormalizeL2LayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(NormalizeL2LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

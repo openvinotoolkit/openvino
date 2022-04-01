@@ -16,4 +16,11 @@ TEST_P(Mvn6LayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(Mvn1LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(Mvn6LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

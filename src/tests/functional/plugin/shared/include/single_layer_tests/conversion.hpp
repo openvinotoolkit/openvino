@@ -10,4 +10,8 @@ namespace LayerTestsDefinitions {
 TEST_P(ConversionLayerTest, CompareWithRefs) {
     Run();
 };
+
+TEST_P(ConversionLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

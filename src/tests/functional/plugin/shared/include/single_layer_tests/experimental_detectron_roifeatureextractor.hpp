@@ -14,6 +14,7 @@ TEST_P(ExperimentalDetectronROIFeatureExtractorLayerTest, ExperimentalDetectronR
     run();
 }
 
+// TODO: QueryNetwork test
 } // namespace subgraph
 } // namespace test
 } // namespace ov

@@ -20,4 +20,15 @@ TEST_P(Gather8LayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(GatherLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(Gather7LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(Gather8LayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

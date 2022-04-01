@@ -12,4 +12,7 @@ TEST_P(SpaceToBatchLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(SpaceToBatchLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

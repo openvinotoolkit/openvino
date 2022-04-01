@@ -12,4 +12,7 @@ TEST_P(ReverseSequenceLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ReverseSequenceLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 } // namespace LayerTestsDefinitions

@@ -12,4 +12,7 @@ TEST_P(GRUSequenceTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(GRUSequenceTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

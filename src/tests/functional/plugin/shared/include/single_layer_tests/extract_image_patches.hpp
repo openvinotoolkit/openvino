@@ -12,4 +12,7 @@ TEST_P(ExtractImagePatchesTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(ExtractImagePatchesTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

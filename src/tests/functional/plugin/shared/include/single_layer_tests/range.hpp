@@ -16,4 +16,11 @@ TEST_P(RangeLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(RangeNumpyLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
+
+TEST_P(RangeLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

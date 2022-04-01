@@ -12,4 +12,7 @@ TEST_P(InterpolateLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(InterpolateLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions

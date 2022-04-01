@@ -12,4 +12,7 @@ TEST_P(CumSumLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(CumSumLayerTest, QueryNetwork) {
+    QueryNetwork();
+}
 }  // namespace LayerTestsDefinitions
