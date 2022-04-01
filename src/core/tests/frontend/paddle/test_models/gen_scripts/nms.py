@@ -49,7 +49,8 @@ def print_alike(arr, seperator_begin='{', seperator_end='}'):
 # scores shape (N, C, M)
 def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
     import paddle as pdpd
-    from ppdet.modeling import ops
+    from ppdet.modeling.ops import multiclass_nms as multiclass_nms
+    from ppdet.modeling.ops import matrix_nms as matrix_nms
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(),
@@ -71,7 +72,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
                                         lod_level=1)
 
         if attrs['nms_type'] is 'multiclass_nms3':
-            nms_outputs = ops.multiclass_nms(bboxes=node_boxes,
+            nms_outputs = multiclass_nms(bboxes=node_boxes,
                                              scores=node_scores,
                                              background_label=attrs['background_label'],
                                              score_threshold=attrs['score_threshold'],
@@ -84,7 +85,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
                                              return_rois_num=True,
                                              rois_num=node_rois_num)
         else:
-            nms_outputs = ops.matrix_nms(bboxes=node_boxes,
+            nms_outputs = matrix_nms(bboxes=node_boxes,
                                          scores=node_scores,
                                          score_threshold=attrs['score_threshold'],
                                          post_threshold=attrs['post_threshold'],
