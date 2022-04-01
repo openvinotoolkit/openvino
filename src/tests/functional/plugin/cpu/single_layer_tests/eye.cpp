@@ -125,7 +125,7 @@ std::vector<std::vector<ov::Shape>> staticInput3DShapeVector = {{{}, {}, {}}};
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamic = {
        {{ngraph::PartialShape(), ngraph::PartialShape(), ngraph::PartialShape()},
-        {{ngraph::Shape{}, ngraph::Shape{}}, {ngraph::Shape{}, ngraph::Shape{}}}}
+        {{ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}, {ngraph::Shape{}, ngraph::Shape{}, ngraph::Shape{}}}}
 };
 
 INSTANTIATE_TEST_SUITE_P(x_smoke_EyeTest, EyeLikeLayerCPUTest,
