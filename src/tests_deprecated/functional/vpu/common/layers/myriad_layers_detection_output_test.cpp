@@ -860,7 +860,7 @@ public:
 
         gen_confidence.resize(NUM_CONF);
         for (size_t i = 0; i < NUM_CONF; ++i) {
-            gen_confidence[i] = static_cast<float>(std::rand()) / RAND_MAX;
+            gen_confidence[i] = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
         }
 
         InferenceEngine::Core ie;

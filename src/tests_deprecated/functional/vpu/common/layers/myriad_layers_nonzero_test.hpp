@@ -22,7 +22,7 @@ protected:
 
         const auto getRandomValue = [&generator]() {
             // Each third value will be a zero for test NonZero functionality
-            return generator() % 3 ? float(generator()) / generator.max() * 255.f : 0.f;
+            return generator() % 3 ? float(generator()) / float(generator.max()) * 255.f : 0.f;
         };
 
         size_t count = blob->size();

@@ -2963,7 +2963,7 @@ TEST_P(conv_int8_activation_eltwise_quantize_onednn, bsv32_fsv32) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -1, 1)),
         data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(eltwise_layout, -0.5, 0.5)),
+        data("eltwise_data", get_mem(eltwise_layout, -1, 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
