@@ -43,10 +43,13 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        //its value is true if last node of patter will be Divide node
         bool is_divide_variant = pattern_to_output.count(divide);
         if (!is_divide_variant && !pattern_to_output.count(mul)) {
             return false;
         }
+        // Its value is true if Sqrt willl be Sqrt Node(not Power(..., 0.5f))
         bool sqrt_as_sqrt = false;
         if (is_divide_variant) {
             sqrt_as_sqrt = pattern_to_output.count(sqrt);
