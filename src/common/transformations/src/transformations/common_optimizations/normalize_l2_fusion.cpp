@@ -28,12 +28,14 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto add = std::make_shared<ngraph::opset8::Add>(reduce_sum, eps_const);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
+    //Sqrt can be as Sqrt node or as Power node with exponent 2
     auto sqrt = std::make_shared<ngraph::opset8::Sqrt>(max_or_add);
     auto exp2 = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto pow_as_sqrt = std::make_shared<ngraph::opset8::Power>(max_or_add, exp2);
     auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
-    auto divide = std::make_shared<ngraph::opset8::Divide>(input, power_or_sqrt);
 
+    //divide(input,sqrt(..)) can be as mul(input, power(..., -0.5f))
+    auto divide = std::make_shared<ngraph::opset8::Divide>(input, power_or_sqrt);
     auto exp3 = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto un_sqrt = std::make_shared<ngraph::opset8::Power>(max_or_add, exp3);
     auto mul = std::make_shared<ngraph::opset8::Multiply>(input, un_sqrt);
