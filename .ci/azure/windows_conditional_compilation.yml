@@ -96,7 +96,8 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\Release -o $(BUILD_DIR) ! $(REPO_DIR)\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
+      rem call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\Release -o $(BUILD_DIR) ! $(REPO_DIR)\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
+      call "$(MSVS_VARS_PATH)" && $(REPO_DIR)\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
