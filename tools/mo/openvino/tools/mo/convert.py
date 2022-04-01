@@ -571,6 +571,8 @@ def transformations_config_to_str(value):
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
         return None
+    if isinstance(extensions, str):
+        return extensions.split(',')
     if isinstance(extensions, list):
         ext_list = []
         for ext in extensions:
@@ -578,7 +580,7 @@ def extensions_to_str_or_extensions_class(extensions):
             ext_list.append(ext)
         return ext_list
     else:
-        return extension_path_to_str_or_extensions_class(extensions)
+        return [extension_path_to_str_or_extensions_class(extensions)]
 
 
 def dimension_to_str(dim: Dimension):

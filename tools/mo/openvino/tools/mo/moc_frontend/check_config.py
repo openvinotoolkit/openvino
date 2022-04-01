@@ -10,8 +10,20 @@ from openvino.tools.mo.utils.error import Error
 
 
 def any_extensions_used(argv: argparse.Namespace):
-    return hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
-        and argv.extensions != import_extensions.default_path() # extensions arg has default value
+    if not hasattr(argv, 'extensions') or argv.extensions is None:
+        return False
+
+    if isinstance(argv.extensions, list) and len(argv.extensions) > 0:
+        has_non_default_path = False
+        has_non_str_objects = False
+        for ext in argv.extensions:
+            if isinstance(ext, str) and ext != import_extensions.default_path():
+                has_non_default_path = True
+            else:
+                has_non_str_objects
+        return has_non_default_path or has_non_str_objects
+
+    raise Exception("Expected list of extensions, got {}.".format(type(argv.extensions)))
 
 
 def legacy_extensions_used(argv: argparse.Namespace):
@@ -35,6 +47,8 @@ def legacy_extensions_used(argv: argparse.Namespace):
 def new_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
         extensions = argv.extensions
+        if not isinstance(extensions, list):
+            extensions = [extensions]
         new_ext_counter = 0
         for extension in extensions:
             if isinstance(extension, str):
