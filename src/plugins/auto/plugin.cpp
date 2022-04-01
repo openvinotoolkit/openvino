@@ -345,10 +345,23 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
              LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
-        // clone the network, in case of reshape conflict
-        CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        CNNNetwork clonedNetwork;
+        std::string clonedModelPath = modelPath;
+        try {
+            // if network is valid
+            network.getFunction();
+            // clone the network, in case of reshape conflict
+            clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        } catch (...) {
+            // model path, enable model load with single device situation
+            if (supportDevices.size() > 1) {
+                clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
+                // do we really need to disable model path?
+                clonedModelPath = "";
+            }
+        }
 
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, clonedNetwork, supportDevices, strDevices, this, context, context.needPerfCounters);
+        return std::make_shared<MultiDeviceExecutableNetwork>(clonedModelPath, clonedNetwork, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
@@ -729,17 +742,21 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     }
 
     std::vector<DeviceInformation> filterDevice;
-    auto model = network.getFunction();
-    if (model->is_dynamic()) {
-        for (auto& iter : metaDevices) {
-            if (iter.deviceName.find("CPU") != std::string::npos) {
-                filterDevice.push_back(iter);
-                break;
+    try {
+        auto model = network.getFunction();
+        if (model->is_dynamic()) {
+            for (auto& iter : metaDevices) {
+                if (iter.deviceName.find("CPU") != std::string::npos) {
+                    filterDevice.push_back(iter);
+                    break;
+                }
             }
+            if (filterDevice.size() == 0)
+                IE_THROW(NotFound) << "No available device for dynamic shape network !";
+            return filterDevice;
         }
-        if (filterDevice.size() == 0)
-            IE_THROW(NotFound) << "No available device for dynamic shape network !";
-        return filterDevice;
+    } catch (...) {
+        LOG_INFO("[AUTOPLUGIN:] cnn network is not available");
     }
     return metaDevices;
 }
