@@ -149,8 +149,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
         message(FATAL_ERROR "Failed to find TBBConfig.cmake in ${TBBROOT} tree")
     endif()
 
-    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
-
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
@@ -174,6 +172,8 @@ if(ENABLE_TBBBIND_2_5)
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+    elseif(ANDROID)
+        # don't have TBBBIND_2_5
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
