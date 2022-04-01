@@ -15,6 +15,12 @@ The complete list of supported hardware is available in the [Release Notes](http
 - Ubuntu 18.04 long-term support (LTS), 64-bit
 - Ubuntu 20.04 long-term support (LTS), 64-bit
 
+**Software**
+
+- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
+- GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+- [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
+
 ## Install OpenVINO Runtime
 
 ### Step 1: Set Up the OpenVINO Toolkit APT Repository
@@ -30,35 +36,35 @@ The complete list of supported hardware is available in the [Release Notes](http
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       ```
       > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`   
-
+      
 2.	Add the repository via the following command:
-    @sphinxdirective
+@sphinxdirective
 
-    .. tab:: On Ubuntu 18
+.. tab:: Ubuntu 18
 
-        .. code-block:: sh
+   .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
-    .. tab:: On Ubuntu 20
+.. tab:: Ubuntu 20
 
-        .. code-block:: sh
+   .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
-    @endsphinxdirective
+@endsphinxdirective
 
 
 3.	Update the list of packages via the update command:
    ```sh
    sudo apt update
    ```       
-
+   
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
    ```sh
    apt-cache search openvino
    ```   
-
+   
 
 ### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 

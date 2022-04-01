@@ -95,12 +95,12 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[op.Tensor]
+                :type output_tensors: List[openvino.runtime.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[op.Tensor]
+                :type input_tensors: List[openvino.runtime.Tensor]
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
-                :type evaluation_context: PyRTMap
+                :type evaluation_context: openvino.runtime.RTMap
                 :rtype: bool
             )");
     node.def(
@@ -114,9 +114,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the function on inputs, putting results in outputs
 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[op.Tensor]
+                :type output_tensors: List[openvino.runtime.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[op.Tensor]
+                :type input_tensors: List[openvino.runtime.Tensor]
                 :rtype: bool
              )");
     node.def("get_input_tensor",
@@ -129,7 +129,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Tensor of the input i
-                :rtype: descriptor.Tensor
+                :rtype: openvino.pyopenvino.DescriptorTensor
              )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
@@ -137,7 +137,7 @@ void regclass_graph_Node(py::module m) {
                 Checks that there is exactly one output and returns it's element type.
 
                 :return: Type of the output.
-                :rtype: Type
+                :rtype: openvino.runtime.Type
              )");
     node.def("input_values",
              &ov::Node::input_values,
@@ -145,7 +145,7 @@ void regclass_graph_Node(py::module m) {
                  Returns list of node's inputs, in order.
 
                  :return: List of node's inputs
-                 :rtype: List[Input]
+                 :rtype: List[openvino.runtime.Input]
              )");
     node.def("input_value",
              &ov::Node::input_value,
@@ -156,7 +156,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Input of this node.
-                :rtype: Input
+                :rtype: openvino.runtime.Input
              )");
     node.def("get_input_size",
              &ov::Node::get_input_size,
@@ -183,7 +183,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Type of the output i
-                :rtype: Type
+                :rtype: openvino.runtime.Type
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
@@ -194,7 +194,7 @@ void regclass_graph_Node(py::module m) {
 
                 :param index: Index of the output.
                 :return: Shape of the output i
-                :rtype: Shape
+                :rtype: openvino.runtime.Shape
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
@@ -205,7 +205,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: PartialShape of the output i
-                :rtype: PartialShape
+                :rtype: openvino.runtime.PartialShape
              )");
     node.def("get_output_tensor",
              &ov::Node::get_output_tensor,
@@ -217,14 +217,14 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Tensor of the output i
-                :rtype: descriptor.Tensor
+                :rtype: openvino.pyopenvino.DescriptorTensor
              )");
     node.def("get_type_name",
              &ov::Node::get_type_name,
              R"(
                 Returns Type's name from the node.
 
-                :return: String repesenting Type's name.
+                :return: String representing Type's name.
                 :rtype: str
              )");
     node.def("get_name",
@@ -266,7 +266,7 @@ void regclass_graph_Node(py::module m) {
                 :param input_index: Index of Input.
                 :type input_index: int
                 :return: Input of this node.
-                :rtype: Input
+                :rtype: openvino.runtime.Input
              )");
     node.def("inputs",
              (std::vector<ov::Input<ov::Node>>(ov::Node::*)()) & ov::Node::inputs,
@@ -274,7 +274,7 @@ void regclass_graph_Node(py::module m) {
                 A list containing a handle for each of this node's inputs, in order.
 
                 :return: List of node's inputs.
-                :rtype: List[Input]
+                :rtype: List[openvino.runtime.Input]
              )");
     node.def("output",
              (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
@@ -285,7 +285,7 @@ void regclass_graph_Node(py::module m) {
                 :param output_index: Index of Output.
                 :type output_index: int
                 :return: Output of this node.
-                :rtype: Output
+                :rtype: openvino.runtime.Output
              )");
     node.def("outputs",
              (std::vector<ov::Output<ov::Node>>(ov::Node::*)()) & ov::Node::outputs,
@@ -293,7 +293,7 @@ void regclass_graph_Node(py::module m) {
                 A list containing a handle for each of this node's outputs, in order.
 
                 :return: List of node's outputs.
-                :rtype: List[Output]
+                :rtype: List[openvino.runtime.Output]
              )");
     node.def("get_rt_info",
              (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
@@ -302,7 +302,7 @@ void regclass_graph_Node(py::module m) {
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
-                :rtype: PyRTMap
+                :rtype: openvino.runtime.RTMap
              )");
     node.def("get_version",
              &ov::Node::get_version,
