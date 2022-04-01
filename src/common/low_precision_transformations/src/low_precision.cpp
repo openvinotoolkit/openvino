@@ -78,6 +78,8 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
+#include "itt.hpp"
+
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
@@ -91,6 +93,7 @@ using namespace ngraph::pass::low_precision;
 
 template <typename BaseOp>
 void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
+    MATCHER_SCOPE(TypeRelaxedReplacer);
     using namespace ngraph;
 
     auto is_op_type = [](std::shared_ptr<Node> n) {
@@ -127,7 +130,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
@@ -163,6 +166,7 @@ MarkupOptimizations::MarkupOptimizations(
     params(params) {}
 
 bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
     ngraph::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
@@ -185,6 +189,7 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::s
 }
 
 bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(LowPrecision);
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();

@@ -1,4 +1,4 @@
-# Model Caching Overview {#openvino_docs_IE_DG_Model_caching_overview}
+# Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
 ## Introduction
 
