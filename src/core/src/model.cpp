@@ -971,6 +971,10 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     return result->output(0);
 }
 
+std::shared_ptr<ov::Model> ov::Model::clone() const {
+    return ov::clone_model(*this);
+}
+
 namespace bs_util {
 static int64_t get_batch(const ov::Layout& layout, const ov::PartialShape& shape) {
     auto batch_idx = ov::layout::batch_idx(layout);
