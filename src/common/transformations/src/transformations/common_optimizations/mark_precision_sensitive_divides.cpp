@@ -25,7 +25,7 @@ bool ov::pass::MarkPrecisionSensitiveDivides::run_on_model(const std::shared_ptr
     }
 
     auto markup_func = [](Node* node) {
-        if (ov::is_type<ov::opset8::Divide>(node) && node->get_output_element_type(0) == ngraph::element::f16) {
+        if (ov::is_type<ov::opset8::Divide>(node)) {
             ov::disable_divide_conversion(node->shared_from_this());
         }
     };
