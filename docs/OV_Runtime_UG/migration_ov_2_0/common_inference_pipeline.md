@@ -1,10 +1,10 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
-Usually to infer models with OpenVINO™ Runtime, you need to do the following steps in the application pipeline:
+Usually, to infer models with OpenVINO™ Runtime, you need to make the following steps in the application pipeline:
 - 1. Create Core object
  - 1.1. (Optional) Load extensions
-- 2. Read model from the disk
- - 2.1. (Optional) Model preprocessing
+- 2. Read a model from a drive
+ - 2.1. (Optional) Perform model preprocessing
 - 3. Load the model to the device
 - 4. Create an inference request
 - 5. Fill input tensors with data
@@ -45,7 +45,7 @@ OpenVINO™ Runtime API 2.0:
 
 ### 1.1 (Optional) Load extensions
 
-To load model with custom operation, you need to add extensions for these operations. We highly recommend to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions you can load it to new OpenVINO™ Runtime:
+To load a model with custom operations, you need to add extensions for these operations. We highly recommend using [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions you can also load them to the new OpenVINO™ Runtime:
 
 Inference Engine API:
 
@@ -75,7 +75,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-## 2. Read model from the disk
+## 2. Read a model from a drive
 
 Inference Engine API:
 
@@ -109,10 +109,10 @@ Read model has the same structure as in the example from [Model Creation](./grap
 
 Note, you can combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
 
-### 2.1 (Optional) Model preprocessing
+### 2.1 (Optional) Perform model preprocessing
 
-When application's input data doesn't perfectly match with model's input format, preprocessing steps may need to be added.
-See detailed guide [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
+When application's input data doesn't perfectly match the model's input format, preprocessing steps may be necessary.
+See a detailed guide on [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
 
 ## 3. Load the Model to the Device
 
@@ -144,7 +144,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-If you need to configure OpenVINO Runtime devices with additional configuration parameters, please, refer to the migration [Configure devices](./configure_devices.md) guide.
+If you need to configure OpenVINO Runtime devices with additional configuration parameters, refer to the [Configure devices](./configure_devices.md) guide.
 
 ## 4. Create an Inference Request
 
@@ -178,7 +178,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 5. Fill input tensors
 
-Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
+The Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxtabset
 
@@ -398,7 +398,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 7. Process the Inference Results
 
-Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
+The Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxtabset
 
@@ -469,8 +469,8 @@ Inference Engine API processes outputs as `I32` precision (**not** aligned with 
 @endsphinxtabset
 
 OpenVINO™ Runtime API 2.0 processes outputs:
-- For IR v10 as `I32` precision (**not** aligned with the original model) to match **old** behavior
-- For IR v11, ONNX, ov::Model, Paddle as `I64` precision (aligned with the original model) to match **new** behavior
+- For IR v10 as `I32` precision (**not** aligned with the original model) to match the **old** behavior.
+- For IR v11, ONNX, ov::Model, Paddle as `I64` precision (aligned with the original model) to match the **new** behavior.
 
 @sphinxtabset
 
