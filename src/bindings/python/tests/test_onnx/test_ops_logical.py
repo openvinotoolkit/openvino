@@ -10,7 +10,7 @@ from tests.test_onnx.utils import run_node
 
 
 @pytest.mark.parametrize(
-    tuple("onnx_op", "numpy_func", "data_type"),
+    ("onnx_op", "numpy_func", "data_type"),
     [
         pytest.param("And", np.logical_and, np.bool),
         pytest.param("Or", np.logical_or, np.bool),

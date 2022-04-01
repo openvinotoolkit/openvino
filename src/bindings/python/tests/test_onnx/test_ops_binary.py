@@ -76,7 +76,7 @@ def test_add_opset4():
 
 
 @pytest.mark.parametrize(
-    tuple("left_shape,right_shape"),
+    ("left_shape", "right_shape"),
     [
         ((1,), (1,)),
         ((256, 256, 3), (3,)),

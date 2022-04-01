@@ -296,61 +296,6 @@ def test_unregister_plugin(device):
 @pytest.mark.template_extension()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
-    ir = bytes(
-        b"""<net name="Activation" version="10">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data shape="1,3,22,22" element_type="f32"/>
-            <output>
-                <port id="0" precision="FP32" names="in_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation" id="1" type="Identity" version="extension">
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32" names="out_data">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
-</net>""")
-
-    core = Core()
-    if platform == "win32":
-        core.add_extension(library_path="openvino_template_extension.dll")
-    else:
-        core.add_extension(library_path="libopenvino_template_extension.so")
-    model = core.read_model(model=ir)
     assert isinstance(model, Model)
 
     before_reshape = PartialShape([1, 3, 22, 22])

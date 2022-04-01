@@ -163,9 +163,7 @@ def batch_norm_inference(
     :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(gamma, beta, data, mean, variance)
-    return _get_node_factory_opset1().create(
-        "BatchNormInference", inputs, {"epsilon": epsilon},
-    )
+    return _get_node_factory_opset1().create("BatchNormInference", inputs, {"epsilon": epsilon})
 
 
 @nameable_op
@@ -579,9 +577,7 @@ def deformable_psroi_pooling(
 
 
 @nameable_op
-def depth_to_space(
-    node: Node, mode: str, block_size: int = 1, name: str = None,
-) -> Node:
+def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
     """Rearranges input tensor from depth into blocks of spatial data.
 
     Values from the height and width dimensions are moved to the depth dimension.
@@ -1160,9 +1156,7 @@ def group_convolution_backprop_data(
         attributes["pads_begin"] = pads_begin
         attributes["pads_end"] = pads_end
 
-    return _get_node_factory_opset1().create(
-        "GroupConvolutionBackpropData", args, attributes,
-    )
+    return _get_node_factory_opset1().create("GroupConvolutionBackpropData", args, attributes)
 
 
 @nameable_op
@@ -1183,9 +1177,7 @@ def hard_sigmoid(
 
         y = max(0, min(1, alpha * data + beta))
     """
-    return _get_node_factory_opset1().create(
-        "HardSigmoid", [data, as_node(alpha), as_node(beta)],
-    )
+    return _get_node_factory_opset1().create("HardSigmoid", [data, as_node(alpha), as_node(beta)])
 
 
 @nameable_op
@@ -1263,9 +1255,7 @@ def interpolate(
 
     check_valid_attributes("Interpolate", attrs, requirements)
 
-    return _get_node_factory_opset1().create(
-        "Interpolate", [image, as_node(output_shape)], attrs,
-    )
+    return _get_node_factory_opset1().create("Interpolate", [image, as_node(output_shape)], attrs)
 
 
 @binary_op
@@ -1744,9 +1734,7 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(
-        boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
-    )
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -2670,9 +2658,7 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def space_to_depth(
-    data: Node, mode: str, block_size: int = 1, name: str = None,
-) -> Node:
+def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
     """Perform SpaceToDepth operation on the input tensor.
 
     SpaceToDepth rearranges blocks of spatial data into depth.
@@ -2697,9 +2683,7 @@ def space_to_depth(
 
 
 @nameable_op
-def split(
-    data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None,
-) -> Node:
+def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None) -> Node:
     """Return a node which splits the input tensor into same-length slices.
 
     :param data: The input tensor to be split
@@ -2898,9 +2882,7 @@ def topk(
 
 
 @nameable_op
-def transpose(
-    data: NodeInput, input_order: NodeInput, name: Optional[str] = None,
-) -> Node:
+def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which transposes the data in the input tensor.
 
     :param data: The input tensor to be transposed

@@ -22,7 +22,6 @@ def image_path():
 def read_image():
     import cv2
     n, c, h, w = (1, 3, 32, 32)
-    print(image_path())
     image = cv2.imread(image_path())
     if image is None:
         raise FileNotFoundError("Input image not found")

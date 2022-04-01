@@ -95,7 +95,7 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 
 
 @pytest.mark.parametrize(
-    tuple("data, description"),
+    ("data", "description"),
     [
         pytest.param(([1, 2], [1, 3]), "vector and vector 1"),
         (([1, 2, 3], [[4], [5], [6]]), "vector and vector 2"),
@@ -121,7 +121,7 @@ def test_op_matmul_3d():
 
 
 @pytest.mark.parametrize(
-    tuple("data, kwargs, description"),
+    ("data", "kwargs", "description"),
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors"),
         pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar"),
@@ -137,7 +137,7 @@ def test_gemm(data, kwargs, description):
 
 
 @pytest.mark.parametrize(
-    tuple("data, kwargs, description"),
+    ("data", "kwargs", "description"),
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
                      "vectors with trans_a/trans_b"),
