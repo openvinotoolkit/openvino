@@ -59,8 +59,6 @@ LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
                     is_onnx: bool):
-    if not legacy_extensions_used(argv):
-        Error('load_extensions() method should be used for legacy extensions loading only.')
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions

@@ -20,7 +20,7 @@ def any_extensions_used(argv: argparse.Namespace):
             if isinstance(ext, str) and ext != import_extensions.default_path():
                 has_non_default_path = True
             else:
-                has_non_str_objects
+                has_non_str_objects = True
         return has_non_default_path or has_non_str_objects
 
     raise Exception("Expected list of extensions, got {}.".format(type(argv.extensions)))
