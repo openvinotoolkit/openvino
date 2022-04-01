@@ -14,6 +14,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 namespace testing {
 
@@ -304,7 +305,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
             auto reshape_copy = ngraph::op::util::reshapeTo(copy, shape);
             auto reshape2 = ngraph::op::util::reshapeTo(add, shape);
 
-            ngraph::OutputVector concat_inputs{reshape2, reshape_copy};
+            ngraph::OutputVector concat_inputs{reshape_copy, reshape2};
             auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
             auto result = std::make_shared<ngraph::opset8::Result>(concat);
             ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -315,6 +316,7 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.register_pass<ngraph::pass::VisualizeTree>("1graph.svg");
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
