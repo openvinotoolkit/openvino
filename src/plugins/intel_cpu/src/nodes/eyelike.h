@@ -37,17 +37,26 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const std::shared_ptr<ngraph::Node> ngraphOp;
     std::string errorPrefix;
-    // do not mismatch
-    const size_t getColNum() const {
-        return *(reinterpret_cast<size_t *>(getParentEdgeAt(0)->getMemory().GetPtr()));
+    ov::element::Type outType;
+    template <typename inputType>
+    void executeSpecified();
+    template<typename T>
+    struct EyeExecute;
+    inline const size_t getRowNum() const {
+        return reinterpret_cast<const int *>(getParentEdgeAt(ROWS_NUM)->getMemoryPtr()->GetPtr())[0];
     }
-    const size_t getRowNum() const {
-        return (getOriginalInputsNumber() == 1 ?
-            getColNum() :
-            *(reinterpret_cast<size_t *>(getParentEdgeAt(1)->getMemory().GetPtr())));
+    inline const size_t getColNum() const {
+        return reinterpret_cast<const int *>(getParentEdgeAt(COLS_NUM)->getMemoryPtr()->GetPtr())[0];
     }
+    inline const int getDiagIndex() const {
+        return reinterpret_cast<const int *>(getParentEdgeAt(DIAGONAL_INDEX)->getMemoryPtr()->GetPtr())[0];
+    }
+
+    static const size_t ROWS_NUM = 0;
+    static const size_t COLS_NUM = 1;
+    static const size_t DIAGONAL_INDEX = 2;
+    static const size_t BATCH_SHAPE = 3;
 };
 
 }   // namespace node

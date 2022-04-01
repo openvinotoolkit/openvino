@@ -4,8 +4,7 @@
 
 #include "eyelike.h"
 #include <ie_ngraph_utils.hpp>
-
-// #include <ngraph/opsets/opset1.hpp>
+#include <utils/bfloat16.hpp>
 
 using namespace InferenceEngine;
 
@@ -17,10 +16,7 @@ namespace node {
 using namespace InferenceEngine::details;
 bool Eye::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (false) {
-            // !one_of(op->get_type_info(),
-            //         ngraph::op::v0::Eye::get_type_info_static(),
-            //         ngraph::op::v3::Eye::get_type_info_static())) {
+        if (op->get_type_info() != ngraph::op::v9::Eye::get_type_info_static()) {
             errorMessage = "Node is not an instance of Eye form the operation set v9.";
             return false;
         }
@@ -31,16 +27,17 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
 }
 
 Eye::Eye(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache), ngraphOp(op) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Eye layer with name '" + getName() + "' ";
-        // if (ngraphOp->get_input_partial_shape(0).size() == 0)
-        //     IE_THROW() << errorPrefix << "gets unsupported input 0D tensor (scalar)";  // prepare support
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (ngraphOp->get_output_element_type(0) != ngraph::element::i32) {
+    outType = op->get_output_element_type(0);
+    if (!one_of(outType, ngraph::element::f32, ngraph::element::bf16,
+        ngraph::element::i32, ngraph::element::u32,
+        ngraph::element::i8, ngraph::element::u8)) {
         IE_THROW() << errorPrefix << "doesn't support demanded output precision";
     }
 }
@@ -48,62 +45,60 @@ Eye::Eye(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
 void Eye::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-    if (!one_of(getParentEdges().size(), 1, 2, 3))  // alse check scalar
+    if (!one_of(getParentEdges().size(), 3, 4))
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
-// void Eye::initSupportedPrimitiveDescriptors() {
-//     if (!supportedPrimitiveDescriptors.empty())
-//         return;
-//     // outputConfigurators.emplace_back(LayoutType::ncsp, , outputShapes[i]);
-//     // OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
-//     //           OV_CASE(Precision::FP32, float),
-//     //           OV_CASE(Precision::BF16, bfloat16_t),
-//     //           OV_CASE(Precision::I32, int),
-//     //           OV_CASE(Precision::U32, uint32_t),
-//     //           OV_CASE(Precision::I8, int8_t),
-//     //           OV_CASE(Precision::U8, uint8_t))
-//     addSupportedPrimDesc({{LayoutType::ncsp, Precision::I32}}, {{LayoutType::ncsp,
-//         convertPrecision(ngraphOp->get_output_element_type(0))}}, impl_desc_type::ref);
-// }
+namespace {
+struct EyeContext {
+    Eye &node;
+};
+}
+template<typename T>
+struct Eye::EyeExecute {
+    void operator()(EyeContext & ctx) {
+        ctx.node.executeSpecified<T>();
+    }
+};
 
-// for scalar
+void Eye::execute(mkldnn::stream strm) {
+    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    EyeContext ctx = { *this };
+    OV_SWITCH(intel_cpu, EyeExecute, ctx, outputPrec,
+              OV_CASE(Precision::FP32, float),
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::I32, int),
+              OV_CASE(Precision::U32, uint32_t),
+              OV_CASE(Precision::I8, int8_t),
+              OV_CASE(Precision::U8, uint8_t))
+}
+
 void Eye::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
     std::vector<PortConfigurator> inDataConf;
     std::vector<PortConfigurator> outDataConf;
 
-    if (true || !(getOriginalInputPrecisionAtPort(0) == Precision::I32 &&
-            getOriginalInputPrecisionAtPort(1) == Precision::I32 &&
-            getOriginalOutputPrecisionAtPort(0) == Precision::I32)) {
-        inDataConf.reserve(inputShapes.size());
-        for (int i = 0; i < inputShapes.size(); ++i)
-            inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
-        outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
-        addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref);
-    }
+    inDataConf.reserve(inputShapes.size());
+    for (int i = 0; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+    outDataConf.reserve(1);
+    outDataConf.emplace_back(LayoutType::ncsp, convertPrecision(outType));
+
+    addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref);
 }
+
 bool Eye::isExecutable() const {
     return true;
 }
 
-void Eye::execute(mkldnn::stream strm) {
-    std::cout << "\nexeexe\n";
-    // add scalar case
-    // add i32 checking  - compare maxpooling
-    // int ?
+template <typename T>
+void Eye::executeSpecified() {
     size_t rowNum = getRowNum();
     size_t colNum = getColNum();
-    int shift = 0; // get from attrs
-
-    // memset(dst, 0, 1  * sizeof(int));  // fix
-    std::cout << "\ncol, row=" << getRowNum() << "_" << getColNum() << "\n";
-    // *dst = 1;
+    int shift = getDiagIndex();
     if (isDynamicNode()) {
         VectorDims newDims{getRowNum(), getColNum()};
         redefineOutputMemory({newDims});
@@ -111,14 +106,19 @@ void Eye::execute(mkldnn::stream strm) {
 
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    int *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    std::cout << "\nssize=" << getChildEdgeAt(0)->getMemoryPtr()->GetSize() << "\n";
+    T *dst = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    // std::cout << "\nssize=" << getChildEdgeAt(0)->getMemoryPtr()->GetSize() << "\n";
+    memset(dst, 0, colNum * rowNum * sizeof(int));
 
-    // get real 1's count
-    for (size_t i = 0 * shift; i < std::max(rowNum, colNum); i++) {
-        dst[i + i * colNum] = 1;
+    size_t minSide = std::min(rowNum, colNum);
+    size_t maxSide = std::max(rowNum, colNum);
+    size_t absShift = std::abs(shift);
+    size_t onesPerBatchNum = (absShift <= maxSide - minSide ? minSide :
+                              absShift < maxSide ? minSide - absShift : 0);
+    size_t dataShift = (shift >= 0 ? shift : -shift * colNum);
+    for (size_t i = 0; i < onesPerBatchNum; i++) {
+        dst[dataShift + i + i * colNum] = 1;
     }
-    // dst[0] = 1;
 }
 
 bool Eye::created() const {
