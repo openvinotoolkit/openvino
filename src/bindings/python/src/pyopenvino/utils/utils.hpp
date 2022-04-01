@@ -15,33 +15,7 @@ namespace Common {
 namespace utils {
     py::object from_ov_any(const ov::Any &any);
 
-    std::map<std::string, ov::Any> properties_to_any_map(const std::map<py::object, py::object>& properties);
-
-    template <typename T>
-    py::object property_as_py_object(const T& self, const py::object& property) {
-        if (py::isinstance<ov::util::PropertyTag>(property)) {
-            return Common::utils::from_ov_any(self.get_property(property.attr("name")().cast<std::string>()));
-        } else if (py::isinstance<py::str>(property)) {
-            return Common::utils::from_ov_any(self.get_property(property.cast<std::string>()));
-        } else {
-            py::print("Property is broken and unusable!");
-            return py::str("...").cast<py::object>();
-            // TODO: raise error!
-        }
-    }
-
-    template <typename T>
-    py::object property_as_py_object(const T& self, const std::string& device_name, const py::object& property) {
-        if (py::isinstance<ov::util::PropertyTag>(property)) {
-            return Common::utils::from_ov_any(self.get_property(device_name, property.attr("name")().cast<std::string>()));
-        } else if (py::isinstance<py::str>(property)) {
-            return Common::utils::from_ov_any(self.get_property(device_name, property.cast<std::string>()));
-        } else {
-            py::print("Property is broken and unusable!");
-            return py::str("...").cast<py::object>();
-            // TODO: raise error!
-        }
-    }
+    std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);
 }; // namespace utils
 }; // namespace Common
 

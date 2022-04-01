@@ -146,9 +146,8 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::CompiledModel& self, const std::map<py::object, py::object>& properties) {
-            auto _properties = Common::utils::properties_to_any_map(properties);
-            self.set_property({_properties.begin(), _properties.end()});
+        [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
+            self.set_property(Common::utils::properties_to_any_map(properties));
         },
         py::arg("properties"),
         R"(
@@ -161,8 +160,8 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "get_property",
-        [](ov::CompiledModel& self, const py::object& property) -> py::object {
-            return Common::utils::property_as_py_object<ov::CompiledModel>(self, property);
+        [](ov::CompiledModel& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
         },
         py::arg("property"),
         R"(

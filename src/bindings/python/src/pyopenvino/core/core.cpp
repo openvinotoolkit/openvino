@@ -16,8 +16,6 @@
 
 namespace py = pybind11;
 
-using ConfigMap = std::map<std::string, std::string>;
-
 std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
@@ -34,23 +32,21 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::map<py::object, py::object>& properties) {
-            auto _properties = Common::utils::properties_to_any_map(properties);
-            self.set_property({_properties.begin(), _properties.end()});
+        [](ov::Core& self, const std::map<std::string, py::object>& properties) {
+            self.set_property(Common::utils::properties_to_any_map(properties));
         },
         py::arg("properties"),
         R"(
             Sets properties.
 
-            :param properties: Optional dict of pairs: (property name, property value).
+            :param properties: Dict of pairs: (property name, property value).
             :type properties: dict
         )");
 
     cls.def(
         "set_property",
-        [](ov::Core& self, const std::string& device_name, const std::map<py::object, py::object>& properties) {
-            auto _properties = Common::utils::properties_to_any_map(properties);
-            self.set_property(device_name, {_properties.begin(), _properties.end()});
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+            self.set_property(device_name, Common::utils::properties_to_any_map(properties));
         },
         py::arg("device_name"),
         py::arg("properties"),
@@ -59,14 +55,32 @@ void regclass_Core(py::module m) {
 
             :param device_name: Name of the device.
             :type device_name: str
-            :param properties: Optional dict of pairs: (property name, property value).
+            :param properties: Dict of pairs: (property name, property value).
             :type properties: dict
+        )");
+
+    // Overload for single tuple
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::string& device_name, const std::pair<std::string, py::object>& property) {
+            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            self.set_property(device_name, _properties);
+        },
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Sets properties for the device.
+
+            :param device_name: Name of the device.
+            :type device_name: str
+            :param property: Tuple of (property name, matching property value).
+            :type property: tuple
         )");
 
     cls.def(
         "get_property",
-        [](ov::Core& self, const std::string& device_name, const py::object& property) -> py::object {
-            return Common::utils::property_as_py_object<ov::Core>(self, device_name, property);
+        [](ov::Core& self, const std::string& device_name, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(device_name, property));
         },
         py::arg("device_name"),
         py::arg("property"),
@@ -76,7 +90,7 @@ void regclass_Core(py::module m) {
             :param device_name: A name of a device to get a properties value.
             :type device_name: str
             :param property: Property or name of Property.
-            :type property: Union[str, openvino.runtime.properties.specializations.PropertyBase]
+            :type property: str
             :return: Extracted information from property.
             :rtype: object
         )");
@@ -86,10 +100,11 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
-           const std::map<std::string, std::string>& properties) {
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
             return self.compile_model(model, device_name, {properties.begin(), properties.end()});
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict(),
@@ -114,10 +129,11 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
-           const std::map<std::string, std::string>& config) {
-            return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
+           const std::map<std::string, py::object>& config) {
+            auto _properties = Common::utils::properties_to_any_map(config);
+            py::gil_scoped_release release;
+            return self.compile_model(model, _properties);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("config") = py::dict(),
         R"(
@@ -140,10 +156,11 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::string& model_path,
            const std::string& device_name,
-           const std::map<std::string, std::string>& config) {
-            return self.compile_model(model_path, device_name, {config.begin(), config.end()});
+           const std::map<std::string, py::object>& config) {
+            auto _properties = Common::utils::properties_to_any_map(config);
+            py::gil_scoped_release release;
+            return self.compile_model(model_path, device_name, _properties);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),
@@ -166,10 +183,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
-        [](ov::Core& self, const std::string& model_path, const std::map<std::string, std::string>& properties) {
-            return self.compile_model(model_path, ov::AnyMap{properties.begin(), properties.end()});
+        [](ov::Core& self, const std::string& model_path, const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.compile_model(model_path, _properties);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("config") = py::dict(),
         R"(
@@ -292,7 +310,8 @@ void regclass_Core(py::module m) {
             :type model: str
             :param weights: A path to a data file For IR format (*.bin): if path is empty,
                             it tries to read a bin file with the same name as xml and if the bin
-                            file with the same name was not found, loads IR without weights.                            For ONNX format (*.onnx): weights parameter is not used.
+                            file with the same name was not found, loads IR without weights.
+                            For ONNX format (*.onnx): weights parameter is not used.
                             For PDPD format (*.pdmodel) weights parameter is not used.
             :type weights: str
             :return: A model.
@@ -304,12 +323,13 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::string& model_stream,
            const std::string& device_name,
-           const std::map<std::string, std::string>& properties) {
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
             std::stringstream _stream;
             _stream << model_stream;
-            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
+            return self.import_model(_stream, device_name, _properties);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_stream"),
         py::arg("device_name"),
         py::arg("properties") = py::none(),
@@ -347,7 +367,8 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const py::object& model_stream,
            const std::string& device_name,
-           const std::map<std::string, std::string>& properties) {
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
             if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO")))) {
                 throw py::type_error("CompiledModel.import_model(model_stream) incompatible function argument: "
                                      "`model_stream` must be an io.BytesIO object but " +
@@ -359,7 +380,7 @@ void regclass_Core(py::module m) {
                            .attr("read")()  // alternative: model_stream.attr("get_value")()
                            .cast<std::string>();
             py::gil_scoped_release release;
-            return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
+            return self.import_model(_stream, device_name, _properties);
         },
         py::arg("model_stream"),
         py::arg("device_name"),
@@ -440,10 +461,11 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
-           const std::map<std::string, std::string>& properties) {
-            return self.query_model(model, device_name, {properties.begin(), properties.end()});
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.query_model(model, device_name, _properties);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),

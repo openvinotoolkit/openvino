@@ -15,48 +15,6 @@ void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.runtime.properties submodule");
 
-    // Property specializations
-    py::module m_specializations = m_properties.def_submodule("specializations", "openvino.runtime.properties.specializations submodule");
-
-    // Register a proxy base
-    py::class_<ov::util::PropertyTag, std::shared_ptr<ov::util::PropertyTag>> property_base(m_specializations, "PropertyBase");
-
-    // ov::Property<std::string, ...>
-    register_property_class<std::string, ov::PropertyMutability::RO>(m_specializations, "String");
-    register_property_class<std::string, ov::PropertyMutability::RW>(m_specializations, "String");
-
-    // ov::Property<std::vector<std::string>, ...>
-    register_property_class<std::vector<std::string>, ov::PropertyMutability::RO>(m_specializations, "VectorString");
-
-    // ov::Property<uint32_t, ...>
-    register_property_class<uint32_t, ov::PropertyMutability::RO>(m_specializations, "Uint32");
-    register_property_class<uint32_t, ov::PropertyMutability::RW>(m_specializations, "Uint32");
-    // register_property_class<unsigned int, ov::PropertyMutability::RO>(m_specializations, "Uint"); // same as uint32_t
-
-    // ov::Property<int32_t, ...>
-    register_property_class<int32_t, ov::PropertyMutability::RW>(m_specializations, "Int32");
-
-    // ov::Property<uint32_t, ...>
-    register_property_class<bool, ov::PropertyMutability::RW>(m_specializations, "Bool");
-
-    // ov::Property<float, ...>
-    register_property_class<float, ov::PropertyMutability::RO>(m_specializations, "Float");
-
-    // ov::Property<std::tuple<...>, ...>
-    register_property_class<std::tuple<unsigned int, unsigned int>, ov::PropertyMutability::RO>(m_specializations, "UintUint");
-    register_property_class<std::tuple<unsigned int, unsigned int, unsigned int>, ov::PropertyMutability::RO>(m_specializations, "TupleUintUintUint");
-
-    // ov::Property<openvino types and enums, ...>
-    register_property_class<std::vector<ov::PropertyName>, ov::PropertyMutability::RO>(m_specializations, "VectorPropertyName");
-    register_property_class<ov::element::Type, ov::PropertyMutability::RW>(m_specializations, "ElementType");
-    register_property_class<ov::hint::Priority, ov::PropertyMutability::RW>(m_specializations, "Priority");
-    register_property_class<ov::hint::PerformanceMode, ov::PropertyMutability::RW>(m_specializations, "PerformanceMode");
-    register_property_class<ov::log::Level, ov::PropertyMutability::RW>(m_specializations, "Level");
-    register_property_class<ov::device::Type, ov::PropertyMutability::RO>(m_specializations, "DeviceType");
-    register_property_class<std::map<ov::element::Type, float>, ov::PropertyMutability::RO>(m_specializations, "MapElementTypeFloat");
-    register_property_class<ov::streams::Num, ov::PropertyMutability::RW>(m_specializations, "Num");
-    register_property_class<ov::Affinity, ov::PropertyMutability::RW>(m_specializations, "Affinity");
-
     //Submodule properties - enums
     py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
         .value("NONE", ov::Affinity::NONE)
@@ -104,7 +62,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
-    wrap_property_RW(m_hint, ov::hint::model, "model");  // TODO: check MODEL_PTR correctness
+    wrap_property_RW(m_hint, ov::hint::model, "model");
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
 
     // Submodule device
