@@ -195,7 +195,7 @@ void zeroWeightsRange(uint16_t* ptr, size_t weightsSize) {
 
 void defaultWeightsRange(uint16_t* ptr, size_t weightsSize) {
     ASSERT_NE(ptr, nullptr);
-    float scale  = 2.0f / RAND_MAX;
+    float scale  = 2.0f / float(RAND_MAX);
     for (size_t count = 0 ; count < weightsSize; ++count) {
         float val = rand();
         val = val * scale - 1.0f;
@@ -205,7 +205,7 @@ void defaultWeightsRange(uint16_t* ptr, size_t weightsSize) {
 
 void smallWeightsRange(uint16_t* ptr, size_t weightsSize) {
     ASSERT_NE(ptr, nullptr);
-    float scale  = 2.0f / RAND_MAX;
+    float scale  = 2.0f / float(RAND_MAX);
     for (size_t count = 0 ; count < weightsSize; ++count) {
         float val = rand();
         val = (val * scale - 1.0f) / 512;
@@ -265,7 +265,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
 WeightsBlob* GenWeights(size_t sz, float min_val, float max_val) {
     // TODO: pass seed as parameter
 
-    float scale  = (max_val - min_val) / RAND_MAX;
+    float scale  = (max_val - min_val) / float(RAND_MAX);
     WeightsBlob *weights = new WeightsBlob({InferenceEngine::Precision::U8, {(sz) * sizeof(uint16_t)}, InferenceEngine::C});
     weights->allocate();
     uint16_t *inputBlobRawDataFp16 = weights->data().as<uint16_t *>();
