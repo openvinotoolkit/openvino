@@ -19,7 +19,7 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
     pixel_offset = attr["pixel_offset"]
 
     import paddle
-    import ppdet.modeling.ops as ops
+    from ppdet.modeling.ops import generate_proposals as generate_proposals
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -33,7 +33,7 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
             name='anchors', shape=anchors_np.shape, dtype='float32')          # [H, W, A, 4]
         variances = paddle.static.data(
             name='var', shape=variances_np.shape, dtype='float32')            # [H, W, A, 4]
-        rois, roi_probs, rois_num = ops.generate_proposals(
+        rois, roi_probs, rois_num = generate_proposals(
             scores,
             bbox_deltas,
             im_shape,
