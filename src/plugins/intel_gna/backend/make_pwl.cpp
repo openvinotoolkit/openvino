@@ -229,7 +229,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            if (fun == kActFakeQuantize && fun.fqParams.set) {
+            if ((fun == kActFakeQuantize || fun == kActIdentity) && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
                 x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
                 y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
@@ -253,7 +253,7 @@ void make_gna_pwl(const DnnActivation&  fun,
                         x_upper = FLOAT_TO_INT32(y_upper  * in_scale / out_scale);
                     }
                 }
-            } else if (fun == kActIdentity) {
+            } else if (fun == kActIdentity && !fun.fqParams.set) {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);

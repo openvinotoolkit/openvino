@@ -9,6 +9,7 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -80,6 +81,7 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
 } // namespace
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(StridedSliceTransformation);
     auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -90,7 +92,7 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "StridedSliceTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
