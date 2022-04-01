@@ -171,7 +171,7 @@ TEST(FrontEndManagerTest, testFEMDestroy_NodeHolder) {
         nodes = model->get_ordered_ops();
         EXPECT_EQ(nodes.size(), 9);
     }
-    for (auto& node : nodes) {
+    for (const auto& node : nodes) {
         EXPECT_EQ(node->get_friendly_name().find("mock_"), 0)
             << "Name shall start with 'mock_': " << node->get_friendly_name();
     }

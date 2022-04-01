@@ -71,12 +71,6 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
         new_results.emplace_back(new_result);
     }
     copy->m_results = new_results;
-    // Hold FrontEnd object for each Constant as well, as real data may point to memory allocated by FrontEnd
-    for (auto& op : copy->get_ordered_ops()) {
-        if (auto c = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
-            c->m_shared_object = shared_object;
-        }
-    }
     return copy;
 }
 
