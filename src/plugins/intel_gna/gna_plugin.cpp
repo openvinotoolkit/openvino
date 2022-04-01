@@ -664,7 +664,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<RemoveInputConvert>();
         manager.register_pass<RemoveOutputConvert>();
-        manager.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
         manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
