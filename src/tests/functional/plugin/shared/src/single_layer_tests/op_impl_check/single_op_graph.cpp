@@ -367,6 +367,17 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ExtractIma
     return std::make_shared<ov::Model>(results, params, "ExtractImagePatches");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::Eye> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::i64, {{1}, {1}, {1}, {3}});
+    const auto eye = std::make_shared<ov::op::v9::Eye>(params[0],
+                                                       params[1],
+                                                       params[2],
+                                                       params[3],
+                                                       ov::element::f32);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye)};
+    return std::make_shared<ov::Model>(results, params, "Eye");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::FakeQuantize> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f16, {{1, 2, 3, 4}});
     const auto input_low = ngraph::builder::makeConstant<float16>(ov::element::f16, {}, {0.f});
@@ -1769,6 +1780,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset6_tbl.hpp"
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
