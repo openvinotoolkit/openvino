@@ -13,7 +13,8 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 
 | Options                    | Values                                                                   |
 | :------------------------- | :----------------------------------------------------------------------- |
-| Validated Models           | [ssdlite_mobilenet_v2](@ref omz_models_model_ssdlite_mobilenet_v2)       |
+| Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd)                     |
+| Validated Layout           | NCHW                                                                     |
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx) |
 | Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)        |
 | Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md)                  |
