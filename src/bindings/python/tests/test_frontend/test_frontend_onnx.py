@@ -203,7 +203,7 @@ def test_convert():
     run_function(function, input_1, input_2, expected=[expected])
 
 
-@pytest.mark.parametrize(("model_filename", "inputs", "expected"), [
+@pytest.mark.parametrize(tuple("model_filename", "inputs", "expected"), [
     [onnx_model_filename,
      [np.array([[1, 2], [3, 4]], dtype=np.float32),
       np.array([[2, 3], [4, 5]], dtype=np.float32)],
