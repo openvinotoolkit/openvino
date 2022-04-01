@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info

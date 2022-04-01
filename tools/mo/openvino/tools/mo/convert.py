@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import datetime
 import logging as log
@@ -8,6 +11,7 @@ import traceback
 from collections import OrderedDict, namedtuple
 from copy import deepcopy
 from pathlib import Path
+
 import numpy as np
 
 try:
@@ -16,7 +20,7 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used, legacy_transformations_config_used, \
+from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
     new_extensions_used, new_transformations_config_used, input_freezig_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
@@ -730,7 +734,8 @@ def source_target_layout_to_str(value):
             values_str.append(op_name + "(" + layout_to_str(layout) + ")")
         return ",".join(values_str)
 
-    raise Exception("Incorrect layout. Expected dictionary, where key is operation name and value is Layout. Got {}".format(value))
+    raise Exception(
+        "Incorrect layout. Expected dictionary, where key is operation name and value is Layout. Got {}".format(value))
 
 
 def layoutmap_to_str(value):
@@ -770,7 +775,7 @@ def batch_to_int(value):
         return value
     if isinstance(value, Dimension):
         if not value.is_static:
-            #TODO: Add dynamic batch support when MO supports dynamic batch
+            # TODO: Add dynamic batch support when MO supports dynamic batch
             raise Exception("Dynamic batch is not supported.")
         else:
             return value.get_length()

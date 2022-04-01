@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape
 
@@ -43,11 +46,11 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
                                              "data2[4 5 6]{i64}->[5 4 3 2 1]")
 
         inp9 = InputCutInfo("data1", PartialShape([Dimension(-1), Dimension(2, -1),
-                                                    Dimension(-1, 10), 100, Dimension(2, 12)]))
+                                                   Dimension(-1, 10), 100, Dimension(2, 12)]))
         self.assertTrue(input_to_str(inp9) == "data1[? 2.. ..10 100 2..12]")
 
         inp10 = InputCutInfo("data2", [Dimension(-1), Dimension(2, -1),
-                                        Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8)
+                                       Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8)
         self.assertTrue(input_to_str(inp10) == "data2[? 2.. ..10 100 2..12]{u8}")
 
         inp11 = InputCutInfo("data3", Shape([4, 5, 6]), np.int64, [5, 4, 3, 2, 1])
@@ -125,7 +128,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertTrue(str_list_to_str(list_str) == "data1")
 
     def test_source_target_layout_to_str(self):
-        layout = {"input1":Layout("nhwc"), "input2":Layout("n??"), "input3":"nchw"}
+        layout = {"input1": Layout("nhwc"), "input2": Layout("n??"), "input3": "nchw"}
         self.assertTrue(source_target_layout_to_str(layout) == "input1([N,H,W,C]),input2([N,?,?]),input3(nchw)")
 
     def test_layout_param_to_str_to_str(self):
@@ -136,9 +139,8 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         layout_map2 = LayoutMap(source_layout=Layout("nhwc"), target_layout=("nchw"))
         layout_map3 = LayoutMap(source_layout="abc", target_layout="cab")
 
-        layout = {"input1": layout_map1, "input2": layout_map2, "input3": layout_map3, "input4": Layout("nhwc"), "input5": "n?"}
+        layout = {"input1": layout_map1, "input2": layout_map2, "input3": layout_map3, "input4": Layout("nhwc"),
+                  "input5": "n?"}
 
         self.assertTrue(layout_param_to_str(layout) == "input1([N,?,?]),input2([N,H,W,C]->nchw),"
                                                        "input3(abc->cab),input4([N,H,W,C]),input5(n?)")
-
-

@@ -81,6 +81,7 @@ openvino/tools/mo/back/TopKNormalizer.py
 openvino/tools/mo/back/TransposeDFT.py
 openvino/tools/mo/back/TransposeReduceFusing.py
 openvino/tools/mo/back/UselessConcatRemoval.py
+openvino/tools/mo/convert.py
 openvino/tools/mo/front/__init__.py
 openvino/tools/mo/front/ArgOpsSqueeze.py
 openvino/tools/mo/front/ATenToEmbeddingBag.py
@@ -1019,6 +1020,7 @@ openvino/tools/mo/ops/upsample.py
 openvino/tools/mo/pipeline/__init__.py
 openvino/tools/mo/pipeline/common.py
 openvino/tools/mo/pipeline/unified.py
+openvino/tools/mo/serialize.py
 openvino/tools/mo/subprocess_main.py
 openvino/tools/mo/utils/__init__.py
 openvino/tools/mo/utils/broadcasting.py
