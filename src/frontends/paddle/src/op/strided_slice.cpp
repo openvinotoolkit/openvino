@@ -7,8 +7,8 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-NamedOutputs slice(const NodeContext& node) {
-    return slice_op(node, false);
+NamedOutputs strided_slice(const NodeContext& node) {
+    return slice_op(node, true);
 }
 }  // namespace op
 }  // namespace paddle
