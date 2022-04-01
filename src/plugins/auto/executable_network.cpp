@@ -198,6 +198,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         }
 
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
+        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+            InferenceEngine::PluginConfigParams::THROUGHPUT;
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
                                                                            _loadContext[ACTUALDEVICE].networkPrecision,
@@ -207,6 +209,12 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     LOG_INFO("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
+
+    if (isCumulative) {
+        // if is cumulative, disable CPU helper
+        isActualDevCPU = true;
+    }
+
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU) {
         _loadContext[CPU].isEnabled = false;
