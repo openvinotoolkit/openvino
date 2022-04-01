@@ -210,13 +210,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
 
-    if (isCumulative) {
-        // if is cumulative, disable CPU helper
-        isActualDevCPU = true;
-    }
-
-    // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU) {
+    // if Actual device is CPU or hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
+    if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
