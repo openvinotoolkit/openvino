@@ -63,28 +63,23 @@ Starting with 2021.4.1 release of OpenVINO and 03.00.00.1363 version of Windows*
 to assure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
 if the HW queue is not empty, so there is no need for explicitly switching between GNA and CPU.
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-   .. doxygensnippet:: docs/snippets/gna/configure.cpp
-      :language: cpp
-      :fragment: [include]
+@sphinxtab{C++}
 
-   .. doxygensnippet:: docs/snippets/gna/configure.cpp
-      :language: cpp
-      :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
+@snippet docs/snippets/gna/configure.cpp include
+@snippet docs/snippets/gna/configure.cpp ov_gna_exec_mode_hw_with_sw_fback
 
-.. tab:: Python
+@endsphinxtab
 
-   .. doxygensnippet:: docs/snippets/gna/configure.py
-      :language: python
-      :fragment: [import]
+@sphinxtab{Python}
 
-   .. doxygensnippet:: docs/snippets/gna/configure.py
-      :language: python
-      :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
+@snippet docs/snippets/gna/configure.py import
+@snippet docs/snippets/gna/configure.py ov_gna_exec_mode_hw_with_sw_fback
 
-@endsphinxdirective
+@endsphinxtab
+
+@endsphinxtabset
 
 > **NOTE**: Due to the "first come - first served" nature of GNA driver and the QoS feature, this mode may lead to increased CPU consumption
 if there are several clients using GNA simultaneously.
@@ -95,7 +90,7 @@ can cause the user's request to be executed on CPU, thereby unnecessarily increa
 
 Intel® GNA essentially operates in the low-precision mode which represents a mix of 8-bit (`i8`), 16-bit (`i16`), and 32-bit (`i32`) integer computations.
 
-GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_README) to get a model with quantization hints based on statistics for the provided dataset.
+GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_introduction) to get a model with quantization hints based on statistics for the provided dataset.
 
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration. However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data and this mode is going to be deprecated soon.
 
@@ -106,7 +101,7 @@ GNA plugin supports the following data types as inference precision of internal 
 
 [Hello Query Device C++ Sample](@ref openvino_inference_engine_samples_hello_query_device_README) can be used to print out supported data types for all detected devices.
 
-[POT API Usage sample for GNA](@ref pot_sample_speech_README) demonstrates how a model can be quantized for GNA using POT API in 2 modes:
+[POT API Usage sample for GNA](@ref pot_example_speech_README) demonstrates how a model can be quantized for GNA using POT API in 2 modes:
 * Accuracy (i16 weights)
 * Performance (i8 weights)
 
@@ -125,37 +120,39 @@ The GNA plugin supports import/export capability which helps to significantly de
 
 If you are willing to export a model for a specific version of GNA HW, please use the `ov::intel_gna::compile_target` property and then export the model:
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-   .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-      :language: cpp
-      :fragment: [ov_gna_export]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/gna/import_export.cpp ov_gna_export
 
-   .. doxygensnippet:: docs/snippets/gna/import_export.py
-      :language: python
-      :fragment: [ov_gna_export]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/gna/import_export.py ov_gna_export
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Import model:
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-   .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-      :language: cpp
-      :fragment: [ov_gna_import]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/gna/import_export.cpp ov_gna_import
 
-   .. doxygensnippet:: docs/snippets/gna/import_export.py
-      :language: python
-      :fragment: [ov_gna_import]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/gna/import_export.py ov_gna_import
+
+@endsphinxtab
+
+@endsphinxtabset
 
 [Compile Tool](@ref openvino_inference_engine_tools_compile_tool_README) or [Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README) can be used to compile model.
 
@@ -287,47 +284,45 @@ Intel® GNA plugin supports the processing of context-windowed speech frames in 
 
 Please refer to [Layout API overview](@ref openvino_docs_OV_Runtime_UG_Layout_Overview) to determine batch dimension.
 
-To set layout of model inputs in runtime use [Preprocessing API](@ref openvino_docs_OV_Runtime_UG_Preprocessing_Overview):
+To set layout of model inputs in runtime use [Optimize Preprocessing](@ref openvino_docs_OV_Runtime_UG_Preprocessing_Overview) guide:
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-      :language: cpp
-      :fragment: [include]
+@sphinxtab{C++}
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-      :language: cpp
-      :fragment: [ov_gna_set_nc_layout]
+@snippet docs/snippets/gna/set_batch.cpp include
+@snippet docs/snippets/gna/set_batch.cpp ov_gna_set_nc_layout
 
-.. tab:: Python
+@endsphinxtab
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.py
-      :language: python
-      :fragment: [import]
+@sphinxtab{Python}
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.py
-      :language: python
-      :fragment: [ov_gna_set_nc_layout]
+@snippet docs/snippets/gna/set_batch.py import
+@snippet docs/snippets/gna/set_batch.py ov_gna_set_nc_layout
 
-@endsphinxdirective
+@endsphinxtab
+
+@endsphinxtabset
+
 
 then set batch size:
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-      :language: cpp
-      :fragment: [ov_gna_set_batch_size]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/gna/set_batch.cpp ov_gna_set_batch_size
 
-   .. doxygensnippet:: docs/snippets/gna/set_batch.py
-      :language: python
-      :fragment: [ov_gna_set_batch_size]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/gna/set_batch.py ov_gna_set_batch_size
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 Increasing batch size only improves efficiency of `MatMul` layers.
 
