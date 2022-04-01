@@ -54,8 +54,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
     /// \brief Returns attributes of the operation MulticlassNmsBase
     const Attributes& get_attrs() const {
         return m_attrs;

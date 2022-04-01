@@ -27,14 +27,6 @@ op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, co
     : NmsBase(arguments, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
       m_attrs{attrs} {}
 
-std::shared_ptr<Node> op::util::MulticlassNmsBase::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(util_MulticlassNmsBase_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
-
-    return std::make_shared<op::util::MulticlassNmsBase>(new_args, m_attrs);
-}
-
 bool op::util::MulticlassNmsBase::validate() {
     NGRAPH_OP_SCOPE(util_MulticlassNmsBase_validate);
     const auto validated = NmsBase::validate();
