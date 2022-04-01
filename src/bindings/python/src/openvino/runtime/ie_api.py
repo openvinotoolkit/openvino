@@ -285,7 +285,7 @@ class Core(CoreBase):
         )
 
     def import_model(
-        self, model_stream: bytes, device_name: str, config: dict = None
+        self, model_stream: bytes, device_name: str, config: dict = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -302,6 +302,7 @@ class Core(CoreBase):
         :rtype: openvino.runtime.CompiledModel
 
         :Example:
+
         .. code-block:: python
 
             user_stream = compiled.export_model()
@@ -327,8 +328,8 @@ class Core(CoreBase):
         """
         return CompiledModel(
             super().import_model(
-                model_stream, device_name, {} if config is None else config
-            )
+                model_stream, device_name, {} if config is None else config,
+            ),
         )
 
 

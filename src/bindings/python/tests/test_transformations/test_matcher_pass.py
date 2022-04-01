@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import opset8
@@ -13,12 +14,12 @@ def test_simple_pattern_replacement():
         param = WrapType("opset8.Parameter")
         relu = WrapType("opset8.Relu", param.output(0))
 
-        def callback(m: Matcher) -> bool:
-            root = m.get_match_root()
+        def callback(matcher: Matcher) -> bool:
+            root = matcher.get_match_root()
 
             # Just to check that capturing works and we can
             # link pattern nodes with matched graph nodes.
-            assert relu in m.get_pattern_value_map()
+            assert relu in matcher.get_pattern_value_map()
 
             new_relu = opset8.exp(root.input_value(0))  # ot root.input(0).get_source_output()
             replace_node(root, new_relu)
@@ -28,9 +29,9 @@ def test_simple_pattern_replacement():
 
     model = get_test_function()
 
-    m = Manager()
-    m.register_pass(MatcherPass(*pattern_replacement()))
-    m.run_passes(model)
+    manager = Manager()
+    manager.register_pass(MatcherPass(*pattern_replacement()))
+    manager.run_passes(model)
 
     assert count_ops(model, ("Relu", "Exp")) == [0, 1]
 
@@ -38,19 +39,19 @@ def test_simple_pattern_replacement():
 def test_matcher_pass():
     model = get_test_function()
 
-    m = Manager()
+    manager = Manager()
     # check that register pass returns pass instance
-    p = m.register_pass(PatternReplacement())
-    m.run_passes(model)
+    pattern_replacement_pass = manager.register_pass(PatternReplacement())
+    manager.run_passes(model)
 
-    assert p.model_changed
+    assert pattern_replacement_pass.model_changed
     assert count_ops(model, "Relu") == [2]
 
 
 def test_matcher_pass_apply():
     model = get_test_function()
 
-    p = PatternReplacement()
-    p.apply(model.get_result().input_value(0).get_node())
+    pattern_replacement = PatternReplacement()
+    pattern_replacement.apply(model.get_result().input_value(0).get_node())
 
     assert count_ops(model, "Relu") == [2]

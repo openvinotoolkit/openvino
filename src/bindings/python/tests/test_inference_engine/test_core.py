@@ -20,8 +20,13 @@ from openvino.runtime import (
     compile_model,
 )
 
-from ..conftest import model_path, model_onnx_path, plugins_path, read_image, \
-    get_model_with_template_extension
+from ..conftest import (
+    model_path,
+    model_onnx_path,
+    plugins_path,
+    read_image,
+    get_model_with_template_extension,
+)
 
 
 test_net_xml, test_net_bin = model_path()

@@ -373,10 +373,9 @@ def test_infer_queue_fail_on_cpp_model(device):
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled, num_request)
-    # import pdb;pdb.set_trace()
+
     def callback(request, _):
         request.get_tensor("Unknown")
-
 
     img = read_image()
     infer_queue.set_callback(callback)

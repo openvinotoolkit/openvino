@@ -144,6 +144,6 @@ def test_input_update_rt_info(device):
     input_node = net_input.get_node().inputs()[0]
     rt = input_node.get_rt_info()
     rt["test12345"] = "test"
-    for k, v in input_node.get_rt_info().items():
-        assert k == "test12345"
-        assert isinstance(v, OVAny)
+    for key, value in input_node.get_rt_info().items():
+        assert key == "test12345"
+        assert isinstance(value, OVAny)
