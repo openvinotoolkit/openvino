@@ -8,7 +8,6 @@
 #include <string>
 #include <transformations_visibility.hpp>
 
-//#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/opsets/opset9.hpp"
 
 namespace ngraph {
@@ -33,8 +32,6 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    // const ::ov::DiscreteTypeInfo& get_type_info() const override;
 
 private:
     typedef struct {

@@ -13,7 +13,7 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
                                                                const Output<Node>& scores,
                                                                const ov::op::util::MulticlassNmsBase::Attributes& attrs)
     : opset9::MulticlassNms(boxes, scores, attrs) {
-    constructor_validate_and_infer_types();  // FIXME: need?
+    constructor_validate_and_infer_types();
 }
 
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
