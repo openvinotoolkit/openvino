@@ -43,7 +43,7 @@ inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case,
     T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
-        test_case.add_input(data);
+        test_case.add_input(npy_array.shape, data);
     else
         test_case.add_expected_output(npy_array.shape, data);
 }
@@ -65,22 +65,10 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
                                             const std::string& modelFile) {
     auto modelFolder = getModelFolder(modelFile);
 
-    // reshape for models with dynamic input shape
-    const auto parameters = function->get_parameters();
-    for (size_t i = 0; i < parameters.size(); i++) {
-        if (parameters[i]->get_partial_shape().is_dynamic()) {
-            // read input npy file
-            std::string dataFile = modelFolder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
-            cnpy::NpyArray input = cnpy::npy_load(dataFile);
-
-            parameters[i]->set_partial_shape(Shape(input.shape));
-        }
-    }
-    function->validate_nodes_and_infer_types();  // FIXME: in need? any better way to reshape?
-
     // run test
     auto testCase = test::TestCase(function, "TEMPLATE");
 
+    const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {
         // read input npy file
         std::string dataFile = modelFolder + "/input" + std::to_string((parameters.size() - 1) - i) + ".npy";
