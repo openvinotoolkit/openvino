@@ -3,9 +3,9 @@
 //
 
 #include "pyopenvino/core/properties/properties.hpp"
+
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
-
 
 namespace py = pybind11;
 
@@ -15,14 +15,14 @@ void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.runtime.properties submodule");
 
-    //Submodule properties - enums
+    // Submodule properties - enums
     py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
         .value("NONE", ov::Affinity::NONE)
         .value("CORE", ov::Affinity::CORE)
         .value("NUMA", ov::Affinity::NUMA)
         .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
 
-    //Submodule properties - properties
+    // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
     wrap_property_RW(m_properties, ov::auto_batch_timeout, "auto_batch_timeout");
@@ -57,7 +57,7 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
-    //Submodule hint - properties
+    // Submodule hint - properties
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
@@ -74,7 +74,7 @@ void regmodule_properties(py::module m) {
         .value("INTEGRATED", ov::device::Type::INTEGRATED)
         .value("DISCRETE", ov::device::Type::DISCRETE);
 
-    //Submodule device - properties
+    // Submodule device - properties
     wrap_property_RW(m_device, ov::device::id, "id");
 
     wrap_property_RO(m_device, ov::device::full_name, "full_name");
@@ -90,7 +90,10 @@ void regmodule_properties(py::module m) {
     // Let's simulate module with attributes by creating empty proxy class called FakeModuleName.
     class FakeCapability {};
 
-    py::class_<FakeCapability, std::shared_ptr<FakeCapability>> m_capability(m_device, "Capability", "openvino.runtime.properties.device.Capability that simulates ov::device::capability");
+    py::class_<FakeCapability, std::shared_ptr<FakeCapability>> m_capability(
+        m_device,
+        "Capability",
+        "openvino.runtime.properties.device.Capability that simulates ov::device::capability");
 
     m_capability.attr("FP32") = ov::device::capability::FP32;
     m_capability.attr("BF16") = ov::device::capability::BF16;
@@ -105,7 +108,7 @@ void regmodule_properties(py::module m) {
     py::module m_log =
         m_properties.def_submodule("log", "openvino.runtime.properties.log submodule that simulates ov::log");
 
-    //Submodule log - enums
+    // Submodule log - enums
     py::enum_<ov::log::Level>(m_log, "Level", py::arithmetic())
         .value("NO", ov::log::Level::NO)
         .value("ERR", ov::log::Level::ERR)
@@ -114,7 +117,7 @@ void regmodule_properties(py::module m) {
         .value("DEBUG", ov::log::Level::DEBUG)
         .value("TRACE", ov::log::Level::TRACE);
 
-    //Submodule log - properties
+    // Submodule log - properties
     wrap_property_RW(m_log, ov::log::level, "level");
 
     // Submodule streams
@@ -124,10 +127,9 @@ void regmodule_properties(py::module m) {
 
     // TODO: struct Num which is just a tuple...
 
-    //Submodule streams - properties RW
+    // Submodule streams - properties RW
     wrap_property_RW(m_streams, ov::streams::num, "num");
 
     // TODO: static constexpr Num AUTO{-1};
     // TODO: static constexpr Num NUMA{-2};
-
 }

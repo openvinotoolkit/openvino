@@ -21,7 +21,6 @@
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
-#include "pyopenvino/core/properties/properties.hpp"
 #include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
@@ -30,6 +29,7 @@
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
+#include "pyopenvino/core/properties/properties.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
