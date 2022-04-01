@@ -118,8 +118,8 @@ constexpr size_t scores_port = 1;
 constexpr size_t roisnum_port = 2;
 
 static PartialShape infer_selected_outputs_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                         int nms_top_k,
-                                         int keep_top_k) {
+                                                 int nms_top_k,
+                                                 int keep_top_k) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -167,7 +167,7 @@ static std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>&
 }
 
 static std::vector<int64_t> prepare_roisnum_data(const std::shared_ptr<HostTensor>& roisnum,
-                                        const Shape& roisnum_shape) {
+                                                 const Shape& roisnum_shape) {
     auto result = get_integers(roisnum, roisnum_shape);
     return result;
 }
@@ -175,7 +175,7 @@ static std::vector<int64_t> prepare_roisnum_data(const std::shared_ptr<HostTenso
 }  // namespace
 
 InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBase>& nms,
-                                const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+                                 const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForNMS result;
 
     auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());

@@ -1878,7 +1878,7 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
                                        info.scores_data.data(),
                                        info.scores_shape,
                                        nullptr,
-                                       Shape(), // won't be used
+                                       Shape(),  // won't be used
                                        op->get_attrs(),
                                        selected_outputs.data(),
                                        info.selected_outputs_shape,
