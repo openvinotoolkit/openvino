@@ -713,7 +713,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.register_pass<HandleMultiConnectedLayerToConcat>();
         manager.register_pass<InsertCopyBeforeMemoryLayer>();
         manager.register_pass<InsertCopyBeforeConcatLayer>();
         manager.register_pass<HandleMultiConnectedLayerToConcatAndMemory>();

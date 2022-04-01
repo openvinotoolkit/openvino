@@ -12,9 +12,9 @@
 #include <cmath>
 #include <cstddef>
 
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::Copy, "Copy", 0);
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 
 Copy::Copy(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -33,4 +33,7 @@ bool Copy::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-} // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov
+

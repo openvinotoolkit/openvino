@@ -9,28 +9,6 @@
 namespace GNAPluginNS {
 
 /**
- * @brief Inserts copy layer before concat if layer has multiple connection to the same concat:
- * [any node]         [any node]
- *   |                 |
- *  / \               / \
- *  |  |       =>    |  [Copy]
- *  |  |             |    |
- * [Concat]         [Concat]
-
- * [any node]         [any node]
- *    |                  |
- *  / \ \             /   \       \
- *  | | |             |  [Copy]  [Copy]
- *  | | |              |    |   /
- * [Concat]            [Concat]
- */
-class HandleMultiConnectedLayerToConcat : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    HandleMultiConnectedLayerToConcat();
-};
-
-/**
  * @brief Inserts copy layer before ReadValue/Assign (memory) layer if the input is
  * Crop/Concat/Split while skipping Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional) layers:
  * [Crop/Concat/Split]         [Crop/Concat/Split]
@@ -117,6 +95,20 @@ public:
  *    |               \             [Copy]       [Copy]
  *    |               \               |            \
  * [Memory]       [Concat]      [Memory]        [Concat]
+ * 
+ * [any node]         [any node]
+ *   |                 |
+ *  / \               / \
+ *  |  |       =>    |  [Copy]
+ *  |  |             |    |
+ * [Concat]         [Concat]
+
+ * [any node]         [any node]
+ *    |                  |
+ *  / \ \             /   \       \
+ *  | | |             |  [Copy]  [Copy]
+ *  | | |              |    |   /
+ * [Concat]            [Concat]
  */
 class HandleMultiConnectedLayerToConcatAndMemory : public ngraph::pass::FunctionPass {
 public:

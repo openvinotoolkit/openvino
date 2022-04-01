@@ -6,12 +6,14 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 /// \brief GNA specific copy layer operation
 ///
 class Copy : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Copy", "intel_gna", ov::op::Op);
 
     Copy() = default;
     /// \brief Constructs an Copy operation.
@@ -23,4 +25,6 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 };
-}  // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov
