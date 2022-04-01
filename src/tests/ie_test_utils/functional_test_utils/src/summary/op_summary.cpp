@@ -47,49 +47,32 @@ OpSummary &OpSummary::getInstance() {
 
 void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
     auto it = opsStats.find(op);
-    if (it != opsStats.end()) {
-        auto &passrate = it->second;
-        switch (status) {
-            case PassRate::PASSED:
-                if (!passrate.isImplemented) {
-                    passrate.isImplemented = true;
-                }
-                passrate.passed++;
-                passrate.crashed--;
-                break;
-            case PassRate::FAILED:
-                passrate.failed++;
-                passrate.crashed--;
-                break;
-            case PassRate::SKIPPED:
-                passrate.skipped++;
-                break;
-            case PassRate::CRASHED:
-                passrate.crashed++;
-                break;
-            case PassRate::HANGED:
-                passrate.hanged++;
-                passrate.crashed--;
-                break;
-        }
-    } else {
-        switch (status) {
-            case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0, 0, 0);
-                break;
-            case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0, 0, 0);
-                break;
-            case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1, 0, 0);
-                break;
-            case PassRate::CRASHED:
-                opsStats[op] = PassRate(0, 0, 0, 1, 0);
-                break;
-            case PassRate::HANGED:
-                opsStats[op] = PassRate(0, 0, 0, 0, 1);
-                break;
-        }
+    if (opsStats.find(op) == opsStats.end()) {
+        opsStats.insert({op, PassRate()});
+    }
+    auto &passrate = opsStats[op];
+    switch (status) {
+        case PassRate::PASSED:
+            if (!passrate.isImplemented) {
+                passrate.isImplemented = true;
+            }
+            passrate.passed++;
+            passrate.crashed--;
+            break;
+        case PassRate::FAILED:
+            passrate.failed++;
+            passrate.crashed--;
+            break;
+        case PassRate::SKIPPED:
+            passrate.skipped++;
+            break;
+        case PassRate::CRASHED:
+            passrate.crashed++;
+            break;
+        case PassRate::HANGED:
+            passrate.hanged++;
+            passrate.crashed--;
+            break;
     }
 }
 
@@ -100,7 +83,7 @@ void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool i
             it->second.isImplemented = true;
         }
     } else {
-        opsStats[op] = PassRate(0, 0, 0, 0, 0);
+        opsStats[op] = PassRate();
         opsStats[op].isImplemented = implStatus;
     }
 }

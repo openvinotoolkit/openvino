@@ -35,13 +35,13 @@ inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(st
 class APIBaseTest : public CommonTestUtils::TestsCommon {
 protected:
     std::string target_device = "";
-    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::UNDEFINED;
+    ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
 
 public:
     APIBaseTest() = default;
 
-    virtual void set_api_entity() { api_entity = ov::test::utils::ov_entity::UNDEFINED; }
+    virtual void set_api_entity() { api_entity = ov::test::utils::ov_entity::undefined; }
 
     void SetUp() override {
         set_api_entity();

@@ -15,10 +15,6 @@ void Summary::setDeviceName(std::string device) {
     deviceName = device;
 }
 
-std::map<std::string, PassRate> Summary::getStatisticFromReport() {
-    return std::map<std::string, PassRate>();
-}
-
 std::string Summary::getDeviceName() const {
     return deviceName;
 }

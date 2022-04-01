@@ -74,8 +74,6 @@ protected:
 public:
     void setDeviceName(std::string device);
 
-    virtual std::map<std::string, PassRate> getStatisticFromReport();
-
     std::string getDeviceName() const;
 
 

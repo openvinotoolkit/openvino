@@ -16,12 +16,12 @@ using namespace ov::test::utils;
 ApiSummary *ApiSummary::p_instance = nullptr;
 ApiSummaryDestroyer ApiSummary::destroyer;
 const std::map<ov_entity, std::string> ApiSummary::apiInfo({
-    { ov_entity::ov_infer_request, "Infer request (OV2.0 API)"},
-    { ov_entity::ov_plugin, "Plugin (OV2.0 API)"},
-    { ov_entity::ov_compiled_model, "Compiled model (OV2.0 API)"},
-    { ov_entity::ie_infer_request, "Infer request (OV1.0 API)"},
-    { ov_entity::ie_plugin, "Plugin (OV1.0 API)"},
-    { ov_entity::ie_executable_network, "Executable network (OV1.0 API)"},
+    { ov_entity::ov_infer_request, "ie_infer_request"},
+    { ov_entity::ov_plugin, "ov_plugin"},
+    { ov_entity::ov_compiled_model, "ov_compiled_model"},
+    { ov_entity::ie_infer_request, "ie_infer_request"},
+    { ov_entity::ie_plugin, "ie_plugin"},
+    { ov_entity::ie_executable_network, "ie_executable_network"},
 });
 
 ApiSummaryDestroyer::~ApiSummaryDestroyer() {
@@ -45,6 +45,9 @@ ApiSummary &ApiSummary::getInstance() {
 }
 
 void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status) {
+    if (extendReport && !isReported) {
+//        apiStats = getStatisticFromReport();
+    }
     std::string real_device = target_device.substr(0, target_device.find(':'));
     if (apiStats.find(entity) == apiStats.end()) {
         apiStats.insert({entity, {{real_device, PassRate()}}});
@@ -59,6 +62,9 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
             break;
         }
         case PassRate::Statuses::PASSED: {
+            if (!cur_stat[real_device].isImplemented) {
+                cur_stat[real_device].isImplemented = true;
+            }
             cur_stat[real_device].passed++;
             cur_stat[real_device].crashed--;
             break;
@@ -79,11 +85,50 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
     }
 }
 
-void ApiSummary::saveReport() {
-//    if (isReported) {
-//        return;
-//    }
+ov_entity ApiSummary::getOvEntityByName(const std::string& name) {
+    for (const auto& api : apiInfo) {
+        if (name == api.second) {
+            return api.first;
+        }
+    }
+    return ov_entity::undefined;
+}
 
+void ApiSummary::getStatisticFromReport() {
+    pugi::xml_document doc;
+
+    std::ifstream file;
+    file.open(reportFilename);
+
+    pugi::xml_node root;
+    doc.load_file(reportFilename);
+    root = doc.child("report");
+
+    pugi::xml_node resultsNode = root.child("results");
+    pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
+//    for (const auto& ie_entity_node : currentDeviceNode) {
+//        for (const auto& attr : ie_entity_node.attributes()) {
+//            std::cout << attr.name() << " " << attr.value() << std::endl;
+//        }
+//        std::string ie_entity_name = ie_entity_node.value();
+//        ov_entity entity = getOvEntityByName(ie_entity_name);
+//        for (const auto& real_device_node : ie_entity_node) {
+//            std::string real_device_name = real_device_node.name();
+//            auto p = std::stoi(real_device_node.attribute("passed").value());
+//            auto f = std::stoi(real_device_node.attribute("failed").value());
+//            auto s = std::stoi(real_device_node.attribute("skipped").value());
+//            auto c = std::stoi(real_device_node.attribute("crashed").value());
+//            auto h = std::stoi(real_device_node.attribute("hanged").value());
+//            PassRate entity_stat(p, f, s, c, h);
+//            if (apiStats.find(entity) == apiStats.end()) {
+//                apiStats.insert({entity, {}});
+//            }
+//            apiStats[entity].insert({real_device_name, entity_stat});
+//        }
+//    }
+}
+
+void ApiSummary::saveReport() {
     std::string filename = reportFilename;
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());
@@ -102,7 +147,11 @@ void ApiSummary::saveReport() {
 
     pugi::xml_document doc;
 
-//    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+
+    if (extendReport && fileExists && !isReported) {
+        getStatisticFromReport();
+    }
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -115,20 +164,20 @@ void ApiSummary::saveReport() {
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
     pugi::xml_node root;
-//    if (fileExists) {
-//        doc.load_file(outputFilePath.c_str());
-//        root = doc.child("report");
-//        //Ugly but shorter than to write predicate for find_atrribute() to update existing one
-//        root.remove_attribute("timestamp");
-//        root.append_attribute("timestamp").set_value(timeNow);
-//
-//        root.remove_child("ops_list");
-//        root.child("results").remove_child(summary.deviceName.c_str());
-//    } else {
+    if (fileExists) {
+        doc.load_file(outputFilePath.c_str());
+        root = doc.child("report");
+        //Ugly but shorter than to write predicate for find_atrribute() to update existing one
+        root.remove_attribute("timestamp");
+        root.append_attribute("timestamp").set_value(timeNow);
+
+        root.remove_child("api_list");
+        root.child("results").remove_child(deviceName.c_str());
+    } else {
         root = doc.append_child("report");
         root.append_attribute("timestamp").set_value(timeNow);
         root.append_child("results");
-//    }
+    }
 
     pugi::xml_node opsNode = root.append_child("api_list");
     for (const auto &api : apiInfo) {
@@ -152,8 +201,6 @@ void ApiSummary::saveReport() {
             entry.append_attribute("hanged").set_value(stat_device.second.hanged);
             entry.append_attribute("passrate").set_value(stat_device.second.getPassrate());
         }
-//        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
-//        opList.insert(name);
     }
 
 //    if (extendReport && fileExists) {

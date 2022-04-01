@@ -47,7 +47,7 @@ public:
     static void setExtractBody(bool val) { extractBody = val; }
     static bool getExtractBody() { return extractBody; }
 
-    std::map<std::string, PassRate> getStatisticFromReport() override;
+    std::map<std::string, PassRate> getStatisticFromReport();
     void saveReport() override;
 
     void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
