@@ -53,8 +53,8 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
 
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None])
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None])
+InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
+LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -674,6 +674,7 @@ def single_input_to_str(input):
         if not isinstance(input.name, str):
             raise Exception("Input name should be string, got {}".format(input.name))
         input_str = input.name
+        assert input_str is not None, "Incorrect InputCutInfo. 'name' should be set."
         if input.shape is not None:
             input_str += shape_to_str(input.shape, " ")
         if input.type is not None:
@@ -742,6 +743,7 @@ def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
     if isinstance(value, LayoutMap):
+        assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
             target_layout = layout_to_str(value.target_layout)

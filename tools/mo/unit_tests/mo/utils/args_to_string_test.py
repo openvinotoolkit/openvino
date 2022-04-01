@@ -11,25 +11,25 @@ from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTele
 
 class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
     def test_input_to_str(self):
-        inp1 = InputCutInfo("data:0")
+        inp1 = InputCutInfo(name="data:0", shape=None, type=None, value=None)
         self.assertTrue(input_to_str(inp1) == "data:0")
 
-        inp2 = InputCutInfo("data:0", [1, 3, 100, 100])
+        inp2 = InputCutInfo("data:0", [1, 3, 100, 100], type=None, value=None)
         self.assertTrue(input_to_str(inp2) == "data:0[1 3 100 100]")
 
-        inp3 = InputCutInfo("data:0", type=np.int32)
+        inp3 = InputCutInfo("data:0", type=np.int32, value=None, shape=None)
         self.assertTrue(input_to_str(inp3) == "data:0{i32}")
 
-        inp4 = InputCutInfo("data:0", value=[2, 4, 5])
+        inp4 = InputCutInfo("data:0", value=[2, 4, 5], type=None, shape=None)
         self.assertTrue(input_to_str(inp4) == "data:0->[2 4 5]")
 
-        inp5 = InputCutInfo("data:0", [1, 3, 100, 100], np.uint8)
+        inp5 = InputCutInfo("data:0", [1, 3, 100, 100], np.uint8, value=None)
         self.assertTrue(input_to_str(inp5) == "data:0[1 3 100 100]{u8}")
 
-        inp6 = InputCutInfo("data:0", [2, 5, 7], value=[1, 2, 3, 4, 5])
+        inp6 = InputCutInfo("data:0", [2, 5, 7], value=[1, 2, 3, 4, 5], type=None)
         self.assertTrue(input_to_str(inp6) == "data:0[2 5 7]->[1 2 3 4 5]")
 
-        inp7 = InputCutInfo("0:data1", type=np.float64, value=[1.6, 7.2, 5.66])
+        inp7 = InputCutInfo("0:data1", type=np.float64, value=[1.6, 7.2, 5.66], shape=None)
         self.assertTrue(input_to_str(inp7) == "0:data1{f64}->[1.6 7.2 5.66]")
 
         inp8 = InputCutInfo("data2", [4, 5, 6], np.int64, [5, 4, 3, 2, 1])
@@ -46,17 +46,17 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
                                              "data2[4 5 6]{i64}->[5 4 3 2 1]")
 
         inp9 = InputCutInfo("data1", PartialShape([Dimension(-1), Dimension(2, -1),
-                                                   Dimension(-1, 10), 100, Dimension(2, 12)]))
+                                                   Dimension(-1, 10), 100, Dimension(2, 12)]), type=None, value=None)
         self.assertTrue(input_to_str(inp9) == "data1[? 2.. ..10 100 2..12]")
 
         inp10 = InputCutInfo("data2", [Dimension(-1), Dimension(2, -1),
-                                       Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8)
+                                       Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8, value=None)
         self.assertTrue(input_to_str(inp10) == "data2[? 2.. ..10 100 2..12]{u8}")
 
         inp11 = InputCutInfo("data3", Shape([4, 5, 6]), np.int64, [5, 4, 3, 2, 1])
         self.assertTrue(input_to_str(inp11) == "data3[4 5 6]{i64}->[5 4 3 2 1]")
 
-        inp12 = InputCutInfo("data4", PartialShape.dynamic())
+        inp12 = InputCutInfo("data4", PartialShape.dynamic(), type=None, value=None)
         self.assertTrue(input_to_str(inp12) == "data4[...]")
 
         inp = [inp9, inp10, inp11, inp12]
@@ -135,7 +135,7 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         layout = {"input1": Layout("nhwc"), "input2": Layout("n??"), "input3": "nchw"}
         self.assertTrue(layout_param_to_str(layout) == "input1([N,H,W,C]),input2([N,?,?]),input3(nchw)")
 
-        layout_map1 = LayoutMap(source_layout=Layout("n??"))
+        layout_map1 = LayoutMap(source_layout=Layout("n??"), target_layout=None)
         layout_map2 = LayoutMap(source_layout=Layout("nhwc"), target_layout=("nchw"))
         layout_map3 = LayoutMap(source_layout="abc", target_layout="cab")
 
