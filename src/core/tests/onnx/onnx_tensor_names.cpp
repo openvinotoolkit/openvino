@@ -57,5 +57,5 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
 
     const auto results = function->get_results();
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_1", {"indices"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_0", {"indices"}));
 }

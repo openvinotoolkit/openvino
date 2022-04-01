@@ -31,12 +31,6 @@ static std::string to_string(
     return result;
 }
 
-inline std::string generate_result_name(const std::string& onnx_output_name,
-                                        const std::shared_ptr<ov::Node>& result_node) {
-    auto output_index = result_node->input(0).get_source_output().get_index();
-    return onnx_output_name + "/sink_port_" + std::to_string(output_index);
-}
-
 /// \brief      Gets the operator represented by provided node unique identificator.
 ///
 /// \param[in]  node_proto  The node protobuf representation object.
@@ -244,9 +238,7 @@ std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        auto ov_result = function->get_output_op(i);
-        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
+        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + "/sink_port_0");
     }
     return function;
 }
