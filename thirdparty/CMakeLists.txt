@@ -64,11 +64,9 @@ ov_install_static_lib(fluid openvino_common)
 # Gflags
 #
 
-add_subdirectory(gflags EXCLUDE_FROM_ALL)
-
-if(NOT DEFINED gflags_DIR)
-    # export only target built in current source tree;
-    # imported target (found via find_package) cannot be exported
+find_package(gflags QUIET COMPONENTS nothreads_shared)
+if(NOT gflags_FOUND)
+    add_subdirectory(gflags EXCLUDE_FROM_ALL)
     openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 endif()
 
@@ -153,8 +151,8 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 if(CPACK_GENERATOR STREQUAL "DEB")
     # These libraries are dependencies for openvino-samples-2022.1 package
 
-    if(NOT DEFINED gflags_DIR)
-        message(FATAL_ERROR "gflags must be used as a debian package")
+    if(NOT gflags_FOUND)
+        message(FATAL_ERROR "gflags must be used as a debian package. Install libflags-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags

@@ -4,6 +4,10 @@
 
 set(TARGET_NAME subgraphsDumper)
 
+if(NOT TARGET gflags)
+    find_package(gflags REQUIRED COMPONENTS nothreads_shared)
+endif()
+
 list(APPEND DEPENDENCIES
         gflags
         inference_engine

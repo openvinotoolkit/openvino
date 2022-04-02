@@ -106,14 +106,16 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-# TODO: add find_package calls for gflags, zlib and json
+# TODO: add find_package calls for zlib and json
 
-find_package(gflags QUIET COMPONENTS nothreads_shared)
+if(NOT TARGET gflags)
+    find_package(gflags QUIET COMPONENTS nothreads_shared)
 
-if(gflags_FOUND)
-    message(STATUS "gflags (${gflags_VERSION}) are found at ${gflags_DIR}")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND NOT TARGET gflags_nothreads_shared)
-    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    if(gflags_FOUND)
+        message(STATUS "gflags (${gflags_VERSION}) are found at ${gflags_DIR}")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")

@@ -19,6 +19,10 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
+if(NOT TARGET gflags)
+    find_package(gflags QUIET COMPONENTS nothreads_shared)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
     inference_engine_plugin_api
