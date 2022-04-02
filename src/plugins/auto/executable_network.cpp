@@ -29,24 +29,28 @@ using namespace InferenceEngine;
 
 namespace {
 std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
-    auto nGraphFunc = network.getFunction();
-    bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-    if (isINTModel) {
-        return METRIC_VALUE(INT8);
-    }
-    for (auto & node : nGraphFunc->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
-            auto layerType = node->input(1).get_element_type().get_type_name();
-            if (layerType == "f32")
-                return METRIC_VALUE(FP32);
-            if (layerType == "f16")
-                return METRIC_VALUE(FP16);
+    try {
+        auto nGraphFunc = network.getFunction();
+        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        if (isINTModel) {
+            return METRIC_VALUE(INT8);
         }
+        for (auto & node : nGraphFunc->get_ordered_ops()) {
+            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+                auto layerType = node->input(1).get_element_type().get_type_name();
+                if (layerType == "f32")
+                    return METRIC_VALUE(FP32);
+                if (layerType == "f16")
+                    return METRIC_VALUE(FP16);
+            }
+        }
+        return METRIC_VALUE(FP32);
+    } catch (...) {
+        return METRIC_VALUE(FP32);
     }
-    return METRIC_VALUE(FP32);
 }
 }  // namespace
 

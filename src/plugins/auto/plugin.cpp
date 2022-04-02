@@ -350,6 +350,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         try {
             // if network is valid
             network.getFunction();
+            LOG_INFO("[AUTOPLUGIN]:load with CNN network");
             // clone the network, in case of reshape conflict
             clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         } catch (...) {
@@ -358,6 +359,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
                 // do we really need to disable model path?
                 clonedModelPath = "";
+                LOG_INFO("[AUTOPLUGIN]:load with CNN network");
+            } else {
+                LOG_INFO("[AUTOPLUGIN]:load with model path");
             }
         }
 
