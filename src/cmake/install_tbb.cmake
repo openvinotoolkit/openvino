@@ -51,18 +51,11 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
     if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBB})
+    elseif(DEFINED ENV{TBBROOT})
         set(tbb_custom ON)
     endif()
 
-    if(tbb_custom OR ENABLE_SYSTEM_TBB)
-        # since the setup.py for pip installs tbb component
-        # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-        # to ignore from IRC distribution
-        set(exclude_from_all EXCLUDE_FROM_ALL)
-    endif()
-
-    if(ENABLE_SYSTEM_TBB)
+    if(ENABLE_SYSTEM_TBB OR tbb_custom)
         # need to take locations of actual libraries and install them
         foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
             get_target_property(tbb_loc ${tbb_lib} IMPORTED_LOCATION_RELEASE)
@@ -73,39 +66,39 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # We need to install such files
             get_filename_component(name_we "${tbb_loc}" NAME_WE)
             get_filename_component(dir "${tbb_loc}" DIRECTORY)
+            # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
                 if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                    # since the setup.py for pip installs tbb component
+                    # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
+                    # to ignore from IRC / apt / yum distribution;
+                    # but they will be present in .wheel
                     install(FILES "${tbb_file}"
                             DESTINATION runtime/3rdparty/tbb/lib
-                            COMPONENT tbb ${exclude_from_all})
+                            COMPONENT tbb EXCLUDE_FROM_ALL)
                 endif()
             endforeach()
         endforeach()
-    else()
+    elseif(tbb_downloaded)
         if(WIN32)
             install(DIRECTORY "${TBB}/bin"
                     DESTINATION runtime/3rdparty/tbb
-                    COMPONENT tbb ${exclude_from_all})
-        elseif(tbb_custom OR tbb_downloaded)
+                    COMPONENT tbb)
+        else()
             install(DIRECTORY "${TBB}/lib"
                     DESTINATION runtime/3rdparty/tbb
-                    COMPONENT tbb ${exclude_from_all}
-                    FILES_MATCHING
-                        # install only versioned shared libraries
-                        REGEX "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                    COMPONENT tbb)
         endif()
-    endif()
-
-    # development files are needed only for 'tbb_downloaded' case
-    # which we are going to distribute
-    if(tbb_downloaded)
-        ie_cpack_add_component(tbb_dev REQUIRED)
-        list(APPEND core_dev_components tbb_dev)
 
         install(FILES "${TBB}/LICENSE"
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
+
+        # install development files
+
+        ie_cpack_add_component(tbb_dev REQUIRED)
+        list(APPEND core_dev_components tbb_dev)
 
         set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
         install(FILES "${TBB}/cmake/TBBConfig.cmake"
@@ -120,13 +113,14 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # .lib files are needed only for Windows
             install(DIRECTORY "${TBB}/lib"
                     DESTINATION runtime/3rdparty/tbb
-                    COMPONENT tbb)
+                    COMPONENT tbb_dev)
         endif()
+    else()
+        message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
 
     unset(tbb_downloaded)
     unset(tbb_custom)
-    unset(exclude_from_all)
 endif()
 
 # install tbbbind for static OpenVINO case
