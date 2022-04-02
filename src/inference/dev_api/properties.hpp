@@ -126,6 +126,7 @@ class INFERENCE_ENGINE_API_CLASS(PropertyAccess) {
 
     const void* find_access(const std::vector<std::string>& path) const;
     void* find_access(const std::vector<std::string>& path);
+    PropertyAccess::Access::Ptr& find_or_create(const std::string& name);
 
 public:
     /**
@@ -207,7 +208,7 @@ public:
     typename std::enable_if<IsGetter<G>::value, PropertyAccess>::type& add(const std::string& name,
                                                                            G get,
                                                                            Args&&... args) {
-        accesses[name] = std::make_shared<FunctionAccess<G, Args...>>(std::move(get), std::move(args)...);
+        find_or_create(name) = std::make_shared<FunctionAccess<G, Args...>>(std::move(get), std::move(args)...);
         return *this;
     }
 
@@ -260,7 +261,7 @@ public:
     add(const std::string& name,
         const T& deafault_value,
         const PropertyMutability mutability = PropertyMutability::RW) {
-        accesses[name] = std::make_shared<Value<T>>(deafault_value, mutability);
+        find_or_create(name) = std::make_shared<Value<T>>(deafault_value, mutability);
         return *this;
     }
 
@@ -275,7 +276,7 @@ public:
     template <typename T, typename P>
     typename std::enable_if<!IsGetter<T>::value && !IsProperties<T>::value && !IsRef<T>::value, PropertyAccess>::type&
     add(const std::string& name, const T& deafault_value, P precondition) {
-        accesses[name] = std::make_shared<Value<T, P>>(deafault_value, std::move(precondition));
+        find_or_create(name) = std::make_shared<Value<T, P>>(deafault_value, std::move(precondition));
         return *this;
     }
 
@@ -326,7 +327,7 @@ public:
     PropertyAccess& add(const std::string& name,
                         std::reference_wrapper<T> ref,
                         const PropertyMutability mutability = PropertyMutability::RW) {
-        accesses[name] = std::make_shared<Ref<T, T>>(ref, mutability);
+        find_or_create(name) = std::make_shared<Ref<T, T>>(ref, mutability);
         return *this;
     }
 
@@ -340,7 +341,7 @@ public:
      */
     template <typename T, typename P>
     PropertyAccess& add(const std::string& name, std::reference_wrapper<T> ref, P precondition) {
-        accesses[name] = std::make_shared<Ref<T, T, P>>(ref, std::move(precondition));
+        find_or_create(name) = std::make_shared<Ref<T, T, P>>(ref, std::move(precondition));
         return *this;
     }
 
@@ -353,9 +354,9 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename T, PropertyMutability M>
-    PropertyAccess& add(const Property<T, M>& property, const typename Identity<T>::type& default_value = {}) {
-        return add(property.name(), default_value, M);
+    template <typename P>
+    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property, const typename Identity<util::GetPropertyType<P>>::type& default_value = {}) {
+        return add(property.name(), default_value, P::mutability());
     }
 
     /**
@@ -367,10 +368,12 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename T, typename P>
-    PropertyAccess& add(const Property<T, PropertyMutability::RW>& property,
-                        const typename Identity<T>::type& default_value,
-                        P precondition) {
+    template <typename Pr, typename P>
+    util::EnableIfPropertyT<Pr, PropertyAccess&>
+    add(const Pr& property,
+        const typename Identity<util::GetPropertyType<Pr>>::type& default_value,
+        P precondition) {
+        static_assert(Pr::mutability() == PropertyMutability::RW, "Could not add property with Set precondition to no RW value");
         return add(property.name(), default_value, std::move(precondition));
     }
 
@@ -383,9 +386,9 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename T, PropertyMutability M, typename R>
-    PropertyAccess& add(const Property<T, M>& property, std::reference_wrapper<R> ref) {
-        accesses[property.name()] = std::make_shared<Ref<T, R>>(ref, M);
+    template <typename P, typename R>
+    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property, std::reference_wrapper<R> ref) {
+        find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<P>, R>>(ref, P::mutability());
         return *this;
     }
 
@@ -398,11 +401,13 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename T, typename P, typename R>
-    PropertyAccess& add(const Property<T, PropertyMutability::RW>& property,
-                        std::reference_wrapper<R> ref,
-                        P precondition) {
-        accesses[property.name()] = std::make_shared<Ref<T, R, P>>(ref, std::move(precondition));
+    template <typename Pr, typename P, typename R>
+    util::EnableIfPropertyT<Pr, PropertyAccess&>
+    add(const Pr& property,
+        std::reference_wrapper<R> ref,
+        P precondition) {
+        static_assert(Pr::mutability() == PropertyMutability::RW, "Could not add property with Set precondition to no RW value");
+        find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<Pr>, R, P>>(ref, std::move(precondition));
         return *this;
     }
 
@@ -415,11 +420,11 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename T, PropertyMutability M, typename G, typename... Args>
-    typename std::enable_if<IsGetter<G>::value, PropertyAccess>::type& add(const Property<T, M>& property,
-                                                                           G get,
-                                                                           Args&&... args) {
-        if (M == PropertyMutability::RW) {
+    template <typename P, typename G, typename... Args>
+    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property,
+                        G get,
+                        Args&&... args) {
+        if (P::mutability() == PropertyMutability::RW) {
             return add(property.name(), std::move(get), std::forward<Args>(args)...);
         } else {
             return add(property.name(), std::move(get), std::forward<Args>(args)...).ro(property);

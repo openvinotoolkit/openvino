@@ -25,6 +25,8 @@
 #include "template_infer_request.hpp"
 #include "transformations/template_pattern_transformation.hpp"
 #include "transformations/preprocessing/preprocessing.hpp"
+
+#include "cpp_interfaces/interface/internal_properties.hpp"
 // clang-format on
 
 using namespace TemplatePlugin;
@@ -42,9 +44,9 @@ Plugin::Plugin() {
 
     // Add plugin specific properties
     _properties.set_name(_pluginName)
-        .add(ov::device::architecture, "TEMPLATE")
+        .add(ov::common_property(ov::device::architecture), "TEMPLATE")
         .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
-        .add(ov::range_for_async_infer_requests, std::make_tuple(uint{1}, uint{1}, uint{1}));
+        .add(ov::common_property(ov::range_for_async_infer_requests), std::make_tuple(uint{1}, uint{1}, uint{1}));
 
     // Add common read write properties used in template plugin and template compiled model
     _properties.add(_cfg._properties);
@@ -52,8 +54,7 @@ Plugin::Plugin() {
     // If plugin has several devices we can add property for each device
     for (auto device_id : {"0"}) {
         _properties.add(
-            device_id,
-            ov::PropertyAccess{}
+            device_id, ov::PropertyAccess{}
                 .add(ov::device::full_name, "TEMPLATE_DEVICE_0"));
     }
 }

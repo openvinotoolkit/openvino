@@ -9,6 +9,7 @@
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/util/common_util.hpp"
+#include "cpp_interfaces/interface/internal_properties.hpp"
 
 namespace ov {
 struct PropertyAccess::SubAccess : public Access {
@@ -85,26 +86,42 @@ static std::vector<T> flatten_supported(const std::vector<T>& properties, bool f
 PropertyAccess::PropertyAccess() {
     add(ov::supported_properties, [this](const AnyMap& args) {
         auto supporeted_properties = get_supported();
-        return flatten_supported(supporeted_properties, util::contains(args, "OV_FULL_PROPERTIES_ROUTS"));
+        auto flattened = flatten_supported(supporeted_properties, util::contains(args, "OV_FULL_PROPERTIES_ROUTS"));
+        std::vector<PropertyName> properties;
+        for (auto property : flattened) {
+            for (std::string str : {std::string{'.'} + ov::legacy_property.name() + '.',
+                                    std::string{ov::legacy_property.name()} + '.',
+                                    std::string{'.'} + ov::common_property.name() + '.',
+                                    std::string{ov::common_property.name()} + '.'}) {
+                for (auto i = property.find(str); i != std::string::npos; i = property.find(str)) {
+                    property.erase(i, str.size());
+                }
+            }
+            properties.emplace_back(std::move(property));
+        }
+        return properties;
     });
-    add(METRIC_KEY(SUPPORTED_METRICS), [this] {
+
+    auto get_legacy_properties = [this] (bool mutability) {
         std::vector<std::string> property_names;
-        for (auto&& supporeted_property : get_supported()) {
-            if (!supporeted_property.is_mutable()) {
-                property_names.emplace_back(supporeted_property);
+        for (auto&& properties_set : {ov::legacy_property, ov::common_property}) {
+            auto it_supported = accesses.find(properties_set.name());
+            if (it_supported != accesses.end()) {
+                OPENVINO_ASSERT(it_supported->second->is_sub_access());
+                for (auto&& supporeted_property : it_supported->second->sub_access().get_supported()) {
+                    if (mutability == supporeted_property.is_mutable()) {
+                        property_names.emplace_back(supporeted_property);
+                    }
+                }
             }
         }
         return flatten_supported(property_names);
+    };
+    add(METRIC_KEY(SUPPORTED_METRICS), [this, get_legacy_properties] {
+        return get_legacy_properties(false);
     });
-    add(METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this] {
-        std::vector<std::string> property_names;
-        for (auto&& supporeted_property : get_supported()) {
-            if (supporeted_property.is_mutable()) {
-                property_names.emplace_back(supporeted_property);
-            }
-        }
-        auto flattedned_supported = flatten_supported(property_names);
-        return flatten_supported(property_names);
+    add(METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this, get_legacy_properties] {
+        return get_legacy_properties(true);
     });
 }
 
@@ -206,6 +223,25 @@ std::vector<std::vector<std::string>> PropertyAccess::get_all_pathes() const {
     return pathes;
 }
 
+PropertyAccess::Access::Ptr& PropertyAccess::find_or_create(const std::string& name) {
+    auto in_path = util::split(name, '.');
+    std::vector<std::string> path;
+    if (!name.empty() && (in_path.front() == name)) {
+        path = {in_path.begin() + 1, in_path.end()};
+    } else {
+        path = in_path;
+    }
+    if (path.size() > 1) {
+        auto it_access = accesses.find(path.front());
+        if (it_access == accesses.end()) {
+            add(path.front(), PropertyAccess{});
+        }
+        return accesses.at(path.front())->sub_access().find_or_create(util::join(std::vector<std::string>{path.begin() + 1, path.end()}, "."));
+    } else {
+        return accesses[in_path.back()];
+    }
+};
+
 const void* PropertyAccess::find_access(const std::vector<std::string>& in_path) const {
     std::vector<std::string> path;
     const void* result = nullptr;
@@ -243,7 +279,6 @@ std::vector<std::vector<std::string>> PropertyAccess::find_property(const std::v
             auto mismatch = std::mismatch(rout.size() < path.size() ? rout.crbegin() : path.crbegin(),
                                           rout.size() < path.size() ? rout.crend() : path.crend(),
                                           rout.size() >= path.size() ? rout.crbegin() : path.crbegin());
-
             return (mismatch.first != (rout.size() < path.size() ? rout.crbegin() : path.crbegin())) &&
                    (mismatch.second != (rout.size() >= path.size() ? rout.crbegin() : path.crbegin())) &&
                    ((mismatch.first == (rout.size() < path.size() ? rout.crend() : path.crend())) ||

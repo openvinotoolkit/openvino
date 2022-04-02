@@ -92,6 +92,9 @@ using EnableIfProperty = typename std::enable_if<std::is_base_of<util::PropertyT
 template <typename P, typename T>
 using EnableIfPropertyT = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, T>::type;
 
+template<typename P>
+using GetPropertyType = typename P::value_type;
+
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
@@ -100,7 +103,7 @@ template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
 struct BaseProperty : public PropertyTag {
     friend class NamedProperties;
     using value_type = T;                                  //!< Property type
-    constexpr static const auto mutability = mutability_;  //!< Property readability
+    constexpr static PropertyMutability mutability(){ return mutability_;}
 
     /**
      * @brief Constructs property access variable
@@ -266,9 +269,20 @@ struct NamedProperties : public util::PropertyTag {
      * @param property property object without prefix
      * @return property object with prefix
      */
-    template <template <typename, PropertyMutability> class Property, typename T, PropertyMutability M>
-    inline util::PrefixedProperty<T, M> operator()(const Property<T, M>& property) const {
+    template <typename P>
+    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability()>>
+    operator()(const P& property) const {
         return {_name, property.name()};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @param property_name name of property object without prefix
+     * @return property object with prefix
+     */
+    inline std::string operator()(const std::string& property_name) const {
+        return _name + property_name;
     }
 
     /**

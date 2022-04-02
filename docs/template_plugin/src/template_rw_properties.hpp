@@ -11,6 +11,8 @@
 #include <template/properties.hpp>
 #include <threading/ie_istreams_executor.hpp>
 
+#include "cpp_interfaces/interface/internal_properties.hpp"
+
 #include "properties.hpp"
 
 namespace TemplatePlugin {
@@ -20,7 +22,7 @@ struct RwProperties {
     RwProperties() {
         _properties
             .add(
-                ov::device::id,
+                ov::common_property(ov::device::id),
                 [this] {
                     return std::to_string(deviceId);
                 },
@@ -30,11 +32,12 @@ struct RwProperties {
                 [](const std::string& str) {
                     OPENVINO_ASSERT(str == "0", "Unsupported device id: ", str);
                 })
-            .add(ov::available_devices, {"0"})
+            .add(ov::common_property(ov::available_devices), {"0"})
+            .add(ov::common_property(ov::enable_profiling), std::ref(enable_propfinling))
             .add(ov::template_plugin::ro_property)
             .add(ov::template_plugin::rw_property, ov::template_plugin::Value::UNDEFINED)
-            .add(ov::enable_profiling, std::ref(enable_propfinling))
             .add(ov::infer_property, _streamsExecutorConfig.properties)
+            .add(ov::inference_num_threads, std::ref(_streamsExecutorConfig._threads))
             .add(ov::hint::performance_mode, std::ref(performance_mode));
     }
     int deviceId = 0;
