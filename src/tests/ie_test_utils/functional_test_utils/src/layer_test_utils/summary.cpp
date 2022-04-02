@@ -3,6 +3,9 @@
 //
 
 #include <pugixml.hpp>
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -159,8 +162,8 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
 
     for (const auto &op : function->get_ordered_ops()) {
         if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
-            ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+             ngraph::is_type<ngraph::op::Constant>(op) ||
+             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
@@ -243,6 +246,11 @@ void Summary::saveReport() {
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());
         filename += "_" + processId + "_" + std::string(CommonTestUtils::GetTimestamp());
+#ifdef __linux__
+        std::ostringstream stream;
+        stream << getpid() << "_" << getppid();
+        filename += (" " + stream.str());
+#endif
     }
     filename += CommonTestUtils::REPORT_EXTENSION;
 
@@ -338,8 +346,8 @@ void Summary::saveReport() {
                 PassRate obj(p, f, s, c, h);
 
                 (implStatus || obj.isImplemented)
-                    ? entry.attribute("implemented").set_value(true)
-                    : entry.attribute("implemented").set_value(false);
+                ? entry.attribute("implemented").set_value(true)
+                : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
