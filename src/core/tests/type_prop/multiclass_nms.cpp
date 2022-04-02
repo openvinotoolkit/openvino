@@ -30,7 +30,7 @@ TEST(type_prop2, multiclass_nms_incorrect_boxes_rank) {
     try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-        const auto roisnum = make_shared<op::Parameter>(element::f32, Shape{1});
+        const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1});
 
         const auto unused =
             make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
@@ -69,7 +69,7 @@ TEST(type_prop2, multiclass_nms_incorrect_roisnum_rank) {
     try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 3});
-        const auto roisnum = make_shared<op::Parameter>(element::f32, Shape{1, 2});
+        const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1, 2});
 
         const auto unused =
             make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
@@ -93,7 +93,7 @@ TEST(type_prop2, multiclass_nms_incorrect_scheme_num_classes) {
     try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 3});
-        const auto roisnum = make_shared<op::Parameter>(element::f32, Shape{1});
+        const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1});
 
         const auto unused =
             make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
@@ -119,7 +119,7 @@ TEST(type_prop2, multiclass_nms_incorrect_scheme_num_boxes) {
     try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 3, 3});
-        const auto roisnum = make_shared<op::Parameter>(element::f32, Shape{1});
+        const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1});
 
         const auto unused =
             make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
@@ -329,7 +329,7 @@ TYPED_TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores) {
 TEST(type_prop2, multiclass_nms_dynamic_boxes_and_scores) {
     const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto roisnum = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto roisnum = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
 
     const auto nms =
         make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
@@ -364,7 +364,7 @@ TEST(type_prop2, multiclass_nms_dynamic_boxes_and_scores2) {
         make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic(), Dimension::dynamic(), 4}));
     const auto scores =
         make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic(), Dimension::dynamic()}));
-    const auto roisnum = make_shared<op::Parameter>(element::f32, PartialShape({Dimension::dynamic()}));
+    const auto roisnum = make_shared<op::Parameter>(element::i32, PartialShape({Dimension::dynamic()}));
 
     const auto nms =
         make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());

@@ -97,7 +97,7 @@ TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
     NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto roisnum = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});
 
     opset9::MulticlassNms::Attributes attrs;
     attrs.sort_result_type = opset9::MulticlassNms::SortResultType::SCORE;
@@ -147,7 +147,7 @@ TEST(attributes, multiclass_nms_v9_op_default_attributes) {
     NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto roisnum = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});
 
     auto nms = make_shared<opset9::MulticlassNms>(boxes, scores, roisnum, opset9::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
