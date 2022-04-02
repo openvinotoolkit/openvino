@@ -69,7 +69,20 @@ INSTANTIATE_TEST_SUITE_P(
 // IE Class SetConfig
 //
 
-using IEClassSetConfigTestHETERO = BehaviorTestsUtils::IEClassNetworkTest;
+class IEClassSetConfigTestHETERO : public BehaviorTestsUtils::IEClassNetworkTest,
+                                   public virtual ov::test::behavior::APIBaseTest {
+protected:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ie_plugin;
+    }
+
+public:
+    void SetUp() override {
+        target_device = CommonTestUtils::DEVICE_HETERO;
+        APIBaseTest::SetUp();
+        IEClassNetworkTest::SetUp();
+    }
+};
 
 TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     {
@@ -115,7 +128,21 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-using IEClassGetConfigTestTEMPLATE = BehaviorTestsUtils::IEClassNetworkTest;
+class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTest,
+public ov::test::behavior::APIBaseTest {
+protected:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ie_plugin;
+    }
+
+public:
+    void SetUp() override {
+        target_device = CommonTestUtils::DEVICE_TEMPLATE;
+        APIBaseTest::SetUp();
+        IEClassNetworkTest::SetUp();
+    }
+
+};
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
