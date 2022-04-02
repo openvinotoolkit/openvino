@@ -30,7 +30,7 @@ function(ov_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
 
-    set(all_dev_targets gflags ov_runtime_libraries)
+    set(all_dev_targets ov_runtime_libraries)
     foreach(component IN LISTS openvino_export_components)
         string(FIND "${component}" "_legacy" index)
         if (index EQUAL -1)

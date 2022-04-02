@@ -106,8 +106,13 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
-    NOT DEFINED OpenVINO_SOURCE_DIR)
+# TODO: add find_package calls for gflags, zlib and json
+
+find_package(gflags QUIET COMPONENTS nothreads_shared)
+
+if(gflags_FOUND)
+    message(STATUS "gflags (${gflags_VERSION}) are found at ${gflags_DIR}")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND NOT TARGET gflags_nothreads_shared)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
 endif()
 
@@ -215,12 +220,10 @@ macro(ie_add_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
 
-    install(
-        TARGETS ${IE_SAMPLE_NAME}
-        RUNTIME DESTINATION samples_bin/
-        COMPONENT samples_bin
-        EXCLUDE_FROM_ALL
-    )
+    install(TARGETS ${IE_SAMPLE_NAME}
+            RUNTIME DESTINATION samples_bin/
+            COMPONENT samples_bin
+            EXCLUDE_FROM_ALL)
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
