@@ -82,10 +82,11 @@ unset(protobuf_installed CACHE)
 
 #
 # ov_add_frontend(NAME <IR|ONNX|...>
-#                 FILEDESCRIPTION <description>
-#                 [LINKABLE_FRONTEND]
-#                 [SKIP_INSTALL]
-#                 [PROTOBUF_LITE]
+#                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
+#                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
+#                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [PROTOBUF_LITE] # requires only libprotobuf-lite
+#                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
@@ -242,7 +243,7 @@ macro(ov_add_frontend)
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
-            # install -dev part
+            # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
                     COMPONENT core_dev

@@ -455,34 +455,23 @@ bool transform_to_pwl(
     return true;
 }
 
-template<typename T>
-bool transform_to_pwl(const std::tuple<T>& args,
-                      const std::shared_ptr<ngraph::Node>& fake_quantize,
-                      const std::shared_ptr<ngraph::Node>& node,
-                      double allowed_err_pct);
-
-template<typename T, typename ...Types>
-bool transform_to_pwl(const std::tuple<T, Types...>& args,
-                      const std::shared_ptr<ngraph::Node>& fake_quantize,
-                      const std::shared_ptr<ngraph::Node>& node,
-                      double allowed_err_pct) {
-    auto op = std::dynamic_pointer_cast<T>(node);
-    if (op) {
-        return transform_to_pwl(fake_quantize, op, allowed_err_pct);
-    }
-    return transform_to_pwl<Types...>(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
+static bool transform_to_pwl(std::tuple<>&&,
+                             const std::shared_ptr<ngraph::Node>&,
+                             const std::shared_ptr<ngraph::Node>&,
+                             double) {
+    return false;
 }
 
-template<typename T>
-bool transform_to_pwl(const std::tuple<T>& args,
-                      const std::shared_ptr<ngraph::Node>& fake_quantize,
-                      const std::shared_ptr<ngraph::Node>& node,
-                      double allowed_err_pct) {
+template<typename T, typename ...Types>
+static bool transform_to_pwl(std::tuple<T, Types...>&&,
+                             const std::shared_ptr<ngraph::Node>& fake_quantize,
+                             const std::shared_ptr<ngraph::Node>& node,
+                             double allowed_err_pct) {
     auto op = std::dynamic_pointer_cast<T>(node);
     if (op) {
         return transform_to_pwl(fake_quantize, op, allowed_err_pct);
     }
-    return false;
+    return transform_to_pwl(std::tuple<Types...>(), fake_quantize, node, allowed_err_pct);
 }
 
 static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrite_callback& handler_callback,
