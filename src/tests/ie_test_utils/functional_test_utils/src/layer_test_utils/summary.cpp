@@ -249,7 +249,7 @@ void Summary::saveReport() {
 #ifdef __linux__
         std::ostringstream stream;
         stream << getpid() << "_" << getppid();
-        filename += (" " + stream.str());
+        filename += ("_" + stream.str());
 #endif
     }
     filename += CommonTestUtils::REPORT_EXTENSION;
