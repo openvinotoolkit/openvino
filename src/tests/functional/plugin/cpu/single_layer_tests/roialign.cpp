@@ -149,9 +149,11 @@ protected:
 
         auto float_params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
         auto int_params = ngraph::builder::makeDynamicParams(ngraph::element::i32, { inputDynamicShapes[2] });
+        auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
+        auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 
         auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
-                                                                   samplingRatio, spatialScale, mode, alignedMode);
+                                                                   samplingRatio, spatialScale, pooling_mode, aligned_mode);
 
         selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
         if (inputPrecision == ElementType::bf16) {

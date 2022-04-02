@@ -173,7 +173,8 @@ private:
         const auto featureMap = std::make_shared<opset1::Parameter>(params.iType, params.pShape);
         const auto coords = std::make_shared<opset1::Constant>(params.coords.type, params.coords.shape, params.coords.data.data());
         const auto roisIdx = std::make_shared<opset1::Constant>(params.roiIdx.type, params.roiIdx.shape, params.roiIdx.data.data());
-        // TODO: use opset9
+        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum(params.poolingMode);
+        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum(params.alignedMode);
         const auto roi_align = std::make_shared<opset9::ROIAlign>(featureMap,
                                                                   coords,
                                                                   roisIdx,
@@ -181,8 +182,8 @@ private:
                                                                   params.pooledW,
                                                                   params.poolingRatio,
                                                                   params.spatialScale,
-                                                                  params.poolingMode,
-                                                                  params.alignedMode);
+                                                                  pooling_mode,
+                                                                  aligned_mode);
         auto f = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{featureMap});
         return f;
     }

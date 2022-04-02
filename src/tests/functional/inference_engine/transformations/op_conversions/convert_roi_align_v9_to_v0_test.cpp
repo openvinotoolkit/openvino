@@ -33,6 +33,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0) {
         const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
         const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
         const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
+        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
 
         auto roi_align = std::make_shared<opset9::ROIAlign>(data,
                                                             rois,
@@ -41,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0) {
                                                             pooled_width,
                                                             2,
                                                             1.0f / 16.0f,
-                                                            "avg");
+                                                            pooling_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
         manager.register_pass<pass::ConvertROIAlign9To0>();
@@ -90,6 +91,8 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0_aligned_mode) {
         const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
         const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
         const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
+        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
+        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
 
         auto roi_align = std::make_shared<opset9::ROIAlign>(data,
                                                             rois,
@@ -98,8 +101,8 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0_aligned_mode) {
                                                             pooled_width,
                                                             2,
                                                             1.0f / 16.0f,
-                                                            "avg",
-                                                            "tf_half_pixel_for_nn");
+                                                            pooling_mode,
+                                                            aligned_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
         manager.register_pass<pass::ConvertROIAlign9To0>();

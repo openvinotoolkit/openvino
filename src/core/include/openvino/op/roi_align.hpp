@@ -88,8 +88,7 @@ private:
 namespace v9 {
 class OPENVINO_API ROIAlign : public Op {
 public:
-    OPENVINO_OP("ROIAlign", "opset9", op::Op, 9);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("ROIAlign", "opset9");
     enum class PoolingMode { AVG, MAX };
     enum class AlignedMode { ASYMMETRIC, TF_HALF_PIXEL_FOR_NN, HALF_PIXEL };
 
@@ -107,16 +106,6 @@ public:
     /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     /// \param mode            Method of pooling - 'avg' or 'max'
     /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'tf_half_pixel_for_nn' or 'half_pixel'
-    ROIAlign(const Output<Node>& input,
-             const Output<Node>& rois,
-             const Output<Node>& batch_indices,
-             const int pooled_h,
-             const int pooled_w,
-             const int sampling_ratio,
-             const float spatial_scale,
-             const std::string& mode,
-             const std::string& aligned_mode = "asymmetric");
-
     ROIAlign(const Output<Node>& input,
              const Output<Node>& rois,
              const Output<Node>& batch_indices,
@@ -156,8 +145,6 @@ public:
 
 private:
     PoolingMode mode_from_string(const std::string& mode) const;
-
-private:
     int m_pooled_h;
     int m_pooled_w;
     int m_sampling_ratio;
@@ -191,7 +178,6 @@ public:
         : EnumAttributeAdapterBase<op::v9::ROIAlign::PoolingMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::ROIAlign::PoolingMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& mode);
@@ -204,7 +190,6 @@ public:
         : EnumAttributeAdapterBase<op::v9::ROIAlign::AlignedMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::ROIAlign::AlignedMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

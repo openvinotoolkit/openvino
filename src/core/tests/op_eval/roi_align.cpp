@@ -157,6 +157,8 @@ TEST(op_eval, roi_align_9_avg_pool_asymmetric) {
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("asymmetric");
 
     auto roi_align = make_shared<op::v9::ROIAlign>(data,
                                                    rois,
@@ -165,8 +167,8 @@ TEST(op_eval, roi_align_9_avg_pool_asymmetric) {
                                                    pooled_width,
                                                    2,
                                                    1.0f / 16.0f,
-                                                   "avg",
-                                                   "asymmetric");
+                                                   pooling_mode,
+                                                   aligned_mode);
 
     auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
 
@@ -227,9 +229,16 @@ TEST(op_eval, roi_align_9_avg_pool_default_aligned_mode) {
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
 
-    auto roi_align =
-        make_shared<op::v9::ROIAlign>(data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f / 16.0f, "avg");
+    auto roi_align = make_shared<op::v9::ROIAlign>(data,
+                                                   rois,
+                                                   batch_indices,
+                                                   pooled_height,
+                                                   pooled_width,
+                                                   2,
+                                                   1.0f / 16.0f,
+                                                   pooling_mode);
 
     auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
 
@@ -290,6 +299,8 @@ TEST(op_eval, roi_align_9_avg_pool_tf_half_pixel_for_nn) {
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
 
     auto roi_align = make_shared<op::v9::ROIAlign>(data,
                                                    rois,
@@ -298,8 +309,8 @@ TEST(op_eval, roi_align_9_avg_pool_tf_half_pixel_for_nn) {
                                                    pooled_width,
                                                    2,
                                                    1.0f / 16.0f,
-                                                   "avg",
-                                                   "tf_half_pixel_for_nn");
+                                                   pooling_mode,
+                                                   aligned_mode);
 
     auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
 
@@ -360,6 +371,8 @@ TEST(op_eval, roi_align_9_max_pool_half_pixel) {
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("max");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("half_pixel");
 
     auto roi_align = make_shared<op::v9::ROIAlign>(data,
                                                    rois,
@@ -368,8 +381,8 @@ TEST(op_eval, roi_align_9_max_pool_half_pixel) {
                                                    pooled_width,
                                                    2,
                                                    1.0f / 16.0f,
-                                                   "max",
-                                                   "half_pixel");
+                                                   pooling_mode,
+                                                   aligned_mode);
 
     auto f = make_shared<Function>(roi_align, ParameterVector{data, rois, batch_indices});
 
