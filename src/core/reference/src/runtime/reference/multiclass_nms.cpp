@@ -10,6 +10,7 @@
 #include <queue>
 #include <vector>
 
+#include "../shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "ngraph/shape.hpp"
@@ -113,49 +114,6 @@ std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input, cons
     return result;
 }
 
-constexpr size_t boxes_port = 0;
-constexpr size_t scores_port = 1;
-constexpr size_t roisnum_port = 2;
-
-static PartialShape infer_selected_outputs_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                                 int nms_top_k,
-                                                 int keep_top_k) {
-    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-    const auto scores_ps = inputs[scores_port]->get_partial_shape();
-
-    PartialShape result = {Dimension::dynamic(), 6};
-
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
-            scores_ps[1].is_static()) {  // FIXME: Do we need this check here?
-            const bool shared = (scores_ps.rank().get_length() == 3);
-
-            const auto num_boxes = shared ? boxes_ps[1].get_length() : boxes_ps[0].get_length();
-            const auto num_classes = shared ? scores_ps[1].get_length() : boxes_ps[1].get_length();
-            auto num_images = scores_ps[0].get_length();
-            if (!shared) {
-                const auto roisnum_ps = inputs[roisnum_port]->get_partial_shape();
-                num_images = roisnum_ps[0].get_length();
-            }
-
-            int64_t max_output_boxes_per_class = 0;
-            if (nms_top_k >= 0)
-                max_output_boxes_per_class = std::min(num_boxes, (int64_t)nms_top_k);
-            else
-                max_output_boxes_per_class = num_boxes;
-
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
-
-            result[0] = max_output_boxes_per_batch * num_images;
-        }
-    }
-
-    return result;
-}
-
 static std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
     auto result = get_floats(boxes, boxes_shape);
     return result;
@@ -174,13 +132,34 @@ static std::vector<int64_t> prepare_roisnum_data(const std::shared_ptr<HostTenso
 
 }  // namespace
 
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+constexpr size_t roisnum_port = 2;
+
 InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBase>& nms,
                                  const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForNMS result;
 
-    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
-    result.selected_outputs_shape = selected_outputs_shape.to_shape();
-    result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    if (nms->get_input_size() == 3) {
+        const auto roisnum_ps = inputs[roisnum_port]->get_partial_shape();
+        input_shapes.push_back(roisnum_ps);
+    }
+
+    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
+                                               {Dimension::dynamic(), 1},
+                                               {Dimension::dynamic()}};
+    ov::op::util::shape_infer(nms.get(),
+                              input_shapes,
+                              output_shapes,
+                              true,
+                              false);  // here just for upper boundary estimation.
+
+    result.selected_outputs_shape = output_shapes[0].to_shape();
+    result.selected_indices_shape = output_shapes[1].to_shape();
+    result.selected_numrois_shape = output_shapes[2].to_shape();
 
     result.boxes_shape = inputs[boxes_port]->get_shape();
     result.scores_shape = inputs[scores_port]->get_shape();
@@ -191,9 +170,6 @@ InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBa
     if (inputs.size() == 3) {
         result.roisnum_shape = inputs[roisnum_port]->get_shape();
         result.roisnum_data = prepare_roisnum_data(inputs[roisnum_port], result.roisnum_shape);
-        result.selected_numrois_shape = {result.roisnum_shape[0]};
-    } else {
-        result.selected_numrois_shape = {inputs[boxes_port]->get_shape()[0]};
     }
 
     result.selected_outputs_shape_size = shape_size(result.selected_outputs_shape);

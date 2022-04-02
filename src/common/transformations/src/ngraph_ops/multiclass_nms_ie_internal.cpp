@@ -4,10 +4,12 @@
 
 #include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
+#include "../../core/shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace ov::op::util;
 
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                                                const Output<Node>& scores,
@@ -40,7 +42,22 @@ void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
 
     validate();
-    infer_shape_types(true, true);
+
+    const auto& boxes_ps = get_input_partial_shape(0);
+    const auto& scores_ps = get_input_partial_shape(1);
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    if (get_input_size() == 3) {
+        const auto& roisnum_ps = get_input_partial_shape(2);
+        input_shapes.push_back(roisnum_ps);
+    }
+
+    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
+                                               {Dimension::dynamic(), 1},
+                                               {Dimension::dynamic()}};
+    shape_infer(this, input_shapes, output_shapes, true, true);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, m_output_type, output_shapes[1]);
+    set_output_type(2, m_output_type, output_shapes[2]);
 }
 
 const ::ngraph::Node::type_info_t& op::internal::MulticlassNmsIEInternal::get_type_info() const {
