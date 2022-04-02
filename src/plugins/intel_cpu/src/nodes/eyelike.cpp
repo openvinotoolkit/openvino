@@ -117,7 +117,7 @@ void Eye::executeSpecified() {
                               absShift < maxSide ? minSide - absShift : 0);
     size_t dataShift = (shift >= 0 ? shift : -shift * colNum);
     for (size_t i = 0; i < onesPerBatchNum; i++) {
-        dst[dataShift + i + i * colNum] = 1;
+        dst[dataShift + i * (colNum + 1)] = 1;
     }
 }
 
