@@ -8,6 +8,16 @@ import sys
 
 from save_model import saveModel
 
+import paddle as pdpd
+# from ppdet.modeling.ops import multiclass_nms as multiclass_nms
+# from ppdet.modeling.ops import matrix_nms as matrix_nms
+
+import importlib
+spec = importlib.util.find_spec("ppdet")
+sys.path.insert(0, os.path.join(os.path.dirname(spec.origin),'modeling'))
+from ops import multiclass_nms as multiclass_nms
+from ops import matrix_nms as matrix_nms
+
 # print numpy array like vector array
 # this is to faciliate some unit test, e.g. ngraph op unit test.
 
@@ -48,9 +58,6 @@ def print_alike(arr, seperator_begin='{', seperator_end='}'):
 # bboxes shape (N, M, 4)
 # scores shape (N, C, M)
 def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
-    import paddle as pdpd
-    from ppdet.modeling.ops import multiclass_nms as multiclass_nms
-    from ppdet.modeling.ops import matrix_nms as matrix_nms
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(),
