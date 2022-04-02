@@ -61,6 +61,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign0To9) {
         const auto data = std::make_shared<opset9::Parameter>(element::f32, data_shape);
         const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
         const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
+        const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
 
         auto roi_align = std::make_shared<opset9::ROIAlign>(data,
                                                             rois,
@@ -69,7 +70,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign0To9) {
                                                             pooled_width,
                                                             2,
                                                             1.0f / 16.0f,
-                                                            "avg");
+                                                            pooling_mode);
 
         function_ref = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
     }

@@ -121,27 +121,6 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
 
 // ------------------------------ V9 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v9::ROIAlign);
-
-op::v9::ROIAlign::ROIAlign(const Output<Node>& input,
-                           const Output<Node>& rois,
-                           const Output<Node>& batch_indices,
-                           const int pooled_h,
-                           const int pooled_w,
-                           const int sampling_ratio,
-                           const float spatial_scale,
-                           const string& mode,
-                           const string& aligned_mode)
-    : Op{{input, rois, batch_indices}},
-      m_pooled_h{pooled_h},
-      m_pooled_w{pooled_w},
-      m_sampling_ratio{sampling_ratio},
-      m_spatial_scale{spatial_scale},
-      m_mode{EnumNames<ROIAlign::PoolingMode>::as_enum(mode)},
-      m_aligned_mode{EnumNames<ROIAlign::AlignedMode>::as_enum(aligned_mode)} {
-    constructor_validate_and_infer_types();
-}
-
 op::v9::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
                            const Output<Node>& batch_indices,
@@ -243,8 +222,6 @@ NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::o
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v9::ROIAlign::PoolingMode>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>::get() {
     static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>(
@@ -252,8 +229,6 @@ NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::PoolingMode>& EnumNames<ngraph::o
         {{"avg", ngraph::op::v9::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v9::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v9::ROIAlign::AlignedMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>& EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>::get() {
