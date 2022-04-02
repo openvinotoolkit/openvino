@@ -50,7 +50,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, tensor{1}, tensor{0}, tensor{1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", "conv", reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
@@ -66,7 +66,6 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            auto temp = usr->get_output_layout();
             EXPECT_EQ(false, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
@@ -92,7 +91,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, tensor{1}, tensor{0}, tensor{1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", "conv", reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
@@ -108,7 +107,6 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            auto temp = usr->get_output_layout();
             EXPECT_EQ(true, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
@@ -186,7 +184,6 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            auto temp = usr->get_output_layout();
             EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
@@ -221,7 +218,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv2", { "reorder_input" }, { "weights" }, { "bias"}, 1, tensor{1}, tensor{0}, tensor{1}, p.out_shape, p.input_data_type, false));
+    topology.add(cldnn::convolution("conv2", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
     topology.add(reorder("reorder_conv", "conv2", reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
@@ -237,7 +234,6 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            auto temp = usr->get_output_layout();
             EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
@@ -285,7 +281,6 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            auto temp = usr->get_output_layout();
             EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }

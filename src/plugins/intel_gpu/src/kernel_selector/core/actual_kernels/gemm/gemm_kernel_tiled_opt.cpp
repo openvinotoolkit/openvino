@@ -29,7 +29,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
 }
 
 GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
     GemmTuningData td = SetTuningParams(params);
@@ -49,7 +49,7 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
 }
 
 GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gemm_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     GemmKernelTiledOpt::GemmTuningData tuning_data;
 
@@ -84,7 +84,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = Parent::GetJitConstants(params);
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     GemmTuningData tuning_data = SetTuningParams(params);
 
     auto m_size = output.Y().v;

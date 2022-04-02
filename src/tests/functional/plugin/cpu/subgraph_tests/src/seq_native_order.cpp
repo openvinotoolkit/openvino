@@ -33,7 +33,8 @@ using SeqParams = std::tuple<SEQ_TYPE,                            // node type
                              float,                               // Clip
                              bool,                                // Linear_before_reset
                              ov::op::RecurrentSequenceDirection,  // Direction
-                             ElementType>;                        // Network precision
+                             ElementType,                         // Network precision
+                             ngraph::helpers::InputLayerType>;    // 'sequence_lengths' input type
 
 class SequenceCPUTest : public testing::WithParamInterface<SeqParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
@@ -46,8 +47,9 @@ public:
         bool linearBeforeReset;
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
+        ngraph::helpers::InputLayerType seqInType;
 
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision) = obj.param;
+        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = obj.param;
 
         std::vector<ov::Dimension> bounds;
         std::vector<TargetShapeParams> targetShapes;
@@ -76,7 +78,8 @@ public:
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";
-        result << "netPrec=" << netPrecision;
+        result << "netPrec=" << netPrecision << "_";
+        result << "seqInType=" << seqInType << "_";
 
         return result.str();
     }
@@ -95,7 +98,7 @@ protected:
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
 
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision) = this->GetParam();
+        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = this->GetParam();
 
         std::vector<ov::Dimension> bounds;
         std::vector<TargetShapeParams> targetShapes;
@@ -116,8 +119,6 @@ protected:
         if (seqType == SEQ_TYPE::LSTM) {
             inputDynamicShapes.push_back(second_in_shape);
         }
-        ov::PartialShape seq_len_shape(std::vector<ov::Dimension>{bounds[batch_size_pos]});
-        inputDynamicShapes.push_back(seq_len_shape);
 
         auto hidden_size_weight = hidden_size;
         if (seqType == SEQ_TYPE::GRU) {
@@ -139,6 +140,14 @@ protected:
         }
         weightShape.push_back(B_shape);
 
+        ov::PartialShape seq_len_shape(std::vector<ov::Dimension>{bounds[batch_size_pos]});
+        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+            inputDynamicShapes.push_back(seq_len_shape);
+        } else {
+            IE_ASSERT(seq_len_shape.is_static());
+            weightShape.push_back(seq_len_shape.to_shape());
+        }
+
         // target shape
         for (const auto &ts : targetShapes) {
             std::vector<ov::Shape> currTS;
@@ -151,13 +160,17 @@ protected:
             if (seqType == SEQ_TYPE::LSTM) {
                 currTS.emplace_back(std::vector<size_t>{bs, numDirections, hidden_size});
             }
-            currTS.emplace_back(std::vector<size_t>{bs});
+            if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+                currTS.emplace_back(std::vector<size_t>{bs});
+            }
             targetStaticShapes.push_back(currTS);
         }
 
         // funciton creation
         std::vector<ov::element::Type> types(inputDynamicShapes.size(), netPrecision);
-        types.back() = ElementType::i64;
+        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+            types.back() = ElementType::i64;
+        }
         auto params = ngraph::builder::makeDynamicParams(types, inputDynamicShapes);
 
         std::vector<int64_t> order_ref_before = {1, 0, 2};
@@ -184,7 +197,9 @@ protected:
                                                 linearBeforeReset,
                                                 true,
                                                 direction,
-                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM);
+                                                (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
+                                                ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
+                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else if (seqType == SEQ_TYPE::LSTM) {
             seq_node = ngraph::builder::makeLSTM(inputs,
                                                  weightShape,
@@ -195,7 +210,9 @@ protected:
                                                  clip,
                                                  true,
                                                  direction,
-                                                 ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM);
+                                                 (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
+                                                 ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
+                                                 ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else if (seqType == SEQ_TYPE::RNN) {
             seq_node = ngraph::builder::makeRNN(inputs,
                                                 weightShape,
@@ -206,7 +223,9 @@ protected:
                                                 clip,
                                                 true,
                                                 direction,
-                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM);
+                                                (seqInType == ngraph::helpers::InputLayerType::CONSTANT ?
+                                                ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST :
+                                                ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM));
         } else {
             IE_THROW() << "Unsupported seq type";
         }
@@ -232,16 +251,19 @@ protected:
         const size_t batchSize = targetInputStaticShapes[0][1];
         const int64_t maxSeqLen = targetInputStaticShapes[0][0];
 
-        const auto& funcInputs = function->inputs();
-        const auto& seqLenInput = inputs.find(funcInputs[seqLengthInIdx].get_node_shared_ptr());
-        if (seqLenInput == inputs.end())
-            throw std::runtime_error("Could not find Sequence length input.");
+        if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
+            const auto& funcInputs = function->inputs();
+            const auto& seqLenInput = inputs.find(funcInputs[seqLengthInIdx].get_node_shared_ptr());
+            if (seqLenInput == inputs.end())
+                throw std::runtime_error("Could not find Sequence length input.");
 
-        auto lenData = seqLenInput->second.data<ov::element_type_traits<ElementType::i64>::value_type>();
-        std::fill(lenData, lenData + batchSize, maxSeqLen);
+            auto lenData = seqLenInput->second.data<ov::element_type_traits<ElementType::i64>::value_type>();
+            std::fill(lenData, lenData + batchSize, maxSeqLen);
+        }
     }
 
 private:
+    ngraph::helpers::InputLayerType seqInType;
     size_t seqLengthInIdx = 2;
 };
 
@@ -265,14 +287,27 @@ const std::vector<size_t> inputSizes = {
     1, 10
 };
 
-const std::vector<InputShapeParams> inShapeParams = {
+const std::vector<InputShapeParams> inShapeParams_dynamic = {
     InputShapeParams{std::vector<ov::Dimension>{-1, -1}, std::vector<TargetShapeParams>{TargetShapeParams{3, 8},
                                                                                         TargetShapeParams{10, 2}}},
-    InputShapeParams{std::vector<ov::Dimension>{{1, 15}, {1, 15}}, std::vector<TargetShapeParams>{TargetShapeParams{3, 8},
-                                                                                                  TargetShapeParams{10, 2}}}
+    InputShapeParams{std::vector<ov::Dimension>{{1, 15}, {1, 5}}, std::vector<TargetShapeParams>{TargetShapeParams{7, 5},
+                                                                                                 TargetShapeParams{10, 2}}},
+    InputShapeParams{std::vector<ov::Dimension>{{1, 8}, 9}, std::vector<TargetShapeParams>{TargetShapeParams{7, 9},
+                                                                                           TargetShapeParams{8, 9}}},
+    InputShapeParams{std::vector<ov::Dimension>{6, {1, 5}}, std::vector<TargetShapeParams>{TargetShapeParams{6, 5},
+                                                                                           TargetShapeParams{6, 2}}},
 };
 
-std::vector<std::vector<std::string>> activations = {
+const std::vector<InputShapeParams> inShapeParams_static = {
+    InputShapeParams{std::vector<ov::Dimension>{10, 2}, std::vector<TargetShapeParams>{TargetShapeParams{10, 2},
+                                                                                       TargetShapeParams{10, 2}}}
+};
+
+std::vector<std::vector<std::string>> activations_gru_support = {
+    {"sigmoid", "tanh"}
+};
+
+std::vector<std::vector<std::string>> activations_lstm_support = {
     {"sigmoid", "tanh", "tanh"}
 };
 
@@ -284,16 +319,43 @@ std::vector<bool> linearBeforeReset = {true, false};
 
 std::vector<ElementType> netPrecisions = { ElementType::f32 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest, SequenceCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic, SequenceCPUTest,
             ::testing::Combine(::testing::ValuesIn(nodeType),
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
-                               ::testing::ValuesIn(inShapeParams),
-                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(inShapeParams_dynamic),
+                               ::testing::ValuesIn(activations_lstm_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions)),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+            SequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru, SequenceCPUTest,
+            ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
+                               ::testing::ValuesIn(hiddenSizes),
+                               ::testing::ValuesIn(inputSizes),
+                               ::testing::ValuesIn(inShapeParams_static),
+                               ::testing::ValuesIn(activations_gru_support),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
+            SequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm, SequenceCPUTest,
+            ::testing::Combine(::testing::Values(SEQ_TYPE::LSTM, SEQ_TYPE::RNN),
+                               ::testing::ValuesIn(hiddenSizes),
+                               ::testing::ValuesIn(inputSizes),
+                               ::testing::ValuesIn(inShapeParams_static),
+                               ::testing::ValuesIn(activations_lstm_support),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
             SequenceCPUTest::getTestCaseName);
 
 } // namespace SubgraphTestsDefinitions
