@@ -4,7 +4,7 @@
 
 macro(ov_find_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        find_package(TBB COMPONENTS tbb tbbmalloc)
+        find_package(TBB QUIET COMPONENTS tbb tbbmalloc)
 
         # try to find TBB via custom scripts if have not found by default
         if(NOT TBB_FOUND AND IEDevScripts_DIR)
@@ -19,6 +19,8 @@ macro(ov_find_tbb)
                          PATHS ${IEDevScripts_DIR}
                          NO_CMAKE_FIND_ROOT_PATH
                          NO_DEFAULT_PATH)
+        else()
+            message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
         endif()
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
