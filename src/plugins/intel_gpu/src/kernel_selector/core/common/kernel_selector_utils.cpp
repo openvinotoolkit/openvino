@@ -319,7 +319,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
         // Revert basic priority if something is wrong
         if (priority_order[0] == priority_order[1] || priority_order[0] == priority_order[2] || priority_order[1] == priority_order[2] ||
             priority_order[0] > 2 || priority_order[1] > 2 || priority_order[2] > 2) {
-            priority_order = { 0, 1, 2 };
+            priority_order[0] = 0;
+            priority_order[1] = 1;
+            priority_order[2] = 2;
         }
     }
 
