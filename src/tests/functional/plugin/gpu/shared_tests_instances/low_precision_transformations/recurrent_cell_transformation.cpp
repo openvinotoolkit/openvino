@@ -86,7 +86,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 16}, {1, 128}, {1, 128}}};
 const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{512, 16}, {512, 128}, {512}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
@@ -165,7 +165,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{2, 3}, {2, 3}, {}}};
 const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{9, 3}, {9, 3}, {9}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
@@ -244,7 +244,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{2, 3}, {2, 3}, {}}};
 const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{3, 3}, {3, 3}, {9}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
