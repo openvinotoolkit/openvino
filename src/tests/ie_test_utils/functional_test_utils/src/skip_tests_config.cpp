@@ -28,30 +28,5 @@ bool currentTestIsDisabled() {
 
     return false;
 }
-
-std::vector<std::string> readSkipTestConfigFiles(const std::vector<std::string>& filePaths) {
-    std::vector<std::string> res;
-    for (const auto& filePath : filePaths) {
-        if (!CommonTestUtils::fileExists(filePath)) {
-            std::string msg = "Input directory (" + filePath + ") doesn't not exist!";
-            throw std::runtime_error(msg);
-        }
-        std::ifstream file(filePath);
-        if (file.is_open()) {
-            std::string buffer;
-            while (getline(file, buffer)) {
-                if (buffer.find("#") == std::string::npos && !buffer.empty()) {
-                    res.emplace_back(buffer);
-                }
-            }
-        } else {
-            std::string msg = "Error in opening file: " + filePath;
-            throw std::runtime_error(msg);
-        }
-        file.close();
-    }
-    return res;
-}
-
 }  // namespace SkipTestsConfig
 }  // namespace FuncTestUtils

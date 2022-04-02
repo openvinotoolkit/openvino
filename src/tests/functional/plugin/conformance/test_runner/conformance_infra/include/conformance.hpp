@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -41,6 +42,22 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     }
     file.close();
     return config;
+}
+
+inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths) {
+    std::vector<std::string> result;
+    for (const auto& conformance_ir_path : conformance_ir_paths) {
+        std::vector<std::string> tmp_buf;
+        if (CommonTestUtils::fileExists(conformance_ir_path)) {
+            tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
+        } else if (CommonTestUtils::directoryExists(conformance_ir_path)) {
+            tmp_buf = CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
+        } else {
+            continue;
+        }
+        result.insert(result.end(), tmp_buf.begin(), tmp_buf.end());
+    }
+    return result;
 }
 
 }  // namespace conformance
