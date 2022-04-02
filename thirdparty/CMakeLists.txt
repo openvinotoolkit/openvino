@@ -65,7 +65,12 @@ ov_install_static_lib(fluid openvino_common)
 #
 
 add_subdirectory(gflags EXCLUDE_FROM_ALL)
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+
+if(NOT DEFINED gflags_DIR)
+    # export only target built in current source tree;
+    # imported target (found via find_package) cannot be exported
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+endif()
 
 #
 # Google Tests framework
@@ -145,9 +150,13 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 # Install
 #
 
-if(NOT CPACK_GENERATOR STREQUAL "DEB")
+if(CPACK_GENERATOR STREQUAL "DEB")
     # These libraries are dependencies for openvino-samples-2022.1 package
 
+    if(NOT DEFINED gflags_DIR)
+        message(FATAL_ERROR "gflags must be used as a debian package")
+    endif()
+else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
