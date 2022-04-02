@@ -48,11 +48,7 @@ TEST(attributes, eye_batch_shape_op) {
     auto diagonal_index = make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
     auto batch_shape = make_shared<op::v0::Constant>(element::i32, Shape{3}, std::vector<int32_t>{1, 2, 3});
 
-    const auto eye = make_shared<op::v9::Eye>(num_rows,
-                                                   num_columns,
-                                                   diagonal_index,
-                                                   batch_shape,
-                                                   element::Type_t::i32);
+    const auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::Type_t::i32);
     NodeBuilder builder(eye);
     auto g_eye = ov::as_type_ptr<op::v9::Eye>(builder.create());
 
