@@ -22,8 +22,6 @@ elseif(ENABLE_TBBBIND_2_5)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
-    else()
-        message(WARNING "Static tbbbind_2_5 package is not found")
     endif()
 endif()
 
@@ -36,7 +34,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
 endif()
 
 if(install_tbbbind)
-    set(IE_TBBBIND_DIR "${TBBBIND_2_5}")
+    set(IE_TBBBIND_DIR "${TBBBIND_2_5_DIR}")
     list(APPEND PATH_VARS "IE_TBBBIND_DIR")
 endif()
 

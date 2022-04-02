@@ -13,6 +13,9 @@ macro(ov_find_package_tbb)
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
+            # system TBB failed to be found
+            set(ENABLE_SYSTEM_TBB OFF)
+
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
@@ -39,13 +42,6 @@ macro(ov_find_package_tbb)
             endforeach()
         endif()
 
-        # set variables to parent scope to prevent multiple invocations of find_package(TBB)
-        # at the same CMakeLists.txt; invocations in different directories are allowed
-        set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
-        set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-        set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
-        set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
-
         if (NOT TBB_FOUND)
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
@@ -59,8 +55,18 @@ macro(ov_find_package_tbb)
 endmacro()
 
 function(set_ie_threading_interface_for TARGET_NAME)
-    # find TBB
-    ov_find_package_tbb()
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        # find TBB
+        ov_find_package_tbb()
+
+        # set variables to parent scope to prevent multiple invocations of find_package(TBB)
+        # at the same CMakeLists.txt; invocations in different directories are allowed
+        set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+        set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+        set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
+        set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
+        set(ENABLE_SYSTEM_TBB ${ENABLE_SYSTEM_TBB} PARENT_SCOPE)
+    endif()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
 
