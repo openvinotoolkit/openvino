@@ -5,7 +5,7 @@
 include(cmake/ie_parallel.cmake)
 
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
-ov_find_tbb()
+ov_find_package_tbb()
 
 if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2021)
     message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB is used")

@@ -91,7 +91,19 @@ if(THREADING STREQUAL "OMP")
 endif()
 
 ## TBB package
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYSTEM_TBB)
+unset(_ov_download_tbb_done CACHE)
+
+#
+# The function downloads prebuilt TBB package
+# NOTE: the function should be used if system TBB is not found
+# or ENABLE_SYSTEM_TBB is OFF
+#
+function(ov_download_tbb)
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+        return()
+    endif()
+    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+
     reset_deps_cache(TBBROOT TBB_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -156,10 +168,21 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
     if(DEFINED IE_PATH_TO_DEPS)
         unset(IE_PATH_TO_DEPS)
     endif()
-endif()
+endfunction()
 
 ## TBBBind_2_5 package
-if(ENABLE_TBBBIND_2_5)
+unset(_ov_download_tbbbind_2_5_done CACHE)
+
+#
+# The function downloads static prebuilt TBBBind_2_5 package
+# NOTE: the function should be called only we have TBB with version less 2021
+#
+function(ov_download_tbbbind_2_5)
+    if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
+        return()
+    endif()
+    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -190,7 +213,7 @@ Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake 
     if(DEFINED IE_PATH_TO_DEPS)
         unset(IE_PATH_TO_DEPS)
     endif()
-endif()
+endfunction()
 
 ## OpenCV
 if(ENABLE_OPENCV)
