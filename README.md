@@ -1,10 +1,15 @@
-# OpenVINO™ Toolkit
+<div align="center">
+
+<img src="docs/img/openvino-logo-purple-black.png" width="400px">
+
 [![Stable release](https://img.shields.io/badge/version-2022.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.1)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
+ 
+ </div>
 
 ## Contents:
 
@@ -23,7 +28,11 @@
 
 ## What is OpenVINO toolkit?
 
-OpenVINO™ toolkit allows developers to deploy pre-trained deep learning models through a high-level OpenVINO™ Runtime C++ and Python APIs integrated with application logic.
+OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
+ - Boost deep learning performance in computer vision, automatic speech recognition, natural language processing and other common tasks
+ - Use models trained with popular frameworks like TensorFlow, PyTorch and more
+ - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
+
 
 This open source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open
@@ -176,6 +185,12 @@ Please report questions, issues and suggestions using:
     * [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib)
 * [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
+* [Neural Network Compression Framework (NNCF)] (https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
+* [OpenVINO™ Training Extensions (OTE)] (https://github.com/openvinotoolkit/training_extensions) - convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
+* [OpenVINO™ Model Server (OVMS)] (https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
+* [DL Workbench] (https://docs.openvino.ai/2021.4/workbench_docs_Workbench_DG_Introduction.html) - An alternative, web-based version of OpenVINO designed to make production of pretrained deep learning models significantly easier.
+* [Computer Vision Annotation Tool (CVAT)] (https://github.com/openvinotoolkit/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
+* [Dataset Management Framework (Datumaro)] (https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
 
 ---
 \* Other names and brands may be claimed as the property of others.
