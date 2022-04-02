@@ -13,6 +13,7 @@ include(GNUInstallDirs)
 #
 macro(ov_cpack_set_dirs)
     # common IRC package locations
+    # TODO: move current variables to OpenVINO specific locations
     set(OV_CPACK_INCLUDEDIR runtime/include)
     set(OV_CPACK_IE_CMAKEDIR runtime/cmake)
     set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
@@ -145,7 +146,11 @@ macro(ie_cpack)
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     elseif(CPACK_GENERATOR STREQUAL "DEB")
         # include Debian dedicated per-component configuration file
-        ov_debian_components()
+        # NOTE: private modules need to define ov_debian_components macro
+        # for custom debian packages configuration
+        if(COMMAND ov_debian_components)
+            ov_debian_components()
+        endif()
     endif()
 
     include(CPack)

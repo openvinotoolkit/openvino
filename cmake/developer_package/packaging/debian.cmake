@@ -145,6 +145,9 @@ function(ov_add_lintian_suppression comp)
             COMPONENT ${comp})
 endfunction()
 
+#
+# Adds component for `comp`, but without a version
+#
 macro(ov_add_latest_component comp)
     string(TOUPPER "${comp}" ucomp)
     set(latest "${ucomp}_LATEST")
@@ -177,7 +180,8 @@ macro(ov_debian_components)
     foreach(item ${cpack_components_all})
         # don't provide python components and deployment_manager to end users
         if(# NOT ${item} MATCHES ".*(python).*" AND
-           NOT ${item} MATCHES "^${OV_CPACK_COMP_DEPLOYMENT_MANAGER}$")
+           NOT ${item} MATCHES "^tbb(_dev)?$" AND
+           NOT ${item} STREQUAL "{OV_CPACK_COMP_DEPLOYMENT_MANAGER}")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
