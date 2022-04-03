@@ -86,7 +86,7 @@ def get_conv_backprop_groups(node):
         return node.group
     elif output_shape is not None and kernel_shape is not None \
             and output_shape[node.channel_dims[0]] is not dynamic_dimension \
-            and kernel_shape[node.input_feature_channel] is not dynamic_dimension:
-        return output_shape[node.channel_dims] // kernel_shape[node.input_feature_channel]
+            and kernel_shape[node.output_feature_channel] is not dynamic_dimension:
+        return output_shape[node.channel_dims] // kernel_shape[node.output_feature_channel]
     else:
         return 1
