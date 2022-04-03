@@ -123,6 +123,7 @@ if(NOT TARGET zlib::zlib)
                           IMPORTED_TARGET
                           zlib)
         if(zlib_FOUND)
+            set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
         endif()
     endif()
