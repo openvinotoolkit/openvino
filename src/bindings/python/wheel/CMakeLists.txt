@@ -25,8 +25,7 @@ endif()
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api)
-foreach(_target openvino openvino_gapi_preproc ov_plugins _pyngraph pyopenvino
-        py_paddle_frontend py_tensorflow_frontend py_onnx_frontend)
+foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins py_ov_frontends)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
     endif()
