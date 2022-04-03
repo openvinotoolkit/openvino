@@ -180,18 +180,18 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 endif()
 
