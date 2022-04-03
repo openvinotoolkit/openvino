@@ -22,7 +22,6 @@ const auto AdaPool3DCases = ::testing::Combine(
                         { 1, 1, 3 },
                         { 3, 17, 5 }}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1}, {3}, {5} }),
-        ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
         ::testing::ValuesIn(netPRCs),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -36,7 +35,6 @@ const auto AdaPool4DCases = ::testing::Combine(
                         { 1, 1, 3, 2},
                         { 3, 17, 5, 1}}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1, 1}, {3, 5}, {5, 5} }),
-        ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
         ::testing::ValuesIn(netPRCs),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -50,7 +48,6 @@ const auto AdaPool5DCases = ::testing::Combine(
                         { 1, 1, 3, 2, 3},
                         { 3, 17, 5, 1, 2}}),
         ::testing::ValuesIn(std::vector<std::vector<int>>{ {1, 1, 1}, {3, 5, 3}, {5, 5, 5} }),
-        ::testing::ValuesIn(std::vector<std::string>{"max", "avg"}),
         ::testing::ValuesIn(netPRCs),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );

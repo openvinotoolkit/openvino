@@ -8,14 +8,14 @@
 
 namespace LayerTestsDefinitions {
 using eyeParams = std::tuple<
-        std::vector<size_t>,                // feature map shape
-        std::vector<int>,                   // pooled spatial shape
-        std::string,                        // pooling mode
+        std::vector<size_t>,                // input shape
+        std::vector<int>,                   // eye params (rows, cols, diag_shift)
         InferenceEngine::Precision,         // net precision
         LayerTestsUtils::TargetDevice>;     // device name
 
 class EyeLayerTest : public testing::WithParamInterface<eyeParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
+    void GenerateInputs() override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<eyeParams>& obj);
 
