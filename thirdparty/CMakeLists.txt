@@ -88,7 +88,7 @@ if(gflags_FOUND)
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
 else()
     add_subdirectory(gflags EXCLUDE_FROM_ALL)
-    # openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 endif()
 
 #
