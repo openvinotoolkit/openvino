@@ -21,10 +21,10 @@ function(add_helpers target_name)
 
     target_include_directories(${target_name}
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
-                $<TARGET_PROPERTY:ie_samples_utils,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:ie_samples_utils,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
     set_property(TARGET ${target_name} PROPERTY COMPILE_PDB_NAME ${target_name})
