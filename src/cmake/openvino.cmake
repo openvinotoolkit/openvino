@@ -87,7 +87,7 @@ target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::stati
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::runtime::dev)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(${TARGET_NAME}_dev core)
