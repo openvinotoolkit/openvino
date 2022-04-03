@@ -88,7 +88,8 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake --build . && cmake --build . --target sea_itt_lib
+      call "$(MSVS_VARS_PATH)" && cmake --build .
+      rem call "$(MSVS_VARS_PATH)" && cmake --build . --target sea_itt_lib
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win CC COLLECT'
 
