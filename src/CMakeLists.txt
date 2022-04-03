@@ -4,8 +4,6 @@
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_custom_target(ov_runtime_libraries)
-
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets
