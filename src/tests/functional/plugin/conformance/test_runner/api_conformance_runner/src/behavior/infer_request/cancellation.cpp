@@ -9,9 +9,9 @@ namespace {
 using namespace BehaviorTestsDefinitions;
 using namespace ov::test::conformance;
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCancellationTests,
+INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestCancellationTests,
                          ::testing::Combine(
-                                 ::testing::Values(targetDevice),
-                                 ::testing::ValuesIn(std::vector<std::map<std::string, std::string>>{})),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::ValuesIn(empty_config)),
                          InferRequestCancellationTests::getTestCaseName);
 }  // namespace

@@ -7,9 +7,9 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_CustomLocaleTest, CustomLocaleTest,
+    INSTANTIATE_TEST_SUITE_P(ie_executable_network, CustomLocaleTest,
                             ::testing::Combine(
                                 ::testing::Values("ru_RU.UTF-8"),
-                                ::testing::Values(ov::test::conformance::targetDevice)),
+                                ::testing::ValuesIn(return_all_possible_device_combination())),
                             CustomLocaleTest::getTestCaseName);
 }  // namespace
