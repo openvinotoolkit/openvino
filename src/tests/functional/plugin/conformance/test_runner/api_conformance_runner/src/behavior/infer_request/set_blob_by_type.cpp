@@ -3,7 +3,6 @@
 //
 
 #include "behavior/infer_request/set_blob_by_type.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "api_conformance_helpers.hpp"
 
 namespace {

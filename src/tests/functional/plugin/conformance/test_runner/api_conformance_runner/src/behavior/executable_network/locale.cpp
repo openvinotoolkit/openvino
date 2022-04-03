@@ -3,7 +3,7 @@
 //
 
 #include "behavior/executable_network/locale.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
