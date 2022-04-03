@@ -12,7 +12,6 @@ endif()
 
 add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
-add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
@@ -21,6 +20,25 @@ endif()
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak openvino_common)
+
+#
+# zlib
+#
+
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(zlib QUIET
+                      IMPORTED_TARGET GLOBAL
+                      zlib)
+    if(zlib_FOUND)
+        add_library(zlib::zlib ALIAS PkgConfig::zlib)
+        message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+    endif()
+endif()
+
+if(NOT zlib_FOUND)
+    add_subdirectory(zlib EXCLUDE_FROM_ALL)
+endif()
 
 #
 # Pugixml
@@ -65,7 +83,10 @@ ov_install_static_lib(fluid openvino_common)
 #
 
 find_package(gflags QUIET COMPONENTS nothreads_shared)
-if(NOT gflags_FOUND)
+if(gflags_FOUND)
+    set_target_properties(gflags PROPERTIES GLOBAL ON)
+    message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
+else()
     add_subdirectory(gflags EXCLUDE_FROM_ALL)
     openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 endif()
@@ -153,6 +174,9 @@ if(CPACK_GENERATOR STREQUAL "DEB")
 
     if(NOT gflags_FOUND)
         message(FATAL_ERROR "gflags must be used as a debian package. Install libflags-dev")
+    endif()
+    if(NOT zlib_FOUND)
+        message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags

@@ -44,6 +44,8 @@ if [ -f /etc/lsb-release ]; then
             $x86_64_specific_packages \
             libgtk2.0-dev \
             pkg-config \
+            libflags-dev \
+            zlib1g-dev \
             unzip \
             automake \
             libtool \
@@ -97,6 +99,9 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            pkg-config \
+            libflags-dev \
+            zlib1g-dev \
             glibc-static \
             glibc-devel \
             libstdc++-static \
@@ -152,6 +157,8 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
             libboost-regex-dev \
             libgtk2.0-dev \
             pkg-config \
+            libflags-dev \
+            zlib1g-dev \
             unzip \
             automake \
             libtool \

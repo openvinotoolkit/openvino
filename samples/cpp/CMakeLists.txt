@@ -112,14 +112,28 @@ if(NOT TARGET gflags)
     find_package(gflags QUIET COMPONENTS nothreads_shared)
 
     if(gflags_FOUND)
-        message(STATUS "gflags (${gflags_VERSION}) are found at ${gflags_DIR}")
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     endif()
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+if(NOT TARGET zlib::zlib)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+        endif()
+    endif()
+
+    if(zlib_FOUND)
+        message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")

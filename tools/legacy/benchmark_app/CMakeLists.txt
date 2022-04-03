@@ -18,10 +18,6 @@ add_executable(${TARGET_NAME} ${SRC} ${HDR})
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
-if(NOT TARGET gflags)
-    find_package(gflags QUIET COMPONENTS nothreads_shared)
-endif()
-
 set_target_properties(${TARGET_NAME} PROPERTIES
     COMPILE_PDB_NAME ${TARGET_NAME}
     FOLDER tools
