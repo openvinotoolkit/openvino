@@ -35,6 +35,20 @@ bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
     });
 }
 
+template <typename OpType, typename DerivedFromNode>
+std::shared_ptr<OpType> find_by_friendly_name(const std::vector<DerivedFromNode>& ops,
+                                              const std::string& friendly_name) {
+    const auto it = std::find_if(std::begin(ops), std::end(ops), [&friendly_name](const DerivedFromNode& op) {
+        return op->get_friendly_name() == friendly_name && std::dynamic_pointer_cast<OpType>(op) != nullptr;
+    });
+
+    if (it != std::end(ops)) {
+        return std::dynamic_pointer_cast<OpType>(*it);
+    } else {
+        return nullptr;
+    }
+}
+
 NGRAPH_TEST(onnx_tensor_names, simple_model) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
@@ -58,4 +72,36 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
     const auto results = function->get_results();
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_0", {"indices"}));
+}
+
+NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_transposed.onnx"));
+
+    // after the import the 2 Result objects are connected to 2 distinct nodes (MaxPool & Transpose)
+    // the original MaxPool operator in the model doesn't have its name set
+    const auto ops = function->get_ordered_ops();
+
+    const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
+    EXPECT_NE(result1, nullptr);
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "y");
+
+    const auto result2 = find_by_friendly_name<op::Result>(ops, "z/sink_port_0");
+    EXPECT_NE(result2, nullptr);
+    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
+}
+
+NGRAPH_TEST(onnx_tensor_names, simple_multiout_operator) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_simple.onnx"));
+
+    const auto ops = function->get_ordered_ops();
+
+    // in this case both Results are connected directly to the MaxPool node
+    const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
+    EXPECT_NE(result1, nullptr);
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
+
+    const auto result2 = find_by_friendly_name<op::Result>(ops, "z/sink_port_0");
+    EXPECT_NE(result2, nullptr);
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
