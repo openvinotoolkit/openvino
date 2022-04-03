@@ -10,6 +10,6 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(ie_executable_network, CustomLocaleTest,
                             ::testing::Combine(
                                 ::testing::Values("ru_RU.UTF-8"),
-                                ::testing::ValuesIn(return_all_possible_device_combination())),
+                                ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination())),
                             CustomLocaleTest::getTestCaseName);
 }  // namespace
