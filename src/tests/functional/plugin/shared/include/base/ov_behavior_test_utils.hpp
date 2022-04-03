@@ -46,7 +46,9 @@ public:
     void SetUp() override {
         set_api_entity();
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED);
+#ifdef ENABLE_API_REPORT
         api_summary.saveReport();
+#endif
     }
 
     void TearDown() override {

@@ -21,3 +21,4 @@ addIeTargetTest(
 )
 
 ie_faster_build(${TARGET_NAME} UNITY)
+target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_API_REPORT)

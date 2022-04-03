@@ -21,7 +21,7 @@ class InferRequestConfigTest : public testing::WithParamInterface<InferRequestPa
                                public virtual ov::test::behavior::APIBaseTest {
 public:
     void SetUp() override {
-        SetUp();
+        APIBaseTest::SetUp();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(streamExecutorNumber, target_device, configuration) = this->GetParam();
