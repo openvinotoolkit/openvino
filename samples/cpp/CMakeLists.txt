@@ -106,8 +106,6 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-# TODO: add find_package calls for zlib and json
-
 if(NOT TARGET gflags)
     find_package(gflags QUIET COMPONENTS nothreads_shared)
 

@@ -4,10 +4,6 @@
 
 set(TARGET_NAME conformanceShared)
 
-if(NOT TARGET gflags)
-    find_package(gflags REQUIRED COMPONENTS nothreads_shared)
-endif()
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC

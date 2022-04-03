@@ -39,6 +39,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create ov_core_dev library
 add_library(ov_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS ov_core_dev)
+
 target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
 
 # Create static or shared library depending on BUILD_SHARED_LIBS
@@ -52,7 +54,7 @@ ie_faster_build(ngraph_obj
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference ov_core_dev)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
@@ -104,7 +106,6 @@ target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE
 add_library(ngraph INTERFACE)
 target_link_libraries(ngraph INTERFACE openvino::runtime)
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)
 
 target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)

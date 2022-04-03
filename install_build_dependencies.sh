@@ -46,6 +46,7 @@ if [ -f /etc/lsb-release ]; then
             pkg-config \
             libflags-dev \
             zlib1g-dev \
+            nlohmann-json3-dev \
             unzip \
             automake \
             libtool \
@@ -102,6 +103,7 @@ elif [ -f /etc/redhat-release ]; then
             pkg-config \
             libflags-dev \
             zlib1g-dev \
+            nlohmann-json3-dev \
             glibc-static \
             glibc-devel \
             libstdc++-static \
@@ -159,6 +161,7 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
             pkg-config \
             libflags-dev \
             zlib1g-dev \
+            nlohmann-json3-dev \
             unzip \
             automake \
             libtool \
