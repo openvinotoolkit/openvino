@@ -45,6 +45,7 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
 
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    std::cout << "v0 " << m_attrs.nms_threshold << std::endl;
 }
 
 shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -108,6 +109,7 @@ void ov::op::v8::DetectionOutput::validate_and_infer_types() {
 
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    std::cout << "v8 " << m_attrs.nms_threshold << std::endl;
 }
 
 shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
