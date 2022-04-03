@@ -33,7 +33,7 @@ else()
     find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib")
 
     if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
-        message(FATAL_ERROR "libusb is required")
+        message(FATAL_ERROR "libusb is required, please install it")
     endif()
 
     set(XLINK_PLATFORM_INCLUDE
