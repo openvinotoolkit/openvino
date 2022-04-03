@@ -14,7 +14,9 @@ add_subdirectory(common)
 add_subdirectory(core)
 add_subdirectory(frontends)
 # TODO: remove ngraph/ngraph.hpp usage
-add_subdirectory(core/tests)
+if(ENABLE_TESTS)
+    add_subdirectory(core/tests)
+endif()
 add_subdirectory(bindings)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
