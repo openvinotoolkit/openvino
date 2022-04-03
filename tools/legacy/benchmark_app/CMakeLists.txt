@@ -32,7 +32,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gfl
 find_package(OpenCV COMPONENTS core QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
-    target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json_schema_validator)
 else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
