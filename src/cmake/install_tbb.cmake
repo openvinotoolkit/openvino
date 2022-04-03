@@ -5,16 +5,16 @@
 include(cmake/ie_parallel.cmake)
 
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
-ov_find_tbb()
+ov_find_package_tbb()
 
 if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2021)
     message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB is used")
     set(ENABLE_TBBBIND_2_5 OFF)
-endif()
-
-if(ENABLE_TBBBIND_2_5)
-    # try to find prebuilt version of tbbbind_2_5
+elseif(ENABLE_TBBBIND_2_5)
+    # download and find a prebuilt version of TBBBind_2_5
+    ov_download_tbbbind_2_5()
     find_package(TBBBIND_2_5 QUIET)
+
     if(TBBBIND_2_5_FOUND)
         message(STATUS "Static tbbbind_2_5 package is found")
         set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
@@ -22,8 +22,6 @@ if(ENABLE_TBBBIND_2_5)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
-    else()
-        message(WARNING "Static tbbbind_2_5 package is not found")
     endif()
 endif()
 
@@ -36,7 +34,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
 endif()
 
 if(install_tbbbind)
-    set(IE_TBBBIND_DIR "${TBBBIND_2_5}")
+    set(IE_TBBBIND_DIR "${TBBBIND_2_5_DIR}")
     list(APPEND PATH_VARS "IE_TBBBIND_DIR")
 endif()
 
