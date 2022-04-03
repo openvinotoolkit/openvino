@@ -70,7 +70,13 @@ public:
 
                 for (auto input : node->inputs()) {
                     if (needToCheckExpectedAttributeType) {
-                        if (getAttribute<ExpectedAttributeType>(input).empty()) {
+                        const auto& attribute = getAttribute<ExpectedAttributeType>(input);
+                        if (attribute.empty()) {
+                            return false;
+                        }
+
+                        const auto& expectedAttribute = attribute.template as<ExpectedAttributeType>();
+                        if (expectedAttribute.is_skipped()) {
                             return false;
                         }
                     }

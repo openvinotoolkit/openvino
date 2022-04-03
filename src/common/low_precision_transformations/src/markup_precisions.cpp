@@ -20,7 +20,8 @@
 
 using namespace ngraph;
 
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions,
+ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
+    const std::vector<PrecisionsRestriction>& restrictions,
     const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);

@@ -18,7 +18,7 @@
 
 #include "rt_info/shared_value_attribute.hpp"
 #include "rt_info/precisions_attribute.hpp"
-#include "rt_info/per_tensor_quantization_attribute.hpp"
+#include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"

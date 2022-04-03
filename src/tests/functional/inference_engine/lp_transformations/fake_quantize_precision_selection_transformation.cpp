@@ -89,8 +89,8 @@ public:
                 testValues.actual.fakeQuantizeOnWeights
             });
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                {0, testValues.precisionsOnActivationForLimitedOperation},
                {1, { element::i8 }}
            })

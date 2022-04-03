@@ -27,6 +27,7 @@ public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
     void merge(std::vector<ov::Any>& attributes);
+    bool is_skipped() const;
     std::string to_string() const override;
 };
 

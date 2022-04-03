@@ -80,15 +80,15 @@ public:
             testValues.actual.dequantizationOnWeights,
             testValues.actual.dequantizationAfter);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
         });
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-            ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);

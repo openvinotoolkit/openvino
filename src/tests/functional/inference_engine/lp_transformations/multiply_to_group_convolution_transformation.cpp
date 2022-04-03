@@ -61,8 +61,8 @@ public:
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
 
-        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Multiply>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
