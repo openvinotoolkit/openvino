@@ -46,7 +46,7 @@ endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
     find_package(PugiXML REQUIRED)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
     add_library(pugixml::static ALIAS pugixml)
 else()
     function(ie_build_pugixml)
@@ -157,13 +157,18 @@ endif()
 # nlohmann json
 #
 
-add_subdirectory(json)
+# find_package(nlohmann_json QUIET)
+# if(nlohmann_json_FOUND)
+#     nlohmann_json::nlohmann_json
+# else()
+    add_subdirectory(json)
 
-openvino_developer_export_targets(COMPONENT openvino_common
-                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+    openvino_developer_export_targets(COMPONENT openvino_common
+                                      TARGETS nlohmann_json nlohmann_json_schema_validator)
 
-ov_install_static_lib(nlohmann_json openvino_common)
-ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
+    ov_install_static_lib(nlohmann_json openvino_common)
+    ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
+# endif()
 
 #
 # Install
