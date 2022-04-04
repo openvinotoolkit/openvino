@@ -97,8 +97,7 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert node.get_framework() == "OpenVINO"
 
 
-@pytest.mark.usefixtures("proposal_node")
-def test_dynamic_attr_cache():
+def test_dynamic_attr_cache(proposal_node):
     node = proposal_node
 
     assert not node._attr_cache_valid
@@ -108,8 +107,7 @@ def test_dynamic_attr_cache():
     assert node._attr_cache_valid
 
 
-@pytest.mark.usefixtures("proposal_node")
-def test_dynamic_attr_transitivity():
+def test_dynamic_attr_transitivity(proposal_node):
     node = proposal_node
     node2 = node
 

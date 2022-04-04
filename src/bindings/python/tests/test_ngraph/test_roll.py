@@ -17,6 +17,6 @@ def test_roll():
     roll_node = ov.roll(input_tensor, input_shift, input_axes)
     computation = runtime.computation(roll_node)
     roll_results = computation()
-    expected_results = np.roll(input, shift=(-10, 7), axis=(-1, 0))
+    expected_results = np.roll(input_vals, shift=(-10, 7), axis=(-1, 0))
 
     assert np.allclose(roll_results, expected_results)

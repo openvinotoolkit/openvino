@@ -46,8 +46,8 @@ def create_simple_if_with_two_outputs(condition_val):
     if_node.set_else_body(else_body)
     if_node.set_input(const_x.output(0), x_t, x_e)
     if_node.set_input(const_y.output(0), y_t, None)
-    if_node.set_input(const_w.output(0), z_t, z_e)
-    if_node.set_input(const_z.output(0), None, w_e)
+    if_node.set_input(const_z.output(0), z_t, z_e)
+    if_node.set_input(const_w.output(0), None, w_e)
     if_node.set_output(then_body_res_1, else_body_res_1)
     if_node.set_output(then_body_res_2, else_body_res_2)
     return if_node

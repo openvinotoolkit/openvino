@@ -1377,7 +1377,7 @@ def test_lstm_sequence_operator_forward(dtype):
     clip = 0.5
 
     node = ov.lstm_sequence(
-        parameter_w,
+        parameter_x,
         parameter_h_t,
         parameter_c_t,
         parameter_seq_len,
@@ -1552,7 +1552,7 @@ def test_gru_sequence_operator_forward(dtype):
     direction = "forward"
 
     node_default = ov.gru_sequence(
-        parameter_w,
+        parameter_x,
         parameter_h_t,
         parameter_seq_len,
         parameter_w,
@@ -1607,7 +1607,6 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     w_shape = [num_directions, hidden_size, input_size]
     r_shape = [num_directions, hidden_size, hidden_size]
     b_shape = [num_directions, hidden_size]
-
     parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
     parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
@@ -1636,7 +1635,7 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     clip = 1.22
 
     node_param = ov.rnn_sequence(
-        parameter_w,
+        parameter_x,
         parameter_h_t,
         parameter_seq_len,
         parameter_w,
@@ -1669,7 +1668,7 @@ def test_rnn_sequence_operator_reverse(dtype):
     r_shape = [num_directions, hidden_size, hidden_size]
     b_shape = [num_directions, hidden_size]
 
-    parameter_w = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
     parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
     parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
@@ -1679,7 +1678,7 @@ def test_rnn_sequence_operator_reverse(dtype):
     direction = "REVERSE"
 
     node_default = ov.rnn_sequence(
-        parameter_w,
+        parameter_x,
         parameter_h_t,
         parameter_seq_len,
         parameter_w,
@@ -1698,7 +1697,7 @@ def test_rnn_sequence_operator_reverse(dtype):
     clip = 1.22
 
     node_param = ov.rnn_sequence(
-        parameter_w,
+        parameter_x,
         parameter_h_t,
         parameter_seq_len,
         parameter_w,

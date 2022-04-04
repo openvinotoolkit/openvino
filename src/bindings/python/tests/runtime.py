@@ -92,7 +92,7 @@ class Computation(object):
     def convert_to_tensors(self, input_values):
         input_tensors = []
         for parameter, input_val in zip(self.parameters, input_values):
-            if not isinstance(input, (np.ndarray)):
+            if not isinstance(input_val, (np.ndarray)):
                 input_val = np.ndarray([], type(input_val), np.array(input_val))
             if parameter.get_output_element_type(0) == Type.bf16:
                 input_tensors.append(Tensor(Type.bf16, input_val.shape))
