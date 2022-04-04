@@ -210,7 +210,7 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
         max_value = std::numeric_limits<T>::max();
     }
     start_from = std::max<value_t>(start_from, min_value);
-    uint32_t real_range = std::min<value_t>(range, (max_value - static_cast<decltype(max_value)>(start_from))) * k;
+    uint32_t real_range = std::min<value_t>(range, (max_value - static_cast<decltype(max_value)>(start_from)));
 
     testing::internal::Random random(seed);
 
