@@ -28,19 +28,19 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 At startup, the sample application reads command line parameters and loads the specified model and input images (or a
 folder with images) to the OpenVINO™ Runtime plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
-Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback
+Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback,
 handling the inference request is executed again.
 
-After that, the application starts inference for the first infer request and waits of 10th inference request execution being completed. The asynchronous mode might increase the throughput of the pictures.
+After that, the application starts inference for the first infer request and waits until the 10th inference request execution is completed. The asynchronous mode might increase the throughput of the pictures.
 
-When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
+When inference is done, the application outputs data to the standard output stream. You may place labels in .labels file near the model to get pretty output.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
+To build the sample, use the instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
 
@@ -67,10 +67,10 @@ Options:
 Available target devices: <devices>
 ```
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- you may use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
