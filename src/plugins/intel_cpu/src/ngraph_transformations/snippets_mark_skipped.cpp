@@ -160,6 +160,37 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
+// Subtract as ZeroPoints for Convolution
+bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &node) {
+    const bool is_suitable_node = ov::is_type<ngraph::op::v1::Subtract>(node);
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_two_parents = node->get_input_size() == 2;
+    if (!(is_suitable_node && has_only_child && has_two_parents))
+        return false;
+
+    const auto child = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    const bool is_conv = ov::is_type<ov::op::v1::Convolution>(child);
+    const bool is_group_conv = ov::is_type<ov::op::v1::GroupConvolution>(child);
+    const auto weight_shape = child->get_input_shape(1);
+    const bool is_depthwise = is_group_conv && weight_shape[1] == 1 && weight_shape[2] == 1;
+    const bool deptwise_is_suitable = implication(is_depthwise, child->get_input_shape(0).size() < 5);
+    if (!(is_conv && deptwise_is_suitable))
+        return false;
+
+    const bool first_input_is_suitable = node->get_input_node_shared_ptr(0)->get_output_element_type(0) == ov::element::u8;
+    const auto zp_weights = node->get_input_node_shared_ptr(1);
+    const auto zp_weight_shape = zp_weights->get_output_shape(0);
+    bool second_input_is_suitable =
+            ov::is_type<ngraph::op::v0::Constant>(zp_weights) &&
+                    zp_weights->get_output_element_type(0) == ov::element::u8 &&
+                    zp_weight_shape.size() >= 2;
+    if (!(first_input_is_suitable && second_input_is_suitable))
+        return false;
+    auto correct_shape = ov::Shape(zp_weight_shape.size(), 1);
+    correct_shape[1] = zp_weight_shape[1];
+    return correct_shape == zp_weight_shape;
+}
 bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
@@ -210,8 +241,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // canFuse() from MatMul
     // Algorithm::EltwisePowerStatic is ignored
     if (!can_be_converted_to_FC &&
-        node->get_output_partial_shape(0).rank().is_static() &&
-        node->get_output_partial_shape(0).rank().get_length() > 2) {
+    true&&
+        node->get_output_shape(0).size() > 2) {
         if (ov::is_type<ngraph::opset1::Add>(node) ||
             ov::is_type<ngraph::opset1::Multiply>(node) ||
             ov::is_type<ngraph::opset1::Subtract>(node) ||
@@ -344,6 +375,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             continue;
         } else if (isSuitableMatMulParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
+            continue;
+        } else if (isSuitableSubtractAsZeroPointsParent(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             continue;
         }
         for (const auto fusingChainType : getContinuableChains(node)) {
