@@ -559,6 +559,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ weights_layout.data_type, preferred_format, weights_layout.size });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
+                p.get_or_create(reorder.first).recalc_output_layout(false);
             }
         }
     };
@@ -575,6 +576,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     layout{ weights_layout.data_type, preferred_format, weights_layout.size });
                 if (reorder.first) {
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+                    p.get_or_create(reorder.first).recalc_output_layout(false);
                 }
             }
         }
@@ -708,7 +710,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected);
-   }
+    }
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
