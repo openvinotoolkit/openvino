@@ -28,11 +28,11 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
     uint32_t sizeRequested,
     uint32_t *sizeGranted,
     void **memoryAddress) {
-    if (current != nullptr) {
-        return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
-    }
     if (sizeGranted != nullptr) {
         *sizeGranted = sizeRequested;
+    }
+    if (current != nullptr) {
+        return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
     }
     *memoryAddress = reinterpret_cast<void*>(1);
     return Gna2StatusSuccess;
@@ -44,8 +44,12 @@ GNA2_API enum Gna2Status Gna2DeviceCreateForExport(
     *deviceIndex = 1;
     return Gna2StatusSuccess;
 }
+
 GNA2_API enum Gna2Status Gna2DeviceOpen(
     uint32_t deviceIndex) {
+    if (current != nullptr) {
+        return current->Gna2DeviceOpen(deviceIndex);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -82,6 +86,9 @@ GNA2_API enum Gna2Status Gna2ModelCreate(
     uint32_t deviceIndex,
     struct Gna2Model const * model,
     uint32_t * modelId) {
+    if (current != nullptr) {
+        return current->Gna2ModelCreate(deviceIndex, model, modelId);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -97,6 +104,9 @@ GNA2_API enum Gna2Status Gna2ModelGetLastError(struct Gna2ModelError* error) {
 GNA2_API enum Gna2Status Gna2RequestConfigCreate(
     uint32_t modelId,
     uint32_t * requestConfigId) {
+    if (current != nullptr) {
+        return current->Gna2RequestConfigCreate(modelId, requestConfigId);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -164,6 +174,9 @@ GNA2_API enum Gna2Status Gna2ModelExport(
 GNA2_API enum Gna2Status Gna2DeviceGetVersion(
     uint32_t deviceIndex,
     enum Gna2DeviceVersion * deviceVersion) {
+    if (current != nullptr) {
+        return current->Gna2DeviceGetVersion(deviceIndex, deviceVersion);
+    }
     *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
     return Gna2StatusSuccess;
 }
@@ -173,18 +186,27 @@ GNA2_API enum Gna2Status Gna2InstrumentationConfigCreate(
     enum Gna2InstrumentationPoint* selectedInstrumentationPoints,
     uint64_t * results,
     uint32_t * instrumentationConfigId) {
+    if (current != nullptr) {
+        return current->Gna2InstrumentationConfigCreate(numberOfInstrumentationPoints, selectedInstrumentationPoints, results, instrumentationConfigId);
+    }
     return Gna2StatusSuccess;
 }
 
 GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
     uint32_t instrumentationConfigId,
     uint32_t requestConfigId) {
+    if (current != nullptr) {
+        return current->Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, requestConfigId);
+    }
     return Gna2StatusSuccess;
 }
 
 GNA2_API enum Gna2Status Gna2GetLibraryVersion(
     char* versionBuffer,
     uint32_t versionBufferSize) {
+    if (current != nullptr) {
+        return current->Gna2GetLibraryVersion(versionBuffer, versionBufferSize);
+    }
     if (versionBuffer != nullptr && versionBufferSize > 0) {
         versionBuffer[0] = '\0';
         return Gna2StatusSuccess;
