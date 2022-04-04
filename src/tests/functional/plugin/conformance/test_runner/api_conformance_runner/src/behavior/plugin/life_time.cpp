@@ -22,9 +22,9 @@ namespace {
             {0, 1, 3, 2}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, HoldersTest,
             ::testing::Combine(
-            ::testing::Values(ov::test::conformance::targetDevice),
+            ::testing::ValuesIn(return_all_possible_device_combination()),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 
