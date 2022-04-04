@@ -29,18 +29,18 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, use the instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- you may use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to
-convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such
-as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an
+convert your BGR/RGB image to NV12. To do this, you may use one of the widely available tools such
+as FFmpeg or GStreamer. The following command shows how to convert an ordinary image into an
 uncompressed NV12 image using FFmpeg:
 
 ```sh
@@ -102,7 +102,7 @@ classid probability
 696       0.021628
 855       0.020339
 
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+This sample is an API example. Use the dedicated benchmark_app tool for any performance measurements.
 ```
 
 ## See Also
