@@ -58,7 +58,7 @@ def test_leaky_relu():
 
 
 @pytest.mark.parametrize(
-    ("x", "slope"),
+    ("value", "slope"),
     [
         ([-2, -1.0, 0.0, 1.0, 2.0], 0.5),
         ([0.0], 1),
