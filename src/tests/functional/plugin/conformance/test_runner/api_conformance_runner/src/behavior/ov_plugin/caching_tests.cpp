@@ -30,11 +30,11 @@ static const std::vector<std::size_t> ovBatchSizesTemplate = {
         1, 2
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, CompileModelCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                          ::testing::Combine(
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(ov::test::conformance::targetDevice)),
+                                 ::testing::ValuesIn(return_all_possible_device_combination())),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace
