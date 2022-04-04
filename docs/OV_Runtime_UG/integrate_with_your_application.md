@@ -1,4 +1,4 @@
-# Integrate OpenVINO™ with Your Application {#openvino_docs_Integrate_OV_with_your_application}
+# Integrate OpenVINO™ with Your Application {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
 
 @sphinxdirective
 
@@ -6,9 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_Runtime_UG_Model_Representation
-   openvino_docs_OV_Runtime_UG_Infer_request
-   openvino_docs_OV_Runtime_UG_Python_API_exclusives
+   openvino_docs_OV_UG_Model_Representation
+   openvino_docs_OV_UG_Infer_request
+   openvino_docs_OV_UG_Python_API_exclusives
 
 @endsphinxdirective
 

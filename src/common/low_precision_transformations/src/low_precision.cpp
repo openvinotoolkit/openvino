@@ -14,7 +14,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
 #include <low_precision/lpt_itt.hpp>
 
 #include "low_precision/align_quantization_intervals.hpp"
@@ -22,6 +21,7 @@
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include <low_precision/markup_quantization_granularity.hpp>
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
 
@@ -81,8 +81,8 @@
 #include "itt.hpp"
 
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+    const std::vector<PrecisionsRestriction>& precisionRestrictions,
+    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
     const LayerTransformation::Params params) :
     precisionRestrictions(precisionRestrictions),
     quantizationRestrictions(quantizationRestrictions),
@@ -158,8 +158,8 @@ ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
 }
 
 MarkupOptimizations::MarkupOptimizations(
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+    const std::vector<PrecisionsRestriction>& precisionRestrictions,
+    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
     const AttributeParameters& params) :
     precisionRestrictions(precisionRestrictions),
     quantizationRestrictions(quantizationRestrictions),
@@ -174,7 +174,7 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::s
         markup.register_pass<low_precision::MarkupPrecisions>(precisionRestrictions, params.defaultPrecisions);
     }
     if (!quantizationRestrictions.empty()) {
-        markup.register_pass<low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
+        markup.register_pass<low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
     }
     if (ngraph::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
         markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
@@ -249,7 +249,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
     cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
-        OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
+        PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
 

@@ -652,7 +652,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(OVClassGetMetricTest_MAX_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
-    uint32_t max_batch_size;
+    uint32_t max_batch_size = 0;
 
     ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
 
@@ -680,7 +680,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    unsigned int start, end, step;
+    unsigned int start{0}, end{0}, step{0};
 
     ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(deviceName, ov::range_for_async_infer_requests));
 
