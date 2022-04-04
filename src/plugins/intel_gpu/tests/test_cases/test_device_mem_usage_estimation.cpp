@@ -21,8 +21,8 @@ TEST(test_device_mem_usage_estimation, basic) {
     topology topology(
         input_layout("input1", input1->get_layout()),
         input_layout("input2", input2->get_layout()),
-        permute("permute1", "input1", { 0, 2, 3, 1 }),
-        permute("permute2", "input2", { 0, 3, 2, 1 }),
+        permute("permute1", "input1", { 0, 3, 1, 2 }),
+        permute("permute2", "input2", { 0, 2, 1, 3 }),
         eltwise("eltw", {"permute1", "permute2"}, eltwise_mode::sum, data_types::f16),
         reorder("output", "eltw", format::bfyx, data_types::f32)
     );

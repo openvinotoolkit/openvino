@@ -376,7 +376,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             auto& permute_order = next.as<permute>().get_primitive()->permute_order;
             if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
                 fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-                && permute_order[1] == 2
+                && permute_order.back() != 1
                 && (!next.as<permute>().is_rotating_except_batch())) {
                     return false;
             }
@@ -428,7 +428,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-         && permute_order[1] == 2
+         && permute_order.back() != 1
          && (!prev.as<permute>().is_rotating_except_batch())) {
             return false;
         }
