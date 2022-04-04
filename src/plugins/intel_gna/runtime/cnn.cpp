@@ -52,16 +52,21 @@ namespace {
 
 void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
     const uint32_t num_inputs = component->op.maxpool.inCHW[0] * component->op.maxpool.inCHW[1] * component->op.maxpool.inCHW[2];
-    const uint32_t in_c = component->op.maxpool.inCHW[0];
+    const uint32_t num_col_in = component->op.maxpool.inCHW[0];
+    const uint32_t num_rows_in = num_inputs / num_col_in;
+
+    const uint32_t num_outputs = component->op.maxpool.outCHW[0] * component->op.maxpool.outCHW[1] * component->op.maxpool.outCHW[2];
+    const uint32_t num_col_out = component->op.maxpool.outCHW[0];
+    const uint32_t num_rows_out = num_outputs / num_col_out;
+
     const uint32_t num_pool_size = component->op.maxpool.poolingWindowXY[0];
     const uint32_t num_pool_step = component->op.maxpool.poolingStrideXY[0];
-    const uint32_t num_rows_in = num_inputs / in_c;
 
     if (number_type == kDnnInt) {
         int32_t *ptr_inputs = reinterpret_cast<int32_t *>(component->ptr_inputs);
         int32_t *ptr_outputs = reinterpret_cast<int32_t *>(component->ptr_outputs);
 
-        for (uint32_t i = 0; i < in_c; i++) {
+        for (uint32_t i = 0; i < num_col_in; i++) {
             int32_t m = 0;
             if (sumPoolingOverRide) {
                 uint32_t num_saturate = 0;
@@ -69,18 +74,18 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
                     int64_t sum = 0;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        sum += ptr_inputs[k * in_c + i];
+                        sum += ptr_inputs[k * num_col_in + i];
                     }
                     constexpr int32_t sum_max_threshold = std::numeric_limits<int32_t>::max();
                     constexpr int32_t sum_min_threshold = std::numeric_limits<int32_t>::min();
                     if (sum > sum_max_threshold) {
-                        ptr_outputs[m * in_c + i] = sum_max_threshold;
+                        ptr_outputs[m * num_col_in + i] = sum_max_threshold;
                         num_saturate++;
                     } else if (sum < sum_min_threshold) {
-                        ptr_outputs[m * in_c + i] = sum_min_threshold;
+                        ptr_outputs[m * num_col_in + i] = sum_min_threshold;
                         num_saturate++;
                     } else {
-                        ptr_outputs[m * in_c + i] = static_cast<int32_t>(sum);
+                        ptr_outputs[m * num_col_in + i] = static_cast<int32_t>(sum);
                     }
                     m++;
                 }
@@ -92,9 +97,9 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
                     int32_t max = INT32_MIN;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        if (ptr_inputs[k * in_c + i] > max) max = ptr_inputs[k * in_c + i];
+                        if (ptr_inputs[k * num_col_in + i] > max) max = ptr_inputs[k * num_col_in + i];
                     }
-                    ptr_outputs[m * in_c + i] = max;
+                    ptr_outputs[m * num_col_in + i] = max;
                     m++;
                 }
             }
@@ -103,28 +108,18 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
         float *ptr_inputs = reinterpret_cast<float *>(component->ptr_inputs);
         float *ptr_outputs = reinterpret_cast<float *>(component->ptr_outputs);
 
-        for (uint32_t i = 0; i < in_c; i++) {
-            int32_t m = 0;
-            if (sumPoolingOverRide) {
-                for (uint32_t j = 0; j < num_rows_in; j += num_pool_step) {
-                    float sum = 0.0;
-                    uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
-                    for (uint32_t k = j; k < num_end; k++) {
-                        sum += ptr_inputs[k * in_c + i];
+        for (uint32_t i = 0; i < num_col_out; i++) {
+            for (uint32_t j = 0; j < num_rows_out; j++) {
+                float val = (sumPoolingOverRide) ? 0.0 : std::numeric_limits<float>::lowest();
+                uint32_t num_end = (j * num_pool_step + num_pool_size > num_rows_in) ? num_rows_in : j * num_pool_step + num_pool_size;
+                for (uint32_t k = j * num_pool_step; k < num_end; k ++) {
+                    if (sumPoolingOverRide) {
+                        val += ptr_inputs[k * num_col_in + i];
+                    } else {
+                        val = std::max(val, ptr_inputs[k * num_col_in + i]);
                     }
-                    ptr_outputs[m * in_c + i] = sum;
-                    m++;
                 }
-            } else {
-                for (uint32_t j = 0; j < num_rows_in; j += num_pool_step) {
-                    float max = std::numeric_limits<float>::lowest();
-                    uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
-                    for (uint32_t k = j; k < num_end; k++) {
-                        if (ptr_inputs[k * in_c + i] > max) max = ptr_inputs[k * in_c + i];
-                    }
-                    ptr_outputs[m * in_c + i] = max;
-                    m++;
-                }
+                ptr_outputs[j * num_col_out + i] = val;
             }
         }
     }
