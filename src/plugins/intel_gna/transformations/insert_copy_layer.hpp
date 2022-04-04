@@ -51,6 +51,20 @@ public:
  *     |              =>       [Copy]
  *     |                         |
  *  [Concat]                 [Concat]
+ * Or if one layer has multiply connections to concat
+ * [any node]         [any node]
+ *   |                 |
+ *  / \               / \
+ *  |  |       =>    |  [Copy]
+ *  |  |             |    |
+ * [Concat]         [Concat]
+
+ * [any node]         [any node]
+ *    |                  |
+ *  / \ \             /   \       \
+ *  | | |             |  [Copy]  [Copy]
+ *  | | |              |    |   /
+ * [Concat]            [Concat]
  */
 class InsertCopyBeforeConcatLayer : public ngraph::pass::MatcherPass {
 public:
@@ -95,20 +109,6 @@ public:
  *    |               \             [Copy]       [Copy]
  *    |               \               |            \
  * [Memory]       [Concat]      [Memory]        [Concat]
- * 
- * [any node]         [any node]
- *   |                 |
- *  / \               / \
- *  |  |       =>    |  [Copy]
- *  |  |             |    |
- * [Concat]         [Concat]
-
- * [any node]         [any node]
- *    |                  |
- *  / \ \             /   \       \
- *  | | |             |  [Copy]  [Copy]
- *  | | |              |    |   /
- * [Concat]            [Concat]
  */
 class HandleMultiConnectedLayerToConcatAndMemory : public ngraph::pass::FunctionPass {
 public:
@@ -129,7 +129,6 @@ public:
  *     |                    |
  * [Result]             [Result]
  *
-
  *  [Parameter]              [Parameter]
  *       |                        |
  *    [Reshape]               [Reshape]

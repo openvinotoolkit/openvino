@@ -151,6 +151,18 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
         if (!concat)
             return false;
 
+        std::set<std::shared_ptr<ngraph::Node>> inputs;
+        // Insert copy layers after concat inputs with multiple connections to concat
+        for (size_t i = 0; i < concat->get_input_size(); i++) {
+            auto input_op = concat->get_input_node_shared_ptr(i);
+
+            if (inputs.find(input_op) != inputs.end()) {
+                insert_copy_layer_between(input_op, concat, i);
+            } else {
+                inputs.insert(input_op);
+            }
+        }
+
         // Insert copy layers after concat inputs with multiple connections to concat
         for (size_t i = 0; i < concat->get_input_size(); i++) {
             auto current_node = concat->get_input_node_shared_ptr(i);
@@ -178,45 +190,63 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
 bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(HandleMultiConnectedLayerToConcatAndMemory);
 
+    using FuncChildrenInfo = std::tuple<
+        std::shared_ptr<ngraph::Node>,   // parent node
+        std::shared_ptr<ngraph::Node>,   // child node
+        int32_t        // input index
+    >;
+
+    // recursively searches for children functional layers skipping non-functional ones
+    std::function<std::vector<FuncChildrenInfo>(std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>, int32_t)> find_func_layers =
+        [&find_func_layers](std::shared_ptr<ngraph::Node> current_node, std::shared_ptr<ngraph::Node> parent_node, int32_t input_idx) {
+        if (!is_gna_non_functional_node(current_node) ||
+            current_node->get_output_size() == 0 ||
+            current_node->output(0).get_target_inputs().size() == 0) {
+            return std::vector<FuncChildrenInfo>{std::make_tuple(parent_node, current_node, input_idx)};
+        }
+        std::vector<FuncChildrenInfo> results;
+        for (auto& child : current_node->output(0).get_target_inputs()) {
+            auto next_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
+            auto result = find_func_layers(next_node, current_node, child.get_index());
+            results.insert(results.end(), result.begin(), result.end());
+        }
+
+        return results;
+    };
+
     bool is_graph_modified = false;
     for (auto& node : f->get_ordered_ops()) {
-        if (is_gna_non_functional_node(node))
+        if (is_gna_non_functional_node(node) || std::dynamic_pointer_cast<ngraph::opset8::Constant>(node))
             continue;
         for (auto& output : node->outputs()) {
             auto input_to = output.get_target_inputs();
             if (input_to.size() < 2) continue;
-            std::vector<std::pair<std::shared_ptr<ngraph::Node>, size_t>> concat_nodes, memory_nodes;
+            std::vector<FuncChildrenInfo> concat_nodes, memory_nodes;
             for (auto& child : input_to) {
                 auto current_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
-                auto copy_output_node = current_node;
-                auto previous_node = node;
-                auto current_index = child.get_index();
+                auto children_info = find_func_layers(current_node, node, child.get_index());
 
-                while ((is_gna_non_functional_node(current_node))) {
-                    if (current_node->get_output_size() == 0) break;
-                    if (current_node->output(0).get_target_inputs().size()  == 0) break;
-                    previous_node = current_node;
-                    current_node = current_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-                }
+                for (const auto &child_info : children_info) {
+                    auto child = std::get<1>(child_info);
 
-                // if non-functional layers between constant and concat/memory we should not insert copy
-                if (current_node != copy_output_node && std::dynamic_pointer_cast<ngraph::opset8::Constant>(node))
-                    break;
-                if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node)) {
-                    concat_nodes.push_back(std::make_pair(copy_output_node, current_index));
-                } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(current_node) ||
-                    std::dynamic_pointer_cast<ngraph::op::AssignBase>(current_node)) {
-                    memory_nodes.push_back(std::make_pair(copy_output_node, current_index));
+                    if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(child)) {
+                        concat_nodes.push_back(child_info);
+                    } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(child) ||
+                        std::dynamic_pointer_cast<ngraph::op::AssignBase>(child)) {
+                        memory_nodes.push_back(child_info);
+                    }
                 }
             }
 
             if (memory_nodes.empty() && concat_nodes.empty()) continue;
+
             auto count_to_copy = memory_nodes.size() + concat_nodes.size() - (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(node) ? 0 : 1);
             // Insertion of copy to memory layers has a priority on the concat layers
             for (size_t i = 0; i < count_to_copy; i++) {
-                auto out_layer = (i < memory_nodes.size()) ? memory_nodes[i].first : concat_nodes[i - memory_nodes.size()].first;
-                auto input_id = (i < memory_nodes.size()) ? memory_nodes[i].second : concat_nodes[i - memory_nodes.size()].second;
-                insert_copy_layer_between(node, out_layer, input_id);
+                std::shared_ptr<ngraph::Node> in_layer, out_layer;
+                size_t input_id;
+                std::tie(in_layer, out_layer, input_id) = (i < memory_nodes.size()) ? memory_nodes[i] : concat_nodes[i - memory_nodes.size()];
+                insert_copy_layer_between(in_layer, out_layer, input_id);
             }
             is_graph_modified = true;
         }
@@ -224,7 +254,6 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
 
     return is_graph_modified;
 }
-
 /* The main idea, is that we match the non-computational layers
  * one-by-one when traversing graph in reverse order.
  * For each match we check, that node contains non-computational property,

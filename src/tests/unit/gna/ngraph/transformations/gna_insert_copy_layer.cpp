@@ -214,15 +214,66 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatTest) {
 
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
-            auto copy1 = std::make_shared<ov::intel_gna::op::Copy>(params);
-            auto copy2 = std::make_shared<ov::intel_gna::op::Copy>(params);
-            auto reshape1 = ngraph::op::util::reshapeTo(copy1, shape);
-            auto reshape2 = ngraph::op::util::reshapeTo(copy2, shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(params, shape);
+            auto copy1 = std::make_shared<ov::intel_gna::op::Copy>(reshape1);
+            auto copy2 = std::make_shared<ov::intel_gna::op::Copy>(reshape2);
 
-            ngraph::OutputVector concat_inputs{reshape1, reshape2};
+            ngraph::OutputVector concat_inputs{copy1, copy2};
             auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
             auto result = std::make_shared<ngraph::opset8::Result>(concat);
             ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                            ngraph::ParameterVector{params},
+                                                            "Concat");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+TEST(TransformationTests, InsertCopyLayerMultiParamMultiNFLConcatTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        size_t axis = 0;
+        ngraph::Shape shape    = {1, 1, 2, 4};
+        ngraph::Shape in_shape = {1, 2, 4};
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(params, shape);
+            ngraph::OutputVector concat_inputs{reshape1, reshape2};
+
+            auto concat1 = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto concat2 = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(concat1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(concat2);
+            auto result3 = std::make_shared<ngraph::opset8::Result>(reshape1);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3},
+                                                        ngraph::ParameterVector{params},
+                                                        "Concat");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(params, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(params, shape);
+            auto copy1 = std::make_shared<ov::intel_gna::op::Copy>(reshape1);
+            auto copy2 = std::make_shared<ov::intel_gna::op::Copy>(reshape2);
+
+            ngraph::OutputVector concat_inputs{copy1, copy2};
+            auto concat1 = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto concat2 = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(concat1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(concat2);
+            auto result3 = std::make_shared<ngraph::opset8::Result>(reshape1);
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3},
                                                             ngraph::ParameterVector{params},
                                                             "Concat");
         }
@@ -283,7 +334,7 @@ TEST(TransformationTests, InsertCopyLayerMultiConstConcatTest) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
+        m.register_pass<GNAPluginNS::InsertCopyBeforeConcatLayer>();
         m.run_passes(func);
 
         ASSERT_NO_THROW(check_rt_info(func));
@@ -291,57 +342,6 @@ TEST(TransformationTests, InsertCopyLayerMultiConstConcatTest) {
         auto result1 = compare_functions(func, ref_func1);
         auto result2 = compare_functions(func, ref_func2);
         ASSERT_TRUE(result1.first || result2.first);
-}
-
-TEST(TransformationTests, InsertCopyLayerMultiConstNFLConcatTest) {
-        std::shared_ptr<ngraph::Function> func, copy_func, ref_func;
-        size_t axis = 0;
-        ngraph::Shape shape    = {1, 1, 2, 4};
-        ngraph::Shape in_shape = {1, 2, 4};
-
-        {
-            auto constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
-            auto reshape1 = ngraph::op::util::reshapeTo(constant, shape);
-            auto reshape2 = ngraph::op::util::reshapeTo(constant, shape);
-            ngraph::OutputVector concat_inputs{reshape1, reshape2};
-
-            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
-            auto result = std::make_shared<ngraph::opset8::Result>(concat);
-            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{},
-                                                        "Concat");
-            copy_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{},
-                                                        "Concat");
-        }
-
-        {
-            auto constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
-            auto copy1 = std::make_shared<ov::intel_gna::op::Copy>(constant);
-            auto copy2 = std::make_shared<ov::intel_gna::op::Copy>(constant);
-            auto reshape1 = ngraph::op::util::reshapeTo(copy1, shape);
-            auto reshape2 = ngraph::op::util::reshapeTo(copy2, shape);
-
-            ngraph::OutputVector concat_inputs{reshape1, reshape2};
-            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
-            auto result = std::make_shared<ngraph::opset8::Result>(concat);
-            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{},
-                                                            "Concat");
-        }
-
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::HandleMultiConnectedLayerToConcatAndMemory>();
-        m.run_passes(func);
-
-        ASSERT_NO_THROW(check_rt_info(func));
-
-        // We should not insert copy between constant and concat if non-func layers between them.
-        auto result_valid = compare_functions(func, copy_func);
-        ASSERT_TRUE(result_valid.first);
-        auto result_non_valid = compare_functions(func, ref_func);
-        ASSERT_FALSE(result_non_valid.first);
 }
 
 TEST(TransformationTests, InsertCopyLayerMultiLayerConcatTest) {
@@ -423,8 +423,8 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto add = std::make_shared<ngraph::opset8::Add>(params, params);
-            auto copy = std::make_shared<ov::intel_gna::op::Copy>(add);
-            auto reshape_copy = ngraph::op::util::reshapeTo(copy, shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(add, shape);
+            auto reshape_copy = std::make_shared<ov::intel_gna::op::Copy>(reshape1);
             auto reshape2 = ngraph::op::util::reshapeTo(add, shape);
 
             ngraph::OutputVector concat_inputs{reshape_copy, reshape2};
@@ -438,11 +438,11 @@ TEST(TransformationTests, InsertCopyLayerMultiLayerNFLConcatTest) {
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
             auto add = std::make_shared<ngraph::opset8::Add>(params, params);
-            auto copy = std::make_shared<ov::intel_gna::op::Copy>(add);
-            auto reshape_copy = ngraph::op::util::reshapeTo(copy, shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(add, shape);
             auto reshape2 = ngraph::op::util::reshapeTo(add, shape);
+            auto reshape_copy = std::make_shared<ov::intel_gna::op::Copy>(reshape2);
 
-            ngraph::OutputVector concat_inputs{reshape2, reshape_copy};
+            ngraph::OutputVector concat_inputs{reshape1, reshape_copy};
             auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
             auto result = std::make_shared<ngraph::opset8::Result>(concat);
             ref_func2 = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -580,15 +580,16 @@ TEST(TransformationTests, InsertCopyLayerMultiParamNFLConcatMemoryTest) {
 
         {
             auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
-            auto copy = std::make_shared<ov::intel_gna::op::Copy>(input);
-            auto reshape1 = ngraph::op::util::reshapeTo(copy, shape);
-            auto reshape2 = ngraph::op::util::reshapeTo(copy, shape);
+            auto reshape1 = ngraph::op::util::reshapeTo(input, shape);
+            auto reshape2 = ngraph::op::util::reshapeTo(input, shape);
+            auto copy1 = std::make_shared<ov::intel_gna::op::Copy>(reshape1);
+            auto copy2 = std::make_shared<ov::intel_gna::op::Copy>(reshape2);
 
-            auto read_value = std::make_shared<ngraph::opset3::ReadValue>(reshape1, "variable_id");
+            auto read_value = std::make_shared<ngraph::opset3::ReadValue>(copy1, "variable_id");
             auto assign = std::make_shared<ngraph::opset3::Assign>(read_value, "variable_id");
             assign->add_control_dependency(read_value);
 
-            auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{reshape2}, axis);
+            auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{copy2}, axis);
             auto result = std::make_shared<ngraph::opset8::Result>(concat);
 
             ngraph::ParameterVector params = {input};
