@@ -394,7 +394,7 @@ private:
         } else {
             // pure sse path, make sure don't spoil vmm_temp3, which may used in after soft-suppression
             uni_vmovups(vmm_temp4, vmm_temp3);
-            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for unorders
+            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
 
             uni_vmovups(vmm_temp2, vmm_temp3);
             cmpps(vmm_temp2, vmm_iou_threshold, 0x05);   // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
