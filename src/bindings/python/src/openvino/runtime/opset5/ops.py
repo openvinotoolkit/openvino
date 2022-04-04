@@ -307,7 +307,7 @@ def rnn_sequence(
         initial_hidden_state: NodeInput,
         sequence_lengths: NodeInput,
         weights_w: NodeInput,
-        weights_h: NodeInput,
+        weights_r: NodeInput,
         biases: NodeInput,
         hidden_size: int,
         direction: str,
@@ -326,7 +326,7 @@ def rnn_sequence(
                                     Shape: [batch_size]. Integer type.
     :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, hidden_size, input_size].
-    :param weights_h: The tensor with weights for matrix multiplication operation with hidden state.
+    :param weights_r: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, hidden_size, hidden_size].
     :param biases: The sum of biases (weight and recurrence).
               Shape: [num_directions, hidden_size].
@@ -347,7 +347,7 @@ def rnn_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    inputs = as_nodes(inputs, initial_hidden_state, sequence_lengths, weights_w, weights_h, biases)
+    inputs = as_nodes(inputs, initial_hidden_state, sequence_lengths, weights_w, weights_r, biases)
 
     attributes = {
         "hidden_size": hidden_size,
