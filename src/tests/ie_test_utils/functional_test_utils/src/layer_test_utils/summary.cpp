@@ -260,6 +260,9 @@ void Summary::saveReport() {
 
     auto &summary = Summary::getInstance();
     auto stats = summary.getOPsStats();
+    if (stats.empty()) {
+        return;
+    }
 
     pugi::xml_document doc;
 
