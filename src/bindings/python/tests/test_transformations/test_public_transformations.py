@@ -116,20 +116,21 @@ def test_serialize_pass():
     os.remove(bin_path)
 
 
-@pytest.mark.parametrize("dtype, ovtype", [
-    ("float16", ov.Type.f16),
-    ("float32", ov.Type.f32),
-    ("float64", ov.Type.f64),
-    ("int8", ov.Type.i8),
-    ("int16", ov.Type.i16),
-    ("int32", ov.Type.i32),
-    ("int64", ov.Type.i64),
-    ("uint8", ov.Type.u8),
-    ("uint16", ov.Type.u16),
-    ("uint32", ov.Type.u32),
-    ("uint64", ov.Type.u64),
-    ("bool", ov.Type.boolean),
+@pytest.mark.parametrize("dtype_string, dtype, ovtype", [
+    ("float16", np.float16, ov.Type.f16),
+    ("float32", np.float32, ov.Type.f32),
+    ("float64", np.float64, ov.Type.f64),
+    ("int8", np.int8, ov.Type.i8),
+    ("int16", np.int16, ov.Type.i16),
+    ("int32", np.int32, ov.Type.i32),
+    ("int64", np.int64, ov.Type.i64),
+    ("uint8", np.uint8, ov.Type.u8),
+    ("uint16", np.uint16, ov.Type.u16),
+    ("uint32", np.uint32, ov.Type.u32),
+    ("uint64", np.uint64, ov.Type.u64),
+    ("bool", np.bool_, ov.Type.boolean),
 ])
-def test_dtype_ovtype_conversion(dtype, ovtype):
+def test_dtype_ovtype_conversion(dtype_string, dtype, ovtype):
     assert ovtype.to_dtype() == dtype
+    assert ov.Type(dtype_string) == ovtype
     assert ov.Type(dtype) == ovtype
