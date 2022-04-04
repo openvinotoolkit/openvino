@@ -22,7 +22,7 @@
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
 #include <low_precision/fuse_multiply_to_fake_quantize.hpp>
 #include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
+#include <low_precision/markup_quantization_granularity.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -155,16 +155,16 @@ public:
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             }),
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-            ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
         });
 
         const auto params = TestTransformationParams(testValues.params.updatePrecisions);
@@ -172,7 +172,7 @@ public:
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
+        manager.register_pass<ngraph::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
         manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
         manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);

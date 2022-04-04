@@ -164,14 +164,14 @@ def test_set_tensors(device):
 @pytest.mark.dynamic_library
 @pytest.mark.template_extension
 def test_batched_tensors(device):
-    batch = 4
-    one_shape = Shape([1, 2, 2, 2])
-    batch_shape = Shape([batch, 2, 2, 2])
-    one_shape_size = np.prod(one_shape)
-
     core = Core()
-
+    # TODO: remove when plugins will support set_input_tensors
     core.register_plugin("openvino_template_plugin", "TEMPLATE")
+
+    batch = 4
+    one_shape = [1, 2, 2, 2]
+    one_shape_size = np.prod(one_shape)
+    batch_shape = [batch, 2, 2, 2]
 
     data1 = ops.parameter(batch_shape, np.float32)
     data1.set_friendly_name("input0")
@@ -191,21 +191,21 @@ def test_batched_tensors(device):
 
     compiled = core.compile_model(model, "TEMPLATE")
 
-    buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
-
     req = compiled.create_infer_request()
 
+    # Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
+    buffer = np.zeros([batch * 2, *batch_shape[1:]], dtype=np.float32)
+
     tensors = []
+    for i in range(batch):
+        # non contiguous memory (i*2)
+        tensors.append(Tensor(np.expand_dims(buffer[i * 2], 0), shared_memory=True))
 
-    for i in range(0, batch):
-        _start = i * one_shape_size * 2
-        # Use of special constructor for Tensor.
-        # It creates a Tensor from pointer, thus it requires only
-        # one element from original buffer, and shape to "crop".
-        tensor = Tensor(buffer[_start:(_start + 1)], one_shape)
-        tensors.append(tensor)
+    req.set_input_tensors(tensors)
 
-    req.set_input_tensors(tensors)  # using list overload!
+    with pytest.raises(RuntimeError) as e:
+        req.get_tensor("tensor_input0")
+    assert "get_tensor shall not be used together with batched set_tensors/set_input_tensors" in str(e.value)
 
     actual_tensor = req.get_tensor("tensor_output0")
     actual = actual_tensor.data

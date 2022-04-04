@@ -9,6 +9,7 @@
 #include <shared_node_info.hpp>
 #include <test_common.hpp>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -1862,4 +1863,72 @@ TEST(model, incompatible_layout) {
     verify_ex_set_layout_result_validate({1, 2, 3, 4}, "HWC");
     verify_ex_set_layout_result_validate({1, 2, 3, 4}, "NDHWC");
     verify_ex_set_layout_result_validate({1, 2, 3, 4}, "ND...HWC");
+}
+
+TEST(model, clone_model_function) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    auto input1 = model->input(0);
+    auto input2 = model->input("data1");
+
+    auto cloned_model = ov::clone_model(*model);
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, cloned_model);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(model, clone_model) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    auto input1 = model->input(0);
+    auto input2 = model->input("data1");
+
+    auto cloned_model = model->clone();
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, cloned_model);
+    EXPECT_TRUE(res.valid) << res.message;
 }
