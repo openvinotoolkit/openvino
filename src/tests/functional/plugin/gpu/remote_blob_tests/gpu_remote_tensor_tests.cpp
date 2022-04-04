@@ -610,6 +610,35 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     }
 }
 
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canCreateManyTensorsOnSameMem) {
+    bool with_auto_batching = GetParam();
+    if (with_auto_batching)
+        GTEST_SKIP();
+
+    auto ocl_instance = std::make_shared<OpenCL>();
+    if (!ocl_instance->supports_usm())
+        GTEST_SKIP();
+
+    auto input = fn_ptr->get_parameters().at(0);
+    ov::Shape input_shape = input->get_shape();
+    auto imSize = ov::shape_size(input_shape);
+    void* usm_ptr = usm_ptr = ocl_instance->allocate_usm_host_buffer(imSize*sizeof(float));
+
+    auto ie = ov::Core();
+    auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get());
+    auto model = ie.compile_model(fn_ptr, remote_context, config);
+    auto infer_request = model.create_infer_request();
+    for (int i = 0; i < 10; ++i) {
+        auto input = model.input();
+        auto cl_context = model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+        ov::RemoteTensor input_tensor = cl_context.create_tensor(
+            input.get_element_type(), input.get_shape(), usm_ptr);
+        infer_request.set_tensor(input.get_any_name(), input_tensor);
+        infer_request.start_async();
+        infer_request.wait();
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensor_TestsWithContext, ::testing::ValuesIn(ov_with_auto_batching),
                          OVRemoteTensor_TestsWithContext::getTestCaseName);
 
