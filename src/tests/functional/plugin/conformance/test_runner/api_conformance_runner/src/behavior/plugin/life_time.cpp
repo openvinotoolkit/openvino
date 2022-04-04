@@ -6,6 +6,8 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
+
 namespace {
     const std::vector<std::vector<int >> orders = {
             // 0 - plugin

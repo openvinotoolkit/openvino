@@ -4,11 +4,11 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include "conformance.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 namespace {
 using namespace ov::test::behavior;
+using namespace ov::test::conformance;
 using namespace ngraph;
 
 static const std::vector<ov::element::Type> ovElemTypesTemplate = {
