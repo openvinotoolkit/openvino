@@ -16,6 +16,17 @@ namespace py = pybind11;
 void regclass_graph_Type(py::module m) {
     py::class_<ov::element::Type, std::shared_ptr<ov::element::Type>> type(m, "Type");
     type.doc() = "openvino.runtime.Type wraps ov::element::Type";
+
+    type.def(py::init([](py::dtype dtype){
+        return Common::dtype_to_ov_type().at(py::str(dtype));
+    }),
+    R"(
+        Convert numpy dtype into OpenVINO type
+
+        :return: OpenVINO type object
+        :rtype: ov.Type
+    )");
+
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;
     type.attr("f32") = ov::element::f32;
@@ -43,7 +54,6 @@ void regclass_graph_Type(py::module m) {
         }
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
     });
-
     type.def("__hash__", &ov::element::Type::hash);
     type.def(
         "__eq__",
@@ -51,11 +61,16 @@ void regclass_graph_Type(py::module m) {
             return a == b;
         },
         py::is_operator());
+    type.def("get_type_name", &ov::element::Type::get_type_name);
+    type.def("to_dtype", [](ov::element::Type& self) {
+        return Common::ov_type_to_dtype().at(self),
+        R"(
+            Convert Type to numpy dtype
+
+            :return: dtype object
+            :rtype: numpy.dtype
+        )");
 
     type.def_property_readonly("bitwidth", &ov::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ov::element::Type::is_real);
-    type.def("get_type_name", &ov::element::Type::get_type_name);
-    type.def("to_dtype", [](ov::element::Type& self) {
-        return Common::ov_type_to_dtype().at(self);
-    });
 }
