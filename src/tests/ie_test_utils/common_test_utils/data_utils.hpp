@@ -194,16 +194,28 @@ void inline
 fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1,
                  const int seed = 1) {
     ASSERT_GT(k, 0); // k must be positive
-    if (!std::is_floating_point<T>::value) {
+    if (!std::is_floating_point<T>::value && !std::is_same<T, ov::float16>::value && !std::is_same<T, ov::bfloat16>::value) {
         ASSERT_EQ(k, 1); // k must be strictly equal to 1 in case of T is not floating point
     }
-    start_from = std::max<T>(start_from, std::numeric_limits<T>::min());
-    uint32_t real_range = std::min<T>(range, (std::numeric_limits<T>::max() - start_from)) * k;
+    typedef typename std::conditional<!std::is_same<T, ov::float16>::value && !std::is_same<T, ov::bfloat16>::value, T, float>::type value_t;
+    value_t min_value, max_value;
+    if (std::is_same<T, ov::float16>::value) {
+        min_value = 6.10e-5;
+        max_value = 6.55e4;
+    } else if (std::is_same<T, ov::bfloat16>::value) {
+        min_value = 1.17e-38;
+        max_value = 3.38e38;
+    } else {
+        min_value = std::numeric_limits<T>::min();
+        max_value = std::numeric_limits<T>::max();
+    }
+    start_from = std::max<value_t>(start_from, min_value);
+    uint32_t real_range = std::min<value_t>(range, (max_value - static_cast<decltype(max_value)>(start_from))) * k;
 
     testing::internal::Random random(seed);
 
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(real_range)) / k);
+        pointer[i] = static_cast<T>(start_from + static_cast<value_t>(random.Generate(real_range)) / k);
     }
 }
 
