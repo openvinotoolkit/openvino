@@ -53,7 +53,7 @@ struct jit_quantize_call_args {
 struct jit_uni_quantize_kernel {
     void (*ker_)(const jit_quantize_call_args *);
 
-    void operator()(const jit_quantize_call_args *args) {
+    void operator()(const jit_quantize_call_args *args) const {
         assert(ker_);
         ker_(args);
     }
@@ -95,23 +95,23 @@ public:
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    void setCropLow(std::vector<float> newCropLow) {
-        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+    void setCropLow(const std::vector<float>& newCropLow) {
+        setParam(cropLow, newCropLow);
     }
-    void setCropHigh(std::vector<float> newCropHigh) {
-        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+    void setCropHigh(const std::vector<float>& newCropHigh) {
+        setParam(cropHigh, newCropHigh);
     }
-    void setInputScale(std::vector<float> newInputScale) {
-        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+    void setInputScale(const std::vector<float>& newInputScale) {
+        setParam(inputScale, newInputScale);
     }
-    void setInputShift(std::vector<float> newInputShift) {
-        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+    void setInputShift(const std::vector<float>& newInputShift) {
+        setParam(inputShift, newInputShift);
     }
-    void setOutputScale(std::vector<float> newOutputScale) {
-        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+    void setOutputScale(const std::vector<float>& newOutputScale) {
+        setParam(outputScale, newOutputScale);
     }
-    void setOutputShift(std::vector<float> newOutputShift) {
-        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+    void setOutputShift(const std::vector<float>& newOutputShift) {
+        setParam(outputShift, newOutputShift);
     }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
@@ -169,6 +169,14 @@ private:
     void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
     template <typename T>
     void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void updateBroadcastingPolicy();
+
+    void setParam(std::vector<float>& param, const std::vector<float>& newValue) {
+        param = newValue;
+
+        updateBroadcastingPolicy();
+        isPostOpDataInitialized = false;
+    }
 
     size_t levels = 0;
 
@@ -187,13 +195,6 @@ private:
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
     MemoryPtr quantizationMemory;
-
-    size_t cropLowSize;
-    size_t cropHighSize;
-    size_t inputScaleSize;
-    size_t inputShiftSize;
-    size_t outputScaleSize;
-    size_t outputShiftSize;
 
     // mkldnn style post ops data representation
     bool isPostOpDataInitialized = false;

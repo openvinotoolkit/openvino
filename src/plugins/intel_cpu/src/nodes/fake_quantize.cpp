@@ -917,253 +917,250 @@ struct FakeQuantKey {
 FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        algorithm = Algorithm::FQCommon;
-        const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
 
-        errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
-        levels = fq->get_levels();
-        if (levels <= 1)
-            IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
+    if (!isSupportedOperation(op, errorMessage))
+        IE_THROW(NotImplemented) << errorMessage;
 
-        if (inputShapes.size() != 5)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << inputShapes.size();
-        if (outputShapes.size() != 1)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << outputShapes.size();
+    algorithm = Algorithm::FQCommon;
+    const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
 
-        auto initAxisIdx = [&](const VectorDims& inputDims) {
-            size_t axisIdx = 0;
-            for (int i = 1; i < inputDims.size(); i++) {
-                if (inputDims[i] > 1) {
-                    axisIdx = i;
-                }
+    errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
+    levels = fq->get_levels();
+    if (levels <= 1)
+        IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
+
+    if (inputShapes.size() != 5)
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << inputShapes.size();
+    if (outputShapes.size() != 1)
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << outputShapes.size();
+
+    auto initAxisIdx = [&](const VectorDims& inputDims) {
+        size_t axisIdx = 0;
+        for (int i = 1; i < inputDims.size(); i++) {
+            if (inputDims[i] > 1) {
+                axisIdx = i;
+            }
+        }
+
+        return axisIdx;
+    };
+
+    const size_t dataRank = getInputShapeAtPort(0).getRank();
+    axis = dataRank == 1 ? 0 : 1;
+    int axisSize = -1;
+
+    const auto ilShape = getNormalizedDimsBySize(fq->get_input_shape(1), dataRank);
+    auto inputLowAxis = initAxisIdx(ilShape);
+    isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
+    if (!isInputLowBroadcasted) {
+        axis = inputLowAxis;
+        axisSize = ilShape[inputLowAxis];
+    }
+
+    const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
+    auto inputHighAxis = initAxisIdx(ihShape);
+    isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
+    if (!isInputHighBroadcasted) {
+        axis = inputHighAxis;
+        axisSize = ihShape[inputHighAxis];
+    }
+
+    const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
+    auto outputLowAxis = initAxisIdx(olShape);
+    isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
+    if (!isOutputLowBroadcasted) {
+        axis = outputLowAxis;
+        axisSize = olShape[outputLowAxis];
+    }
+
+    const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
+    auto outputHighAxis = initAxisIdx(ohShape);
+    isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
+    if (!isOutputHighBroadcasted) {
+        axis = outputHighAxis;
+        axisSize = ohShape[outputHighAxis];
+    }
+
+    auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
+    auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
+    auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
+    auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
+
+    if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
+        IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+    }
+
+    const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+    auto inputLowData = inputLowNode->cast_vector<float>();
+
+    const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+    auto inputHighData = inputHighNode->cast_vector<float>();
+
+    const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+    auto outputLowData = outputLowNode->cast_vector<float>();
+
+    const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+    auto outputHighData = outputHighNode->cast_vector<float>();
+
+    binarization = levels == 2;
+
+    if (binarization) {
+        for (int i = 0; i < outputLowAxisSize; i++) {
+            if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
+                binarization = false;
+                break;
+            }
+        }
+
+        for (int i = 0; i < outputHighAxisSize; i++) {
+            if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
+                binarization = false;
+                break;
+            }
+        }
+
+        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
+                binarization = false;
+                break;
+            }
+        }
+    }
+
+    if (binarization) {
+        algorithm = Algorithm::FQBinarization;
+
+        if (isInputLowBroadcasted) {
+            binarizationThresholds.push_back(inputLowData[0]);
+        } else {
+            IE_ASSERT(axisSize != -1);
+            binarizationThresholds.resize(rnd_up(axisSize, 16));
+            for (int i = 0; i < axisSize; i++) {
+                binarizationThresholds[i] = inputLowData[i];
+            }
+        }
+
+        if (isOutputHighBroadcasted) {
+            binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
+        } else {
+            IE_ASSERT(axisSize != -1);
+            binarizationOutputMask.resize(rnd_up(axisSize, 16));
+            for (int i = 0; i < axisSize; i++) {
+                binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
+            }
+        }
+    } else {
+        auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
+            if (size == 0)
+                return true;
+
+            auto first = data[0];
+            for (int i = 1; i < size; i++) {
+                if (data[i] != first)
+                    return false;
             }
 
-            return axisIdx;
+            return true;
         };
 
-        const size_t dataRank = getInputShapeAtPort(0).getRank();
-        axis = dataRank == 1 ? 0 : 1;
-        int axisSize = -1;
-
-        const auto ilShape = getNormalizedDimsBySize(fq->get_input_shape(1), dataRank);
-        auto inputLowAxis = initAxisIdx(ilShape);
-        isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
-        if (!isInputLowBroadcasted) {
-            axis = inputLowAxis;
-            axisSize = ilShape[inputLowAxis];
+        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
+            inputLowAxisSize = 1;
+            isInputLowBroadcasted = true;
         }
 
-        const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
-        auto inputHighAxis = initAxisIdx(ihShape);
-        isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
-        if (!isInputHighBroadcasted) {
-            axis = inputHighAxis;
-            axisSize = ihShape[inputHighAxis];
+        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
+            inputHighAxisSize = 1;
+            isInputHighBroadcasted = true;
         }
 
-        const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
-        auto outputLowAxis = initAxisIdx(olShape);
-        isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
-        if (!isOutputLowBroadcasted) {
-            axis = outputLowAxis;
-            axisSize = olShape[outputLowAxis];
+        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
+            outputLowAxisSize = 1;
+            isOutputLowBroadcasted = true;
         }
 
-        const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
-        auto outputHighAxis = initAxisIdx(ohShape);
-        isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
-        if (!isOutputHighBroadcasted) {
-            axis = outputHighAxis;
-            axisSize = ohShape[outputHighAxis];
+        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
+            outputHighAxisSize = 1;
+            isOutputHighBroadcasted = true;
         }
 
-        auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
-        auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
-        auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
-        auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
+        cropLow.resize(inputLowAxisSize);
+        cropHigh.resize(inputHighAxisSize);
+        inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+        inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+        outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
+        outputShift.resize(outputLowAxisSize);
 
-        if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
-            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+        bool quantizationOnly = true;
+
+        for (int i = 0; i < cropLow.size(); i++) {
+            cropLow[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
         }
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
-        auto inputLowData = inputLowNode->cast_vector<float>();
-
-        const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
-        auto inputHighData = inputHighNode->cast_vector<float>();
-
-        const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
-        auto outputLowData = outputLowNode->cast_vector<float>();
-
-        const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
-        auto outputHighData = outputHighNode->cast_vector<float>();
-
-        binarization = levels == 2;
-
-        if (binarization) {
-            for (int i = 0; i < outputLowAxisSize; i++) {
-                if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
-                    binarization = false;
-                    break;
-                }
-            }
-
-            for (int i = 0; i < outputHighAxisSize; i++) {
-                if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
-                    binarization = false;
-                    break;
-                }
-            }
-
-            for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
-                if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
-                    binarization = false;
-                    break;
-                }
-            }
+        for (int i = 0; i < cropHigh.size(); i++) {
+            cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
         }
 
-        if (binarization) {
-            algorithm = Algorithm::FQBinarization;
-
-            if (isInputLowBroadcasted) {
-                binarizationThresholds.push_back(inputLowData[0]);
-            } else {
-                IE_ASSERT(axisSize != -1);
-                binarizationThresholds.resize(rnd_up(axisSize, 16));
-                for (int i = 0; i < axisSize; i++) {
-                    binarizationThresholds[i] = inputLowData[i];
-                }
-            }
-
-            if (isOutputHighBroadcasted) {
-                binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
-            } else {
-                IE_ASSERT(axisSize != -1);
-                binarizationOutputMask.resize(rnd_up(axisSize, 16));
-                for (int i = 0; i < axisSize; i++) {
-                    binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
-                }
-            }
-        } else {
-            auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
-                if (size == 0)
-                    return true;
-
-                auto first = data[0];
-                for (int i = 1; i < size; i++) {
-                    if (data[i] != first)
-                        return false;
-                }
-
-                return true;
-            };
-
-            if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
-                inputLowAxisSize = 1;
-                isInputLowBroadcasted = true;
-            }
-
-            if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
-                inputHighAxisSize = 1;
-                isInputHighBroadcasted = true;
-            }
-
-            if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
-                outputLowAxisSize = 1;
-                isOutputLowBroadcasted = true;
-            }
-
-            if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
-                outputHighAxisSize = 1;
-                isOutputHighBroadcasted = true;
-            }
-
-            cropLow.resize(inputLowAxisSize);
-            cropHigh.resize(inputHighAxisSize);
-            inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
-            inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
-            outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
-            outputShift.resize(outputLowAxisSize);
-
-            cropLowSize = cropLow.size();
-            cropHighSize = cropHigh.size();
-            inputScaleSize = inputScale.size();
-            inputShiftSize = inputShift.size();
-            outputScaleSize = outputScale.size();
-            outputShiftSize = outputShift.size();
-
-            if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
-                broadcastingPolicy = PerTensor;
-            else if (one_of(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
-                broadcastingPolicy = Mixed;
-            else
-                broadcastingPolicy = PerChannel;
-
-            bool quantizationOnly = true;
-
-            for (int i = 0; i < cropLow.size(); i++) {
-                cropLow[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
-            }
-
-            for (int i = 0; i < cropHigh.size(); i++) {
-                cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
-            }
-
-            for (int i = 0; i < inputScale.size(); i++) {
-                float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-                float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+        for (int i = 0; i < inputScale.size(); i++) {
+            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
             if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
                 IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
+                           << "inputLow = " << il << ", inputHigh = " << ih;
             }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
-                inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
-                inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
+            inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
+            inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
 #else
-                inputScale[i] = (levels - 1) / (ih - il);
-                inputShift[i] = -il * (levels - 1) / (ih - il);
+            inputScale[i] = (levels - 1) / (ih - il);
+            inputShift[i] = -il * (levels - 1) / (ih - il);
 #endif
-            }
+        }
 
-            for (int i = 0; i < outputScale.size(); i++) {
-                float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-                float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+        for (int i = 0; i < outputScale.size(); i++) {
+            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+            float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-                if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                       << "outputLow = " << ol << ", outputHigh = " << oh;
-                }
+            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+                IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+                           << "outputLow = " << ol << ", outputHigh = " << oh;
+            }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
-                outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
+            outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
 #else
-                outputScale[i] = (oh - ol) / (levels - 1);
+            outputScale[i] = (oh - ol) / (levels - 1);
 #endif
 
-                if (outputScale[i] != 1.f)
-                    quantizationOnly = false;
-            }
-
-            for (int i = 0; i < outputShift.size(); i++) {
-                float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-
-                outputShift[i] = ol;
-
-                if (outputShift[i] != 0.f)
-                    quantizationOnly = false;
-            }
-
-            algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
+            if (outputScale[i] != 1.f)
+                quantizationOnly = false;
         }
-    } else {
-        IE_THROW(NotImplemented) << errorMessage;
+
+        for (int i = 0; i < outputShift.size(); i++) {
+            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+
+            outputShift[i] = ol;
+
+            if (outputShift[i] != 0.f)
+                quantizationOnly = false;
+        }
+
+        algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
     }
+
+    updateBroadcastingPolicy();
+}
+
+void FakeQuantize::updateBroadcastingPolicy() {
+    if (everyone_is(1, cropLow.size(), cropHigh.size(), inputScale.size(), inputShift.size(), outputScale.size(), outputShift.size()))
+        broadcastingPolicy = PerTensor;
+    else if (one_of(1, cropLow.size(), cropHigh.size(), inputScale.size(), inputShift.size(), outputScale.size(), outputShift.size()))
+        broadcastingPolicy = Mixed;
+    else
+        broadcastingPolicy = PerChannel;
 }
 
 std::vector<LayoutType> FakeQuantize::getDataFormats() const {
@@ -1831,8 +1828,8 @@ void FakeQuantize::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &po
         mkldnn::algorithm alg = getAlgorithm() == Algorithm::FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
                                                                         mkldnn::algorithm::quantization_quantize;
 
-        std::array<bool, 6> per_channel = {cropLowSize > 1, cropHighSize > 1, inputScaleSize > 1,
-                                           inputShiftSize > 1, outputScaleSize > 1, outputShiftSize > 1};
+        std::array<bool, 6> per_channel = {cropLow.size() > 1, cropHigh.size() > 1, inputScale.size() > 1,
+                                           inputShift.size() > 1, outputScale.size() > 1, outputShift.size() > 1};
 
         std::array<bool, 6> all_default = {false};
         all_default[0] = std::all_of(cropLow.cbegin(), cropLow.cend(), [](float val){ return val == 0.f; });
@@ -1843,11 +1840,11 @@ void FakeQuantize::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &po
         all_default[5] = std::all_of(outputShift.cbegin(), outputShift.cend(), [](float val){ return val == 0.f; });
 
         std::array<size_t, 6> offsets = {0};
-        offsets[1] = offsets[0] + cropLowSize;
-        offsets[2] = offsets[1] + cropHighSize;
-        offsets[3] = offsets[2] + inputScaleSize;
-        offsets[4] = offsets[3] + inputShiftSize;
-        offsets[5] = offsets[4] + outputScaleSize;
+        offsets[1] = offsets[0] + cropLow.size();
+        offsets[2] = offsets[1] + cropHigh.size();
+        offsets[3] = offsets[2] + inputScale.size();
+        offsets[4] = offsets[3] + inputShift.size();
+        offsets[5] = offsets[4] + outputScale.size();
 
         ops.append_quantization(alg, per_channel, all_default, offsets);
 
@@ -1885,15 +1882,15 @@ void FakeQuantize::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& pos
     mkldnn::algorithm alg = getAlgorithm() == Algorithm::FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
                                                                     mkldnn::algorithm::quantization_quantize;
 
-    appendBinary(mkldnn::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
-    appendBinary(mkldnn::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
-    appendBinary(mkldnn::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-    appendBinary(mkldnn::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_min, cropHigh.size(), cropHighMemory, &cropHighData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_max, cropLow.size(), cropLowMemory, &cropLowData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_mul, inputScale.size(), inputScaleMemory, &inputScaleData.scales_[0]);
+    appendBinary(mkldnn::algorithm::binary_add, inputShift.size(), inputShiftMemory, &inputShiftData.shifts_[0]);
     if (alg == mkldnn::algorithm::quantization_quantize_dequantize) {
         ops.append_eltwise(1.0f, mkldnn::algorithm::eltwise_round_half_to_even, 0, 0);
     }
-    appendBinary(mkldnn::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
-    appendBinary(mkldnn::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_mul, outputScale.size(), outputScaleMemory, &outputScaleData.scales_[0]);
+    appendBinary(mkldnn::algorithm::binary_add, outputShift.size(), outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
