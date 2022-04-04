@@ -85,5 +85,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: Issue 76209
         R"(.*MultithreadingTests.*canRun.*RequestsConsistentlyFromThreads.*MYRIAD.*)",
+        // TODO: CVS-82012
+        R"(.*StridedSliceLayerTest\.CompareWithRefs/inShape=\(1\.12\.100\).*)",
+
+        // Issue: 81016
+        R"(.*ParameterResultSubgraphTest\.CompareWithRefs.*)",
     };
 }

@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import csv
 import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
@@ -10,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader
 from utils import utils
 
 logger = utils.get_logger('Summarize')
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -24,12 +26,14 @@ def parse_arguments():
     report_tag = "Report tag"
     output_filename_help = "Output report filename"
     conformance_mode_help = "Allow to align test number"
+    csv_help = "Allow to serialize report as csv file"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
     parser.add_argument("--output_filename", help=output_filename_help, default="report")
     parser.add_argument("--report_tag", help=report_tag, default="")
     parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
+    parser.add_argument("--csv", help=csv_help, default=False)
 
     return parser.parse_args()
 
@@ -159,8 +163,34 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
     return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, is_conformance_mode: bool,
-                   output_filename='report'):
+def format_string(input_str: str):
+    res = input_str
+    res = res.replace('{', '')
+    res = res.replace('}', '')
+    res = res.replace("'", '')
+    res = res.replace('"', '')
+    res = res.replace(': ', '=')
+    res = res.replace(' ', '')
+    res = res.replace(',', ' ')
+    return res
+
+
+def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, device_list: list, results: dict):
+    csv_filename = os.path.join(output_dir, report_filename + '.csv')
+    with open(csv_filename, "w", newline='') as output_csv_file:
+        csv_writer = csv.writer(output_csv_file, dialect='excel')
+        csv_writer.writerow(['Operation'] + device_list)
+        for op in op_list:
+            list_to_csv = list()
+            for device in device_list:
+                list_to_csv.append(format_string(str(results[device][op])) if op in results[device] else "N/A")
+            csv_writer.writerow([op] + list_to_csv)
+
+    logger.info(f'Final CSV report is saved to {csv_filename}')
+
+
+def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str,
+                   is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
@@ -172,6 +202,8 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
     for op in summary_root.find("ops_list"):
         op_list.append(op.tag)
     op_list = sorted(op_list)
+
+    device_list = sorted(device_list)
 
     file_loader = FileSystemLoader('template')
     env = Environment(loader=file_loader)
@@ -186,9 +218,11 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
     with open(report_path, "w") as f:
         logger.info(f'Final report is saved to {report_path}')
         f.write(res_summary)
+    if is_serialize_to_csv:
+        serialize_to_csv(output_filename, output_folder, op_list, device_list, results)
 
 
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out, args.report_tag, args.conformance_mode, args.output_filename)
+    create_summary(summary_root, args.out, args.report_tag, args.conformance_mode, args.csv, args.output_filename)

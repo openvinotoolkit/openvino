@@ -420,23 +420,43 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                     result *= 0.5;
             }
         } else if (layer.isPower()) {
+            double exponent = 0;
+            double scale = 0;
+            double offset = 0;
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
-                IE_THROW() << "Incorrect Power Layer pointer \n";
+                std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+                if (!cnnLayer->getNode() ||
+                    !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(cnnLayer->getNode()))) {
+                    IE_THROW() << "Incorrect Power Layer pointer \n";
+                } else {
+                    auto powerIE = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
+                    if (!powerIE) {
+                        IE_THROW() << "Incorrect Power Layer pointer \n";
+                    } else {
+                        exponent = powerIE->power;
+                        scale = powerIE->scale;
+                        offset = powerIE->shift;
+                    }
+                }
+            } else {
+                exponent = powerLayer->power;
+                scale = powerLayer->scale;
+                offset = powerLayer->offset;
             }
 
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
             auto output_max_value = static_cast<double>((inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max());
 
-            auto x_min = fp32eq(fmod(powerLayer->power, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
+            auto x_min = fp32eq(fmod(exponent, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
             x_min = std::max(x_min, -pow_domain);
 
             auto x_max = input_max_value / quantizedParams->_src_quant.GetScale();
             x_max = std::min(x_max, pow_domain);
 
-            auto val1 = pow(x_min * powerLayer->scale + powerLayer->offset, powerLayer->power);
-            auto val2 = pow(x_max * powerLayer->scale + powerLayer->offset, powerLayer->power);
+            auto val1 = pow(x_min * scale + offset, exponent);
+            auto val2 = pow(x_max * scale + offset, exponent);
 
             auto abs_val = std::max(std::abs(val1), std::abs(val2));
             auto scale_val = output_max_value / abs_val;
@@ -518,7 +538,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            result = CalculateScaleFactorFromStats(quantizedParams->_dst_quant.GetLevels(), minOutValue, maxOutValue);
+            auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()) + 1);
+            result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }

@@ -1,4 +1,4 @@
-# Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_Runtime_UG_Preprocess_Usecase_save}
+# Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_UG_Preprocess_Usecase_save}
 
 ## Introduction
 
@@ -18,59 +18,61 @@ In case if you have some preprocessing steps which can't be integrated into exec
 Let's consider the example, there is an original `ONNX` model which takes one `float32` input with shape `{1, 3, 224, 224}` with `RGB` channels order, with mean/scale values applied. User's application can provide `BGR` image buffer with not fixed size. Additionally, we'll also imagine that our application provides input images as batches, each batch contains 2 images. Here is how model conversion code may look like in your model preparation script
 
 - Includes / Imports
-@sphinxdirective
 
-.. tab:: C++
+@sphinxtabset
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:save_headers]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:save_headers
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:save_headers]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:save_headers
+
+@endsphinxtab
+
+@endsphinxtabset
 
 - Preprocessing & Saving to IR code
-@sphinxdirective
 
-.. tab:: C++
+@sphinxtabset
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:save]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:save
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:save]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:save
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 ## Application code - load model to target device
 
 After this, your application's code can load saved file and don't perform preprocessing anymore. In this example we'll also enable [model caching](./Model_caching_overview.md) to minimize load time when cached model is available
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:save_load]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:save_load
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:save_load]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:save_load
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 ## See Also

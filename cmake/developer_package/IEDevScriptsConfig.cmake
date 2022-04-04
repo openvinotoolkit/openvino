@@ -14,8 +14,8 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER IE_VERSION IE_VERSION_BUILD
-                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_VERSION_BUILD
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
         endif()

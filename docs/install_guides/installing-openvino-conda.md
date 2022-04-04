@@ -57,11 +57,18 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 Now you can start developing your application.
 
 
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
+
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
-- OpenVINO™ toolkit online documentation: <https://docs.openvinotoolkit.ai>.
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [OpenVINO Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide).
-- For more information on Sample Applications, see the [OpenVINO Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
+- For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 - Intel® Distribution of OpenVINO™ toolkit Anaconda home page: [https://anaconda.org/intel/openvino-ie4py](https://anaconda.org/intel/openvino-ie4py)

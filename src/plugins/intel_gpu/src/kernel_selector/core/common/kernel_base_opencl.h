@@ -30,7 +30,8 @@ protected:
     Arguments GetArgsDesc(uint32_t num_of_input,
                           bool use_weights,
                           bool use_bias,
-                          uint32_t number_of_inputs_for_fused_prim = 0) const;
+                          uint32_t number_of_inputs_for_fused_prim = 0,
+                          uint32_t num_of_outpus = 1) const;
     std::shared_ptr<KernelString> GetKernelString(const std::string& kernel_name,
                                                   const std::pair<std::string, std::string>& jit,
                                                   const std::string& entry_point,
@@ -49,6 +50,7 @@ protected:
                           bool weights = false,
                           bool bias = false,
                           int number_of_inputs = 1,
-                          uint32_t number_of_inputs_for_fused_prims = 0) const;
+                          uint32_t number_of_inputs_for_fused_prims = 0,
+                          int number_of_outputs = 1) const;
 };
 }  // namespace kernel_selector

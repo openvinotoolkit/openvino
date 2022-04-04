@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <ngraph/op/constant.hpp>
 
 #include "runtime/pwl.h"
 #include "make_pwl.hpp"
@@ -63,6 +64,12 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
 static void print_segments_header(const DnnActivation&  fun) {
     gnalog() <<  "=========================== " << intel_dnn_activation_name[fun] <<
                  " segments ===========================\n";
+    gnalog() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
+                "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
+}
+
+static void print_segments_header() {
+    gnalog() <<  "=========================== segments ===========================\n";
     gnalog() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
                 "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
 }
@@ -136,62 +143,11 @@ void make_gna_pwl(const DnnActivation&  fun,
     pwl_gna_slope_scale_t s;
     const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
     const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
-    uint32_t pwl_size = static_cast<int32_t>(pwl.size());
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
     gnalog() << "   out_scale " << out_scale << "\n";
     print_segments_header(fun);
     switch (fun) {
-        case kActSigmoid:
-        case kActTanh:
-        case kActSoftSign: {
-            // insert extra segment for x values < l_bound
-            double min_x_val;
-            double min_y_val;
-            if (fun == kActSigmoid) {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
-                min_x_val = -pwl[0].b / pwl[0].m;
-            } else if (fun == kActTanh) {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
-                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
-            } else {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
-                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
-            }
-            double max_y_val = fun.fqParams.set ? pwl.back().beta : 1.0;
-            double max_x_val = fun.srcFQParams.set ? u_bound : (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true);
-            break;
-        }
-        case kActExp: {
-            double min_x_val = -pwl[0].b / pwl[0].m;
-            double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-            double min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
-            double max_y_val = fun.fqParams.set ? pwl.front().beta : y_max / out_scale;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true);
-            break;
-        }
-        case kActLog: {
-            double min_x_val = (1 + ~XBASEMASK) / in_scale;
-            double max_x_val = INT32_MAX / in_scale;
-            double min_y_val = y_min / out_scale;
-            double max_y_val = y_max / out_scale;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false);
-            break;
-        }
-        case kActNegLog:
-        case kActNegHalfLog: {
-            double min_x_val = 1 + ~XBASEMASK;
-            double max_x_val = INT32_MAX / in_scale;
-            double min_y_val = y_max / out_scale;
-            double max_y_val = y_min / out_scale;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false);
-            break;
-        }
         case kActRelu:
         case kActLeakyRelu: {
             auto n_segments = 2;
@@ -273,7 +229,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            if (fun == kActFakeQuantize && fun.fqParams.set) {
+            if ((fun == kActFakeQuantize || fun == kActIdentity) && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
                 x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
                 y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
@@ -297,7 +253,7 @@ void make_gna_pwl(const DnnActivation&  fun,
                         x_upper = FLOAT_TO_INT32(y_upper  * in_scale / out_scale);
                     }
                 }
-            } else if (fun == kActIdentity) {
+            } else if (fun == kActIdentity && !fun.fqParams.set) {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
@@ -363,43 +319,156 @@ void make_gna_pwl(const DnnActivation&  fun,
             print_segment((int32_t)(gna_pwl[i + 1].xBase & XBASEMASK) / in_scale, gna_pwl[i + 1].yBase / out_scale, 1.0);
             break;
         }
-        case kActPow: {
-            float pow_exponent = fun.args.pow.exponent;
-            IE_ASSERT(pow_exponent != 1.0f);
-            if (pow_exponent == 0.0f) {
-                int32_t x_lower = INT32_MIN;
-                int32_t x_upper = INT32_MAX;
-                int16_t y_lower = FLOAT_TO_INT16(1 * out_scale);
-                int16_t y_upper = y_lower;
-                auto n_segments = 2;
-
-                gna_pwl.resize(n_segments);
-
-                gna_pwl[0].xBase = INT32_MIN & XBASEMASK;  // zero out the 2 lsb
-                gna_pwl[0].yBase = y_lower;
-                gna_pwl[0].slope = 0;
-                print_segment(gna_pwl[0].xBase / in_scale, gna_pwl[0].yBase / out_scale, 0.0);
-
-                gna_pwl[1].xBase = x_lower & XBASEMASK;  // zero out the 2 lsb
-                gna_pwl[1].yBase = y_lower;
-                double slope = (static_cast<double>(y_upper - y_lower) / out_scale) / (static_cast<double>(x_upper - x_lower) / in_scale);
-                s = gna_slope(slope, in_scale, out_scale);
-                gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-                print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
-            } else {
-                double min_x_val = -pwl[0].b / pwl[0].m;
-                double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-                double min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
-                double max_y_val = fun.fqParams.set ? pwl.front().beta : y_max / out_scale;
-                gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                    fun.fqParams.set, true);
-                break;
-            }
-            break;
-        }
         default:
             THROW_GNA_EXCEPTION << "Unexpected function activation!" << fun;
     }
     insert_extra_pwl_segments(gna_pwl, y_min, y_max);
+}
+
+template<typename T>
+static T cast_check_overflow(double v, bool round = true) {
+    if (v == std::numeric_limits<double>::infinity() || v > std::numeric_limits<T>::max()) {
+        return std::numeric_limits<T>::max();
+    }
+
+    if (v == -std::numeric_limits<double>::infinity() || v < std::numeric_limits<T>::min()) {
+        return std::numeric_limits<T>::min();
+    }
+
+    return round ? FLOAT_TO_INT32(v) : static_cast<T>(v);
+}
+
+/**
+ * Make GNA segments from PWL (m*x + b).
+ * @param m - array of slopes of a function
+ * @param b - array of offset of a function
+ * @param alpha - array x-the value of the beginning of a segments
+ * @param count - number of PWL segments
+ * @param in_scale - input scale factor
+ * @param out_scale - output scale factor
+ */
+template<typename T>
+static void make_gna_pwl(const T* m,
+                         const T* b,
+                         const T* alpha,
+                         size_t count,
+                         double in_scale,
+                         double out_scale,
+                         std::vector<gna_pwl_segment_t> &gna_pwl) {
+    auto mul_check_overflow = [](double a, double b) -> double {
+        if (a == 0 || b == 0) {
+            return 0;
+        }
+
+        if (std::fabs(a) == std::numeric_limits<double>::infinity() ||
+            std::fabs(b) == std::numeric_limits<double>::infinity()) {
+            return (a > 0 && b > 0 || a < 0 && b < 0) ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        if (b != 0 && std::fabs(a) > std::numeric_limits<double>::max() / std::fabs(b)) {
+            return (a > 0 && b > 0 || a < 0 && b < 0) ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        return a * b;
+    };
+
+    auto add_check_overflow = [](double a, double b) -> double {
+        if ((a > 0 && b > 0 || a < 0 && b < 0) && std::fabs(a) > std::numeric_limits<double>::max() - std::fabs(b)) {
+            return a > 0 && b > 0 ?
+                std::numeric_limits<double>::infinity() :
+                -std::numeric_limits<double>::infinity();
+        }
+
+        return a + b;
+    };
+
+    gnalog() << "make_gna_pwl\n";
+    gnalog() << "   in_scale  " << in_scale << "\n";
+    gnalog() << "   out_scale " << out_scale << "\n";
+    print_segments_header();
+    gna_pwl.resize(0);
+    for (size_t i = 0; i < count; i++) {
+        auto s = gna_slope(m[i], in_scale, out_scale);
+        int32_t xbase =
+            (cast_check_overflow<int32_t>(mul_check_overflow(in_scale, alpha[i]), false) & XBASEMASK) | s.slope_scale_index;
+        int16_t ybase = cast_check_overflow<int16_t>(
+                mul_check_overflow(
+                    add_check_overflow(
+                        mul_check_overflow(m[i], alpha[i]),
+                        b[i]),
+                    out_scale));
+        int16_t slope = cast_check_overflow<int16_t>(mul_check_overflow(s.slope, s.slope_scale));
+        gna_pwl.push_back({xbase, ybase, slope});
+        print_segment(
+            alpha[i],
+                add_check_overflow(
+                    mul_check_overflow(m[i], alpha[i]),
+                    b[i]),
+            m[i]);
+    }
+}
+
+static void make_gna_pwl(std::tuple<>&&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         double,
+                         double,
+                         std::vector<gna_pwl_segment_t>&) {
+}
+
+template<typename T, typename ...Types>
+static void make_gna_pwl(std::tuple<T, Types...>&& types,
+                         const std::shared_ptr<ov::op::v0::Constant>& m,
+                         const std::shared_ptr<ov::op::v0::Constant>& b,
+                         const std::shared_ptr<ov::op::v0::Constant>& alpha,
+                         double in_scale,
+                         double out_scale,
+                         std::vector<gna_pwl_segment_t> &gna_pwl) {
+    if (m->get_element_type() != T::value) {
+        make_gna_pwl(std::tuple<Types...>(),
+                     m,
+                     b,
+                     alpha,
+                     in_scale,
+                     out_scale,
+                     gna_pwl);
+        return;
+    }
+
+    using A = typename ngraph::element_type_traits<T::value>::value_type;
+    make_gna_pwl(m->get_data_ptr<A>(),
+                 b->get_data_ptr<A>(),
+                 alpha->get_data_ptr<A>(),
+                 m->get_byte_size() / sizeof(A),
+                 in_scale,
+                 out_scale,
+                 gna_pwl);
+}
+
+void make_gna_pwl(const std::shared_ptr<ngraph::Node>& node,
+                  double in_scale,
+                  double out_scale,
+                  bool low_precision,
+                  std::vector<gna_pwl_segment_t> &gna_pwl) {
+    auto m_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+    IE_ASSERT(!!m_node);
+    auto b_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(2));
+    IE_ASSERT(!!b_node);
+    auto alpha_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
+    IE_ASSERT(!!alpha_node);
+    IE_ASSERT(m_node->get_element_type() == b_node->get_element_type() &&
+              m_node->get_element_type() == alpha_node->get_element_type());
+    make_gna_pwl(std::tuple<std::integral_constant<ngraph::element::Type_t, ngraph::element::f32>,
+                            std::integral_constant<ngraph::element::Type_t, ngraph::element::f64>>(),
+                 m_node,
+                 b_node,
+                 alpha_node,
+                 in_scale,
+                 out_scale,
+                 gna_pwl);
 }

@@ -11,8 +11,6 @@ You will perform the following steps:
 4. <a href="run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="run-image-classification">Image Classification Code Sample</a>
 
-If you installed OpenVINO™ via `pip` you can quickly getting started with the product by using these [tutorials](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks).
-
 This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
 
 @sphinxdirective
@@ -47,15 +45,15 @@ To build OpenVINO samples:
 @sphinxdirective
 .. tab:: Linux
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
+   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
 
 @endsphinxdirective
 
@@ -94,13 +92,13 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 * List the models available in the downloader
 
 ``` sh
-   info_dumper --print_all
+   omz_info_dumper --print_all
 ```
 
 * Use `grep` to list models that have a specific name pattern
 
 ``` sh
-   info_dumper --print_all | grep <model_name>
+   omz_info_dumper --print_all | grep <model_name>
 ```
 
 * Use Model Downloader to download models.
@@ -244,7 +242,7 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-The OpenVINO Runtime can perform inference on different precision formats, such as FP32, FP16, or INT8. To generate an IR with a specific precision, run the Model Optimizer with the appropriate `--data_type` option.
+The OpenVINO Runtime can infer models where floating-point weights are [compressed to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with a specific precision, run the Model Optimizer with the appropriate `--data_type` option.
 
 Generic Model Optimizer script:
 
@@ -370,7 +368,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-The following commands run the Image Classification Code Sample using the [`dog.bmp`](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
+The following commands run the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
    **CPU:**  
 @sphinxdirective
