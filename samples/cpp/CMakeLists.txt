@@ -117,14 +117,16 @@ if(NOT TARGET gflags)
 endif()
 
 if(NOT TARGET zlib::zlib)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET
-                          zlib)
-        if(zlib_FOUND)
-            set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+    if(NOT CMAKE_CROSSCOMPILING)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(zlib QUIET
+                            IMPORTED_TARGET
+                            zlib)
+            if(zlib_FOUND)
+                set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
+                add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            endif()
         endif()
     endif()
 

@@ -22,14 +22,11 @@ addIeTargetTest(
 )
 
 # try to find VA libraries
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_search_module(LIBVA QUIET libva)
-endif()
-
-# TODO: pkg_search_module finds libva not in sysroot
-if(ANDROID)
-    set(LIBVA_FOUND OFF CACHE BOOL "" FORCE)
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(LIBVA QUIET libva)
+    endif()
 endif()
 
 if(LIBVA_FOUND)
