@@ -26,7 +26,7 @@ ov_install_static_lib(xbyak openvino_common)
 #
 
 if(NOT CMAKE_CROSSCOMPILING)
-    find_package(PkgConfig QUIET)
+    find_host_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                         IMPORTED_TARGET GLOBAL

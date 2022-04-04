@@ -23,16 +23,15 @@ addIeTargetTest(
 
 # try to find VA libraries
 if(NOT CMAKE_CROSSCOMPILING)
-    find_package(PkgConfig QUIET)
+    find_host_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
-        pkg_search_module(LIBVA QUIET libva)
+        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
     endif()
 endif()
 
-if(LIBVA_FOUND)
+if(libva_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
-    target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
-    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
 endif()
 
 if(WIN32)

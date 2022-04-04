@@ -91,6 +91,12 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -118,11 +124,11 @@ endif()
 
 if(NOT TARGET zlib::zlib)
     if(NOT CMAKE_CROSSCOMPILING)
-        find_package(PkgConfig QUIET)
+        find_host_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_search_module(zlib QUIET
-                            IMPORTED_TARGET
-                            zlib)
+                              IMPORTED_TARGET
+                              zlib)
             if(zlib_FOUND)
                 set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
                 add_library(zlib::zlib ALIAS PkgConfig::zlib)
