@@ -45,6 +45,20 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
+/// Like AddSinh but with a constant second input (and no sinh on in)
+//   in1       in2
+//   Sin       Sinh
+//        Add
+//      Result
+class AddSinhConstFunction : public SnippetsFunctionBase {
+public:
+    explicit AddSinhConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+//    std::shared_ptr<ov::Model> initReference() const override;
+};
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
 // in1   in2
