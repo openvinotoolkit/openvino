@@ -1287,9 +1287,14 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         const auto reqConfigId = std::get<0>(*freeNnet);
         if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
             gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
-        // propagate all subnetworks
-        for (int i = 0; i != gnaModels.size(); i++) {
-            std::get<1>(gnaRequestConfigToRequestIdMap[i]) = gnadevice->propagate(std::get<0>(gnaRequestConfigToRequestIdMap[i]), config.pluginGna2AccMode);
+
+        if (gnaFlags->num_requests == 1 && nnets.size() > 1) {
+            // propagate all subnetworks  if the model was splitted on several parts
+            for (int i = 0; i != gnaModels.size(); i++) {
+                std::get<1>(gnaRequestConfigToRequestIdMap[i]) = gnadevice->propagate(std::get<0>(gnaRequestConfigToRequestIdMap[i]), config.pluginGna2AccMode);
+            }
+        } else {
+            std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
         }
     }
 
@@ -1319,15 +1324,28 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice && !trivialTopology) {
-        for (auto &nnet : nnets) {
-            const auto waitStatus = gnadevice->wait(std::get<1>(nnet), millisTimeout);
-            if (waitStatus == GNA_REQUEST_ABORTED) {
-                std::get<1>(nnets[request_idx]) = -1;
-                return GNA_REQUEST_ABORTED;
+        GnaWaitStatus waitStatus;
+        if (gnaFlags->num_requests > 1) {
+            waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+            std::get<1>(nnets[request_idx]) = -1;
+        } else {
+            for (auto &nnet : nnets) {
+                waitStatus = gnadevice->wait(std::get<1>(nnet), millisTimeout);
+                if (waitStatus == GNA_REQUEST_ABORTED) {
+                    std::get<1>(nnets[request_idx]) = -1;
+                    break;
+                }
+                if (waitStatus == GNA_REQUEST_PENDING) {
+                    break;
+                }
             }
-            if (waitStatus == GNA_REQUEST_PENDING) {
-                return GNA_REQUEST_PENDING;
-            }
+        }
+
+        if (waitStatus == GNA_REQUEST_ABORTED) {
+            return GNA_REQUEST_ABORTED;
+        }
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            return GNA_REQUEST_PENDING;
         }
     }
 
