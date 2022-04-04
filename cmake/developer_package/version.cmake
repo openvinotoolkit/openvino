@@ -26,20 +26,22 @@ function (commitHash VAR)
     set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
 endfunction()
 
-macro(ie_parse_ci_build_number)
-    set(IE_VERSION_BUILD 000)
+macro(ov_parse_ci_build_number)
+    set(OpenVINO_VERSION_BUILD 000)
+    set(IE_VERSION_BUILD ${OpenVINO_VERSION_BUILD})
+
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
-        set(IE_VERSION_MAJOR ${CMAKE_MATCH_1})
-        set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
-        set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
-        set(IE_VERSION_BUILD ${CMAKE_MATCH_4})
+        set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
+        set(OpenVINO_VERSION_MINOR ${CMAKE_MATCH_2})
+        set(OpenVINO_VERSION_PATCH ${CMAKE_MATCH_3})
+        set(OpenVINO_VERSION_BUILD ${CMAKE_MATCH_4})
     endif()
 
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
 
-    macro(ie_get_hpp_version)
+    macro(ov_get_hpp_version)
         if(NOT DEFINED OpenVINO_SOURCE_DIR)
             return()
         endif()
@@ -59,11 +61,12 @@ macro(ie_parse_ci_build_number)
 
         foreach(suffix MAJOR MINOR PATCH)
             set(ie_version_name "IE_VERSION_${suffix}")
-            set(ov_version_name "OPENVINO_VERSION_${suffix}")
+            set(ov_version_name "OpenVINO_VERSION_${suffix}")
+            set(ov_version_name_hpp "OPENVINO_VERSION_${suffix}")
 
             string(REGEX REPLACE ".+${ie_version_name}[ ]+([0-9]+).*" "\\1"
                     ${ie_version_name}_HPP "${IE_VERSION_PARTS}")
-            string(REGEX REPLACE ".+${ov_version_name}[ ]+([0-9]+).*" "\\1"
+            string(REGEX REPLACE ".+${ov_version_name_hpp}[ ]+([0-9]+).*" "\\1"
                     ${ov_version_name}_HPP "${OV_VERSION_PARTS}")
 
             if(NOT ${ie_version_name}_HPP EQUAL ${ov_version_name}_HPP)
@@ -72,26 +75,26 @@ macro(ie_parse_ci_build_number)
             endif()
         endforeach()
 
-        set(ie_hpp_version_is_found ON)
+        set(ov_hpp_version_is_found ON)
     endmacro()
 
-    # detect OpenVINO version via ie_version.hpp
-    ie_get_hpp_version()
+    # detect OpenVINO version via openvino/core/version.hpp and ie_version.hpp
+    ov_get_hpp_version()
 
-    if(ie_hpp_version_is_found)
-        foreach(var IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+    if(ov_hpp_version_is_found)
+        foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
-                    and from ie_version.hpp (${${var}_HPP}) are different")
+                    and from openvino/core/version.hpp (${${var}_HPP}) are different")
             else()
-                # CI_BUILD_NUMBER is not defined well, take info from ie_verison.hpp as a baseline
+                # CI_BUILD_NUMBER is not defined well, take info from openvino/core/version.hpp as a baseline
                 set(${var} ${${var}_HPP})
             endif()
         endforeach()
     endif()
 
-    set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
-    message(STATUS "OpenVINO version is ${IE_VERSION}")
+    set(OpenVINO_VERSION "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}")
+    message(STATUS "OpenVINO version is ${OpenVINO_VERSION} (Build ${OpenVINO_VERSION_BUILD})")
 endmacro()
 
 if (DEFINED ENV{CI_BUILD_NUMBER})
@@ -104,10 +107,10 @@ else()
     set(CI_BUILD_NUMBER "${custom_build}")
 endif()
 
-# provides Inference Engine version
+# provides OpenVINO version
 # 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses ie_version.hpp
-ie_parse_ci_build_number()
+# 2. Otherwise, parses openvino/core/version.hpp
+ov_parse_ci_build_number()
 
 macro (addVersionDefines FILE)
     set(__version_file ${FILE})
