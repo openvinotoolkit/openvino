@@ -260,15 +260,17 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
 }
 
-class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::PolymorphAllocator<uint8_t>> {
-using GNAMemory::GNAMemory;
+class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> {
+    using GNAMemory::GNAMemory;
 
 public:
     void Test() {
         // filtering RW allocation requests only
-        auto filter_req = [] (const MemRequest &re) { return re._region == REGION_RW && re._type != REQUEST_BIND; };
+        auto filter_req = [] (const MemRequest &re) { return re._region == REGION_SCRATCH && re._type != REQUEST_BIND; };
         std::vector<MemRequest> test_reqs;
-        auto it = std::copy_if(_future_heap.begin(), _future_heap.end(), std::back_inserter(test_reqs), filter_req);
+        const auto& requests = getQueue(REGION_SCRATCH)->_mem_requests;
+
+        auto it = std::copy_if(requests.begin(), requests.end(), std::back_inserter(test_reqs), filter_req);
 
         // intercrossing condition
         auto is_crossed = [] (const MemRequest &re1, const MemRequest &re2) {
@@ -293,7 +295,7 @@ class GNAPluginTested : public GNAPluginNS::GNAPlugin {
 public:
     std::shared_ptr<GNAMemoryTested> gnamem_t;
     GNAPluginTested() : GNAPluginNS::GNAPlugin() {
-        gnamem_t = std::make_shared<GNAMemoryTested>(make_polymorph<std::allocator<uint8_t>>());
+        gnamem_t = std::make_shared<GNAMemoryTested>();
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);
         gnadevice.reset();

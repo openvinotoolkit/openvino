@@ -85,40 +85,38 @@ private:
 
 class GnaAllAllocations : public std::list<GnaAllocation> {
 public:
-
-GnaAllAllocations() = default;
-
-template<class T>
-explicit GnaAllAllocations(T b, T e) : std::list<GnaAllocation>(b, e) {
-}
-
-uint32_t getAllAllocationSize() const {
-    uint32_t total = 0;
-    for (auto& a : *this) {
-        total += a.sizeForExport();
+    GnaAllAllocations() = default;
+    template<class T>
+    explicit GnaAllAllocations(T b, T e) : std::list<GnaAllocation>(b, e) {
     }
-    return total;
-}
 
-GnaAllAllocations orderedAllocations() const {
-    std::vector<GnaAllocation> allVector(begin(), end());
-    std::sort(allVector.begin(), allVector.end(), [](const GnaAllocation& l, const GnaAllocation& r) {
-        return l.GetRegionOrder() <= r.GetRegionOrder();
-    });
-    return GnaAllAllocations(allVector.begin(), allVector.end());
-}
-
-std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(void* ptr) const {
-    uint64_t curOffset = 0;
-    for (auto& r : orderedAllocations()) {
-        auto ptrBegin = static_cast<uint8_t*>(r.ptr);
-        const auto size = r.sizeForExport();
-        if (ptr >= ptrBegin && ptr < ptrBegin + size) {
-            curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
-            return {true, curOffset};
+    uint32_t getAllAllocationSize() const {
+        uint32_t total = 0;
+        for (auto& a : *this) {
+            total += a.sizeForExport();
         }
-        curOffset += size;
+        return total;
     }
-    return {false, 0};
-}
+
+    GnaAllAllocations orderedAllocations() const {
+        std::vector<GnaAllocation> allVector(begin(), end());
+        std::sort(allVector.begin(), allVector.end(), [](const GnaAllocation& l, const GnaAllocation& r) {
+            return l.GetRegionOrder() <= r.GetRegionOrder();
+        });
+        return GnaAllAllocations(allVector.begin(), allVector.end());
+    }
+
+    std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(void* ptr) const {
+        uint64_t curOffset = 0;
+        for (auto& r : orderedAllocations()) {
+            auto ptrBegin = static_cast<uint8_t*>(r.ptr);
+            const auto size = r.sizeForExport();
+            if (ptr >= ptrBegin && ptr < ptrBegin + size) {
+                curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
+                return {true, curOffset};
+            }
+            curOffset += size;
+        }
+        return {false, 0};
+    }
 };
