@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_PYTHON=ON -DENABLE_WHEEL=OFF -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+          cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
 
       - name: Check code style
         run: cmake --build . --target clang_format_check_all -j8
@@ -66,7 +66,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_PYTHON=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: ShellCheck
         run: cmake --build . --target ie_shellcheck -j8
@@ -92,7 +92,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_PYTHON=OFF ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
 
       - name: Naming convention check
         run: cmake --build . --target ncc_all -j8
