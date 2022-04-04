@@ -123,3 +123,18 @@ NGRAPH_TEST(onnx_tensor_names, simple_multiout_named_operator) {
     EXPECT_NE(result2, nullptr);
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node");
 }
+
+NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_transposed_named.onnx"));
+
+    const auto ops = function->get_ordered_ops();
+
+    const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
+    EXPECT_NE(result1, nullptr);
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node_y");
+
+    const auto result2 = find_by_friendly_name<op::Result>(ops, "z/sink_port_0");
+    EXPECT_NE(result2, nullptr);
+    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node_z");
+}
