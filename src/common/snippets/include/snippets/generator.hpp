@@ -121,7 +121,6 @@ public:
      * @brief  Purely virtual method to retrieve indexes of register that can be used to store data pointers (src/dst/constants)
      * @return vector of indexes (size_t)
      */
-    virtual std::vector<size_t> get_gprs_for_data_pointers() const = 0;
 
 protected:
     std::shared_ptr<TargetMachine> target;

@@ -18,13 +18,10 @@ namespace pass {
  */
 class AssignRegisters : public ngraph::pass::FunctionPass {
 public:
-    explicit AssignRegisters(const std::vector<size_t>& gpr_pool) : gpr_pool{gpr_pool} {
+    explicit AssignRegisters() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-
-private:
-    const std::vector<size_t>& gpr_pool;
 };
 
 }  // namespace pass

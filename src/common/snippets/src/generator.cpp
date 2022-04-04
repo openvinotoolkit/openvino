@@ -15,9 +15,24 @@
 auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
     auto rt = n->get_rt_info();
-
     // ToDo: change to reg_t
-    std::vector<size_t> rout;
+    std::vector<size_t> rin, rout;
+
+    if (ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
+        auto it_rt = rt.find("effectiveAddress");
+        if (it_rt != rt.end())
+            rout.push_back(it_rt->second.as<size_t>());
+        else
+            throw std::runtime_error("Effective address for Store is not found");
+    }
+    if (ov::as_type_ptr<ngraph::snippets::op::Load>(n) || ov::as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
+        auto it_rt = rt.find("effectiveAddress");
+        if (it_rt != rt.end())
+            rin.push_back(it_rt->second.as<size_t>());
+        else
+            throw std::runtime_error("Effective address for Load or BrodcastLoad is not found");
+    }
+
     auto it_rt = rt.find("reginfo");
     if (it_rt != rt.end()) {
         for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
@@ -25,7 +40,6 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
         }
     }
 
-    std::vector<size_t> rin;
     for (auto input : n->inputs()) {
         auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
         auto it_rt = rt.find("reginfo");
@@ -90,7 +104,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     // emission
     auto tiles2DKernel = std::make_shared<ngraph::snippets::op::Kernel>(std::vector<EmitterCode> {tile_scheduler_region});
     std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(tiles2DKernel);
-    kernel->emit_code({}, {});
+    kernel->emit_code({in+out}, {});
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
