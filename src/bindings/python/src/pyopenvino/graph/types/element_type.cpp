@@ -17,15 +17,18 @@ void regclass_graph_Type(py::module m) {
     py::class_<ov::element::Type, std::shared_ptr<ov::element::Type>> type(m, "Type");
     type.doc() = "openvino.runtime.Type wraps ov::element::Type";
 
-    type.def(py::init([](py::dtype dtype){
-        return Common::dtype_to_ov_type().at(py::str(dtype));
-    }),
-    R"(
-        Convert numpy dtype into OpenVINO type
+    type.def(py::init([](py::object& np_literal) {
+                 return Common::dtype_to_ov_type().at(py::str(py::dtype::from_args(np_literal)));
+             }),
+             py::arg("dtype"),
+             R"(
+            Convert numpy dtype into OpenVINO type
 
-        :return: OpenVINO type object
-        :rtype: ov.Type
-    )");
+            :param dtype: numpy dtype
+            :type dtype: numpy.dtype
+            :return: OpenVINO type object
+            :rtype: ov.Type
+        )");
 
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;
@@ -62,8 +65,11 @@ void regclass_graph_Type(py::module m) {
         },
         py::is_operator());
     type.def("get_type_name", &ov::element::Type::get_type_name);
-    type.def("to_dtype", [](ov::element::Type& self) {
-        return Common::ov_type_to_dtype().at(self),
+    type.def(
+        "to_dtype",
+        [](ov::element::Type& self) {
+            return Common::ov_type_to_dtype().at(self);
+        },
         R"(
             Convert Type to numpy dtype
 

@@ -1,7 +1,9 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
+import pytest
 import numpy as np
+import openvino.runtime as ov
 
 from openvino.runtime import Model, PartialShape, Shape, opset8, Core
 from openvino.runtime.passes import Manager, ConstantFolding, MakeStateful,\
@@ -112,3 +114,22 @@ def test_serialize_pass():
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+@pytest.mark.parametrize("dtype, ovtype", [
+    ("float16", ov.Type.f16),
+    ("float32", ov.Type.f32),
+    ("float64", ov.Type.f64),
+    ("int8", ov.Type.i8),
+    ("int16", ov.Type.i16),
+    ("int32", ov.Type.i32),
+    ("int64", ov.Type.i64),
+    ("uint8", ov.Type.u8),
+    ("uint16", ov.Type.u16),
+    ("uint32", ov.Type.u32),
+    ("uint64", ov.Type.u64),
+    ("bool", ov.Type.boolean),
+])
+def test_dtype_ovtype_conversion(dtype, ovtype):
+    assert ovtype.to_dtype() == dtype
+    assert ov.Type(dtype) == ovtype
