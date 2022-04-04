@@ -32,7 +32,7 @@ template <cpu_isa_t isa>
 struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
-    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator() {}
+    explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jit_uni_extract_image_patches_kernel(jpp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -79,7 +79,7 @@ private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
-    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_common)) && (jpp.dtype_size == 4);
+    bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
@@ -152,7 +152,7 @@ private:
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_arg, ptr[mem_base + mem_offset], vmm_mask);
                 break;
-            case x64::avx512_common:
+            case x64::avx512_core:
                 kxnord(k_mask, k_mask, k_mask);
                 vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
                 break;
@@ -564,8 +564,8 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     }
 
     jpp.dtype_size = prcSize;
-    if (mayiuse(x64::avx512_common)) {
-        jpp.block_size = cpu_isa_traits<x64::avx512_common>::vlen / prcSize;
+    if (mayiuse(x64::avx512_core)) {
+        jpp.block_size = cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
         jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
@@ -586,8 +586,8 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     const ExtImgPatcherPadType& padType,
     const size_t prcSize) {
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
-    if (mayiuse(x64::avx512_common)) {
-        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_common>(jpp));
+    if (mayiuse(x64::avx512_core)) {
+        pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_core>(jpp));
     } else if (mayiuse(x64::avx2)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::avx2>(jpp));
     } else if (mayiuse(x64::sse41)) {

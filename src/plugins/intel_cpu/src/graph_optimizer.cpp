@@ -923,7 +923,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (parentConvolutionNode == nullptr)
             IE_THROW() << "Cannot get convolution node " << parentNode->getName();
 
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common))
+        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))
             return false;
 
         return (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);

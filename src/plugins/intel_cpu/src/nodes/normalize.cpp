@@ -85,7 +85,7 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator() {}
+    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp) : jit_uni_normalize_modulo_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -206,7 +206,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
     explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_normalize_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -242,7 +242,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         }
-        if (isa == avx512_common)
+        if (isa == avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         if (jcp_.is_nchw) {
@@ -426,7 +426,7 @@ private:
     inline void normalize_blk() {
         size_t blk_size = 0;
         size_t simd_w = 0;
-        if (isa == cpu::x64::avx512_common) {
+        if (isa == cpu::x64::avx512_core) {
             blk_size = simd_w = 16;
         } else if (isa == cpu::x64::avx2) {
             blk_size = simd_w = 8;
@@ -578,7 +578,7 @@ private:
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
+            if (isa == cpu::x64::avx512_core) {
                 vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
                 vpmovusdb(op, vmm_dst);
             } else {
@@ -593,7 +593,7 @@ private:
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
+            if (isa == cpu::x64::avx512_core) {
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -834,7 +834,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
             pushDesc(LayoutType::nspc, impl_type);
-            if (mayiuse(cpu::x64::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_core)) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
             } else {
                 pushDesc(LayoutType::nCsp8c, impl_type);
@@ -1001,11 +1001,11 @@ public:
         jcp.h = (dims_size > 2) ? dims[2] : 1lu;
         jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             blk_size = 16;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>(jcp));
             normalize_kernel.reset(
-                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *kernel_attrs.get()));
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             blk_size = 8;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));

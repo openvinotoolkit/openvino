@@ -30,7 +30,7 @@ template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator() {}
+    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -257,8 +257,8 @@ void PermuteKernel::prepareParams() {
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {

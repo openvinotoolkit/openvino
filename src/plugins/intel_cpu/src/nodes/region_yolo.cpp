@@ -31,7 +31,7 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -289,7 +289,7 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type;
-    if (mayiuse(x64::avx512_common)) {
+    if (mayiuse(x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -314,8 +314,8 @@ void RegionYolo::createPrimitive() {
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
     block_size = 1;
-    if (mayiuse(x64::avx512_common)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_core)) {
+        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_core>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
         logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));

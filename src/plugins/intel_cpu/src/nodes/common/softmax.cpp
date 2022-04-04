@@ -55,7 +55,7 @@ template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jcp_(jcp), jit_uni_softmax_kernel(), jit_generator() {}
+    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jcp_(jcp), jit_uni_softmax_kernel(), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -102,7 +102,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
                 vcmpps(k_mask, vmm_val, vmm_max, _cmp_nle_us);
             }
 
-            if (isa == x64::avx512_common) {
+            if (isa == x64::avx512_core) {
                 vptestmd(k_mask, vmm_mask, vmm_mask);
                 vblendmps(vmm_max | k_mask, vmm_max, vmm_val);
             } else {
@@ -243,8 +243,8 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
 
-    if (mayiuse(x64::avx512_common)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_core)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_core>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
         softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx2>(jcp));

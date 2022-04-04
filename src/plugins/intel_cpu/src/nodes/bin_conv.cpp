@@ -50,7 +50,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
     explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
-            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
+            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator(jit_name())  {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -183,20 +183,20 @@ private:
 
     reg64_t reg_shift = aux_reg_input;
 
-    Vmm vmm_scale = Vmm(isa == x64::avx512_common ? 30 : 14);
+    Vmm vmm_scale = Vmm(isa == x64::avx512_core ? 30 : 14);
     Vmm vmm_shift = Vmm(0);
-    Vmm vmm_sum = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_lookup = Vmm(isa == x64::avx512_common ? 28 : 12);
-    Vmm vmm_mask = Vmm(isa == x64::avx512_common ? 29 : 13);
-    Vmm vmm_one_u8 = Vmm(isa == x64::avx512_common ? 30 : 14);
-    Vmm vmm_one_s16 = Vmm(isa == x64::avx512_common ? 31 : 15);
-    Ymm ymm_tmp = Ymm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_tmp = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_tmp1 = Vmm(isa == x64::avx512_common ? 27 : 11);
+    Vmm vmm_sum = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_lookup = Vmm(isa == x64::avx512_core ? 28 : 12);
+    Vmm vmm_mask = Vmm(isa == x64::avx512_core ? 29 : 13);
+    Vmm vmm_one_u8 = Vmm(isa == x64::avx512_core ? 30 : 14);
+    Vmm vmm_one_s16 = Vmm(isa == x64::avx512_core ? 31 : 15);
+    Ymm ymm_tmp = Ymm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_tmp = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_tmp1 = Vmm(isa == x64::avx512_core ? 27 : 11);
     Vmm vmm_src = Vmm(0);
-    Vmm vmm_tmp2 = Vmm(isa == x64::avx512_common ? 25 : 9);
-    Vmm vmm_thr = Vmm(isa == x64::avx512_common ? 26 : 10);
-    Vmm vmm_out_mask = Vmm(isa == x64::avx512_common ? 30 : 14);
+    Vmm vmm_tmp2 = Vmm(isa == x64::avx512_core ? 25 : 9);
+    Vmm vmm_thr = Vmm(isa == x64::avx512_core ? 26 : 10);
+    Vmm vmm_out_mask = Vmm(isa == x64::avx512_core ? 30 : 14);
 
     const unsigned char _cmp_gt_os = 6;
 
@@ -510,7 +510,7 @@ private:
 
         kh_loop(ur_w, pad_l, pad_r, oc_blocks, oc_step);
 
-        if (isa == x64::avx512_common && oc_step != jcp_.oc_block) {
+        if (isa == x64::avx512_core && oc_step != jcp_.oc_block) {
             int mask = (1 << oc_step) - 1;
             mov(reg_tmp_32, mask);
             kmovw(ktail_mask, reg_tmp_32);
@@ -596,7 +596,7 @@ private:
                             Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
                             if (is_scalar_store) {
-                                if (isa == x64::avx512_common) {
+                                if (isa == x64::avx512_core) {
                                     int o_off =  jj * jcp_.oc * jcp_.ngroups;
 
                                     Vmm vmm_in = vmm_sum | ktail_mask | T_z;
@@ -655,7 +655,7 @@ private:
 
                         Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
-                        if (isa == x64::avx512_common) {
+                        if (isa == x64::avx512_core) {
                             vcmpps(bin_mask0, vmm_dst, vmm_thr, _cmp_gt_os);
                             vptestmd(bin_mask1, vmm_out_mask, vmm_out_mask);
                             kxnorw(bin_mask0, bin_mask0, bin_mask1);
@@ -665,7 +665,7 @@ private:
                         }
 
                         if (r == 0) {
-                            if (isa == x64::avx512_common) {
+                            if (isa == x64::avx512_core) {
                                 kmovw(reg_tmp_32, bin_mask0);
                             } else {
                                 uni_vmovmskps(reg_tmp_32, vmm_dst);
@@ -679,7 +679,7 @@ private:
                         }
 
                         if (r == repeats - 1) {
-                            if (isa == x64::avx512_common && oc_step > nbits) {
+                            if (isa == x64::avx512_core && oc_step > nbits) {
                                 const size_t o_off = (2 * ii + jj * div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_16);
                             } else {
@@ -698,7 +698,7 @@ private:
                     for (int jj = 0; jj < ur_w; jj++) {
                         Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
-                        if (isa == x64::avx512_common) {
+                        if (isa == x64::avx512_core) {
                             size_t o_off;
                             if (jcp_.with_dw_conv)
                                 o_off = jj * jcp_.oc_block;
@@ -915,7 +915,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
 
-        if (mayiuse(x64::avx512_common)) {
+        if (mayiuse(x64::avx512_core)) {
             implType = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             implType = impl_desc_type::jit_avx2;
@@ -1095,7 +1095,7 @@ void BinaryConvolution::createPrimitive() {
         IE_THROW() << "BinaryConvolution with name '" << getName() << "' has unsupported parameters";
 
     if (implType == impl_desc_type::jit_avx512) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_common>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::jit_avx2) {
         bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx2>(jcp, jcp_dw_conv, *attr.get()));
     } else if (implType == impl_desc_type::sse42) {

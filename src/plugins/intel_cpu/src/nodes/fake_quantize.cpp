@@ -49,7 +49,7 @@ template <cpu_isa_t isa>
 struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
-    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -66,7 +66,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
         const int nbits = 8;
-        int simd_w = isa == avx512_common ? 16 : 8;
+        int simd_w = isa == avx512_core ? 16 : 8;
         const int C = jqp_.c;
         const int tail_size = C % simd_w;
 
@@ -88,7 +88,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                 uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
                 uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
                 uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
-                if (isa == avx512_common) {
+                if (isa == avx512_core) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
                     kxnorw(k_mask0, k_mask0, k_mask1);
@@ -125,7 +125,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                 uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
                 uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
                 uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
-                if (isa == avx512_common) {
+                if (isa == avx512_core) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
                     kxnorw(k_mask0, k_mask0, k_mask1);
@@ -138,7 +138,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                 shl(reg_src_32, i * step);
                 or_(reg_bin_32, reg_src_32);
             }
-            if (isa == avx512_common)
+            if (isa == avx512_core)
                 mov(ptr[reg_to], reg_bin_16);
             else
                 mov(ptr[reg_to], reg_bin_8);
@@ -146,7 +146,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
             add(reg_from, main_loop_step*sizeof(float));
             add(reg_thresholds, main_loop_step*sizeof(float));
             add(reg_output_mask, main_loop_step*sizeof(float));
-            add(reg_to, isa == avx512_common ? sizeof(uint16_t) : sizeof(uint8_t));
+            add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
             sub(reg_work_amount, main_loop_step);
 
             jmp(main_loop_label, T_NEAR);
@@ -173,7 +173,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
                     or_(reg_bin_32, reg_src_32);
                     shl(reg_mask, 1);
                 }
-                if (isa == avx512_common && tail_size > nbits)
+                if (isa == avx512_core && tail_size > nbits)
                     mov(ptr[reg_to], reg_bin_16);
                 else
                     mov(ptr[reg_to], reg_bin_8);
@@ -217,7 +217,7 @@ template <cpu_isa_t isa>
 struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
-    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -308,10 +308,10 @@ private:
         mov(reg_output_shift, ptr[param + GET_OFF(output_shift)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        if (isa == cpu::x64::avx512_common)
+        if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int simd_w = isa == cpu::x64::avx512_common ? 16 : 8;
+        int simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         int tail_simd_w = 4;
         int repeats = isa == cpu::x64::sse41 ? 2 : 1;
 
@@ -425,10 +425,10 @@ private:
         mov(reg_block_size, ptr[param + GET_OFF(block_size)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        if (isa == cpu::x64::avx512_common)
+        if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        int simd_w = isa == cpu::x64::avx512_common ? 16 : 8;
+        int simd_w = isa == cpu::x64::avx512_core ? 16 : 8;
         int tail8_simd_w = 8;
         int tail4_simd_w = 4;
         int repeats = isa == cpu::x64::sse41 ? 2 : 1;
@@ -1177,7 +1177,7 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
         } else {
             if (one_of(dims.size(), 4, 5)) {
                 if (getAxis() == 1) {
-                    auto blkFormat = mayiuse(cpu::x64::avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+                    auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
                     return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
                 } else {
                     return { LayoutType::ncsp };
@@ -1239,7 +1239,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         return;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -1593,7 +1593,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
     int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
-                    ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+                    ? 1 : mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto &jqp = pKernel->jqp_;
     auto src_type_size = jqp.src_prc.size();
@@ -1898,11 +1898,11 @@ void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postO
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         if (isBinarization)
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_common>(_jqp));
+            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_core>(_jqp));
         else
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx512_common>(_jqp));
+            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx512_core>(_jqp));
     } else if (mayiuse(cpu::x64::avx2)) {
         if (isBinarization)
             pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx2>(_jqp));

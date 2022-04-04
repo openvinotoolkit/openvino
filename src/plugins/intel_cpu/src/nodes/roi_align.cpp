@@ -37,7 +37,7 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
-    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -464,7 +464,7 @@ private:
                 uni_vmulps(vmm_src, vmm_src, vmm_weights);
                 // horizontal add for each lane
                 // xmm_dst[0] hold the max
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     for (int i = 0; i < lane; i++) {
                         vextractf32x4(xmm_temp1, Xbyak::Zmm(vmm_src.getIdx()), i);
                         horizontal_add_xmm(xmm_temp1, xmm_temp2);
@@ -718,8 +718,8 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
@@ -751,7 +751,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;

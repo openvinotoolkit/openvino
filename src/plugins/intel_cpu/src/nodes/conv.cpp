@@ -317,7 +317,7 @@ void Convolution::getSupportedDescriptors() {
         isPrimitivesPriorityDefined = true;
         // winograd support only constant weights and bias
         isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end() &&
-                 dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) && !canBeExecutedInInt8() &&
+                 dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
                  getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
     }
@@ -1034,7 +1034,7 @@ bool Convolution::isNspcAvailable() const {
         }
 
         // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after the convolution performs slow
-        if (mayiuse(impl::cpu::x64::avx512_common) && is1x1) {
+        if (mayiuse(impl::cpu::x64::avx512_core) && is1x1) {
             auto end = inpDims.rbegin();
             std::advance(end, spatialRank);
             if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return dimsEqualStrong(1, x); })) {
@@ -1045,7 +1045,7 @@ bool Convolution::isNspcAvailable() const {
         unsigned thresholdNumChannels = 128u; // for avx and below
         if (is1x1) {
             thresholdNumChannels = 2048u;
-        } else if (mayiuse(impl::cpu::x64::avx512_common)) {
+        } else if (mayiuse(impl::cpu::x64::avx512_core)) {
             thresholdNumChannels = 512u;
         }
 

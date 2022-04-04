@@ -28,7 +28,7 @@ public:
 
     ~jit_snippet() = default;
 
-    jit_snippet() : jit_generator() {
+    jit_snippet() : jit_generator(jit_name()) {
     }
 
     void generate() override {
@@ -124,7 +124,7 @@ size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
     switch (isa) {
         case dnnl::impl::cpu::x64::avx2 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
         case dnnl::impl::cpu::x64::sse41 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
-        case dnnl::impl::cpu::x64::avx512_common : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_common>::vlen / sizeof(float);
+        case dnnl::impl::cpu::x64::avx512_core : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
         default : IE_THROW() << "unknown isa " << isa;
     }
 }

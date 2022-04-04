@@ -181,7 +181,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
 
     if (!withGroups && stride.back() > 3)
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
             return false;
@@ -202,11 +202,11 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) ? 16
+    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
             : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) ? 8 : 4;
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0))
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) && stride.back() > 3)
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && stride.back() > 3)
         return false;
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);

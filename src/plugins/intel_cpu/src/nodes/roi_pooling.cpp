@@ -40,7 +40,7 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_pooling_kernel_f32);
 
-    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator() {}
+    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -182,7 +182,7 @@ private:
                     } else if (isa == cpu::x64::avx2) {
                         vcmpps(vmm_mask, vmm_max, vmm_src, _cmp_lt_os);
                         vblendvps(vmm_max, vmm_max, vmm_src, vmm_mask);
-                    } else if (isa == cpu::x64::avx512_common) {
+                    } else if (isa == cpu::x64::avx512_core) {
                         vcmpps(k_store_mask,  vmm_max,  vmm_src, _cmp_lt_os);
                         vblendmps(vmm_max| k_store_mask, vmm_max, vmm_src);
                     }
@@ -443,9 +443,9 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
             refParams.src_prc = Precision::FP32;
     }
 
-    auto format = mayiuse(avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+    auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -466,8 +466,8 @@ void ROIPooling::createPrimitive() {
     if (!selectedPD)
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    refParams.c_block = mayiuse(cpu::x64::avx512_common) ? 16 : 8;;
-    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_common) ? 15 : 7;
+    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;;
+    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
     refParams.alg = getAlgorithm();
 
     const auto& config = selectedPD->getConfig();
@@ -533,8 +533,8 @@ template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
-        if (mayiuse(cpu::x64::avx512_common)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
+        if (mayiuse(cpu::x64::avx512_core)) {
+            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
         } else if (mayiuse(cpu::x64::avx2)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
         } else if (mayiuse(cpu::x64::sse41)) {
