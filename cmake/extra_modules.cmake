@@ -67,8 +67,8 @@ endfunction()
 
 function(register_extra_modules)
     # post export
-    openvino_developer_export_targets(COMPONENT core TARGETS inference_engine)
-    openvino_developer_export_targets(COMPONENT core TARGETS ngraph)
+    openvino_developer_export_targets(COMPONENT core_legacy TARGETS inference_engine)
+    openvino_developer_export_targets(COMPONENT core_legacy TARGETS ngraph)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
