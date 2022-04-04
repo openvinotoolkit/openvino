@@ -10,7 +10,7 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
         ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
         TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "a1bedd5c05ca51e49f8f254faa3d7331e05b3a806c151fb111d582f154d0fee8"
+        SHA256 "b8489337f802ddebbb6cfcdb311345ee8173ec9f6675f61b5f97f7df0f0c1235"
     )
     debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
