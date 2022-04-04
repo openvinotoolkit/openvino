@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
 #include "openvino/op/softsign.hpp"
 
 namespace ngraph {

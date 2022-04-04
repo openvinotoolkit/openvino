@@ -1,30 +1,27 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "ngraph/op/softsign.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include <openvino/core/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/softsign.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/op/softsign.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
-inline bool evaluate(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out, const size_t count) {
+inline bool evaluate(const ov::Tensor& arg, const ov::Tensor& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::softsign<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ngraph::runtime::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
     return true;
 }
 
-bool evaluate_softsign(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out) {
+bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     bool rc = true;
-    size_t count = shape_size(arg->get_shape());
+    size_t count = arg.get_size();
 
-    switch (arg->get_element_type()) {
+    switch (arg.get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
         NGRAPH_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
         NGRAPH_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
@@ -70,9 +67,12 @@ bool ov::op::v9::SoftSign::has_evaluate() const {
     return false;
 }
 
-bool ov::op::v9::SoftSign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v9_SoftSign_evaluate);
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 1));
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softsign(inputs[0], outputs[0]);
+bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
+                                    const ov::TensorVector& inputs,
+                                    const ov::EvaluationContext& evaluation_context) const {
+    NGRAPH_OP_SCOPE(v9_SoftSign_evaluate)
+    auto in = inputs[0];
+    auto out = outputs[0];
+    out.set_shape(in.get_shape());
+    return evaluate_softsign(in, out);
 }
