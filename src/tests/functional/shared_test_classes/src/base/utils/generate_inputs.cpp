@@ -147,7 +147,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Exp>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return Activation::generate(elemType, targetShape);
+    return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 32768, 1));
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Floor>& node,
