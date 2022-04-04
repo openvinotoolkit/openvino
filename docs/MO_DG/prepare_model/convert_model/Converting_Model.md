@@ -2,7 +2,8 @@
 
 Paragraphs below provide details about specifying input shapes for model conversion.
 
-## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
+@anchor when_to_specify_input_shapes
+## When to Specify --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of inference data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
@@ -12,7 +13,7 @@ This is an offline approach to set static shapes and it can save time and memory
 To learn more about runtime shape change please see a dedicated article about [reshape feature](../../../OV_Runtime_UG/ShapeInference.md).
 For more information about the dynamic shapes, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
 
-OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware.
+OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware (see [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference).
 In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help resolving undefined dimensions.
 
 Sometimes Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
@@ -60,7 +61,7 @@ mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1
 
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
-Learn more about shape inference <a href="_docs_OV_Runtime_UG_ShapeInference.html#troubleshooting">troubleshooting</a> and ways to <a href="_docs_OV_Runtime_UG_ShapeInference.html#how-to-fix-non-reshape-able-model">relax shape inference flow</a>.
+Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
 
 ## When to Specify --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes

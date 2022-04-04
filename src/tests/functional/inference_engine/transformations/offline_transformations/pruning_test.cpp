@@ -246,7 +246,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -311,7 +311,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -491,7 +491,7 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -643,7 +643,7 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -761,7 +761,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -899,7 +899,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1017,7 +1017,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1202,7 +1202,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1299,7 +1299,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1406,7 +1406,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1554,7 +1554,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1814,7 +1814,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -1975,7 +1975,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2050,7 +2050,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpWithShapeOf) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2149,7 +2149,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2403,7 +2403,7 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2495,7 +2495,7 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2679,7 +2679,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2760,7 +2760,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 
@@ -2855,5 +2855,5 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         m.run_passes(function);
     }
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

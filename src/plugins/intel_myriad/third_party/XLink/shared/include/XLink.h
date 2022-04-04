@@ -205,7 +205,6 @@ XLinkError_t XLinkReadDataWithTimeout(streamId_t streamId, streamPacketDesc_t** 
 
 /**
  * @brief Sends a package to initiate the writing of data to a remote stream with timeout in ms
- * XLinkWriteDataWithTimeout is not fully supported yet. The XLinkWriteData method is called instead.
  * @warning Actual size of the written data is ALIGN_UP(size, 64)
  * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
  * @param[in] buffer – data buffer to be transmitted

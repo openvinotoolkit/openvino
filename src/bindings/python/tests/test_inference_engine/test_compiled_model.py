@@ -5,7 +5,7 @@ import os
 import pytest
 import numpy as np
 
-from ..conftest import model_path, read_image
+from ..conftest import model_path, read_image, get_model_with_template_extension
 from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
@@ -340,3 +340,12 @@ def test_direct_infer(device):
     assert np.argmax(res[comp_model.outputs[0]]) == 2
     ref = comp_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
+
+
+def test_compiled_model_after_core_destroyed(device):
+    core, model = get_model_with_template_extension()
+    compiled = core.compile_model(model, device)
+    del core
+    del model
+    # check compiled and infer request can work properly after core object is destroyed
+    compiled([np.random.normal(size=list(input.shape)) for input in compiled.inputs])

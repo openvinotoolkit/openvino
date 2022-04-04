@@ -1,4 +1,4 @@
-# Integrate OpenVINO™ with Your Application {#openvino_docs_Integrate_OV_with_your_application}
+# Integrate OpenVINO™ with Your Application {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
 
 @sphinxdirective
 
@@ -6,8 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_Runtime_UG_Model_Representation
-   openvino_docs_OV_Runtime_UG_Infer_request
+   openvino_docs_OV_UG_Model_Representation
+   openvino_docs_OV_UG_Infer_request
+   openvino_docs_OV_UG_Python_API_exclusives
 
 @endsphinxdirective
 
@@ -27,101 +28,113 @@ This section provides step-by-step instructions to implement a typical inference
 
 Include next files to work with OpenVINO™ Runtime:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [include]
+@snippet docs/snippets/src/main.cpp include
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [import]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py import
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part1]
+@snippet docs/snippets/src/main.cpp part1
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part1]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part1
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 2. Compile the Model
 
-`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index.
+`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index, this approach is aligned with the majority of frameworks.
 
 Compile the model for a specific device using `ov::Core::compile_model()`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. tab:: IR
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_1]
+@sphinxtab{IR}
 
-    .. tab:: ONNX
+@snippet docs/snippets/src/main.cpp part2_1
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_2]
+@endsphinxtab
 
-    .. tab:: PaddlePaddle
+@sphinxtab{ONNX}
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_3]
+@snippet docs/snippets/src/main.cpp part2_2
 
-    .. tab:: ov::Model
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/src/main.cpp
-           :language: cpp
-           :fragment: [part2_4]
+@sphinxtab{PaddlePaddle}
 
-.. tab:: Python
+@snippet docs/snippets/src/main.cpp part2_3
 
-    .. tab:: IR
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_1]
+@sphinxtab{ov::Model}
 
-    .. tab:: ONNX
+@snippet docs/snippets/src/main.cpp part2_4
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_2]
+@endsphinxtab
 
-    .. tab:: PaddlePaddle
+@endsphinxtabset
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_3]
+@endsphinxtab
 
-    .. tab:: ov::Model
+@sphinxtab{Python}
 
-        .. doxygensnippet:: docs/snippets/src/main.py
-           :language: python
-           :fragment: [part2_4]
+@sphinxtabset
 
-@endsphinxdirective
+@sphinxtab{IR}
+
+@snippet docs/snippets/src/main.py part2_1
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/snippets/src/main.py part2_2
+
+@endsphinxtab
+
+@sphinxtab{PaddlePaddle}
+
+@snippet docs/snippets/src/main.py part2_3
+
+@endsphinxtab
+
+@sphinxtab{ov::Model}
+
+@snippet docs/snippets/src/main.py part2_4
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
 For more details please read article about [OpenVINO™ Model representation](model_representation.md).
@@ -134,61 +147,61 @@ To learn how to change the device configuration, read the [Query device properti
 
 `ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part3]
+@snippet docs/snippets/src/main.cpp part3
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part3]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part3
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 4. Set Inputs
 
 You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part4]
+@snippet docs/snippets/src/main.cpp part4
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part4]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part4
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Step 5. Start Inference
 
 OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part5]
+@snippet docs/snippets/src/main.cpp part5
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part5]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part5
+
+@endsphinxtab
+
+@endsphinxtabset
 
 This section demonstrates a simple pipeline, to get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
@@ -196,21 +209,21 @@ This section demonstrates a simple pipeline, to get more information about other
 
 Go over the output tensors and process the inference results.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/src/main.cpp
-       :language: cpp
-       :fragment: [part6]
+@snippet docs/snippets/src/main.cpp part6
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/src/main.py
-       :language: python
-       :fragment: [part6]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/src/main.py part6
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Link and Build Your C++ Application with OpenVINO™ Runtime
 
