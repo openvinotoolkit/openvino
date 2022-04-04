@@ -74,7 +74,7 @@ python <path_to_omz_tools>/downloader.py --name alexnet
 python <path_to_omz_tools>/converter.py --name alexnet
 ```
 
-3. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
+3. Perform inference of NV12 image, using `alexnet` model on a `CPU`, for example:
 
 ```
 <path_to_sample>/hello_nv12_input_classification_c <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
