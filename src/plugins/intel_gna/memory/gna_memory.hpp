@@ -97,7 +97,7 @@ class GNAMemory : public GNAMemRequestsQueue {
         // 4th stage -- store data and updates pointers
 
         allocateRegion(REGION_RO, 0);
-        allocateRegion(REGION_RW, getROBytes());
+        allocateRegion(REGION_RW, _ro_section_size);
     }
 
     void *getBasePtr() {
@@ -240,6 +240,7 @@ class GNAMemory : public GNAMemRequestsQueue {
                 }
             }
         }
+        updateSectionsSizes();
     }
 
     /**

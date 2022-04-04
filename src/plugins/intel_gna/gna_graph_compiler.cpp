@@ -207,7 +207,7 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     void* ptr_for_const_blob = &const_connections[constLayer->name];
 
     gnamem->readonly().push_initializer(nullptr, ptr_for_const_blob, const_blob->byteSize(), [const_blob](void* data, size_t size) {
-        ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize()); });
+        ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize()); }, 64);
 }
 
 void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::DataPtr& data) {
