@@ -17,7 +17,7 @@
 7.  For each input box `b_i` from `B` and the corresponding score `s_i`, set `s_i = s_i * func(IOU(b_i, b))` and go to step 3.
 8.  Return `D`, a collection of the corresponding scores `S`, and the number of elements in `D`.
 
-when `soft_nms_sigma == 0`, `func(iou) = 1 if iou <= iou_threshold else 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma)`.
+Here `func(iou) = 1 if iou <= iou_threshold else 0` when `soft_nms_sigma == 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma)`.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
 class must not exceed `max_output_boxes_per_class`.
@@ -68,11 +68,11 @@ class must not exceed `max_output_boxes_per_class`.
 
 **Outputs**:
 
-*   **1**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
+*   **1**: `selected_indices` - tensor of type *output_type* and shape `[number of selected boxes, 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
 
 *   **2**: `selected_scores` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
 
-*   **3**: `valid_outputs` - 1D tensor with 1 element of type *T_IND* representing the total number of selected boxes.
+*   **3**: `valid_outputs` - 1D tensor with 1 element of type *output_type* representing the total number of selected boxes.
 
 Plugins which do not support dynamic output tensors produce `selected_indices` and `selected_scores` tensors of shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` which is an upper bound for the number of possible selected boxes. Output tensor elements following the really selected boxes are filled with value -1.
 
@@ -84,7 +84,6 @@ Plugins which do not support dynamic output tensors produce `selected_indices` a
 
 * *T_THRESHOLDS*: floating-point type.
 
-* *T_IND*: `int64` or `int32`.
 
 **Example**
 
