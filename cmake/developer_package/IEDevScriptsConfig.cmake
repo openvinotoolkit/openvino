@@ -351,20 +351,19 @@ function(ov_check_pip_packages)
     file(STRINGS ${ARG_REQUIREMENTS_FILE} REQS)
     
     foreach(REQ IN LISTS REQS)
-
-        ov_check_pip_package(REQUIREMENT ${REQ} 
-                             MESSAGE_MODE WARNING
-                             RESULT_VAR RESULT)
-                             
-        if(NOT ${RESULT})
-            set(RC FALSE)
-            if(ARG_FAIL_FAST)
-               message(WARNING "Dependencies are not installed or have conflicts. Please use \"${PYTHON_EXECUTABLE} -m pip install -r ${ARG_REQUIREMENTS_FILE}\".")
-               set(${ARG_RESULT_VAR} FALSE PARENT_SCOPE)
-               return()
+        if(${REQ})
+            ov_check_pip_package(REQUIREMENT ${REQ} 
+                                MESSAGE_MODE WARNING
+                                RESULT_VAR RESULT)
+            if(NOT ${RESULT})
+                set(RC FALSE)
+                if(ARG_FAIL_FAST)
+                message(WARNING "Dependencies are not installed or have conflicts. Please use \"${PYTHON_EXECUTABLE} -m pip install -r ${ARG_REQUIREMENTS_FILE}\".")
+                set(${ARG_RESULT_VAR} FALSE PARENT_SCOPE)
+                return()
+                endif()
             endif()
         endif()
-        
     endforeach()
     
     set(${ARG_RESULT_VAR} ${RC} PARENT_SCOPE)
