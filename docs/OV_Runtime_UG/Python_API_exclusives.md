@@ -1,4 +1,4 @@
-# OpenVINO™ Python API exclusives {#openvino_docs_OV_Runtime_UG_Python_API_exclusives}
+# OpenVINO™ Python API exclusives {#openvino_docs_OV_UG_Python_API_exclusives}
 
 OpenVINO™ Runtime Python API is exposing additional features and helpers to elevate user experience. Main goal of Python API is to provide user-friendly and simple, still powerful, tool for Python users.
 
@@ -27,12 +27,6 @@ Python API allows passing data as tensors. `Tensor` object holds a copy of the d
 `Tensor` objects can share the memory with numpy arrays. By specifing `shared_memory` argument, a `Tensor` object does not perform copy of data and has access to the memory of the numpy array.
 
 @snippet docs/snippets/ov_python_exclusives.py tensor_shared_mode
-
-### Slices of array's memory
-
-One of the `Tensor` class constructors allows to share the slice of array's memory. When `shape` is specified in the constructor that has the numpy array as first argument, it triggers the special shared memory mode.
-
-@snippet docs/snippets/ov_python_exclusives.py tensor_slice_mode
 
 ## Running inference
 
@@ -76,6 +70,14 @@ The callback of `AsyncInferQueue` is uniform for every job. When executed, GIL i
 
 @snippet docs/snippets/ov_python_exclusives.py asyncinferqueue_set_callback
 
+### Working with u1, u4 and i4 element types
+
+Since openvino supports low precision element types there are few ways how to handle them in python.
+To create an input tensor with such element types you may need to pack your data in new numpy array which byte size matches original input size:
+@snippet docs/snippets/ov_python_exclusives.py packing_data
+
+To extract low precision values from tensor into numpy array you can use next helper:
+@snippet docs/snippets/ov_python_exclusives.py unpacking
 
 ### Releasing the GIL
 
