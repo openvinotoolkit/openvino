@@ -55,14 +55,14 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 @sphinxdirective
 
 .. important::
-   Before you start your journey with installation of the Intel® Distribution of OpenVINO™, we encourage you to check our :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>` that we prepared for you, so you could see all the amazing things that you can achieve with our tool.
+   Before you start your journey with the installation of Intel® Distribution of OpenVINO™, you might want to try :ref:`code samples <code samples>` in C, C++, Python, and :ref:`notebook tutorials <notebook tutorials>` first, so you can see all the amazing things that you may achieve with this tool.
 
 @endsphinxdirective
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit
 
 1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
+2. Open a command prompt terminal window. You may use the keyboard shortcut: Ctrl+Alt+T
 3. Change directories to where you downloaded the Intel Distribution of OpenVINO™ toolkit for Linux file.<br>
    If you downloaded the starter script to the current user's `Downloads` directory:
    ```sh
@@ -87,18 +87,18 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    
    @endsphinxdirective
 
-   Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
+   Otherwise, you may add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
    ```sh
    ./l_openvino_toolkit_p_<version>.sh -a --cli
    ```
-   > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
+   > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you will find there `-s` option which offers silent mode, that together with `--eula approve` allows you to run whole installation with default values, without any user interaction.
    
-6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check the installation process on the image below:<br>
+6. Follow the instructions on your screen. Once you accept the license agreement, the installation will continue. Check the installation process on the image below:<br>
 
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
-   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
+   <br>By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
    * For root or administrator: `/opt/intel/openvino_<version>/`
    * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
