@@ -131,9 +131,8 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
     const std::map<std::string, std::string>& config) {
-    // TODO:
-    // return GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), config);
-    IE_THROW(NotImplemented);
+    return std::make_shared<ov::proxy::CompiledModel>(
+        GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), config));
 }
 
 std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin::get_hidden_devices() const {

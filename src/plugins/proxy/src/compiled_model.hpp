@@ -15,10 +15,6 @@ public:
         return m_exec_network->CreateInferRequest();
     }
 
-    void setProperty(const std::map<std::string, std::string>& properties) {
-        IE_THROW(NotImplemented);
-    }
-
     InferenceEngine::Parameter GetConfig(const std::string& name) const override {
         return m_exec_network->GetConfig(name);
     }
