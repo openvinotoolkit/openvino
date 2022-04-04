@@ -158,6 +158,21 @@ void regclass_CompiledModel(py::module m) {
             :rtype: None
         )");
 
+    // Overload for single tuple
+    cls.def(
+        "set_property",
+        [](ov::CompiledModel& self, const std::pair<std::string, py::object>& property) {
+            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            self.set_property(_properties);
+        },
+        py::arg("property"),
+        R"(
+            Sets properties for current compiled model.
+
+            :param property: Tuple of (property name, matching property value).
+            :type property: tuple
+        )");
+
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& property) -> py::object {

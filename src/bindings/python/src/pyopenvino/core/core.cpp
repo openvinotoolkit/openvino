@@ -43,6 +43,21 @@ void regclass_Core(py::module m) {
             :type properties: dict
         )");
 
+    // Overload for single tuple
+    cls.def(
+        "set_property",
+        [](ov::Core& self, const std::pair<std::string, py::object>& property) {
+            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            self.set_property(_properties);
+        },
+        py::arg("property"),
+        R"(
+            Sets properties for the device.
+
+            :param property: Tuple of (property name, matching property value).
+            :type property: tuple
+        )");
+
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
@@ -67,7 +82,7 @@ void regclass_Core(py::module m) {
             self.set_property(device_name, _properties);
         },
         py::arg("device_name"),
-        py::arg("properties"),
+        py::arg("property"),
         R"(
             Sets properties for the device.
 
@@ -107,7 +122,7 @@ void regclass_Core(py::module m) {
         },
         py::arg("model"),
         py::arg("device_name"),
-        py::arg("config") = py::dict(),
+        py::arg("properties"),
         R"(
             Creates a compiled model from a source model object.
             Users can create as many compiled models as they need, and use them simultaneously
@@ -129,13 +144,13 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
-           const std::map<std::string, py::object>& config) {
-            auto _properties = Common::utils::properties_to_any_map(config);
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
             return self.compile_model(model, _properties);
         },
         py::arg("model"),
-        py::arg("config") = py::dict(),
+        py::arg("properties"),
         R"(
             Creates and loads a compiled model from a source model to the default OpenVINO device
             selected by AUTO plugin. Users can create as many compiled models as they need, and use
@@ -156,14 +171,14 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::string& model_path,
            const std::string& device_name,
-           const std::map<std::string, py::object>& config) {
-            auto _properties = Common::utils::properties_to_any_map(config);
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
             return self.compile_model(model_path, device_name, _properties);
         },
         py::arg("model_path"),
         py::arg("device_name"),
-        py::arg("properties") = py::dict(),
+        py::arg("properties"),
         R"(
             Reads model and creates a compiled model from IR / ONNX / PDPD file.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
@@ -189,7 +204,7 @@ void regclass_Core(py::module m) {
             return self.compile_model(model_path, _properties);
         },
         py::arg("model_path"),
-        py::arg("config") = py::dict(),
+        py::arg("properties"),
         R"(
             Reads model and creates a compiled model from IR / ONNX / PDPD file with device selected by AUTO plugin.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
@@ -332,7 +347,7 @@ void regclass_Core(py::module m) {
         },
         py::arg("model_stream"),
         py::arg("device_name"),
-        py::arg("properties") = py::none(),
+        py::arg("properties"),
         R"(
             Imports a compiled model from a previously exported one.
 
@@ -384,7 +399,7 @@ void regclass_Core(py::module m) {
         },
         py::arg("model_stream"),
         py::arg("device_name"),
-        py::arg("properties") = py::none(),
+        py::arg("properties"),
         R"(
             Imports a compiled model from a previously exported one.
 

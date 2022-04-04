@@ -9,8 +9,6 @@
 
 namespace py = pybind11;
 
-// "base class" class PyProperty
-
 void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.runtime.properties submodule");
@@ -74,6 +72,26 @@ void regmodule_properties(py::module m) {
         .value("INTEGRATED", ov::device::Type::INTEGRATED)
         .value("DISCRETE", ov::device::Type::DISCRETE);
 
+    py::class_<ov::device::Priorities, std::shared_ptr<ov::device::Priorities>> cls_priorities(m_device, "Priorities");
+
+    // Special case: ov::device::priorities
+    m_device.def("priorities", []() {
+        return ov::device::priorities.name();
+    });
+
+    m_device.def("priorities", [](py::args& args) {
+        std::string value{""};
+        for (auto v : args) {
+            if (py::isinstance<py::str>(v)) {
+                value += py::cast<std::string>(v) + std::string{','};
+            } else {
+                throw py::type_error("Incorrect passed value: " + std::string(py::str(v)) +
+                                     " , expected string values.");
+            }
+        }
+        return ov::device::priorities(value);
+    });
+
     // Submodule device - properties
     wrap_property_RW(m_device, ov::device::id, "id");
 
@@ -83,8 +101,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::gops, "gops");
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
-
-    // TODO: bind struct Properties and following static constexpr Properties properties somehow...
 
     // Modules made in pybind cannot easily register attributes, thus workaround is needed.
     // Let's simulate module with attributes by creating empty proxy class called FakeModuleName.
@@ -125,11 +141,24 @@ void regmodule_properties(py::module m) {
         m_properties.def_submodule("streams",
                                    "openvino.runtime.properties.streams submodule that simulates ov::streams");
 
-    // TODO: struct Num which is just a tuple...
+    py::class_<ov::streams::Num, std::shared_ptr<ov::streams::Num>> cls_num(m_streams, "Num");
+
+    cls_num.def(py::init<>());
+    cls_num.def(py::init<const int32_t>());
+
+    // Covers static constexpr Num AUTO{-1};
+    cls_num.attr("AUTO") = ov::streams::AUTO;
+    // Covers static constexpr Num NUMA{-2};
+    cls_num.attr("NUMA") = ov::streams::NUMA;
+
+    cls_num.def("to_integer", [](ov::streams::Num& self) {
+        return self.num;
+    });
 
     // Submodule streams - properties RW
     wrap_property_RW(m_streams, ov::streams::num, "num");
-
-    // TODO: static constexpr Num AUTO{-1};
-    // TODO: static constexpr Num NUMA{-2};
+    // Extra scenarios for ov::streams::num
+    m_streams.def("num", [](const int32_t value) {
+        return ov::streams::num(ov::streams::Num(value));
+    });
 }
