@@ -10,8 +10,6 @@ set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-${WHEEL_BUILD}-py3-none-a
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
-ie_check_pip_package(wheel FATAL_ERROR)
-
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/setup.cfg" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}

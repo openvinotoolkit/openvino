@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT COMMAND ie_check_pip_package)
-    message(FATAL_ERROR "ncc_naming_style.cmake must be included after ie_check_pip_package")
+if(NOT COMMAND ov_check_pip_packages)
+    message(FATAL_ERROR "ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
@@ -60,12 +60,8 @@ if(NOT EXISTS ${ncc_script_py})
 endif()
 
 if(ENABLE_NCC_STYLE)
-    set(req_file "${ncc_style_dir}/requirements_dev.txt")
-    file(STRINGS ${req_file} req_lines)
-
-    foreach(req IN LISTS req_lines)
-        ie_check_pip_package(${req} STATUS)
-    endforeach()
+    ov_check_pip_packages(REQUIREMENTS_FILE "${ncc_style_dir}/requirements_dev.txt"
+                          RESULT_VAR STATUS)
 endif()
 
 # create high-level target

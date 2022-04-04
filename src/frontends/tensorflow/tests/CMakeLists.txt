@@ -19,7 +19,9 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(tensorflow WARNING)
+ov_check_pip_package(REQUIREMENT tensorflow
+                     MESSAGE_MODE WARNING
+                     RESULT_VAR tensorflow)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
@@ -28,7 +30,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRN
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'tensorflow' installed to check code style
-if (tensorflow_FOUND)
+if (tensorflow)
     set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)

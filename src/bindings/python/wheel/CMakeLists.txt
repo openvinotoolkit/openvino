@@ -22,8 +22,6 @@ if(LINUX)
     endif()
 endif()
 
-ie_check_pip_package(wheel FATAL_ERROR)
-
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api)

@@ -45,15 +45,23 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 # Try to find python3
 find_package(PythonLibs 3 QUIET)
-ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND" OFF)
+# Check for Cython to build IE_API 
+ov_check_pip_package(REQUIREMENT "cython>=0.29.22"
+                     RESULT_VAR IE_PYTHON_DEV_REQS)
+
+ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;IE_PYTHON_DEV_REQS" OFF)
 
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
+# Check for wheel package
+ov_check_pip_packages(REQUIREMENTS_FILE ${CMAKE_SOURCE_DIR}/src/bindings/python/wheel/requirements-dev.txt
+                     RESULT_VAR WHEEL_REQS
+                     FAIL_FAST)
 # this option should not be a part of InferenceEngineDeveloperPackage
 # since wheels can be built only together with main OV build
-cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" ON
-    "PYTHONINTERP_FOUND;ENABLE_PYTHON;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
+cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPI" ON
+    "PYTHONINTERP_FOUND;ENABLE_PYTHON;WHEEL_REQS;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
 
 #
 # Inference Engine specific options

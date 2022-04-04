@@ -273,43 +273,102 @@ endfunction()
 
 # check python package
 
-function(ie_check_pip_package full_name message_type)
+function(ov_check_pip_package)
+    
     find_package(PythonInterp 3 REQUIRED)
-
-    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-
-    # extract version if any
-    if(full_name MATCHES "^([a-z_]+)[~=<>!]*(.*)$")
-        set(name ${CMAKE_MATCH_1})
-        set(req_version ${CMAKE_MATCH_2})
-    else()
-        set(name ${full_name})
-    endif()
-
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
-        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_VARIABLE output)
-
-    if(NOT PIP_EXIT_CODE EQUAL 0)
-        set(${name}_FOUND OFF PARENT_SCOPE)
-        message(${message_type} "${name} package is not installed. Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-    else()
-        if(req_version)
-            string(REGEX MATCH "Version: ([0-9]+\.?[0-9]*\.?[0-9]*)\n" installed_version "${output}")
-            if(installed_version)
-                set(installed_version "${CMAKE_MATCH_1}")
-            endif()
-
-            if(NOT req_version STREQUAL installed_version)
-                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-            endif()
-        else()
-            set(${name}_FOUND ON PARENT_SCOPE)
+ 
+    set(oneValueRequiredArgs
+        REQUIREMENT             # Requirement-specifier to check 
+        RESULT_VAR              # Result varibale to set return code {TRUE | FALSE}
+        )
+    set(oneValueOptionalArgs
+        MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
+        )
+    set(multiValueArgs)
+    
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
+    
+    foreach(argName ${oneValueRequiredArgs})
+        if (NOT ARG_${argName})
+            message(SEND_ERROR "Argument '${argName}' is required.")
         endif()
+    endforeach()
+    
+    if (NOT ARG_MESSAGE_MODE)
+        set(ARG_MESSAGE_MODE WARNING)
     endif()
+    
+    if (ARG_UNPARSED_ARGUMENTS)
+        message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
+  
+    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
+    
+    STRING(REPLACE "'" "\\'" REQ "${ARG_REQUIREMENT}")
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
+        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
+        RESULT_VARIABLE EXIT_CODE
+        OUTPUT_VARIABLE OUTPUT)
+    if(NOT EXIT_CODE EQUAL 0)
+        set(${ARG_RESULT_VAR} FALSE PARENT_SCOPE)
+        message(${ARG_MESSAGE_MODE} ${OUTPUT})
+    else()
+        set(${ARG_RESULT_VAR} TRUE PARENT_SCOPE)
+    endif()
+
+endfunction()
+
+# check requirements file
+
+function(ov_check_pip_packages)
+   
+    find_package(PythonInterp 3 REQUIRED)
+ 
+    set(options
+        FAIL_FAST               # Exit function at first requirement failure
+        )
+    set(oneValueRequiredArgs
+        REQUIREMENTS_FILE       # File with requirement-specifiers to check 
+        RESULT_VAR              # Result varibale to set return code {TRUE | FALSE}
+        )
+    set(multiValueArgs)
+    
+    cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
+    
+    foreach(argName ${oneValueRequiredArgs})
+        if (NOT ARG_${argName})
+            message(SEND_ERROR "Argument '${argName}' is required.")
+        endif()
+    endforeach()
+    
+    if (ARG_UNPARSED_ARGUMENTS)
+        message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
+   
+    set(REQS "")
+    set(RC TRUE)
+    file(STRINGS ${ARG_REQUIREMENTS_FILE} REQS)
+    
+    foreach(REQ IN LISTS REQS)
+
+        ov_check_pip_package(REQUIREMENT ${REQ} 
+                             MESSAGE_MODE WARNING
+                             RESULT_VAR RESULT)
+                             
+        if(NOT ${RESULT})
+            set(RC FALSE)
+            if(ARG_FAIL_FAST)
+               message(WARNING "Dependencies are not installed or have conflicts. Please use \"${PYTHON_EXECUTABLE} -m pip install -r ${ARG_REQUIREMENTS_FILE}\".")
+               set(${ARG_RESULT_VAR} FALSE PARENT_SCOPE)
+               return()
+            endif()
+        endif()
+        
+    endforeach()
+    
+    set(${ARG_RESULT_VAR} ${RC} PARENT_SCOPE)
+    
 endfunction()
 
 # Code style utils
