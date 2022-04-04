@@ -4,7 +4,7 @@
 
 #include "reshape.h"
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -13,7 +13,7 @@
 
 #include "common/cpu_memcpy.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -34,7 +34,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -127,7 +127,7 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void Reshape::executeDynamicImpl(mkldnn::stream strm) {
+void Reshape::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
