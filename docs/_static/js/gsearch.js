@@ -155,9 +155,9 @@ function addVersionTabs(selectedVersion, query) {
   var latestVersion;
   if (versions.length) {
     tab_versions = [{'version': 'ALL'}].concat(versions.slice(1));
-    latestVersion = tab_versions[1].version;
+    latestVersion = tab_versions[2].version;
     if (selectedVersion === 'latest') {
-      selectedVersion = versions[1].version;
+      selectedVersion = versions[2].version;
     }
   }
   for (var i = 0; i < tab_versions.length; i++) {
