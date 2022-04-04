@@ -219,8 +219,8 @@ public:
     size_t get_inputs_num() const override {return 1;}
 
 protected:
-    static size_t getEA(const std::shared_ptr<ov::Node>& n);
-    size_t ea;
+//    static size_t getEA(const std::shared_ptr<ov::Node>& n);
+//    size_t ea;
 };
 
 class StoreEmitter : public MemoryEmitter  {

@@ -18,21 +18,6 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
     // ToDo: change to reg_t
     std::vector<size_t> rin, rout;
 
-    if (ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
-        auto it_rt = rt.find("effectiveAddress");
-        if (it_rt != rt.end())
-            rout.push_back(it_rt->second.as<size_t>());
-        else
-            throw std::runtime_error("Effective address for Store is not found");
-    }
-    if (ov::as_type_ptr<ngraph::snippets::op::Load>(n) || ov::as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
-        auto it_rt = rt.find("effectiveAddress");
-        if (it_rt != rt.end())
-            rin.push_back(it_rt->second.as<size_t>());
-        else
-            throw std::runtime_error("Effective address for Load or BrodcastLoad is not found");
-    }
-
     auto it_rt = rt.find("reginfo");
     if (it_rt != rt.end()) {
         for (auto reg : it_rt->second.as<std::vector<size_t>>()) {

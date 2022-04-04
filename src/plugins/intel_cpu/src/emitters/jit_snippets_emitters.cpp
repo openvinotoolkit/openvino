@@ -333,7 +333,7 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
     // Todo: Note that both Tiles use the same reg for amount and this is a problem,
     //  since we can't just pop it from the pool (we don't know whether it's first/second or the only tile at this point)
     Reg64 amount = Reg64(static_cast<int>(in[1]));
-    std::array<Label, 2> for_body;
+    Label for_body;
 
     // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
     // todo: Do we need explicitly check that code contains ScalarEmitter?
@@ -342,19 +342,16 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
     // Note that:
     // * Work amount must be set by TileScheduler that executes Tiles
     // * TileScheduler execute Tile only if it has to perform >= 1 iterations
-    h->L(for_body[1]);
+    h->L(for_body);
     {
-//        h->push(amount);
         for (auto& original_code : body) {
             auto code = map_regs(original_code, vec_pool, out);
             code.first->emit_code(code.second.first, code.second.second, {}, gpr_pool);
         }
-//        h->pop(amount);
         h->sub(amount, inc);
         h->cmp(amount, inc);
-        h->jge(for_body[1], CodeGenerator::T_NEAR);
+        h->jge(for_body, CodeGenerator::T_NEAR);
     }
-//        h->L(for_body[0]);
 }
 
 FakeBroadcastEmitter::FakeBroadcastEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -432,20 +429,7 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 
 
 MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n), ea(getEA(n)) {
-}
-
-size_t MemoryEmitter::getEA(const std::shared_ptr<ov::Node>& n) {
-    auto& rt = n->get_rt_info();
-    size_t ea = 0;
-    auto it = rt.find("effectiveAddress");
-    if (it != rt.end()) {
-        ea = it->second.as<size_t>();
-    } else {
-        throw ov::Exception("effective address for Load generation cannot be determined");
-    }
-    std::cerr << ea << "\n";
-    return ea;
+                             const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
 }
 
 StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -591,7 +575,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Reg64 in_reg(ea);
+    Reg64 in_reg(in[0]);
     Vmm vmm_src0 = Vmm(out[0]);
 
     // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
