@@ -205,11 +205,37 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    size_t fusingAxis;
-    if (can_be_converted_to_FC)
-        fusingAxis = matmul_shape.size() == 3 ? 2 : 1;
-    else
-        fusingAxis = matmul_shape.size() - 1;
+    size_t fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
+
+    // canFuse() from MatMul
+    // Algorithm::EltwisePowerStatic is ignored
+    if (!can_be_converted_to_FC &&
+        node->get_output_partial_shape(0).rank().is_static() &&
+        node->get_output_partial_shape(0).rank().get_length() > 2) {
+        if (ov::is_type<ngraph::opset1::Add>(node) ||
+            ov::is_type<ngraph::opset1::Multiply>(node) ||
+            ov::is_type<ngraph::opset1::Subtract>(node) ||
+            ov::is_type<ngraph::opset1::Divide>(node) ||
+            ov::is_type<ngraph::opset1::PRelu>(node)) {
+            const auto const1 = ov::is_type<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(0));
+            const auto const2 = ov::is_type<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
+            int constPort = -1;
+            if (const2) {
+                constPort = 1;
+            } else if (const1) {
+                constPort = 0;
+            }
+
+            if (constPort != -1) {
+                auto const_shape = node->get_input_shape(constPort);
+                if (ngraph::shape_size(const_shape) == 1) {
+                    updatedChainType = NodeFusingType::FusedWithMisc;
+                    return true;
+                }
+            }
+        }
+    }
+
     if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
         updatedChainType = NodeFusingType::FusedWithMisc;
         return true;
