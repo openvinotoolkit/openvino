@@ -4,8 +4,37 @@
 import pytest
 import os
 
-from openvino.runtime import Core, Type
+from openvino.runtime import Core, Type, OVAny
 from openvino.runtime import properties
+
+
+def test_property_RW():
+    assert properties.device.priorities() == "MULTI_DEVICE_PRIORITIES"
+    assert properties.device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
+    assert properties.device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
+
+    with pytest.raises(TypeError) as e:
+        val = 6
+        properties.device.priorities("CPU", val)
+    assert f"Incorrect passed value: {val} , expected string values." in str(e.value)
+
+
+def test_property_RO():
+    assert properties.available_devices() == "AVAILABLE_DEVICES"
+
+    with pytest.raises(TypeError) as e:
+        properties.available_devices("something")
+    assert "available_devices(): incompatible function arguments." in str(e.value)
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+def test_single_property_setting():
+    core = Core()
+    core.set_property("CPU", properties.streams.num(properties.streams.Num.AUTO))
+
+    assert properties.streams.Num.AUTO.to_integer() == -1
+    assert type(core.get_property("CPU", properties.streams.num())) == int
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
@@ -20,6 +49,7 @@ from openvino.runtime import properties
         properties.hint.inference_precision(Type.f32),
         properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
         properties.hint.num_requests(12),
+        properties.streams.num(5),
     ]),
     # Pure dict
     {
@@ -29,22 +59,23 @@ from openvino.runtime import properties
         properties.affinity(): properties.Affinity.NONE,
         properties.hint.inference_precision(): Type.f32,
         properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
-        properties.hint.num_requests(): 12
+        properties.hint.num_requests(): 12,
+        properties.streams.num(): 5,
     },
     # Mixed dict
     {
         properties.enable_profiling(): True,
         "CACHE_DIR": "./",
         properties.inference_num_threads(): 9,
-        properties.affinity(): properties.Affinity.NONE,
+        properties.affinity(): "NONE",
         "INFERENCE_PRECISION_HINT": Type.f32,
         properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
-        properties.hint.num_requests(): 12
+        properties.hint.num_requests(): 12,
+        "NUM_STREAMS": properties.streams.Num(5),
     }
 ])
 def test_properties_core(properties_to_set):
     core = Core()
-
     core.set_property(properties_to_set)
 
     # RW properties
@@ -55,6 +86,7 @@ def test_properties_core(properties_to_set):
     assert core.get_property("CPU", properties.hint.inference_precision()) == Type.f32
     assert core.get_property("CPU", properties.hint.performance_mode()) == properties.hint.PerformanceMode.LATENCY
     assert core.get_property("CPU", properties.hint.num_requests()) == 12
+    assert core.get_property("CPU", properties.streams.num()) == 5
 
     # RO properties
     assert type(core.get_property("CPU", properties.supported_properties())) == dict
