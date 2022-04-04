@@ -3,7 +3,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import re
 import sys
 from io import BytesIO
 from timeit import default_timer
@@ -16,9 +15,9 @@ from openvino.runtime import Core, InferRequest, Layout, Type, set_batch
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
 from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
-                   compare_with_reference, get_scale_factor, log,
-                   parse_input_layouts, parse_outputs_from_args,
-                   parse_scale_factors, set_scale_factors)
+                   calculate_scale_factor, compare_with_reference,
+                   get_input_layouts, get_sorted_scale_factors, log,
+                   set_scale_factors)
 
 
 def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
@@ -79,12 +78,10 @@ def main():
         model = core.read_model(args.model)
 
 # --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
-        if args.output_layers:
-            output_layer_names, output_layer_ports = parse_outputs_from_args(args)
-            model.add_outputs(list(zip(output_layer_names, output_layer_ports)))
+        model.add_outputs(args.output[0] + args.reference[0])
 
         if args.layout:
-            layouts = parse_input_layouts(args, model.inputs)
+            layouts = get_input_layouts(args.layout, model.inputs)
 
         ppp = PrePostProcessor(model)
 
@@ -125,23 +122,24 @@ def main():
 
         # Set a GNA scale factor
         if args.import_gna_model:
-            if args.scale_factor:
-                log.warning(f'Custom scale factor will be used for imported GNA model: {args.import_gna_model}')
-                set_scale_factors(plugin_config, parse_scale_factors(args))
+            if args.scale_factor[1]:
+                log.error(f'Custom scale factor can not be set for imported gna model: {args.import_gna_model}')
+                return 1
             else:
-                log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
+                log.info(f'Using scale factor from provided imported gna model: {args.import_gna_model}')
         else:
-            if args.scale_factor:
-                set_scale_factors(plugin_config, parse_scale_factors(args))
+            if args.scale_factor[1]:
+                scale_factors = get_sorted_scale_factors(args.scale_factor, model.inputs)
             else:
                 scale_factors = []
 
-                for file_name in re.split(', |,', args.input):
+                for file_name in args.input[1]:
                     _, utterances = read_utterance_file(file_name)
-                    scale_factors.append(get_scale_factor(utterances[0]))
+                    scale_factor = calculate_scale_factor(utterances[0])
+                    log.info('Using scale factor(s) calculated from first utterance')
+                    scale_factors.append(str(scale_factor))
 
-                log.info('Using scale factor(s) calculated from first utterance')
-                set_scale_factors(plugin_config, scale_factors)
+            set_scale_factors(plugin_config, scale_factors, model.inputs)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
@@ -175,59 +173,39 @@ def main():
         return 0
 
 # --------------------------- Step 6. Set up input --------------------------------------------------------------------
-    if args.input_layers:
-        input_layer_names = re.split(', |,', args.input_layers)
-    else:
-        input_layer_names = [_input.any_name for _input in compiled_model.inputs]
-
-    input_file_names = re.split(', |,', args.input)
+    input_layer_names = args.input[0] if args.input[0] else [_input.any_name for _input in compiled_model.inputs]
+    input_file_names = args.input[1]
 
     if len(input_layer_names) != len(input_file_names):
         log.error(f'Number of model inputs ({len(compiled_model.inputs)}) is not equal '
                   f'to number of ark files ({len(input_file_names)})')
-        sys.exit(-3)
+        return 3
 
     input_file_data = [read_utterance_file(file_name) for file_name in input_file_names]
 
     infer_data = [
         {
             input_layer_names[j]: input_file_data[j].utterances[i]
-            for j in range(len(input_layer_names))
+            for j in range(len(input_file_data))
         }
         for i in range(len(input_file_data[0].utterances))
     ]
 
-    if args.output_layers:
-        output_layer_names, output_layer_ports = parse_outputs_from_args(args)
-        # If a name of output layer contains a port number then concatenate output_layer_names and output_layer_ports
-        if ':' in compiled_model.outputs[0].any_name:
-            output_layer_names = [f'{output_layer_names[i]}:{output_layer_ports[i]}' for i in range(len(output_layer_names))]
-    else:
-        output_layer_names = [compiled_model.outputs[0].any_name]
+    output_layer_names = args.output[0] if args.output[0] else [compiled_model.outputs[0].any_name]
+    output_file_names = args.output[1]
 
-    if args.output:
-        output_file_names = re.split(', |,', args.output)
+    reference_layer_names = args.reference[0] if args.reference[0] else [compiled_model.outputs[0].any_name]
+    reference_file_names = args.reference[1]
 
-        if len(output_layer_names) != len(output_file_names):
-            log.error('The number of output files is not equal to the number of model outputs.')
-            sys.exit(-6)
+    reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]
 
-    if args.reference:
-        reference_file_names = re.split(', |,', args.reference)
-
-        if len(output_layer_names) != len(reference_file_names):
-            log.error('The number of reference files is not equal to the number of model outputs.')
-            sys.exit(-5)
-
-        reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]
-
-        references = [
-            {
-                output_layer_names[j]: reference_file_data[j].utterances[i]
-                for j in range(len(output_layer_names))
-            }
-            for i in range(len(input_file_data[0].utterances))
-        ]
+    references = [
+        {
+            reference_layer_names[j]: reference_file_data[j].utterances[i]
+            for j in range(len(reference_file_data))
+        }
+        for i in range(len(input_file_data[0].utterances))
+    ]
 
 # --------------------------- Step 7. Create infer request ------------------------------------------------------------
     infer_request = compiled_model.create_infer_request()
@@ -263,12 +241,12 @@ def main():
         log.info(f'Frames in utterance: {num_of_frames}')
         log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
 
-        for name in output_layer_names:
+        for name in set(reference_layer_names + output_layer_names):
             log.info('')
-            log.info(f'Output blob name: {name}')
+            log.info(f'Output layer name: {name}')
             log.info(f'Number scores per frame: {results[i][name].shape[1]}')
 
-            if args.reference:
+            if name in references[i].keys():
                 log.info('')
                 compare_with_reference(results[i][name], references[i][name])
 
@@ -294,11 +272,10 @@ def main():
     log.info('')
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
-    if args.output:
-        for i, name in enumerate(output_layer_names):
-            data = [results[i][name] for i in range(len(input_file_data[0].utterances))]
-            write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
-            log.info(f'File {output_file_names[i]} was created!')
+    for i in range(len(output_file_names)):
+        log.info(f'Saving results from "{output_layer_names[i]}" layer to {output_file_names[i]}')
+        data = [results[j][output_layer_names[i]] for j in range(len(input_file_data[0].utterances))]
+        write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
