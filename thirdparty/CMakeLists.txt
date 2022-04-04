@@ -84,7 +84,7 @@ ov_install_static_lib(fluid openvino_common)
 # Gflags
 #
 
-find_package(gflags QUIET COMPONENTS nothreads_shared)
+find_package(gflags QUIET COMPONENTS nothreads_static)
 if(gflags_FOUND)
     set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")

@@ -113,7 +113,7 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    find_package(gflags QUIET COMPONENTS nothreads_shared)
+    find_package(gflags QUIET COMPONENTS nothreads_static)
 
     if(gflags_FOUND)
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
