@@ -46,14 +46,14 @@ def test_constant_folding():
 
 def test_convert_precision():
     model = get_model()
+    assert model.get_parameters()[0].get_element_type().to_dtype() == np.float32
 
     m = Manager()
     m.register_pass(ConvertFP32ToFP16())
     m.run_passes(model)
 
     assert model is not None
-    # TODO: fix bug 82773 with float16 type comparison
-    # assert model.get_parameters()[0].get_element_type() == np.float16
+    assert model.get_parameters()[0].get_element_type().to_dtype() == np.float16
 
 
 def test_low_latency2():
