@@ -1,3 +1,3 @@
-# ReluTransformation transformation {#openvino_docs_IE_DG_lpt_ReluTransformation}
+# ReluTransformation transformation {#openvino_docs_OV_UG_lpt_ReluTransformation}
 
 ngraph::pass::low_precision::ReluTransformation class represents the `Relu` operation transformation.
