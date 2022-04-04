@@ -18,31 +18,31 @@ using namespace InferenceEngine::PluginConfigParams;
 
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generate_complex_device_name(CommonTestUtils::DEVICE_HETERO)));
+        ov_compiled_model, OVClassImportExportTestP,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
 // Executable Network GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        ov_compiled_model, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
@@ -50,11 +50,11 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkGetConfigTest, OVClassExecutableNetworkGetConfigTest,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ov_compiled_model, OVClassExecutableNetworkGetConfigTest,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassExecutableNetworkSetConfigTest, OVClassExecutableNetworkSetConfigTest,
+        ov_compiled_model, OVClassExecutableNetworkSetConfigTest,
         ::testing::Values(ov::test::conformance::targetDevice));
 
 ////
@@ -62,22 +62,21 @@ INSTANTIATE_TEST_SUITE_P(
 ////
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ov_compiled_model, OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
-//////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace
 
