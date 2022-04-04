@@ -178,25 +178,28 @@ Engine::~Engine() {
 
 class Transformations {
 public:
-    Transformations(const std::shared_ptr<ngraph::Function>& ngraphFunction
-                    CPU_DEBUG_CAP_ENABLE(, const Config& config))
-        : nGraphFunc(ngraphFunction) CPU_DEBUG_CAP_ENABLE(, config(config)) {}
+    Transformations(const std::shared_ptr<ngraph::Function>& ngraphFunction, const Config& config)
+        : nGraphFunc(ngraphFunction), config(config) {}
 
     Transformations(const std::shared_ptr<ngraph::Function>& ngraphFunction,
-                    const bool enableLpt, const bool enableSnippets, const bool isLegacyApi
-                    CPU_DEBUG_CAP_ENABLE(, const Config& config))
-        : Transformations(ngraphFunction CPU_DEBUG_CAP_ENABLE(, config)) {
+                    const bool enableLpt, const bool enableSnippets, const bool isLegacyApi,
+                    const Config& config)
+        : Transformations(ngraphFunction, config) {
         upToCpuSpecificOpSet(enableLpt, enableSnippets, isLegacyApi);
         cpuSpecificOpSet();
     }
 
     void upToCpuSpecificOpSet(const bool enableLpt, const bool enableSnippets, const bool isLegacyApi) {
         const bool useLpt = enableLpt &&
-                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
+                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc) &&
+                            CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config, Lpt);
+        const bool useSnippets = enableSnippets && !useLpt &&
+                                 CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config, Snippets);
+
         std::vector<ov::element::Type> defaultPrecisions;
         bool hasINT16orINT32Levels = false;
         if (useLpt) {
-        CPU_LPT_SCOPE(LowPrecisionTransformations_Part1);
+            CPU_LPT_SCOPE(LowPrecisionTransformations_Part1);
             hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
                 {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
@@ -213,20 +216,19 @@ public:
 
         upToCpuSpecificOpSet_postLpt();
 
-        if (!useLpt && enableSnippets)
+        if (useSnippets)
             upToCpuSpecificOpSet_snippets();
     }
 
     void cpuSpecificOpSet(void) {
         CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Specific);
-
         ConvertToCPUSpecificOpset(nGraphFunc);
     }
 
 private:
     const std::shared_ptr<ngraph::Function>& nGraphFunc;
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-    CPU_DEBUG_CAP_ENABLE(const Config& config);
+    const Config& config;
 
     void upToCpuSpecificOpSet_preLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
         CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, PreLpt);
@@ -477,7 +479,7 @@ private:
     }
 
     void upToCpuSpecificOpSet_lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions) {
-        CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Lpt);
+        CPU_DEBUG_CAP_TRANSFORMATION_DUMP(this, Lpt);
 
         using namespace ngraph::pass::low_precision;
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
@@ -571,7 +573,7 @@ private:
 
     void upToCpuSpecificOpSet_snippets(void) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-            CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Snippets);
+            CPU_DEBUG_CAP_TRANSFORMATION_DUMP(this, Snippets);
 
             ngraph::pass::Manager tokenization_manager;
             tokenization_manager.register_pass<SnippetsMarkSkipped>();
@@ -732,7 +734,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
 
     auto nGraphFunc = clonedNetwork.getFunction();
-    Transformations transformations(nGraphFunc CPU_DEBUG_CAP_ENABLE(, engConfig));
+    Transformations transformations(nGraphFunc, engConfig);
     transformations.upToCpuSpecificOpSet(enableLPT, enableSnippets, isLegacyAPI());
 
     // need to check that all outputs have static shapes
@@ -972,7 +974,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformations(clonnedFunction, enableLPT, enableSnippets, isLegacyAPI() CPU_DEBUG_CAP_ENABLE(, engConfig));
+        Transformations(clonnedFunction, enableLPT, enableSnippets, isLegacyAPI(), engConfig);
         auto ops = clonnedFunction->get_ordered_ops();
 
         //Mark removed nodes as supported

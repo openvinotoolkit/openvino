@@ -77,13 +77,22 @@ private:
 }   // namespace intel_cpu
 }   // namespace ov
 
-#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_this, _type)                                            \
-    if (_this->config.disable.transformations.filter[Config::TransformationFilter::Type::_type])               \
-        return;                                                                                                \
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_config, _type)                      \
+    _config.disable.transformations.filter[Config::TransformationFilter::Type::_type]
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) !CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__)
+#  define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                      \
+    IE_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config, _type));                                  \
     auto dumperPtr = _this->config.dumpIR.transformations.filter[Config::TransformationFilter::Type::_type] ?  \
         std::unique_ptr<TransformationDumper>(new TransformationDumper(_this->config,                          \
                                               Config::TransformationFilter::Type::_type, _this->nGraphFunc)) : \
         nullptr
+#  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_this, _type)         \
+    if (CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_this->config, _type))     \
+        return;                                                             \
+    CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)
 #else
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_config, _type) false
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) true
+#  define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)
 #  define CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(_this, _type)
 #endif // CPU_DEBUG_CAPS
