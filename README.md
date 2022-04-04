@@ -115,6 +115,11 @@ Also OpenVINO™ Toolkit contains several plugins which should simplify to load 
             <td>Auto plugin enables selecting Intel device for inference automatically</td>
         </tr>
         <tr>
+            <td><a href="https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
+            <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
+            <td>Auto batch plugin performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user</td>
+        </tr>
+        <tr>
             <td><a href="https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
             <td><b><i><a href="https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
             <td>Heterogeneous execution enables automatic inference splitting between several devices</td>
@@ -135,7 +140,7 @@ By contributing to the project, you agree to the license and copyright terms the
 
 ### User documentation
 
-The latest documentation for OpenVINO™ Toolkit is availabe [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all important information which could be needed if you create an application which is based on binaty OpenVINO distribution or own OpenVINO version without source code modification.
+The latest documentation for OpenVINO™ Toolkit is availabe [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all important information which could be needed if you create an application which is based on binary OpenVINO distribution or own OpenVINO version without source code modification.
 
 ### Developer documentation
 
@@ -152,6 +157,7 @@ The list of OpenVINO tutorials:
 - [OpenCV](https://opencv.org/)
 - [ONNX Runtime](https://onnxruntime.ai/)
 - [OpenVINO™ Integration with TensorFlow](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/build/ovtfoverview.html)
+- [TNN](https://github.com/Tencent/TNN/tree/master)
 
 ## System requirements
 
@@ -173,8 +179,8 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
 
 Please report questions, issues and suggestions using:
 
-* The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
+* The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
 ## See also
