@@ -20,7 +20,7 @@ namespace {
 struct LrnKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
-    mkldnn::algorithm alg;
+    dnnl::algorithm alg;
     size_t size;
     int k;
     float alpha;
@@ -105,7 +105,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -114,7 +114,7 @@ Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, Wei
         auto lrn = ngraph::as_type_ptr<const ngraph::opset1::LRN>(op);
         auto axes = ngraph::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
         bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
-        alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
+        alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
         k = static_cast<float>(lrn->get_bias());
@@ -146,7 +146,7 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
@@ -174,11 +174,11 @@ void Lrn::prepareParams() {
     LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta};
     auto engine = getEngine();
 
-    auto builder = [&engine](const LrnKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
+    auto builder = [&engine](const LrnKey& key) -> std::shared_ptr<dnnl::primitive> {
+        DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
+            new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
 
-        mkldnn::lrn_forward::primitive_desc prim_desc;
+        dnnl::lrn_forward::primitive_desc prim_desc;
         dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -189,7 +189,7 @@ void Lrn::prepareParams() {
             if (!itpd.next_impl())
                 return nullptr;
         }
-        return std::make_shared<mkldnn::lrn_forward>(prim_desc);
+        return std::make_shared<dnnl::lrn_forward>(prim_desc);
     };
 
     auto cache = getRuntimeCache();
@@ -214,8 +214,8 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
+    DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
+            new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
     descs.push_back(desc);
 }
 
@@ -223,7 +223,7 @@ std::vector<VectorDims> Lrn::shapeInfer() const {
     return { getParentEdgesAtPort(0).front()->getMemory().getStaticDims() };
 }
 
-void Lrn::executeDynamicImpl(mkldnn::stream strm) {
+void Lrn::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
