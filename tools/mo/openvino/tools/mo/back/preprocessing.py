@@ -290,10 +290,9 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
                 break
 
         if layout_item is not None:
-            if layout_item.get('target_layout'):
-                if check_suitable_for_reverse(Layout(layout_item['target_layout']), ov_input):
-                    suitable_params.append(param_info)
-            elif layout_item.get('source_layout'):
+            # we check layouts for model before layout change is applied, so we need to check only
+            # source_layout, even if target_layout is also provided
+            if layout_item.get('source_layout'):
                 if check_suitable_for_reverse(Layout(layout_item['source_layout']), ov_input):
                     suitable_params.append(param_info)
             continue
@@ -346,6 +345,8 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     :param: ov_function OV function for applying mean/scale pre-processing
     :param: argv Parsed command line arguments
     """
+    prep = PrePostProcessor(ov_function)
+
     if 'mean_scale_values' in argv and argv.mean_scale_values:
         mean_scale_values = argv.mean_scale_values
     else:
@@ -385,7 +386,6 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
         suitable_params_ric = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
                                                                         layout_values=layout_values)
 
-    prep = PrePostProcessor(ov_function)
     for node_name, layout_value in layout_values.items():
         if layout_value.get('source_layout'):
             if layout_value.get('is_input'):
@@ -398,10 +398,6 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
             else:
                 prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
-    # Apply layouts to a function
-    ov_function = prep.build()
-
-    prep = PrePostProcessor(ov_function)
     # Apply reverse_input_channels
     if need_reverse:
         for name, _ in suitable_params_ric:
