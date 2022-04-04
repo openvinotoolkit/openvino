@@ -85,7 +85,7 @@ omz_downloader --name alexnet
 omz_converter --name alexnet
 ```
 
-4. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
+4. Perform inference of NV12 image, using `alexnet` model on a `CPU`, for example:
 
 ```
 hello_nv12_input_classification alexnet.xml car.yuv 300x300 CPU
