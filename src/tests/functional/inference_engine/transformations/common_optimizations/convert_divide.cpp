@@ -176,6 +176,51 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertDivide_If) {
+    {
+        auto data1 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {5});
+        auto data2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1});
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{1, 3, 22, 22});
+        auto divide = std::make_shared<ngraph::opset8::Divide>(data, data2);
+        auto convert_after = std::make_shared<ngraph::opset1::Convert>(divide, ngraph::element::i32);
+
+        ngraph::opset1::Interpolate::Attributes interp_attr;
+        interp_attr.antialias = false;
+        interp_attr.axes = {2, 3};
+        interp_attr.mode = "nearest";
+        interp_attr.pads_begin = {0, 0, 0, 0};
+        interp_attr.pads_end = {0, 0, 0, 0};
+
+        auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, convert_after, interp_attr);
+        auto then_op_result = std::make_shared<ngraph::opset1::Result>(interpolate);
+
+        auto body_then_function = std::make_shared<ngraph::Function>(ngraph::NodeVector{then_op_result}, ngraph::ParameterVector{data});
+
+        // create else body
+        auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 3, 22, 22});
+        auto else_op_result = std::make_shared<ngraph::opset1::Result>(input_else);
+        auto body_else_function =
+            std::make_shared<ov::Model>(ov::NodeVector{else_op_result}, ov::ParameterVector{input_else});
+
+        // create main graph
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 3, 22, 22});
+        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto if_op = std::make_shared<ov::opset8::If>(cond);
+        if_op->set_then_body(body_then_function);
+        if_op->set_else_body(body_else_function);
+        if_op->set_input(input, data, input_else);
+        if_op->set_output(then_op_result, else_op_result);
+        auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+        decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
 TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
     {
         // This test case checks that MarkPrecisionSensitiveDivides works correctly when Divide is included
