@@ -996,21 +996,27 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
+    std::function<InferenceEngine::CNNLayerPtr(InferenceEngine::CNNLayerPtr)> find_cascaded_concat_recursively =
+        [&find_cascaded_concat_recursively](InferenceEngine::CNNLayerPtr concat_candidate) {
+        if (LayerInfo(concat_candidate).isConcat()) {
+            return concat_candidate;
+        }
+
+        if (!LayerInfo(concat_candidate).isNonFunctional()) {
+            return InferenceEngine::CNNLayerPtr(nullptr);
+        }
+
+        for (auto &&child_layer : getInputTo(concat_candidate->outData.front())) {
+            auto child_concat = find_cascaded_concat_recursively(child_layer.second);
+            if (child_concat) return child_concat;
+        }
+
+        return InferenceEngine::CNNLayerPtr(nullptr);
+    };
+
     for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
-        auto concatCandidate = outLayer.second;
-        if (LayerInfo(concatCandidate).isNonFunctional()) {
-            // searching for next concat
-            auto isNonFunctional = [](CNNLayerPtr l) {
-                return LayerInfo(l).isNonFunctional();
-            };
-            if (!CNNNetHasNextLayerSkipCertain(concatCandidate, 0, 0, isNonFunctional)) {
-                continue;
-            }
-            concatCandidate = CNNNetGetNextLayerSkipCertain(concatCandidate, 0, 0, isNonFunctional).first;
-        }
-        if (!LayerInfo(concatCandidate).isConcat()) {
-            continue;
-        }
+        auto concatCandidate = find_cascaded_concat_recursively(outLayer.second);
+        if (!concatCandidate) continue;
         gnalog() << "Cascaded concat connection found from: " << layer->name << ", to: " << concatCandidate->name << std::endl;
         connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
     }
