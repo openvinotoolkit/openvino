@@ -2,7 +2,7 @@
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 
-#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
+#include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
@@ -45,7 +45,7 @@ if (useLpt) {
 // nGraph common transformations happen here
 
 if (useLpt) {
-    // convert subtract constant to INT8 to prevent unnecessary FP16 to FP32 conversion 
+    // convert subtract constant to INT8 to prevent unnecessary FP16 to FP32 conversion
     manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
 }
 
@@ -70,29 +70,29 @@ manager.run_passes(nGraphFunc);
 using namespace ngraph::pass::low_precision;
 if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
-    auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
-        OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+    auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+        PrecisionsRestriction::create<ngraph::opset1::Convolution>({
             {0, {ngraph::element::u8}},
             {1, {ngraph::element::i8}},
         }),
-        OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+        PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
             {0, {ngraph::element::u8, ngraph::element::i8}},
             {1, {ngraph::element::i8}}
         }),
-        OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+        PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
             {0, {ngraph::element::u8}},
             {1, {ngraph::element::i8}}
         }),
-        OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+        PrecisionsRestriction::create<ngraph::opset1::Multiply>({
             {0, {ngraph::element::u8}},
             {1, {ngraph::element::i8}},
         }),
     });
 
     // Low precision transformations plugin specific configuration: per-tensor quantization operations definition
-    auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
-        OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
-        OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+    auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
+        QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
+        QuantizationGranularityRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
     });
 
     // Low precision transformations instantiation and registration in pass manager
@@ -133,8 +133,8 @@ ngraph::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
 //! [lpt_supported_precisions]
-auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
-    OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+    PrecisionsRestriction::create<ngraph::opset1::Convolution>({
         {0, {ngraph::element::u8}},
         {1, {ngraph::element::i8}},
     }),
@@ -157,10 +157,10 @@ std::shared_ptr<ov::Model> nGraphFunc;
 //! [per_tensor_quantization]
 using namespace ngraph::pass::low_precision;
 
-const std::vector<OperationPrecisionRestriction> emptyRestrictions;
+const std::vector<PrecisionsRestriction> emptyRestrictions;
 
-auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
-    OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
+    QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
 });
 
 ngraph::pass::Manager lptManager;
@@ -197,15 +197,15 @@ ngraph::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
 //! [lpt_markup_pipeline]
-auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
-    OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+    PrecisionsRestriction::create<ngraph::opset1::Convolution>({
         {0, {ngraph::element::u8}},
         {1, {ngraph::element::i8}},
     }),
 });
 
-auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
-    OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
+    QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
 });
 
 ngraph::pass::Manager lptManager;
