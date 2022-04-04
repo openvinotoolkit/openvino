@@ -857,6 +857,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
@@ -897,6 +898,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
                                                           ov::Strides{1, 1});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
@@ -956,6 +958,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
         auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
@@ -1016,4 +1019,5 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
         auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
