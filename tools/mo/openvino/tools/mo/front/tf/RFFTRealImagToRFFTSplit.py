@@ -61,3 +61,6 @@ class RFFTRealImagToRDFTSplit(FrontReplacementSubgraph):
 
         rename_nodes([(real_node, real_name + '/to_be_removed'), (squeeze_real, real_name)])
         rename_nodes([(imag_node, imag_name + '/to_be_removed'), (squeeze_imag, imag_name)])
+
+        real_node.in_port(0).disconnect()
+        imag_node.in_port(0).disconnect()
