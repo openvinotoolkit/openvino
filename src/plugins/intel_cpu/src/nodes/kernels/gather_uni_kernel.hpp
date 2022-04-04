@@ -23,7 +23,7 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 
 namespace ov {
 namespace intel_cpu {

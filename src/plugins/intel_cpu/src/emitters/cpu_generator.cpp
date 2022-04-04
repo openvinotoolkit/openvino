@@ -11,8 +11,8 @@
 #include "cpu_generator.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "jit_eltwise_emitters.hpp"
-#include "jit_mkldnn_emitters.hpp"
-#include "jit_mkldnn_ext_emitters.hpp"
+#include "jit_dnnl_emitters.hpp"
+#include "jit_dnnl_ext_emitters.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 

@@ -4,11 +4,10 @@
 
 #include "topk.h"
 
-#include <mkldnn.hpp>
-
 #include <string>
 #include <vector>
 #include <set>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "emitters/jit_load_store_emitters.hpp"
 #include "ie_parallel.hpp"
@@ -22,11 +21,11 @@
 
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
@@ -135,7 +134,7 @@ private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
-    mkldnn::memory::data_type data_type;
+    dnnl::memory::data_type data_type;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
     Xbyak::Address table_bubble_block_idx(int index) { return ptr[reg_bubble_block_idx + index * vlen]; }
@@ -1822,7 +1821,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -2109,11 +2108,11 @@ void TopK::createPrimitive() {
     }
 }
 
-void TopK::executeDynamicImpl(mkldnn::stream strm) {
+void TopK::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void TopK::execute(mkldnn::stream strm) {
+void TopK::execute(dnnl::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();

@@ -34,9 +34,9 @@ using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
 enum MemoryDescType {
     Undef = 0,
     Blocked = 1,
-    Mkldnn = 1 << 1,
+    Dnnl = 1 << 1,
 
-    DnnlBlocked = Blocked | Mkldnn
+    DnnlBlocked = Blocked | Dnnl
 };
 
 enum class LayoutType : unsigned {

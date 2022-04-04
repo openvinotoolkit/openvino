@@ -24,7 +24,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
                 DnnlExtensionUtils::IEPrecisionToDataType(prc),
                 DnnlExtensionUtils::convertToDnnlDims(strides)};
     } else {
-        mkldnn::memory::dims plain_strides;
+        dnnl::memory::dims plain_strides;
         if (shape.hasZeroDims()) {
             plain_strides.resize(ndims, 0);
         } else if (std::any_of(dims.begin(), dims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
@@ -67,7 +67,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                                              const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                                              const VectorDims& strides) : MemoryDesc(shape, DnnlBlocked) {
-    using namespace mkldnn;
+    using namespace dnnl;
     // scalar case
     if (shape.getRank() == 0) {
         desc.data.format_kind = dnnl_blocked;
@@ -193,24 +193,24 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     }
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format) :
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, dnnl::memory::data_type dataType, dnnl::memory::format_tag format) :
         MemoryDesc(shape, DnnlBlocked) {
-    using namespace mkldnn;
+    using namespace dnnl;
     if (format == memory::format_tag::any || format == memory::format_tag::undef)
-        IE_THROW(Unexpected) << "Can't create mkldnn::desc with any or undef format";
+        IE_THROW(Unexpected) << "Can't create dnnl::desc with any or undef format";
 
     const auto dims = shape.getDims();
     if (format == memory::format_tag::x && shape.getRank() == 0) {
-        desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
+        desc = dnnl::memory::desc(dnnl::memory::dims(1, 1), dataType, format);
     } else {
-        desc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dims), dataType, format);
+        desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dims), dataType, format);
     }
 
     VectorDims perm;
     VectorDims inner_blks;
     VectorDims inner_idxs;
 
-    mkldnn::impl::memory_desc_wrapper::compute_blocking(mkldnn::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
+    dnnl::impl::memory_desc_wrapper::compute_blocking(dnnl::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
 
     order.swap(perm);
     order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
@@ -273,9 +273,9 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
            thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, true, checkOffset, stride_mask);
 }
 
-static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
+static VectorDims extractOrder(const dnnl::memory::desc& desc) {
     const auto dims = desc.dims();
-    mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(desc.data);
 
     if (descWrapped.has_runtime_dims_or_strides()) {
         IE_THROW(Unexpected) << "Cannot calculate order from undefined dims or strides";
@@ -314,13 +314,13 @@ static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
     return blk_order;
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) :
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
                 MemoryDesc(DnnlExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
     desc = mdesc;
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 
-    mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(desc.data);
     if (!descWrapped.is_blocking_desc())
         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 
@@ -400,11 +400,11 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
-static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
+static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
     using namespace dnnl::impl::utils;
     auto mklDims = DnnlExtensionUtils::convertToDnnlDims(dims);
     const auto offsetPadding = desc.data.offset0;
-    mkldnn::memory::desc newMklDesc = desc;
+    dnnl::memory::desc newMklDesc = desc;
     array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
     std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
     auto& blockingDesc = newMklDesc.data.format_desc.blocking;
@@ -440,8 +440,8 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
-bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
-    mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
+bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
+    dnnl::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
 
     if (desc.data.ndims != refDesc.data.ndims)
         return false;
@@ -643,12 +643,12 @@ void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
     }
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape) :
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const Shape& shape) :
         MemoryDesc(shape, DnnlBlocked) {
     if (mdesc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 
-    mkldnn::impl::memory_desc_wrapper descWrapped(mdesc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(mdesc.data);
     if (!descWrapped.is_blocking_desc())
         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 

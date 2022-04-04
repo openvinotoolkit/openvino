@@ -11,9 +11,8 @@
 #include <array>
 #include <tuple>
 
-#include <mkldnn.hpp>
-#include <mkldnn_debug.h>
-#include <mkldnn_types.h>
+#include <dnnl_debug.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -25,9 +24,9 @@
 #include "emitters/cpu_generator.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {

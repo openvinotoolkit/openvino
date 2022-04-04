@@ -27,7 +27,7 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -89,7 +89,7 @@ void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t
     weightsIdx = embIndex * _indicesPerBag;
 }
 
-void EmbeddingBagPackedSum::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingBagPackedSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -97,7 +97,7 @@ bool EmbeddingBagPackedSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPackedSum::execute(mkldnn::stream strm) {
+void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;

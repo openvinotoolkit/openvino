@@ -13,7 +13,7 @@
 #include "kernels/gather_uni_kernel.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::cpu;
+using namespace dnnl::impl::cpu;
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
@@ -41,7 +41,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -263,7 +263,7 @@ void Gather::prepareParams() {
     }
 }
 
-void Gather::execute(mkldnn::stream strm) {
+void Gather::execute(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -316,7 +316,7 @@ void Gather::execute(mkldnn::stream strm) {
     }
 }
 
-void Gather::executeDynamicImpl(mkldnn::stream strm) {
+void Gather::executeDynamicImpl(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();

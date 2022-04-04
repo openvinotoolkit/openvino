@@ -10,12 +10,12 @@
 #include "dft.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -41,7 +41,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
                Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -229,7 +229,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
 } // namespace
 
-void DFT::execute(mkldnn::stream strm) {
+void DFT::execute(dnnl::stream strm) {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
     axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);

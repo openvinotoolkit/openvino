@@ -3,12 +3,12 @@
 //
 
 #include <iostream>
-#include <mkldnn.hpp>
+#include <dnnl.hpp>
 #include <vector>
 
 #include "gtest/gtest.h"
 
-static int tensor_volume(const mkldnn::memory::dims& t)
+static int tensor_volume(const dnnl::memory::dims& t)
 {
     int x = 1;
     for (const auto i : t)
@@ -18,7 +18,7 @@ static int tensor_volume(const mkldnn::memory::dims& t)
 
 void test()
 {
-    using namespace mkldnn;
+    using namespace dnnl;
 
     auto cpu_engine = engine(engine::cpu, 0);
 
@@ -72,7 +72,7 @@ void test()
     stream(stream::kind::eager).submit({c3}).wait();
 }
 
-TEST(mkldnn, engine)
+TEST(dnnl, engine)
 {
     EXPECT_NO_THROW(test());
 }

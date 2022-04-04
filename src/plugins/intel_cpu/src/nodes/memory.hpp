@@ -61,13 +61,13 @@ public:
 
 class MemoryOutput : public Node, public MemoryNode {
 public:
-    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~MemoryOutput() override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override {
         return getType() == Type::MemoryOutput;
     }
@@ -86,7 +86,7 @@ public:
 
 class MemoryInput : public Input, public MemoryNode {
 public:
-    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~MemoryInput() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -96,7 +96,7 @@ public:
     bool isExecutable() const override {
         return true;
     }
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
 
     void createPrimitive() override;
 

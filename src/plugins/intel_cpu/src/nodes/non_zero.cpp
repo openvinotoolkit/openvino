@@ -24,7 +24,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                      WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -89,11 +89,11 @@ struct NonZero::NonZeroExecute {
     }
 };
 
-void NonZero::executeDynamicImpl(mkldnn::stream strm) {
+void NonZero::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void NonZero::execute(mkldnn::stream strm) {
+void NonZero::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,

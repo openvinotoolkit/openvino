@@ -6,11 +6,10 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <set>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
@@ -26,11 +25,11 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) IB = batch;   \
@@ -77,7 +76,7 @@ namespace {
 
 struct ReduceKey {
     jit_reduce_config_params jcp;
-    mkldnn::post_ops postOps;
+    dnnl::post_ops postOps;
 
     size_t hash() const;
     bool operator==(const ReduceKey& rhs) const;
@@ -1082,7 +1081,7 @@ template <cpu_isa_t isa>
 struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
-    explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const mkldnn_primitive_attr &attr)
+    explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -1735,7 +1734,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -1989,11 +1988,11 @@ void Reduce::createPrimitive() {
     jit_mode = jit_mode && reduce_kernel;
 }
 
-void Reduce::executeDynamicImpl(mkldnn::stream strm) {
+void Reduce::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Reduce::execute(mkldnn::stream strm) {
+void Reduce::execute(dnnl::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
 
@@ -2604,8 +2603,8 @@ inline void Reduce::create_working_memory() {
                                         : (rank == 4 ? (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
                                                      : (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
-    auto desc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
-    prc_mem = std::make_shared<mkldnn::memory>(desc, getEngine());
+    auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
+    prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());
     dst_size = desc.get_size();
 }
 
@@ -2833,8 +2832,8 @@ inline void Reduce::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_
     }
 }
 
-void Reduce::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
-    mkldnn::post_ops ops;
+void Reduce::setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
+    dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());

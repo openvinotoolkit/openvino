@@ -4,7 +4,7 @@
 
 #include "roi_pooling.h"
 
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
 
@@ -24,10 +24,10 @@
 #include <cmath>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
@@ -384,7 +384,7 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -481,7 +481,7 @@ void ROIPooling::createPrimitive() {
     }
 }
 
-void ROIPooling::execute(mkldnn::stream strm) {
+void ROIPooling::execute(dnnl::stream strm) {
     if (execPtr) {
         const auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -492,7 +492,7 @@ void ROIPooling::execute(mkldnn::stream strm) {
     }
 }
 
-void ROIPooling::executeDynamicImpl(mkldnn::stream strm) {
+void ROIPooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

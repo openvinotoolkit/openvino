@@ -22,7 +22,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
 using namespace ngraph::op;
@@ -229,7 +229,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 
 }   // namespace
 
-Input::Input(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Input::Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
@@ -363,7 +363,7 @@ void Input::cloneBlobIfRequired() {
 }
 
 Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                                 const std::string &type, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+                                 const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(type, name, eng, cache) {
     constant = ConstantType::NoConst;
     if (getType() == Type::Input) {
@@ -376,7 +376,7 @@ Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const st
 }
 
 Input::Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
-                                 const mkldnn::engine &eng, WeightsSharing::Ptr &cache) :
+                                 const dnnl::engine &eng, WeightsSharing::Ptr &cache) :
     Input(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
     extMemDesc = memDesc;
 }

@@ -16,7 +16,7 @@ namespace node {
 
 class Lrn : public Node {
 public:
-    Lrn(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Lrn(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -24,20 +24,20 @@ public:
     size_t descInputNumbers(DnnlDesriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     std::vector<VectorDims> shapeInfer() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    mkldnn::algorithm alg;
+    dnnl::algorithm alg;
     size_t size = 1;
     int k = 1;
     float alpha = 1.0f;

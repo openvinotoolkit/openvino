@@ -22,7 +22,7 @@
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -35,7 +35,7 @@ struct MatMulKey {
     DnnlMemoryDescCPtr inp1;
     DnnlMemoryDescCPtr bias;
     DnnlMemoryDescCPtr out;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     impl_desc_type implType;
 
     size_t hash() const;
@@ -110,7 +110,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
     Node(op, eng, cache), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
@@ -161,8 +161,8 @@ bool MatMul::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MatMul::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) {
-    mkldnn::post_ops ops;
+void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) {
+    dnnl::post_ops ops;
 
     auto getBinPostOpShape = [&](){
         const auto outShapeRank = dims.size();
@@ -174,7 +174,7 @@ void MatMul::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bo
 
     for (const auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
+            if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
@@ -192,7 +192,7 @@ void MatMul::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bo
 }
 
 Node::AttrPtr MatMul::initPrimitiveAttr(const VectorDims &dims) {
-    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
 
     setPostOps(*attr, dims, true);
 
@@ -233,7 +233,7 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     return strides;
 }
 
-mkldnn::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) {
+dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) {
     // oneDNN matmul requires shape for bias desc to be the same rank
     VectorDims biasDims(outMemDesc->getShape().getRank(), 1);
     const auto outDims = outMemDesc->getShape().getStaticDims();
@@ -241,7 +241,7 @@ mkldnn::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc
     biasDims[chIdx] = outDims[chIdx];
     const auto bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
 
-    return mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
+    return dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
 }
 
 void MatMul::getSupportedDescriptors() {
@@ -399,7 +399,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                         const std::vector<MemoryDescPtr>& outputDesc) {
-    std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
+    std::shared_ptr<dnnl::matmul::desc> matmul_desc;
     if (withBiases) {
         matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
                                            inDataDesc[1]->getDnnlDesc(),
@@ -452,12 +452,12 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     }
 }
 
-MemoryDescPtr MatMul::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
-            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
+            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<dnnl::memory::data_type>(desc.data.data_type)),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
     else // bias
         return DnnlExtensionUtils::makeDescriptor(desc);
@@ -529,16 +529,16 @@ void MatMul::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
+    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<dnnl::primitive> {
+        std::shared_ptr<dnnl::matmul::desc> matmul_desc;
 
         if (key.bias) {
-            matmul_desc.reset(new mkldnn::matmul::desc{key.inp0->getDnnlDesc(),
+            matmul_desc.reset(new dnnl::matmul::desc{key.inp0->getDnnlDesc(),
                                                        key.inp1->getDnnlDesc(),
                                                        key.bias->getDnnlDesc(),
                                                        key.out->getDnnlDesc()});
         } else {
-            matmul_desc.reset(new mkldnn::matmul::desc(key.inp0->getDnnlDesc(),
+            matmul_desc.reset(new dnnl::matmul::desc(key.inp0->getDnnlDesc(),
                                                        key.inp1->getDnnlDesc(),
                                                        key.out->getDnnlDesc()));
         }

@@ -49,41 +49,41 @@ TEST(MemDescTest, UndefinedStateConversion) {
     ngraph::PartialShape ngraphUndefinedShape({{16}, {7, 15}, {-1, -1}, {3}});
     Shape cpuShape(ngraphUndefinedShape);
 
-    const std::vector<mkldnn::memory::format_tag> vecTags = {
-            mkldnn::memory::format_tag::nChw8c,
-            mkldnn::memory::format_tag::nhwc,
-            mkldnn::memory::format_tag::nChw16c,
-            mkldnn::memory::format_tag::ABcd16a16b,
-            mkldnn::memory::format_tag::OIhw4i16o4i
+    const std::vector<dnnl::memory::format_tag> vecTags = {
+            dnnl::memory::format_tag::nChw8c,
+            dnnl::memory::format_tag::nhwc,
+            dnnl::memory::format_tag::nChw16c,
+            dnnl::memory::format_tag::ABcd16a16b,
+            dnnl::memory::format_tag::OIhw4i16o4i
     };
 
     for (auto tag : vecTags) {
-        DnnlBlockedMemoryDescPtr mkldnnDesc = std::make_shared<DnnlBlockedMemoryDesc>(cpuShape, mkldnn::memory::data_type::f32, tag);
+        DnnlBlockedMemoryDescPtr dnnlBlockedDesc = std::make_shared<DnnlBlockedMemoryDesc>(cpuShape, dnnl::memory::data_type::f32, tag);
 
-        ASSERT_FALSE(mkldnnDesc->isDefined());
+        ASSERT_FALSE(dnnlBlockedDesc->isDefined());
 
-        auto blockedDesc = MemoryDescUtils::convertToBlockedMemoryDesc(mkldnnDesc);
+        auto blockedDesc = MemoryDescUtils::convertToBlockedMemoryDesc(dnnlBlockedDesc);
         MemoryDescPtr cpuBlockedDesc = std::make_shared<CpuBlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape(), blockedDesc->getBlockDims(),
                                                                     blockedDesc->getOrder(), blockedDesc->getOffsetPadding(),
                                                                     blockedDesc->getOffsetPaddingToData(), blockedDesc->getStrides());
 
-        ASSERT_TRUE(mkldnnDesc->isCompatible(*cpuBlockedDesc));
-        ASSERT_TRUE(cpuBlockedDesc->isCompatible(*mkldnnDesc));
+        ASSERT_TRUE(dnnlBlockedDesc->isCompatible(*cpuBlockedDesc));
+        ASSERT_TRUE(cpuBlockedDesc->isCompatible(*dnnlBlockedDesc));
 
         auto reconstructedDesc = MemoryDescUtils::convertToDnnlMemoryDesc(cpuBlockedDesc);
 
-        ASSERT_TRUE(mkldnnDesc->isCompatible(*reconstructedDesc));
+        ASSERT_TRUE(dnnlBlockedDesc->isCompatible(*reconstructedDesc));
         ASSERT_TRUE(cpuBlockedDesc->isCompatible(*reconstructedDesc));
 
-        mkldnn::memory::desc dnnlDesc = mkldnnDesc->getDnnlDesc();
-        mkldnn::memory::desc reconstDnnlDesc = reconstructedDesc->getDnnlDesc();
+        dnnl::memory::desc dnnlDesc = dnnlBlockedDesc->getDnnlDesc();
+        dnnl::memory::desc reconstDnnlDesc = reconstructedDesc->getDnnlDesc();
 
         ASSERT_EQ(dnnlDesc, reconstDnnlDesc);
 
-        auto definedMemDesc = mkldnnDesc->cloneWithNewDims({16, 10, 15, 3});
-        auto definedReconstructedMkldnnDesc = reconstructedDesc->cloneWithNewDims({16, 10, 15, 3});
+        auto definedMemDesc = dnnlBlockedDesc->cloneWithNewDims({16, 10, 15, 3});
+        auto definedReconstructedDnnlDesc = reconstructedDesc->cloneWithNewDims({16, 10, 15, 3});
 
-        ASSERT_TRUE(definedMemDesc->isCompatible(*definedReconstructedMkldnnDesc));
+        ASSERT_TRUE(definedMemDesc->isCompatible(*definedReconstructedDnnlDesc));
     }
 }
 
@@ -189,7 +189,7 @@ TEST(MemDescTest, ComaptibleWithFormat) {
 }
 
 TEST(MemDescTest, KeepOrder) {
-    using mkldnn::memory;
+    using dnnl::memory;
     Shape dims(VectorDims{7, 3, 1, 5});
     memory::data_type dataType = memory::data_type::u8;
     DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToIEPrecision(dataType), dims);
@@ -206,23 +206,23 @@ TEST(MemDescTest, KeepOrder) {
 
     auto dnnDims = DnnlExtensionUtils::convertToDnnlDims(dims.getStaticDims());
 
-    memory::desc mkldnnDescPlanar(dnnDims, dataType, memory::format_tag::abcd);
-    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescPlanar)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3));
+    memory::desc dnnlDescPlanar(dnnDims, dataType, memory::format_tag::abcd);
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(dnnlDescPlanar)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3));
 
-    memory::desc mkldnnDescTailC(dnnDims, dataType, memory::format_tag::acdb);
-    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescTailC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 2, 3, 1));
+    memory::desc dnnlDescTailC(dnnDims, dataType, memory::format_tag::acdb);
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(dnnlDescTailC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 2, 3, 1));
 
-    memory::desc mkldnnDescBlockedC(dnnDims, dataType, memory::format_tag::aBcd16b);
-    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescBlockedC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1));
+    memory::desc dnnlDescBlockedC(dnnDims, dataType, memory::format_tag::aBcd16b);
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(dnnlDescBlockedC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1));
 
-    memory::desc mkldnnDescWeightBlocked(dnnDims, dataType, memory::format_tag::ABcd16b16a2b);
-    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(mkldnnDescWeightBlocked)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
+    memory::desc dnnlDescWeightBlocked(dnnDims, dataType, memory::format_tag::ABcd16b16a2b);
+    ASSERT_THAT(DnnlExtensionUtils::makeDescriptor(dnnlDescWeightBlocked)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
 }
 
 TEST(MemDescTest, UndefinedState) {
     ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
     ov::intel_cpu::Shape pluginShape(ngraphShape);
-    DnnlBlockedMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
+    DnnlBlockedMemoryDesc memDesc(pluginShape, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nChw8c);
 
     ASSERT_FALSE(memDesc.isDefined());
 
@@ -257,7 +257,7 @@ TEST(MemDescTest, UndefinedState) {
 
 TEST(MemDescTest, MemSize) {
     constexpr size_t undefSize = MemoryDesc::UNDEFINED_SIZE;
-    static const auto dnnlDataType = mkldnn::memory::data_type::f32;
+    static const auto dnnlDataType = dnnl::memory::data_type::f32;
     static const Precision iePrc = Precision::FP32;
 
 
@@ -270,7 +270,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(blockedDescUndef.getCurrentMemSize(), undefSize);
     ASSERT_EQ(blockedDescUndef.getMaxMemSize(), undefSize);
 
-    DnnlBlockedMemoryDesc memDescUndef(pluginShapeUndef, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescUndef(pluginShapeUndef, dnnlDataType, dnnl::memory::format_tag::nhwc);
 
     ASSERT_EQ(memDescUndef.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescUndef.getMaxMemSize(), undefSize);
@@ -286,7 +286,7 @@ TEST(MemDescTest, MemSize) {
                                             1, std::multiplies<size_t>());
     ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
 
-    DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, dnnl::memory::format_tag::nhwc);
 
     ASSERT_EQ(memDescDefUpper.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * DnnlExtensionUtils::sizeOfDataType(dnnlDataType));
@@ -300,7 +300,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_NE(blockedDescDefined.getMaxMemSize(), undefSize);
     ASSERT_EQ(blockedDescDefined.getCurrentMemSize(), blockedDescDefined.getMaxMemSize());
 
-    DnnlBlockedMemoryDesc memDescDefined(pluginShapeDefined, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescDefined(pluginShapeDefined, dnnlDataType, dnnl::memory::format_tag::nhwc);
 
     ASSERT_NE(memDescDefined.getCurrentMemSize(), undefSize);
     ASSERT_NE(memDescDefined.getMaxMemSize(), undefSize);
@@ -313,7 +313,7 @@ TEST(MakeUndefinedDnnlDesc, wrongType) {
 }
 
 TEST(MakeUndefinedDnnlDesc, checkRank) {
-    using mkldnn::memory;
+    using dnnl::memory;
     const memory::data_type dataType = memory::data_type::u8;
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
@@ -327,7 +327,7 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
 }
 
 TEST(MakeUndefinedDnnlDesc, checkDims) {
-    using mkldnn::memory;
+    using dnnl::memory;
     const memory::data_type dataType = memory::data_type::u8;
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
@@ -347,7 +347,7 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
 }
 
 TEST(MakeUndefinedDnnlDesc, checkLayout) {
-    using mkldnn::memory;
+    using dnnl::memory;
     using payloadArgs = std::tuple<memory::format_tag, memory::dims, std::string>;
     const memory::data_type dataType = memory::data_type::u8;
 
@@ -381,7 +381,7 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
 }
 
 TEST(MakeUndefinedDnnlDesc, extraData) {
-    using mkldnn::memory;
+    using dnnl::memory;
     using payloadArgs = std::tuple<memory::format_tag, memory::dims>;
     const memory::data_type dataType = memory::data_type::u8;
 
@@ -434,7 +434,7 @@ TEST(isSameMethodTest, CheckTensorWithSameStrides) {
 
 TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {
     Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
-    auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nchw);
+    auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, dnnl::memory::data_type::f32, dnnl::memory::format_tag::nchw);
     ASSERT_FALSE(desc->isDefined());
 
     MemoryDescPtr definedDesc;

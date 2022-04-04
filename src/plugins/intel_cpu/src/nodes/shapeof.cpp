@@ -25,7 +25,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                      WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -64,7 +64,7 @@ bool ShapeOf::isExecutable() const {
     return true;
 }
 
-void ShapeOf::execute(mkldnn::stream strm) {
+void ShapeOf::execute(dnnl::stream strm) {
     auto inPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto inDims = inPtr->getStaticDims();

@@ -129,7 +129,7 @@ public:
         std::tie(fmt, shape) = obj.param;
         std::ostringstream result;
         result << "Shape=" << shape.toString();
-        result << "_Fmt=" << mkldnn::utils::fmt2str(fmt);
+        result << "_Fmt=" << dnnl::utils::fmt2str(fmt);
         return result.str();
     }
 
@@ -200,7 +200,7 @@ public:
         std::ostringstream result;
         result << "ShapeDynamic=" << shapeDynamic.toString();
         result << "_ShapeClone=" << shapeClone.toString();
-        result << "_Fmt=" << mkldnn::utils::fmt2str(fmt);
+        result << "_Fmt=" << dnnl::utils::fmt2str(fmt);
         return result.str();
     }
 protected:

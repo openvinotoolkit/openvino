@@ -19,7 +19,7 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -34,10 +34,10 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    mkldnn::memory getWeights() const;
-    mkldnn::memory getBias() const;
+    dnnl::memory getWeights() const;
+    dnnl::memory getBias() const;
 
     size_t descInputNumbers(DnnlDesriptor desc) override {
         return getOriginalInputsNumber();
@@ -78,26 +78,26 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
-                                const mkldnn::memory::desc& inMemDesc,
-                                const mkldnn::memory::desc& weightMemDesc,
-                                const mkldnn::memory::desc& outMemDesc,
-                                const mkldnn::engine& engine);
+            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+                                const dnnl::memory::desc& inMemDesc,
+                                const dnnl::memory::desc& weightMemDesc,
+                                const dnnl::memory::desc& outMemDesc,
+                                const dnnl::engine& engine);
     };
 
     void prepareParams() override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
-    void addZeroPoints(mkldnn::primitive_attr& attr);
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
+    void addZeroPoints(dnnl::primitive_attr& attr);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
-    MemoryDescPtr getSumMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it);
+    MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
 
     void appendZeroPointsArgs();
@@ -120,7 +120,7 @@ private:
     size_t dw_conv_iw;
     std::vector<size_t> dw_conv_kernel;
     std::vector<size_t> dw_conv_strides;
-    mkldnn::memory::data_type dw_conv_in_dt;
+    dnnl::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
     size_t IC;

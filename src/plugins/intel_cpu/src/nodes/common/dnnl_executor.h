@@ -14,19 +14,19 @@ class DnnlExecutor {
     protected:
         class IntermReorder {
             public:
-                IntermReorder(const mkldnn::memory::desc& descSrc, const mkldnn::memory::desc& descDst, const mkldnn::engine& engine);
-                void exec(mkldnn::memory& memSrc, mkldnn::memory& memDst, mkldnn::stream strm);
-                const mkldnn::memory::desc& getSrcDesc() const { return m_descSrc; }
-                const mkldnn::memory::desc& getDstDesc() const { return m_descDst; }
+                IntermReorder(const dnnl::memory::desc& descSrc, const dnnl::memory::desc& descDst, const dnnl::engine& engine);
+                void exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm);
+                const dnnl::memory::desc& getSrcDesc() const { return m_descSrc; }
+                const dnnl::memory::desc& getDstDesc() const { return m_descDst; }
 
             private:
-                mkldnn::reorder m_reorder;
-                mkldnn::memory::desc m_descSrc;
-                mkldnn::memory::desc m_descDst;
+                dnnl::reorder m_reorder;
+                dnnl::memory::desc m_descSrc;
+                dnnl::memory::desc m_descDst;
         };
 
     public:
-        void exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm);
+        void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
 

@@ -15,11 +15,11 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -532,7 +532,7 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        const size_t L2_cache_size = mkldnn::utils::get_cache_size(2, true);
+        const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
         if (totalSize >= L2_cache_size) {
             auto src = static_cast<const uint8_t *>(srcPtr);

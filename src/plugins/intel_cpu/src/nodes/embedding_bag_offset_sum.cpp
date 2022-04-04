@@ -27,7 +27,7 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -121,7 +121,7 @@ void EmbeddingBagOffsetSum::getIndices(int embIndex, const int*& indices, size_t
         weightsIdx = offsetsData_[embIndex];
 }
 
-void EmbeddingBagOffsetSum::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingBagOffsetSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -129,7 +129,7 @@ bool EmbeddingBagOffsetSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagOffsetSum::execute(mkldnn::stream strm) {
+void EmbeddingBagOffsetSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;

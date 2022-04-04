@@ -327,7 +327,7 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -416,7 +416,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(mkldnn::stream strm) {
+void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
         auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
         auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
@@ -428,7 +428,7 @@ void ExtractImagePatches::execute(mkldnn::stream strm) {
     }
 }
 
-void ExtractImagePatches::executeDynamicImpl(mkldnn::stream strm) {
+void ExtractImagePatches::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

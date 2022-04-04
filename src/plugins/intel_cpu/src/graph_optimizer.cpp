@@ -22,7 +22,7 @@
 #include "nodes/rnn.h"
 #include "nodes/common/cpu_convert.h"
 
-#include "mkldnn/ie_mkldnn.h"
+#include "onednn/dnnl.h"
 
 #include <blob_factory.hpp>
 #include "utils/general_utils.h"
@@ -51,7 +51,7 @@
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace ov::intel_cpu::node;
 

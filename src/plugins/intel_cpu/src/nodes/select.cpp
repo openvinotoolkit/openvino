@@ -36,7 +36,7 @@ bool Select::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Select::Select(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+Select::Select(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -196,11 +196,11 @@ void Select::execute_impl() {
     }
 }
 
-void Select::executeDynamicImpl(mkldnn::stream strm) {
+void Select::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Select::execute(mkldnn::stream strm) {
+void Select::execute(dnnl::stream strm) {
     const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().size();
     const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().size();
 

@@ -14,7 +14,7 @@
 #include <blob_factory.hpp>
 #include <dnnl_types.h>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -26,7 +26,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Mkldnn & desc->getType()) {
+    } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";

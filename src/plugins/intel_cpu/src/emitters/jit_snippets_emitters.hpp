@@ -56,7 +56,7 @@ struct jit_snippets_compile_args {
 //  and avoid creating empty tiles.
 class KernelEmitter : public jit_emitter {
 public:
-    KernelEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
+    KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
@@ -157,7 +157,7 @@ private:
 //  if the same data needs to be read twice. Better to move all the pointer increments to TileEmitter and avoid the increments if necessary.
 class TileEmitter : public jit_emitter {
 public:
-    TileEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
+    TileEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
@@ -296,7 +296,7 @@ private:
 
 class NopEmitter : public jit_emitter {
 public:
-    NopEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    NopEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
     }
 
@@ -313,7 +313,7 @@ private:
 
 class FakeBroadcastEmitter : public jit_emitter {
 public:
-    FakeBroadcastEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    FakeBroadcastEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         if (n->get_input_shape(0).empty())
             use_broadcast = true;
@@ -362,9 +362,9 @@ private:
 
 class ScalarEmitter : public jit_emitter {
 public:
-    ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
+        value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
         push_arg_entry_of("scalar", value, true);
         prepare_table();
     }
@@ -415,7 +415,7 @@ private:
 /// Blocked parameter to tell if input is actually blocked. Broadcast means broadcast by W in other cases no need to substitute load.
 class MemoryEmitter : public jit_emitter  {
 public:
-    MemoryEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n), ea(getEA(n)) {
     }
 
@@ -439,7 +439,7 @@ protected:
 
 class StoreEmitter : public MemoryEmitter  {
 public:
-    StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -470,13 +470,13 @@ private:
         Reg64 out_reg(ea);
         Vmm vmm_src0 = Vmm(in[0]);
         h->uni_vmovups(h->ptr[out_reg], vmm_src0);
-        h->add(out_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+        h->add(out_reg, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
     }
 };
 
 class ScalarStoreEmitter : public MemoryEmitter {
 public:
-    ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarStoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -513,7 +513,7 @@ private:
 
 class LoadEmitter : public MemoryEmitter {
 public:
-    LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
 
@@ -546,7 +546,7 @@ private:
         h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
 
         if (shouldPostIncrement) {
-            h->add(in_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+            h->add(in_reg, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
         }
     }
 
@@ -556,7 +556,7 @@ private:
 
 class BroadcastLoadEmitter : public MemoryEmitter {
 public:
-    BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
     size_t get_inputs_num() const override {return 0;}
@@ -594,7 +594,7 @@ private:
 
 class ScalarLoadEmitter : public MemoryEmitter {
 public:
-    ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
     size_t get_inputs_num() const override {return 0;}

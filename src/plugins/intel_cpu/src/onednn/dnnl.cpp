@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_mkldnn.h"
+#include "dnnl.h"
 #include <dnnl_debug.h>
 #include <cpu/platform.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -10,17 +10,17 @@
 #include <cassert>
 #include <cstring>
 
-namespace mkldnn {
+namespace dnnl {
 namespace utils {
 
 const char* fmt2str(memory::format_tag fmt) {
     return dnnl_fmt_tag2str(static_cast<dnnl_format_tag_t>(fmt));
 }
 
-mkldnn::memory::format_tag str2fmt(const char *str) {
+dnnl::memory::format_tag str2fmt(const char *str) {
 #define CASE(_fmt) do { \
     if (!strcmp(#_fmt, str) \
-            || !strcmp("mkldnn_" #_fmt, str)) \
+            || !strcmp("dnnl_" #_fmt, str)) \
         return static_cast<dnnl::memory::format_tag>(dnnl_ ## _fmt); \
 } while (0)
         CASE(x);
@@ -130,12 +130,12 @@ mkldnn::memory::format_tag str2fmt(const char *str) {
 
 int get_cache_size(int level, bool per_core) {
     if (per_core) {
-        return mkldnn::impl::cpu::platform::get_per_core_cache_size(level);
+        return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
     } else {
-        using namespace mkldnn::impl::cpu::x64;
+        using namespace dnnl::impl::cpu::x64;
         if (cpu().getDataCacheLevels() == 0) {
             // this function can return stub values in case of unknown CPU type
-            return mkldnn::impl::cpu::platform::get_per_core_cache_size(level);
+            return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
         }
 
         if (level > 0 && (unsigned) level <= cpu().getDataCacheLevels()) {
@@ -149,4 +149,4 @@ int get_cache_size(int level, bool per_core) {
 }
 
 }  // namespace utils
-}  // namespace mkldnn
+}  // namespace dnnl

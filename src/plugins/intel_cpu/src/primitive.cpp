@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "primitive.h"
 
 namespace ov {
@@ -14,15 +14,15 @@ Primitive::operator bool() const {
     return prim ? true : false;
 }
 
-mkldnn::primitive Primitive::operator*() {
+dnnl::primitive Primitive::operator*() {
     return *prim;
 }
 
-void Primitive::reset(mkldnn::primitive* primitive) {
+void Primitive::reset(dnnl::primitive* primitive) {
     prim.reset(primitive);
 }
 
-Primitive &Primitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
+Primitive &Primitive::operator=(const std::shared_ptr<dnnl::primitive>& primitive) {
     prim = primitive;
     return *this;
 }

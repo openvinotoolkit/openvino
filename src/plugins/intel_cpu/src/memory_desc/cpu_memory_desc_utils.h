@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "cpu_types.h"
 
 #include <ie_layouts.h>

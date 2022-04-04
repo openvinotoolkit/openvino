@@ -10,7 +10,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -30,7 +30,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -48,7 +48,7 @@ std::vector<VectorDims> Convert::shapeInfer() const {
 }
 
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+                 const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node("Convert", nodeName, eng, cache)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
@@ -132,11 +132,11 @@ void Convert::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Convert::executeDynamicImpl(mkldnn::stream strm) {
+void Convert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Convert::execute(mkldnn::stream strm) {
+void Convert::execute(dnnl::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 

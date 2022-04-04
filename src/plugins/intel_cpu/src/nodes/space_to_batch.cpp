@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -38,7 +38,7 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -236,11 +236,11 @@ void SpaceToBatch::SpaceToBatchKernel() {
     });
 }
 
-void SpaceToBatch::executeDynamicImpl(mkldnn::stream strm) {
+void SpaceToBatch::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void SpaceToBatch::execute(mkldnn::stream strm) {
+void SpaceToBatch::execute(dnnl::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: SpaceToBatchKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: SpaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(); break;

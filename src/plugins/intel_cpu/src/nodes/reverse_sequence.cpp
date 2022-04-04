@@ -32,7 +32,7 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                          WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -99,7 +99,7 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ReverseSequence::execute(mkldnn::stream strm) {
+void ReverseSequence::execute(dnnl::stream strm) {
     size_t i;
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());

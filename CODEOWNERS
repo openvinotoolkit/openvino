@@ -39,7 +39,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # IE CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/plugins/intel_cpu/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/thirdparty/onednn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 
 #IE LPT
 /src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers

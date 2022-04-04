@@ -6,7 +6,7 @@
 
 #include <ie_common.h>
 
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_snippets_emitters.hpp"
 
@@ -24,7 +24,7 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
@@ -38,7 +38,7 @@ public:
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
 
 private:
     static const size_t rank6D {6};

@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class jit_mkldnn_emitter : public jit_emitter {
+class jit_dnnl_emitter : public jit_emitter {
 public:
     void emit_code(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                    const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const override;
@@ -23,29 +23,29 @@ public:
                    const emitter_context *emit_context = nullptr) const override {};
 
 protected:
-    jit_mkldnn_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
-                       mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
+    jit_dnnl_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                       dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
-    jit_mkldnn_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+    jit_dnnl_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
     void set_injector();
 
-    mkldnn_alg_kind_t kind {mkldnn_alg_kind_undef};
+    dnnl_alg_kind_t kind {dnnl_alg_kind_undef};
     float alpha {0.f};
     float beta {0.f};
 
-    std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::sse41>> eltwise_injector_sse42;
-    std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::avx2>> eltwise_injector_avx2;
-    std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::avx512_common>> eltwise_injector_avx512_common;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::sse41>> eltwise_injector_sse42;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx2>> eltwise_injector_avx2;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_common>> eltwise_injector_avx512_common;
 
 private:
     size_t get_inputs_num() const override;
 };
 
-class jit_mkldnn_aux_emitter : public jit_mkldnn_emitter {
+class jit_dnnl_aux_emitter : public jit_dnnl_emitter {
 public:
-    jit_mkldnn_aux_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
-                           mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
+    jit_dnnl_aux_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                           dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                            InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
 private:

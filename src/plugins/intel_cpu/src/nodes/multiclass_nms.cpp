@@ -44,7 +44,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache)
+MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
     : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -145,7 +145,7 @@ bool MultiClassNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MultiClassNms::executeDynamicImpl(mkldnn::stream strm) {
+void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -153,7 +153,7 @@ void MultiClassNms::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(mkldnn::stream strm) {
+void MultiClassNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 

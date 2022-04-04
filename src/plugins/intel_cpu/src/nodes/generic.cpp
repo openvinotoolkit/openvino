@@ -11,13 +11,13 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
     : Node(op, eng, cache), ngraphOp(op) {
 }
 
@@ -87,7 +87,7 @@ void Generic::initSupportedPrimitiveDescriptors() {
 void Generic::createPrimitive() {
 }
 
-void Generic::execute(mkldnn::stream strm) {
+void Generic::execute(dnnl::stream strm) {
     if (!impls.empty()) {
         execLayer();
     } else {

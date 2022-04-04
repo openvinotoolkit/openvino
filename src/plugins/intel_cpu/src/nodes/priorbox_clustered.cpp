@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <ie_parallel.hpp>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
@@ -35,7 +35,7 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph:
 
 PriorBoxClustered::PriorBoxClustered(
     const std::shared_ptr<ngraph::Node>& op,
-    const mkldnn::engine& eng,
+    const dnnl::engine& eng,
     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -106,7 +106,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(mkldnn::stream strm) {
+void PriorBoxClustered::execute(dnnl::stream strm) {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];

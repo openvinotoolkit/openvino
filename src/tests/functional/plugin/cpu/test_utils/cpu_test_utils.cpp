@@ -44,7 +44,7 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
 cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 #define CASE(_fmt) do { \
     if (!strcmp(#_fmt, str) \
-            || !strcmp("mkldnn_" #_fmt, str)) \
+            || !strcmp("dnnl_" #_fmt, str)) \
         return _fmt; \
 } while (0)
     CASE(undef);

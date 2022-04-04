@@ -3,12 +3,11 @@
 //
 
 #include "roi_align.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include <mkldnn_types.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
@@ -19,11 +18,11 @@
 #include "emitters/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
@@ -651,7 +650,7 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -820,11 +819,11 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(mkldnn::stream strm) {
+void ROIAlign::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
+          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
 
     ROIAlignContext ctx = {
@@ -832,8 +831,8 @@ void ROIAlign::execute(mkldnn::stream strm) {
     };
 
     OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
-              OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(dnnl_f32, dnnl_f32, float, float),
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
@@ -1114,7 +1113,7 @@ bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void ROIAlign::executeDynamicImpl(mkldnn::stream strm) {
+void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

@@ -54,7 +54,7 @@ protected:
             }
             return result;
         };
-        const mkldnn::engine cpuEngine(dnnl::engine::kind::cpu, 0);
+        const dnnl::engine cpuEngine(dnnl::engine::kind::cpu, 0);
         ov::intel_cpu::WeightsSharing::Ptr weightsCache;
 
         auto inputNode = std::make_shared<ov::intel_cpu::node::Input>(ov::intel_cpu::Shape(srcDims),
@@ -112,7 +112,7 @@ protected:
         outputNode->getSelectedPrimitiveDescriptor()->setConfig(config);
         reorderNode->createPrimitive();
 
-        mkldnn::stream strm(cpuEngine);
+        dnnl::stream strm(cpuEngine);
         reorderNode->execute(strm);
         return;
     }
