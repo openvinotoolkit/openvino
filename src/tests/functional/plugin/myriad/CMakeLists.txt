@@ -22,6 +22,7 @@ addIeTargetTest(
             vpu_graph_transformer
             vpu_common_lib
             funcSharedTests
+            XLink
             mvnc
         ADD_CPPLINT
         DEFINES
