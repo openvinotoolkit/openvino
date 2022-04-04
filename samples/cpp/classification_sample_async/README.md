@@ -74,7 +74,7 @@ To run the sample, you need to specify a model and image:
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application, or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -100,7 +100,7 @@ omz_downloader --name googlenet-v1
 omz_converter --name googlenet-v1
 ```
 
-4. Perform inference of `dog.bmp` using `googlenet-v1` model on a `GPU`, for example:
+4. Perform inference of `dog.bmp`, using `googlenet-v1` model on a `GPU`, for example:
 
 ```
 classification_sample_async -m googlenet-v1.xml -i dog.bmp -d GPU
