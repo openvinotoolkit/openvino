@@ -481,8 +481,7 @@ void RNN::fillSequenceDesc() {
     outCandidate.reserve(3);
 
     if (nativeOrder) {
-        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape{{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}},
-                                                                          dataType, memory::format_tag::tnc));
+        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), dataType, memory::format_tag::abcd));
     } else if (N.isStatic() && N.maxVal == 1) {
         // WA to avoid reorder after sequence for some models
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeNTSC, dataType, memory::format_tag::tnc));
@@ -927,7 +926,7 @@ std::vector<VectorDims> RNN::shapeInfer() const {
     auto originOutputShapes = Node::shapeInfer();
 
     // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (getType() == Type::RNNSeq && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+    if (getType() == Type::RNNSeq && !hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }
     return originOutputShapes;

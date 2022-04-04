@@ -31,7 +31,6 @@
 #include "frontend/model_quantizer.hpp"
 #include "gna_fused_iterator.hpp"
 #include "backend/am_intel_dnn.hpp"
-#include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
@@ -73,6 +72,8 @@
 #include "transformations/insert_reshape_around_matmul.hpp"
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/gru_cell_decomposition.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/remove_converts.hpp"
 #include "transformations/broadcast_const.hpp"
@@ -324,11 +325,13 @@ void GNAPlugin::ImportFrames(void *ptr_dst,
 GNAPlugin::GNAPlugin() {
     Init();
     UpdateFieldsFromConfig();
+    InitGNADevice();
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
+    InitGNADevice();
 }
 
 void GNAPlugin::Init() {
@@ -345,14 +348,18 @@ void GNAPlugin::Init() {
 
 void GNAPlugin::InitGNADevice() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGNADevice");
-    gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
-                config.gnaCompileTarget,
-                config.swExactMode,
-                gnaFlags->performance_counting,
-                !config.dumpXNNPath.empty(),
-                GetDeviceVersionFromString(config.dumpXNNGeneration));
-    size_t page_size_bytes = 4096;
-    gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
+    if (gnaFlags->sw_fp32) {
+        gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
+    } else {
+        gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
+                    config.gnaCompileTarget,
+                    config.swExactMode,
+                    gnaFlags->performance_counting,
+                    !config.dumpXNNPath.empty(),
+                    GetDeviceVersionFromString(config.dumpXNNGeneration));
+        size_t page_size_bytes = 4096;
+        gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
+    }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
@@ -635,10 +642,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    if (!gnaFlags->sw_fp32) {
-        InitGNADevice();
-    }
-
     std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
     if (gnadevice) {
         effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
@@ -661,6 +664,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<RemoveInputConvert>();
         manager.register_pass<RemoveOutputConvert>();
+        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
@@ -894,15 +899,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     graphCompiler.fillMemoryConnections(memoryPairs);
 
     if (!graphCompiler.memory_connection.empty() && gnaFlags->num_requests != 1) {
-        // TODO: check if updating the number of threads is needed for sw_fp32
         gnaFlags->num_requests = 1;
-        if (!gnaFlags->sw_fp32)
-            InitGNADevice();
-    }
-
-    if (gnaFlags->sw_fp32) {
-        gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
-        graphCompiler.setGNAMemoryPtr(gnamem);
     }
 
     // keep inputs information and create input primitives
@@ -1508,9 +1505,6 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
 InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
-    InitGNADevice();
-
-    graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
     gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();

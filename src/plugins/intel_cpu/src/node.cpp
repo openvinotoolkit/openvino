@@ -1219,7 +1219,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
                 throw;
@@ -1233,7 +1233,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
                     errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;

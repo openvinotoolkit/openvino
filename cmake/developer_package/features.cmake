@@ -7,7 +7,7 @@ include(target_flags)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
-ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT CMAKE_CROSSCOMPILING; CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -79,6 +79,4 @@ if(ENABLE_AVX512F)
     endif()
 endif()
 
-if (VERBOSE_BUILD)
-    set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "" FORCE)
-endif()
+set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE_BUILD} CACHE BOOL "" FORCE)

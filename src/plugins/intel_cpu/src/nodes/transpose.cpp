@@ -146,11 +146,6 @@ bool Transpose::needPrepareParams() const {
 }
 
 void Transpose::prepareParams() {
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_dims = srcDesc->getBlockDims();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_dims = dstDesc->getBlockDims();
-
     if (performAsReorder) {
         mkldnn::primitive_attr attr;
         const auto engine = getEngine();
@@ -197,6 +192,11 @@ void Transpose::prepareParams() {
         return;
     }
 
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.src_block_dims = srcDesc->getBlockDims();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.dst_block_dims = dstDesc->getBlockDims();
+
     if (!isInputOrderConst) {
         auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
         auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
@@ -240,13 +240,15 @@ void Transpose::createPrimitive() {
         return;
     }
 
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
-    if (isInputOrderConst)
-        params.order = order;
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_order = srcDesc->getOrder();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_order = dstDesc->getOrder();
+    if (!performAsReorder) {
+        params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
+        if (isInputOrderConst)
+            params.order = order;
+        auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        params.src_block_order = srcDesc->getOrder();
+        auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        params.dst_block_order = dstDesc->getOrder();
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         prepareParams();
