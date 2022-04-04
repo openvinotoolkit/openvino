@@ -209,10 +209,10 @@ int main(int argc, char* argv[]) {
 
         ov::Core core;
 
-        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU plugin extensions is loaded as a shared library
-            core.add_extension(FLAGS_l);
-            slog::info << "CPU plugin extensions is loaded " << FLAGS_l << slog::endl;
+        if (!FLAGS_extensions.empty()) {
+            // Extensions are loaded as a shared library
+            core.add_extension(FLAGS_extensions);
+            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -225,7 +225,7 @@ int main(int argc, char* argv[]) {
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
-            slog::info << "GPU extensions is loaded " << ext << slog::endl;
+            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
