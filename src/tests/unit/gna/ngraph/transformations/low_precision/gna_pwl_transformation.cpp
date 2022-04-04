@@ -11,7 +11,7 @@
 #include <transformations/init_node_info.hpp>
 #include <ngraph_helpers/lpt_ngraph_functions/include/lpt_ngraph_functions/common/dequantization_operations.hpp>
 #include <ngraph_helpers/lpt_ngraph_functions/include/lpt_ngraph_functions/common/builders.hpp>
-#include "transformations/pwl_LP_transformation.hpp"
+#include "transformations/low_precision/pwl_transformation.hpp"
 #include "ops/pwl.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 

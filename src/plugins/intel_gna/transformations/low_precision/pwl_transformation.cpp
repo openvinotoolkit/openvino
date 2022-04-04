@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pwl_LP_transformation.hpp"
+#include "pwl_transformation.hpp"
 #include <algorithm>
 #include <memory>
 #include <ngraph/ngraph.hpp>
