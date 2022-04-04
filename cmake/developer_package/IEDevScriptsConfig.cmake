@@ -349,9 +349,9 @@ function(ov_check_pip_packages)
     set(REQS "")
     set(RC TRUE)
     file(STRINGS ${ARG_REQUIREMENTS_FILE} REQS)
-    
+
     foreach(REQ IN LISTS REQS)
-        if(${REQ})
+        if(REQ)
             ov_check_pip_package(REQUIREMENT ${REQ} 
                                 MESSAGE_MODE WARNING
                                 RESULT_VAR RESULT)
