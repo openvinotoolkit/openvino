@@ -150,8 +150,6 @@ void ExportTlvModel(uint32_t modelId,
 
     const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
 
-    const char* userData = nullptr;
-    uint32_t userDataSize = 0;
     uint32_t outTlvSize = 0;
     auto tlv_status = Gna2ExportTlv(
         deviceVersionToExport,
@@ -168,8 +166,8 @@ void ExportTlvModel(uint32_t modelId,
         input_size,
         output_size,
         gnaLibraryVersion.c_str(),
-        userData,
-        userDataSize);
+        nullptr,
+        0);
 
     if (Gna2TlvStatusSuccess == tlv_status) {
         outStream.write(outTlv, outTlvSize);
