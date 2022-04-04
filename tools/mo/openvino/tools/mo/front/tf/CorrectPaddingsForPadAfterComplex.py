@@ -11,6 +11,27 @@ from openvino.tools.mo.ops.concat import Concat
 
 
 class CorrectPaddingsForPadAfterComplex(FrontReplacementSubgraph):
+    """
+    There are TF models with the TF operation Complex that has two real tensors as arguments and returns the complex
+    tensor with real and imaginary parts given as arguments in port 0 and 1 respectively.
+
+    Although TF has a native support of complex numbers, OpenVINO doesn't have such support and emulates a complex
+    tensor with the shape [N_0, ..., N_{r - 1}] as a real tensor of the shape [N_0, ..., N_{r - 1}, 2] interpreting
+    any complex number as a tuple of the form
+        (real part, imaginary part)
+    That is, the emulated complex tensor has the rank r + 1, not r as in the TF model.
+
+    Hence, when we convert a subgraph of the form
+
+    Complex
+       |
+       |
+      Pad
+
+    we should correct pads_begin and pads_end adding zero at the end of pads_begin and pads_end.
+
+    The transformation performs such corrections.
+    """
     enabled = True
 
     def run_after(self):
@@ -49,8 +70,5 @@ class CorrectPaddingsForPadAfterComplex(FrontReplacementSubgraph):
                                                               'in_ports_count': 2,
                                                               'axis': 0,
                                                           })
-        pad_node.in_port(1).get_source().connect(concat_for_pads_begin.in_port(0))
-        pad_node.in_port(2).get_source().connect(concat_for_pads_end.in_port(0))
-
-        pad_node.in_port(1).get_connection().set_source(concat_for_pads_begin.out_port(0))
-        pad_node.in_port(2).get_connection().set_source(concat_for_pads_end.out_port(0))
+        pad_node.in_port(1).get_connection().insert_node(concat_for_pads_begin)
+        pad_node.in_port(2).get_connection().insert_node(concat_for_pads_end)
