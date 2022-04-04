@@ -80,6 +80,47 @@ std::vector<int64_t> get_outer_axes(const std::vector<int64_t>& inner_axes, int6
     return outer_axes;
 }
 
+// This function gets a complex value from given coords of this value
+complex_type get_value_from_input(const complex_type* input_data,
+                                  int64_t src_index,
+                                  const std::vector<int64_t>& coords,
+                                  const std::vector<int64_t>& input_fft_lengths,
+                                  const std::vector<int64_t>& input_fft_strides) {
+    int64_t offset = 0;
+    int64_t num_of_fft_axes = static_cast<int64_t>(coords.size());
+    for (int64_t i = 0; i < num_of_fft_axes; ++i) {
+        int64_t coord = coords[i];
+        if (coord >= input_fft_lengths[i]) {
+            return complex_type{0.0f, 0.0f};
+        }
+        offset += coord * input_fft_strides[i];
+    }
+
+    return input_data[src_index + offset];
+}
+
+// Copying input data to the given memory domain. Returns true if the copied blob is zero, and false otherwise.
+bool copy_data_from_input_and_check_is_blob_zero(complex_type* result,
+                                                 const complex_type* input_data,
+                                                 int64_t src_index,
+                                                 int64_t fft_size,
+                                                 const std::vector<int64_t>& fft_strides,
+                                                 const std::vector<int64_t>& input_fft_lengths,
+                                                 const std::vector<int64_t>& input_fft_strides,
+                                                 int64_t last_axis_upper_bound) {
+    bool blob_is_zero = true;
+    for (int64_t idx = 0; idx < fft_size; ++idx) {
+        auto coords = fft_common::coords_from_index(idx, fft_strides);
+        if (coords.back() >= last_axis_upper_bound) {
+            continue;
+        }
+        complex_type value = get_value_from_input(input_data, src_index, coords, input_fft_lengths, input_fft_strides);
+        result[idx] = value;
+        blob_is_zero = blob_is_zero && (value == complex_type{0.0f, 0.0f});
+    }
+    return blob_is_zero;
+}
+
 template <typename T>
 void print_vector(const std::vector<T>& v, const std::string& prefix) {
     std::cout << prefix;
@@ -142,6 +183,16 @@ void irdft_calculation(const float* input_data,
     const int64_t fft_size = fft_strides[fft_rank];
     std::cout << "fft_size: " << fft_size << "\n";
 
+    if (fft_size <= 0) {
+        return;
+    }
+
+    const int64_t buffer_size = compute_buffer_size(fft_lengths);
+    std::cout << "buffer_size: " << buffer_size << "\n";
+
+    std::vector<complex_type> data(fft_size);
+    std::vector<complex_type> buffer(buffer_size);
+
     const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
     print_vector(outer_axes, "outer_axes: ");
 
@@ -157,15 +208,33 @@ void irdft_calculation(const float* input_data,
     const int64_t outer_size = outer_strides[outer_rank];
     std::cout << "outer_size: " << outer_size << "\n";
 
-    const int64_t buffer_size = compute_buffer_size(fft_lengths);
-    std::cout << "buffer_size: " << buffer_size << "\n";
-
     const auto output_strides = fft_common::compute_strides(reversed_output_shape);
     const auto output_fft_strides = get_lengths(output_strides, fft_axes);
     const auto output_outer_strides = get_lengths(output_strides, outer_axes);
     print_vector(output_strides, "output_strides: ");
     print_vector(output_fft_strides, "output_fft_strides: ");
     print_vector(output_outer_strides, "output_outer_strides: ");
+
+    const auto reversed_input_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
+    const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
+    const auto input_strides = fft_common::compute_strides(reversed_input_shape);
+    const auto input_fft_strides = get_lengths(input_strides, fft_axes);
+    const auto input_outer_strides = get_lengths(input_strides, outer_axes);
+    print_vector(reversed_input_shape, "reversed_input_shape: ");
+    print_vector(input_fft_lengths, "input_fft_lengths: ");
+    print_vector(input_strides, "input_strides: ");
+    print_vector(input_fft_strides, "input_fft_strides: ");
+    print_vector(input_outer_strides, "input_outer_strides: ");
+
+    const int64_t last_axis_upper_bound = fft_lengths.back();
+    // Loop along with 'outer' dimensions, that is along with
+    // not transformed dimensions.
+    for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx) {
+        const auto outer_coords = fft_common::coords_from_index(outer_idx, outer_strides);
+        int64_t outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, input_outer_strides);
+        print_vector(outer_coords, "outer_coords: ");
+        std::cout << "outer_input_offset: " << outer_input_offset << "\n";
+    }
 }
 
 void irdft_postprocessing(const complex_type* intermediate_results,
