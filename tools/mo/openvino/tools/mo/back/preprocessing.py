@@ -379,6 +379,11 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
+    need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
+    suitable_params_ric = []
+    if need_reverse:
+        suitable_params_ric = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
+                                                                        layout_values=layout_values)
 
     prep = PrePostProcessor(ov_function)
     for node_name, layout_value in layout_values.items():
@@ -393,14 +398,8 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
             else:
                 prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
-    # Apply pre-processing builder to a function
+    # Apply layouts to a function
     ov_function = prep.build()
-
-    need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
-    suitable_params_ric = []
-    if need_reverse:
-        suitable_params_ric = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
-                                                                        layout_values=layout_values)
 
     prep = PrePostProcessor(ov_function)
     # Apply reverse_input_channels
