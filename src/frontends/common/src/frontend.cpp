@@ -71,6 +71,15 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
         new_results.emplace_back(new_result);
     }
     copy->m_results = new_results;
+    // Hold FrontEnd object for each node as well, as data may point to memory allocated by FrontEnd
+    // TODO: generally, it doesn't 100% prevent possible issues with destroying of 'FrontEnd' object while application
+    // holds pointer to some particular node. But it helps to hold FrontEnd library if user hold some 'Constant' node
+    // which allocates memory in FrontEnd's context. It doesn't help at all for static build cases, so application shall
+    // ensure 'FrontEnd' lifetime anyway. In future, creation of appropriate wrappers for each created object can be
+    // considered
+    for (auto& op : copy->get_ordered_ops()) {
+        op->m_shared_object = shared_object;
+    }
     return copy;
 }
 

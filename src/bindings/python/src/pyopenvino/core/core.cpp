@@ -210,6 +210,12 @@ void regclass_Core(py::module m) {
 
             GIL is released while running this function.
 
+            Note: There is a restriction of returned model usage - client application can traverse internal model
+                  structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+                  destruction of 'Core' instance. In case that Core instance can unload internal converter libraries on
+                  destruction, holding internal objects inside application can lead to undesired behavior
+                  (including termination of the program)
+
             :param model: Bytes with model in IR / ONNX / PDPD format.
             :type model: bytes
             :param weights: Bytes with tensor's data.
@@ -228,6 +234,12 @@ void regclass_Core(py::module m) {
             Reads models from IR / ONNX / PDPD formats.
 
             GIL is released while running this function.
+
+            Note: There is a restriction of returned model usage - client application can traverse internal model
+                  structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+                  destruction of 'Core' instance. In case that Core instance can unload internal converter libraries on
+                  destruction, holding internal objects inside application can lead to undesired behavior
+                  (including termination of the program)
 
             :param model: A path to a model in IR / ONNX / PDPD format.
             :type model: str
@@ -252,6 +264,12 @@ void regclass_Core(py::module m) {
 
             GIL is released while running this function.
 
+            Note: There is a restriction of returned model usage - client application can traverse internal model
+                  structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+                  destruction of 'Core' instance. In case that Core instance can unload internal converter libraries on
+                  destruction, holding internal objects inside application can lead to undesired behavior
+                  (including termination of the program)
+
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
             :param weights: Tensor with weights. Reading ONNX / PDPD models doesn't support
@@ -275,6 +293,12 @@ void regclass_Core(py::module m) {
             Reads models from IR / ONNX / PDPD formats.
 
             GIL is released while running this function.
+
+            Note: There is a restriction of returned model usage - client application can traverse internal model
+                  structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+                  destruction of 'Core' instance. In case that Core instance can unload internal converter libraries on
+                  destruction, holding internal objects inside application can lead to undesired behavior
+                  (including termination of the program)
 
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
