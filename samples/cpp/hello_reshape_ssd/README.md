@@ -54,7 +54,7 @@ To run the sample, you need to specify a model and image:
 
 ### Example
 
-1. Install openvino-dev python package to use Open Model Zoo Tools:
+1. Install openvino-dev Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
