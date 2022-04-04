@@ -183,10 +183,10 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
         if (is_gna_non_functional_node(node))
             continue;
         for (auto& output : node->outputs()) {
-            auto inputTo = output.get_target_inputs();
-            if (inputTo.size() < 2) continue;
+            auto input_to = output.get_target_inputs();
+            if (input_to.size() < 2) continue;
             std::vector<std::pair<std::shared_ptr<ngraph::Node>, size_t>> concat_nodes, memory_nodes;
-            for (auto& child : inputTo) {
+            for (auto& child : input_to) {
                 auto current_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
                 auto copy_output_node = current_node;
                 auto previous_node = node;
@@ -199,6 +199,9 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
                     current_node = current_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
                 }
 
+                // if non-functional layers between constant and concat/memory we should not insert copy
+                if (current_node != copy_output_node && std::dynamic_pointer_cast<ngraph::opset8::Constant>(node))
+                    break;
                 if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node)) {
                     concat_nodes.push_back(std::make_pair(copy_output_node, current_index));
                 } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(current_node) ||
