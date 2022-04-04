@@ -757,7 +757,7 @@ public:
 class Constant : public ngraph::pass::MatcherPass {
 public:
     Constant() {
-        MATCHER_SCOPE(Unsupported);
+        MATCHER_SCOPE(Constant);
         auto pattern_root = pattern::wrap_type<opset8::Constant>();
         auto callback = [=](pattern::Matcher& m) {
             auto inputs = m.get_match_value().get_target_inputs();
