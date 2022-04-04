@@ -109,7 +109,8 @@ jobs:
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
-      sudo apt --assume-yes install openjdk-11-jdk
+      # 'clang' compiler is to check that samples can be built using it
+      sudo apt --assume-yes install openjdk-11-jdk clang
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
@@ -221,6 +222,14 @@ jobs:
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh -i $(INSTALL_DIR)
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
+    continueOnError: false
+
+  - script: |
+      export CC=clang
+      export CXX=clang++
+      $(INSTALL_DIR)/samples/cpp/build_samples.sh -i $(INSTALL_DIR)
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build cpp samples - clang'
     continueOnError: false
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh -i $(INSTALL_DIR)
@@ -340,6 +349,7 @@ jobs:
   - script: |
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
+      export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
       export IE_APP_PYTHON_PATH=$(INSTALL_DIR)/samples/python/
       export SHARE=$(INSTALL_DIR)/tests/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)

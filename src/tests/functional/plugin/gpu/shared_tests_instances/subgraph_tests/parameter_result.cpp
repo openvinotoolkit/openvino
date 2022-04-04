@@ -10,7 +10,17 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTest,
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                            ParameterResultSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTestLegacyApi,
+                        ::testing::Combine(
+                            ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {}}),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        ParameterResultSubgraphTestBase::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTest,
+                        ::testing::Combine(
+                            ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{1, 3, 10, 10}}}),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        ParameterResultSubgraphTestBase::getTestCaseName);
+
 }  // namespace

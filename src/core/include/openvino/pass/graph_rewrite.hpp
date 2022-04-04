@@ -61,6 +61,10 @@ public:
         set_property(property, true);
     }
 
+    MatcherPass(const std::shared_ptr<pattern::Matcher>& m, const matcher_pass_callback& callback) : PassBase() {
+        register_matcher(m, callback);
+    }
+
     bool apply(std::shared_ptr<ov::Node> node);
 
     template <typename T, class... Args>
@@ -76,6 +80,10 @@ public:
         return node;
     }
 
+    std::shared_ptr<ov::Node> register_new_node_(const std::shared_ptr<ov::Node>& node) {
+        return register_new_node(node);
+    }
+
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
         return m_new_nodes;
     }
@@ -88,8 +96,10 @@ public:
 
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                          const graph_rewrite_callback& callback,
-                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+                          const matcher_pass_callback& callback,
+                          const PassPropertyMask& property);
+
+    void register_matcher(const std::shared_ptr<pattern::Matcher>& m, const matcher_pass_callback& callback);
 
 private:
     handler_callback m_handler;
@@ -193,6 +203,13 @@ public:
             pass->set_pass_config(pass_config);
             m_matchers.push_back(matcher);
         }
+    }
+
+    std::shared_ptr<MatcherPass> add_matcher(const std::shared_ptr<MatcherPass>& pass) {
+        auto pass_config = get_pass_config();
+        pass->set_pass_config(pass_config);
+        m_matchers.push_back(pass);
+        return pass;
     }
 
     OPENVINO_DEPRECATED("Use MatcherPass instead")
