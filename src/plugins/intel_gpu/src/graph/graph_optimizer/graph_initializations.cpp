@@ -13,7 +13,6 @@
 #include "lstm_inst.h"
 #include "reshape_inst.h"
 #include "resample_inst.h"
-#include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
