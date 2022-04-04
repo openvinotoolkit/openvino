@@ -78,6 +78,38 @@ div.highlight {
     color: #fff;
 }
 
+/* Transition banner */
+.transition-banner {
+    top: 60px;
+    background: #76CEFF;
+    position: fixed;
+    text-align: center;
+    color: white;
+    z-index: 1001;
+    display: block;
+    padding:0 2rem;
+    font-size: var(--pst-sidebar-font-size);
+    border: none;
+    border-radius: 0;
+    font-weight: bold;
+}
+
+.transition-banner > p {
+    margin-bottom: 0;
+}
+
+.transition-banner .close {
+    padding: 0 1.25rem;
+    color: #000;
+}
+
+
+@media (max-width: 720px) {
+    .transition-banner {
+        margin-top: 2rem;
+    }
+}
+
 @media (min-width: 1200px) {
     .container, .container-lg, .container-md, .container-sm, .container-xl {
         max-width: 1800px;

@@ -97,7 +97,8 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
-#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
+#include <low_precision/common/quantization_granularity_restriction.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
@@ -117,6 +118,7 @@
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
+#include "ngraph_transformations/swap_convert_transpose.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -131,6 +133,7 @@
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <itt.h>
 
 using namespace InferenceEngine;
 
@@ -193,6 +196,7 @@ public:
         std::vector<ov::element::Type> defaultPrecisions;
         bool hasINT16orINT32Levels = false;
         if (useLpt) {
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part1);
             hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
                 {ngraph::pass::low_precision::levels::int16, ngraph::pass::low_precision::levels::int16_narrow_range,
@@ -277,11 +281,13 @@ private:
         manager.register_pass<ngraph::pass::ConstantFolding>();
 
         if (useLpt) {
+            CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
             manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(defaultPrecisions);
         }
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.register_pass<ngraph::pass::EliminateConvert>();
+        manager.register_pass<SwapConvertTranspose>();
 
         auto pass_config = manager.get_pass_config();
 
@@ -450,6 +456,7 @@ private:
         pass_config->enable<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
 
         if (useLpt) {
+            CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
             pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
                                       ngraph::pass::MulFakeQuantizeFusion,
                                       ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
@@ -473,47 +480,48 @@ private:
         CPU_DEBUG_CAP_TRANSFORMATION_RETURN_OR_DUMP(this, Lpt);
 
         using namespace ngraph::pass::low_precision;
+        CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
-        auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
-            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+            PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+            PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+            PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+            PrecisionsRestriction::create<ngraph::opset1::Multiply>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::MatMul>({
+            PrecisionsRestriction::create<ngraph::opset1::MatMul>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
             }),
         });
 
-        auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
-            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
-            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+        auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
+            QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
+            QuantizationGranularityRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
         });
 
         // for GNA networks reference execution
         bool updatePrecision = true;
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
+            supportedPrecisions = std::vector<PrecisionsRestriction>({});
         }
 
         ngraph::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
             supportedPrecisions,
-            perTensorQuantization,
+            quantizationRestrictions,
             LayerTransformation::Params(updatePrecision, ngraph::element::f32, defaultPrecisions));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
@@ -749,7 +757,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -958,28 +966,49 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto clonnedFunction = clonedNetwork.getFunction();
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
                 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformations(clonedNetwork.getFunction(), enableLPT, enableSnippets, isLegacyAPI() CPU_DEBUG_CAP_ENABLE(, engConfig));
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
-        std::unordered_set<std::string> supported;
+        Transformations(clonnedFunction, enableLPT, enableSnippets, isLegacyAPI() CPU_DEBUG_CAP_ENABLE(, engConfig));
+        auto ops = clonnedFunction->get_ordered_ops();
+
+        //Mark removed nodes as supported
+        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
         std::unordered_set<std::string> unsupported;
-        for (auto op : ops) {
-            auto layerIsSupported = [&] {
-                std::unique_ptr<Node> ptr;
-                try {
-                    ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-                } catch (InferenceEngine::Exception&) {
-                    return false;
+
+        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
+            std::unique_ptr<Node> ptr;
+            try {
+                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+            } catch (const InferenceEngine::Exception&) {
+                return false;
+            }
+            return true;
+        };
+
+        for (auto&& op : ops) {
+            bool isSupported = false;
+            bool wasNodeAlreadyChecked = false;
+            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
+                isSupported = layerIsSupported(op);
+                wasNodeAlreadyChecked = true;
+                if (isSupported) {
+                    supported.emplace(op->get_friendly_name());
+                } else {
+                    unsupported.emplace(op->get_friendly_name());
                 }
-                return true;
-            } ();
+            }
+
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (layerIsSupported) {
+                    if (!wasNodeAlreadyChecked) {
+                        isSupported = layerIsSupported(op);
+                        wasNodeAlreadyChecked = true;
+                    }
+                    if (isSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
                         unsupported.emplace(fusedLayerName);
@@ -1046,7 +1075,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
