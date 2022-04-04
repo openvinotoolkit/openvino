@@ -1,4 +1,4 @@
-# Preprocessing API - details {#openvino_docs_OV_Runtime_UG_Preprocessing_Details}
+# Preprocessing API - details {#openvino_docs_OV_UG_Preprocessing_Details}
 
 ## Preprocessing capabilities
 
