@@ -11,19 +11,21 @@
 
 @endsphinxdirective
 
-Once the [OpenVINO application development](../integrate_with_your_application.md) has been finished, usually application developers need to deploy their applications to end users. There are several ways how to achieve that:
+After completion of the [OpenVINO application development](../integrate_with_your_application.md) developers can start to deploy their applications to end users. There are several possibilities to achieve that:
 
 - Set a dependency on existing prebuilt packages (so called _centralized distribution_):
-    - Using Debian / RPM packages, a recommended way for a family of Linux operation systems
-    - Using pip package manager on PyPi, default approach for Python-based applications
-    - Using Docker images. If the application should be deployed as a Docker image, developer can use a pre-built runtime OpenVINO Docker image as a base image in the Dockerfile for the application container image. You can find more info about available OpenVINO Docker images in the Install Guides for [Linux](../../install_guides/installing-openvino-docker-linux.md) and [Windows](../../install_guides/installing-openvino-docker-windows.md). 
-Also, if you need to customize OpenVINO Docker image, you can use [Docker CI Framework](https://github.com/openvinotoolkit/docker_ci) to generate a Dockerfile and built it. 
-- Grab a necessary functionality of OpenVINO together with your application (so-called _local distribution_):
+    - Using Debian / RPM packages - a recommended way for a family of Linux operation systems
+    - Using pip package manager on PyPi - default approach for Python-based applications
+    - Using Docker images. - to deploy application as a Docker image, developer can use a pre-built runtime OpenVINO Docker image as a base image in the Dockerfile for the application container image. More info about available OpenVINO Docker images can be found in the Install Guides for [Linux](../../install_guides/installing-openvino-docker-linux.md) and [Windows](../../install_guides/installing-openvino-docker-windows.md). 
+
+> **NOTE**: To customize OpenVINO Docker image use [Docker CI Framework](https://github.com/openvinotoolkit/docker_ci) to generate a Dockerfile and built it. 
+
+- Grab a necessary OpenVINO functionalities together with your application (so-called _local distribution_):
     - Using [OpenVINO Deployment manager](deployment-manager-tool.md) providing a convinient way create a distribution package
     - Using advanced [Local distribution](local-distribution.md) approach
     - Using [static version of OpenVINO Runtime linked into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries)
 
-The table below shows which distribution type can be used depending on target operation system:
+The table below shows which distribution type can be used, dependable on target operating system:
 
 @sphinxdirective
 
