@@ -9,7 +9,16 @@ namespace ov {
 namespace proxy {
 class CompiledModel : public InferenceEngine::IExecutableNetworkInternal {
 public:
-    CompiledModel(const ie::SoExecutableNetworkInternal& model) : m_exec_network(model) {}
+    CompiledModel(const ie::SoExecutableNetworkInternal& model) : m_exec_network(model) {
+        _parameters = m_exec_network->getInputs();
+        _results = m_exec_network->getOutputs();
+        for (const auto& it : m_exec_network->GetInputsInfo()) {
+            _networkInputs[it.first] = std::const_pointer_cast<InferenceEngine::InputInfo>(it.second);
+        }
+        for (const auto& it : m_exec_network->GetOutputsInfo()) {
+            _networkOutputs[it.first] = std::const_pointer_cast<InferenceEngine::Data>(it.second);
+        }
+    }
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override {
         return m_exec_network->CreateInferRequest();

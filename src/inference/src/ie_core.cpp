@@ -713,8 +713,9 @@ public:
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
 
-        bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+        bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0 ||
+                                 pluginRegistry.at(deviceName).pluginCreateFunc == ov::proxy::create_plugin;
         if (forceDisableCache) {
             // remove this config key from parsed as plugins can throw unsupported exception
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
@@ -1249,7 +1250,8 @@ public:
 
         // set config for already created plugins
         for (auto& plugin : plugins) {
-            if (deviceName.empty() || clearDeviceName == plugin.first) {
+            if ((deviceName.empty() && pluginRegistry.at(plugin.first).proxy_name.empty()) ||
+                clearDeviceName == plugin.first) {
                 allowNotImplemented([&]() {
                     auto configCopy = config;
                     if (DeviceSupportsCacheDir(plugin.second)) {

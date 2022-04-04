@@ -34,6 +34,9 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
     // Set config for primary device
     ov::AnyMap property;
     for (const auto it : config) {
+        // Skip proxy properties
+        if (ov::device::id.name() == it.first)
+            continue;
         property[it.first] = it.second;
     }
     GetCore()->set_property(get_primary_device(get_device_from_config(config)), property);
@@ -56,7 +59,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetwo
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
     auto dev_name = get_fallback_device(get_device_from_config(config));
-    return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, config));
+    auto device_config = config;
+    // Remove proxy properties
+    auto it = device_config.find(ov::device::id.name());
+    if (it != device_config.end())
+        device_config.erase(it);
+
+    return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, device_config));
 }
 
 void ov::proxy::Plugin::AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
@@ -131,8 +140,14 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
     const std::map<std::string, std::string>& config) {
+    auto device_config = config;
+    // Remove proxy properties
+    auto it = device_config.find(ov::device::id.name());
+    if (it != device_config.end())
+        device_config.erase(it);
+
     return std::make_shared<ov::proxy::CompiledModel>(
-        GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), config));
+        GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), device_config));
 }
 
 std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin::get_hidden_devices() const {
