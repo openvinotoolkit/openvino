@@ -9,6 +9,7 @@
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
@@ -17,6 +18,7 @@ ngraph::pass::low_precision::AlignQuantizationIntervals::AlignQuantizationInterv
     : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::AlignQuantizationIntervals::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(AlignQuantizationIntervals);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> intervalsAlignment = manager.register_pass<ngraph::pass::GraphRewrite>();

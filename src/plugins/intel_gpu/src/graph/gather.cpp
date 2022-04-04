@@ -19,15 +19,19 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
-    auto output_format = desc->output_format;
-    auto output_shape = desc->output_shape;
+    std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
+    // extend shape to 4d
+    for (size_t i = dims_converted.size(); i < 4; i++) {
+        dims_converted.push_back(1);
+    }
+    auto output_format = format::get_default_format(dims_converted.size());
 
     auto output_type = input_layout.data_type;
     if (node.has_fused_primitives()) {
         output_type = node.get_fused_output_layout().data_type;
     }
 
-    return layout{output_type, output_format, output_shape};
+    return layout{output_type, output_format, tensor(output_format, dims_converted)};
 }
 
 std::string gather_inst::to_string(gather_node const& node) {
@@ -41,7 +45,7 @@ std::string gather_inst::to_string(gather_node const& node) {
     gather_info.add("input id", input.id());
     gather_info.add("axis", desc->axis);
     gather_info.add("batch_dim", desc->batch_dim);
-    gather_info.add("output shape", desc->output_shape.to_string());
+    gather_info.add("output shape", cldnn::to_string(desc->output_shape));
 
     node_info->add("gather info", gather_info);
     node_info->dump(primitive_description);
