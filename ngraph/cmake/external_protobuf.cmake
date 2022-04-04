@@ -101,7 +101,7 @@ else()
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
         set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
-            COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override")
+            COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-stringop-overflow -Wno-inconsistent-missing-override")
     endif()
 
     if(NGRAPH_USE_PROTOBUF_LITE)
