@@ -21,6 +21,8 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
+    void createPrimitive() override;
+    void initDescriptor(const NodeConfig& config) override {}
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
@@ -45,7 +47,6 @@ private:
     void initSequence();
     void fillCellDesc();
     void fillSequenceDesc();
-    void fillDescs();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
 
@@ -66,32 +67,14 @@ private:
     mkldnn::rnn_direction direction = mkldnn::rnn_direction::unidirectional;
 
     /** RNN Cell type (type/activation_alg/clip)*/
-    mkldnn::algorithm cell_type = mkldnn::algorithm::vanilla_lstm;
+    mkldnn::algorithm cell_type = mkldnn::algorithm::undef;
 
     /** activation type for vanilla RNN cell */
-    mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
+    mkldnn::algorithm cell_act = mkldnn::algorithm::undef;
 
     /** Weights data and state memory format: ldigo or any */
     mkldnn::memory::format_tag wFormat = mkldnn::memory::format_tag::any;
 
-    struct Interval {
-        Interval() = default;
-
-        Interval(Dim min, Dim max) {
-            minVal = min;
-            maxVal = max;
-        }
-
-        bool isStatic() {
-            return minVal == maxVal;
-        }
-
-        Dim minVal = 0;
-        Dim maxVal = 0;
-    };
-    // Internal attributes
-    Interval N;     /**< Batch value */
-    Interval T;     /**< Sequence value */
     size_t DC = 0;  /**< Input data channel size */
     size_t SC = 0;  /**< State channel size value */
     size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
