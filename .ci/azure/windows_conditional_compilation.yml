@@ -80,7 +80,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      call "$(MSVS_VARS_PATH)" && cmake -G Ninja -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -88,8 +88,7 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake --build .
-      rem call "$(MSVS_VARS_PATH)" && cmake --build . --target sea_itt_lib
+      call "$(MSVS_VARS_PATH)" && cmake --build . --config $(BUILD_TYPE) && cmake --build . --config $(BUILD_TYPE) --target sea_itt_lib
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win CC COLLECT'
 
@@ -97,18 +96,16 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      rem call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\Release -o $(BUILD_DIR) ! $(REPO_DIR)\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
-      call "$(MSVS_VARS_PATH)" && $(REPO_DIR)\bin\intel64\Release\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
+      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
   - script: |
-      set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" -DVERBOSE_BUILD=ON -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PROFILING_ITT=OFF -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR_2)
     displayName: 'CMake2'
 
-  - script: cmake --build .
+  - script: cmake --build . --config $(BUILD_TYPE)
     workingDirectory: $(BUILD_DIR_2)
     displayName: 'Build WinCC ON'
 
