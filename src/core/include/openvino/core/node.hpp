@@ -62,6 +62,9 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
+namespace frontend {
+class FrontEnd;
+}  // namespace frontend
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
@@ -114,6 +117,9 @@ class NodeAccessor;
 /// zero or more nodes as arguments and one value, which is either a tensor
 /// or a (possibly empty) tuple of values.
 class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
+    friend class frontend::FrontEnd;
+    std::shared_ptr<void> m_shared_object{};
+
     // For access to m_outputs.
     friend class descriptor::Input;
 

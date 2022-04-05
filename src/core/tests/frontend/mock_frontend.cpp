@@ -186,14 +186,38 @@ public:
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
-        auto shape = Shape{1, 2, 300, 300};
+        auto shape = Shape{2, 3, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        param->set_friendly_name("mock_param");
+        param->set_layout("NCHW");
         std::vector<float> data(ov::shape_size(shape), 1.f);
-        auto constant = ov::opset8::Constant::create(ov::element::f32, shape, data);
+        auto aligned_weights_buffer =
+            std::make_shared<ngraph::runtime::AlignedBuffer>(shape_size(shape) * ::element::f32.size());
+        auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+            aligned_weights_buffer->get_ptr<char>(),
+            aligned_weights_buffer->size(),
+            aligned_weights_buffer);
+        auto constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, shape, weights);
+        constant->set_friendly_name("mock_const");
         auto op = std::make_shared<ov::opset8::Add>(param, constant);
-        auto res = std::make_shared<ov::opset8::Result>(op);
-        auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
+        op->set_friendly_name("mock_add");
+        auto op1 = std::make_shared<ov::opset8::Abs>(op);
+        op1->set_friendly_name("mock_abs");
+        auto split_axis = ov::opset8::Constant::create(ov::element::i32, {}, {0});
+        split_axis->set_friendly_name("mock_split_axis");
+        auto op2 = std::make_shared<ov::opset8::Split>(op1, split_axis, 2);
+        op2->set_friendly_name("mock_split");
+        auto res = std::make_shared<ov::opset8::Result>(op2->output(1));
+        res->set_friendly_name("mock_result");
+        auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        param2->set_friendly_name("mock_param2");
+        auto res2 = std::make_shared<ov::opset8::Result>(param2);
+        res2->set_friendly_name("mock_result2");
+        auto ov_model =
+            std::make_shared<ov::Model>(ResultVector({res, res2}), ParameterVector({param, param2}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
+        ov_model->input(0).set_names({"mock_input"});
+        ov_model->output(0).set_names({"mock_output"});
         return ov_model;
     }
 };

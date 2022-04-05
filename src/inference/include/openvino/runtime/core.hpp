@@ -70,6 +70,13 @@ public:
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR/ONNX/PDPD formats.
+     *
+     * @note There is a restriction of returned model usage - client application can traverse internal model
+     * structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+     * destruction of 'Core' instance. In case that Core instance can unload converter libraries on
+     * destruction, holding internal objects inside application can lead to undesired behavior
+     * (including termination of the program)
+     *
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
@@ -86,6 +93,13 @@ public:
 
     /**
      * @brief Reads models from IR/ONNX/PDPD formats.
+     *
+     * @note There is a restriction of returned model usage - client application can traverse internal model
+     * structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+     * destruction of 'Core' instance. In case that Core instance can unload converter libraries on
+     * destruction, holding internal objects inside application can lead to undesired behavior
+     * (including termination of the program)
+     *
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
@@ -101,6 +115,13 @@ public:
 
     /**
      * @brief Reads models from IR/ONNX/PDPD formats.
+     *
+     * @note There is a restriction of returned model usage - client application can traverse internal model
+     * structure (nodes, edges, etc), but it must ensure that no inner model's objects are held after
+     * destruction of 'Core' instance. In case that Core instance can unload converter libraries on
+     * destruction, holding internal objects inside application can lead to undesired behavior
+     * (including termination of the program)
+     *
      * @param model String with a model in IR/ONNX/PDPD format.
      * @param weights Shared pointer to a constant tensor with weights.
      * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.

@@ -34,6 +34,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -204,6 +205,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     };
 
+    mutable ov::frontend::FrontEndManager frontEndManager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
@@ -480,12 +482,22 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, ov_extensions, newAPI);
+        return InferenceEngine::details::ReadNetwork(modelPath,
+                                                     binPath,
+                                                     extensions,
+                                                     ov_extensions,
+                                                     newAPI,
+                                                     frontEndManager);
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, newAPI);
+        return InferenceEngine::details::ReadNetwork(model,
+                                                     weights,
+                                                     extensions,
+                                                     ov_extensions,
+                                                     newAPI,
+                                                     frontEndManager);
     }
 
     bool isNewAPI() const override {
