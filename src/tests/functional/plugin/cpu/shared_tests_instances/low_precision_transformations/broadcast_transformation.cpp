@@ -1,17 +1,16 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include "low_precision_transformations/tile_transformation.hpp"
+#include "low_precision_transformations/broadcast_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
+    ngraph::element::f32
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -19,7 +18,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
-const std::vector<LayerTestsDefinitions::TileTransformationParam> params{
+const std::vector<LayerTestsDefinitions::BroadcastTransformationParam> params{
     // u8
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -52,12 +51,25 @@ const std::vector<LayerTestsDefinitions::TileTransformationParam> params{
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, TileTransformation,
+const std::vector<size_t> opsets = {
+    1,
+    3
+};
+
+const std::vector<std::string> modes = {
+    "numpy",
+    "explicit",
+    "bidirectional"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, BroadcastTransformation,
     ::testing::Combine(
-         ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-         ::testing::ValuesIn(trasformationParamValues),
-         ::testing::ValuesIn(params)),
-    TileTransformation::getTestCaseName);
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 50, 1 })),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(opsets),
+        ::testing::ValuesIn(modes)),
+    BroadcastTransformation::getTestCaseName);
 }  // namespace
