@@ -92,8 +92,8 @@ protected:
             ngraph::element::u64,
             ngraph::Shape{std::initializer_list<std::size_t>{1}},
             std::vector<std::size_t>{0});
-        const auto scatterElementsUpdate = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dims, transposition, dims, axis);
-        const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(transpose, scatterElementsUpdate);
+        const auto gather = std::make_shared<ngraph::opset3::Gather>(dims, transposition, axis);
+        const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(transpose, gather);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},
             ngraph::ParameterVector{data, dims},
