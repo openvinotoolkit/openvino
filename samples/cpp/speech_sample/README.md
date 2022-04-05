@@ -99,9 +99,9 @@ speech_sample [OPTION]
 Options:
 
     -h                         Print a usage message.
-    -i "<path>"                Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
+    -i "<path>"                Required. Paths to input files. Example of usage: <name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz> or "<file.ark/.npz>" in case of one input.
     -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
-    -o "<path>"                Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>
+    -o "<path>"                Optional. Output file name to save scores. Example of usage: <name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz> or "<file.ark/.npz>" in case of one output.
     -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
     -pc                        Optional. Enables per-layer performance report.
     -q "<mode>"                Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
@@ -109,7 +109,7 @@ Options:
     -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
     -bs "<integer>"            Optional. Batch size 1-8
     -layout "<string>"         Optional. Prompts how network layouts should be treated by application.For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.
-    -r "<path>"                Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>
+    -r "<path>"                Optional. Read reference score file and compare scores. Example of usage: <name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz> or "<file.ark/.npz>" in case of one reference file.
     -rg "<path>"               Read GNA model from file using path/filename provided (required if -m is missing).
     -wg "<path>"               Optional. Write GNA model to file using path/filename provided.
     -we "<path>"               Optional. Write GNA embedded model to file using path/filename provided.
@@ -120,6 +120,7 @@ Options:
     -pwl_me "<double>"         Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
     -exec_target "<string>"    Optional. Specify GNA execution target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_EXEC_TARGET config option description.
     -compile_target "<string>" Optional. Specify GNA compile target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_COMPILE_TARGET config option description.
+	-memory_reuse_off          Optional. Disables memory optimizations for compiled model.
 
 Available target devices:  CPU  GNA  GPU
 ```

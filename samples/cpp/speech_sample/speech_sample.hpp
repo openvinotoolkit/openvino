@@ -14,8 +14,9 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for input data argument
-static const char input_message[] =
-    "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
+static const char input_message[] = "Required. Paths to input files. Example of usage: "
+                                    "<input_name1>=<file1.ark/.npz>,<input_name2>=<file2.ark/.npz> or < "
+                                    "file.ark/.npz> in case of one input.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
@@ -59,12 +60,14 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] =
-    "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
+static const char output_message[] = "Optional. Output file name to save scores. Example of usage: "
+                                     "<output_name1>=<file1.ark/.npz>,<output_name2>=<file2.ark/.npz> or < "
+                                     "file.ark/.npz> in case of one ouput.";
 
 /// @brief message for reference score file argument
-static const char reference_score_message[] =
-    "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
+static const char reference_score_message[] = "Optional. Read reference score file and compare scores. Example of "
+                                              "usage: <ref_name1>=<file1.ark/.npz>,<ref_name2>=<file2.ark/.npz> or < "
+                                              "file.ark/.npz> in case of one reference files.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =

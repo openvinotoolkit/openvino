@@ -566,5 +566,9 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
         if (name != filenames.end() - 1)
             filename += comma_delim;
     }
+    if (filename.empty() && tensor_names.empty()) {
+        show_usage();
+        throw std::logic_error("Please check your command line parameters using help information.");
+    }
     return {filename, tensor_names};
 }
