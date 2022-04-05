@@ -31,7 +31,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
                                      PRIVATE ${NGRAPH_REF_LIBRARIES} openvino::itt ngraph::builder pugixml)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 

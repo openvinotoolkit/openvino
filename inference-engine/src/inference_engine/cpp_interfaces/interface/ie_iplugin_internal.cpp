@@ -12,6 +12,7 @@
 #include <ie_input_info.hpp>
 #include <ie_icore.hpp>
 #include <ie_parameter.hpp>
+#include <ie_algorithm.hpp>
 
 #include <blob_factory.hpp>
 
@@ -220,6 +221,26 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
     exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
+    const std::shared_ptr<const ngraph::Function>& originalFunction,
+    const std::shared_ptr<const ngraph::Function>& transformedFunction) const {
+    std::unordered_set<std::string> result = {};
+    std::unordered_set<std::string> transformedNodeNames = {};
+
+    for (auto&& node : transformedFunction->get_ops()) {
+        transformedNodeNames.emplace(node->get_friendly_name());
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node))
+            transformedNodeNames.emplace(fusedLayerName);
+    }
+
+    for (auto&& originalNode : originalFunction->get_ops()) {
+        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+            result.emplace(originalNode->get_friendly_name());
+    }
+
+    return result;
 }
 
 } //  namespace InferenceEngine

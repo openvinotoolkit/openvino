@@ -27,7 +27,9 @@ add_library(${TARGET_NAME} MODULE
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
-target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC
+                           ${CMAKE_CURRENT_SOURCE_DIR}
+                           $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(TARGET IE::inference_engine_plugin_api)
     target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
@@ -35,6 +37,6 @@ else()
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ngraph::ngraph)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)

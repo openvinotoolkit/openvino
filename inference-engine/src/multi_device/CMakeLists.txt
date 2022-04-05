@@ -12,7 +12,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR multi_device_plugin.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+target_link_libraries(${TARGET_NAME} PRIVATE
+                      inference_engine
+                      ngraph::ngraph)
+
+target_include_directories(${TARGET_NAME} PUBLIC $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 

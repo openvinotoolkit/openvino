@@ -524,23 +524,44 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto ops = clonedNetwork.getFunction()->get_ordered_ops();
+        auto clonnedFunction = clonedNetwork.getFunction();
+        auto ops = clonnedFunction->get_ordered_ops();
         Transformation(clonedNetwork, conf);
-        std::unordered_set<std::string> supported;
+
+        //Mark removed nodes as supported
+        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);
         std::unordered_set<std::string> unsupported;
-        for (auto op : ops) {
-            auto layerIsSupported = [&] {
-                std::unique_ptr<MKLDNNNode> ptr;
-                try {
-                    ptr.reset(MKLDNNNode::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-                } catch (InferenceEngine::Exception&) {
-                    return false;
+
+        auto layerIsSupported = [&] (const std::shared_ptr<ngraph::Node>& op) {
+            std::unique_ptr<MKLDNNNode> ptr;
+            try {
+                ptr.reset(MKLDNNNode::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+            } catch (const InferenceEngine::Exception&) {
+                return false;
+            }
+            return true;
+        };
+
+        for (auto&& op : ops) {
+            bool isSupported = false;
+            bool wasNodeAlreadyChecked = false;
+            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
+                isSupported = layerIsSupported(op);
+                wasNodeAlreadyChecked = true;
+                if (isSupported) {
+                    supported.emplace(op->get_friendly_name());
+                } else {
+                    unsupported.emplace(op->get_friendly_name());
                 }
-                return true;
-            } ();
+            }
+
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (layerIsSupported) {
+                    if (!wasNodeAlreadyChecked) {
+                        isSupported = layerIsSupported(op);
+                        wasNodeAlreadyChecked = true;
+                    }
+                    if (isSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
                         unsupported.emplace(fusedLayerName);

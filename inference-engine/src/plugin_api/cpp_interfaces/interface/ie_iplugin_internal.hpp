@@ -13,6 +13,8 @@
 #include <ie_input_info.hpp>
 #include <ie_parameter.hpp>
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/function.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include <blob_factory.hpp>
 
@@ -20,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 namespace InferenceEngine {
 
@@ -303,6 +306,17 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
+
+    /**
+     * @brief Returns set of nodes which were removed after transformation.
+     * If originalFunction contains node1 and transformedFunction does not
+     * contains node1 in ops list, node1 will be returned.
+     * @param originalFunction Original network
+     * @param transformedFunction Transformed network
+     * @return Set of strings which contains removed node names
+     */
+    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ngraph::Function>& originalFunction,
+                                                    const std::shared_ptr<const ngraph::Function>& transformedFunction) const;
 
     std::string _pluginName;  //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values

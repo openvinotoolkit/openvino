@@ -55,9 +55,25 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
             continue;
         }
 
+        bool isSupported = false;
+        bool wasNodeAlreadyChecked = false;
+        if (InferenceEngine::details::contains(originalOps, fusedNode->get_friendly_name())) {
+            isSupported = isLayerSupported(itLayer);
+            wasNodeAlreadyChecked = true;
+            if (isSupported) {
+                supported.emplace(fusedNode->get_friendly_name());
+            } else {
+                unsupported.emplace(fusedNode->get_friendly_name());
+            }
+        }
+
         for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (isLayerSupported(itLayer)) {
+                if (!wasNodeAlreadyChecked) {
+                    isSupported = isLayerSupported(itLayer);
+                    wasNodeAlreadyChecked = true;
+                }
+                if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);

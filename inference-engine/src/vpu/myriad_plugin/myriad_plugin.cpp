@@ -94,9 +94,15 @@ QueryNetworkResult Engine::QueryNetwork(
 
     if (auto function = network.getFunction()) {
         auto clonedNetwork = cloneNetwork(network);
+        auto clonedFunction = clonedNetwork.getFunction();
         auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
         res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
+        auto removedNodeNames = GetRemovedNodes(function, clonedFunction);
+
+        for (const auto& layer : removedNodeNames) {
+                res.supportedLayersMap.emplace(layer, GetName());
+        }
     } else {
         for (const auto& layerName : supportedLayers) {
             res.supportedLayersMap.insert({ layerName, GetName() });
