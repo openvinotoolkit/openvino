@@ -45,7 +45,8 @@ Plugin::Plugin() {
     // Add plugin specific properties
     _properties.set_name(_pluginName)
         .add(ov::common_property(ov::device::architecture), "TEMPLATE")
-        .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
+        .add(ov::common_property(ov::device::capabilities),
+             {ov::device::capability::EXPORT_IMPORT, ov::device::capability::FP32})
         .add(ov::common_property(ov::range_for_async_infer_requests), std::make_tuple(uint{1}, uint{1}, uint{1}));
 
     // Add common read write properties used in template plugin and template compiled model
@@ -53,9 +54,7 @@ Plugin::Plugin() {
 
     // If plugin has several devices we can add property for each device
     for (auto device_id : {"0"}) {
-        _properties.add(
-            device_id, ov::PropertyAccess{}
-                .add(ov::device::full_name, "TEMPLATE_DEVICE_0"));
+        _properties.add(device_id, ov::PropertyAccess{}.add(ov::device::full_name, "TEMPLATE_DEVICE_0"));
     }
 }
 // ! [plugin:ctor]
@@ -114,8 +113,9 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                                            const std::map<std::string, std::string>& config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(
+    const InferenceEngine::CNNNetwork& network,
+    const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
 
     InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();

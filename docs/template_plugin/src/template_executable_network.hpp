@@ -29,7 +29,9 @@ public:
                       const std::map<std::string, std::string>& cfg,
                       const std::shared_ptr<Plugin>& plugin);
 
-    ExecutableNetwork(std::istream& model, const std::map<std::string, std::string>& cfg, const std::shared_ptr<Plugin>& plugin);
+    ExecutableNetwork(std::istream& model,
+                      const std::map<std::string, std::string>& cfg,
+                      const std::shared_ptr<Plugin>& plugin);
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 

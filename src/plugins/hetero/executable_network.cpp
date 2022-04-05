@@ -37,6 +37,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/internal_properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 
@@ -64,17 +65,17 @@ using NodeMap = std::unordered_map<ngraph::Node*, T>;
 void HeteroExecutableNetwork::init_properties(const std::map<std::string, std::string>& properties) {
     _properties.add(ov::device::priorities)
         .add(
-            "TARGET_FALLBACK",
+            ov::legacy_property("TARGET_FALLBACK"),
             [this] {
                 return _properties.get(ov::device::priorities);
             },
             [this](const std::string& str) {
-                return _properties.set(ov::device::priorities(str));
+                _properties.set(ov::device::priorities(str));
             })
-        .add(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), false)
+        .add(ov::internal_property(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)), false)
         .add(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), false)
-        .add(ov::model_name, std::ref(_name))
-        .add(ov::optimal_number_of_infer_requests, [this] {
+        .add(ov::common_property(ov::model_name), std::ref(_name))
+        .add(ov::common_property(ov::optimal_number_of_infer_requests), [this] {
             unsigned int value = 0u;
             for (auto&& desc : _networks) {
                 value =
@@ -83,15 +84,8 @@ void HeteroExecutableNetwork::init_properties(const std::map<std::string, std::s
             }
             return value;
         });
-    std::map<std::string, std::string> supported;
-    auto supported_properties = _properties.get();
-    for (auto&& property : properties) {
-        if (ov::util::contains(supported_properties, property.first)) {
-            supported.emplace(property);
-        }
-    }
-    _properties.set(supported);
-    // .ro();
+    _properties.set(properties, "skip_unsupported");
+    _properties.ro();
 }
 
 void HeteroExecutableNetwork::init_device_properties() {
@@ -875,7 +869,8 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     }
 
     auto configsNode = heteroNode.append_child("configs");
-    for (auto&& property : _properties.get()) {
+    // Get all properties that can be restored later
+    for (auto&& property : _properties.get(ov::PropertyMutability::RW)) {
         auto configNode = configsNode.append_child("config");
         configNode.append_attribute("key").set_value(property.first.c_str());
         configNode.append_attribute("value").set_value(property.second.as<std::string>().c_str());

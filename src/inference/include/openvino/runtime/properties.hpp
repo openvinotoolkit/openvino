@@ -92,7 +92,7 @@ using EnableIfProperty = typename std::enable_if<std::is_base_of<util::PropertyT
 template <typename P, typename T>
 using EnableIfPropertyT = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, T>::type;
 
-template<typename P>
+template <typename P>
 using GetPropertyType = typename P::value_type;
 
 /**
@@ -102,8 +102,10 @@ using GetPropertyType = typename P::value_type;
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
 struct BaseProperty : public PropertyTag {
     friend class NamedProperties;
-    using value_type = T;                                  //!< Property type
-    constexpr static PropertyMutability mutability(){ return mutability_;}
+    using value_type = T;  //!< Property type
+    constexpr static PropertyMutability mutability() {
+        return mutability_;
+    }
 
     /**
      * @brief Constructs property access variable
@@ -270,8 +272,8 @@ struct NamedProperties : public util::PropertyTag {
      * @return property object with prefix
      */
     template <typename P>
-    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability()>>
-    operator()(const P& property) const {
+    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability()>> operator()(
+        const P& property) const {
         return {_name, property.name()};
     }
 
@@ -282,7 +284,7 @@ struct NamedProperties : public util::PropertyTag {
      * @return property object with prefix
      */
     inline std::string operator()(const std::string& property_name) const {
-        return _name + property_name;
+        return std::string{_name} + '.' + property_name;
     }
 
     /**

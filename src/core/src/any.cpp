@@ -242,9 +242,11 @@ void Read<AnyMap>::operator()(std::istream& is, AnyMap& any_map) const {
         std::function<AnyMap::iterator(const std::vector<std::string>&, AnyMap&)> find =
             [&](const std::vector<std::string>& path, AnyMap& any_map) {
                 auto it_any = any_map.find(path.front());
-                OPENVINO_ASSERT(it_any != any_map.end(),
-                                "Could not read content of ov::AnyMap: ",
-                                util::to_string(path));
+                if (it_any == any_map.end()) {
+                    OPENVINO_ASSERT(it_any != any_map.end(),
+                                    "Could not read content of ov::AnyMap: ",
+                                    util::to_string(path));
+                }
                 if (it_any->second.is<AnyMap>()) {
                     OPENVINO_ASSERT((path.begin() + 1) != path.end(),
                                     "Could not read content of ov::AnyMap: ",

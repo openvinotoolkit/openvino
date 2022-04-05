@@ -33,6 +33,9 @@ class INFERENCE_ENGINE_API_CLASS(PropertyAccess) {
         virtual bool is_mutable() const {
             return false;
         };
+        virtual bool is_intially_mutable() const {
+            return false;
+        };
         virtual PropertyAccess* sub_access_ptr() {
             return nullptr;
         }
@@ -119,13 +122,10 @@ class INFERENCE_ENGINE_API_CLASS(PropertyAccess) {
         T>::type;
 
     std::vector<std::vector<std::string>> get_all_pathes() const;
-
     std::vector<std::vector<std::string>> find_property(const std::vector<std::string>& rout) const;
-
-    std::vector<PropertyName> get_supported() const;
-
     const void* find_access(const std::vector<std::string>& path) const;
     void* find_access(const std::vector<std::string>& path);
+    PropertyAccess* find_property_access(const std::vector<std::string>& path);
     PropertyAccess::Access::Ptr& find_or_create(const std::string& name);
 
 public:
@@ -161,9 +161,6 @@ private:
         Any get(const AnyMap& args) const override {
             return call_get(get_impl, args);
         }
-        bool is_mutable() const override {
-            return false;
-        }
         G get_impl;
     };
 
@@ -175,6 +172,9 @@ private:
         }
         bool is_mutable() const override {
             return mutability == PropertyMutability::RW;
+        }
+        bool is_intially_mutable() const override {
+            return true;
         }
         void ro() override {
             mutability = PropertyMutability::RO;
@@ -212,6 +212,24 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Add read only property access
+     * @tparam T property value type
+     * @tparam M property mutability
+     * @param property property property variable
+     * @param ref reference wrapper to property value
+     * @param precondition set property precondition
+     * @return Reference to current object
+     */
+    template <typename P, typename G, typename... Args>
+    typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value && IsGetter<G>::value, PropertyAccess>::type&
+    add(const P& property, G get, Args&&... args) {
+        static_assert(((P::mutability() == PropertyMutability::RO) && (sizeof...(Args) == 0)) ||
+                          (P::mutability() == PropertyMutability::RW),
+                      "Could not add RO property with setter and precondition");
+        return add(property.name(), std::move(get), std::move(args)...);
+    }
+
 private:
     template <typename...>
     struct Value;
@@ -220,7 +238,8 @@ private:
     struct Value<T> : public Access {
         Value(const T& default_value, const PropertyMutability mutability_)
             : value{default_value},
-              mutability{mutability_} {}
+              mutability{mutability_},
+              initial_mutability{mutability_} {}
         Any get(const AnyMap&) const override {
             return value;
         }
@@ -230,11 +249,15 @@ private:
         bool is_mutable() const override {
             return mutability == PropertyMutability::RW;
         }
+        bool is_intially_mutable() const override {
+            return initial_mutability == PropertyMutability::RW;
+        }
         void ro() override {
             mutability = PropertyMutability::RO;
         }
         AsAnyType<T> value;
         PropertyMutability mutability = PropertyMutability::RW;
+        PropertyMutability initial_mutability = PropertyMutability::RW;
     };
     template <typename T, typename P>
     struct Value<T, P> : public Value<T> {
@@ -280,6 +303,40 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Add read only property access
+     * @tparam T property value type
+     * @tparam M property mutability
+     * @param property property property variable
+     * @param ref reference wrapper to property value
+     * @param precondition set property precondition
+     * @return Reference to current object
+     */
+    template <typename P>
+    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property,
+                                                    typename P::value_type deafault_value = {},
+                                                    const PropertyMutability mutability = P::mutability()) {
+        return add(property.name(), deafault_value, mutability);
+    }
+
+    /**
+     * @brief Add read only property access
+     * @tparam T property value type
+     * @tparam M property mutability
+     * @param property property property variable
+     * @param ref reference wrapper to property value
+     * @param precondition set property precondition
+     * @return Reference to current object
+     */
+    template <typename Pr, typename P>
+    util::EnableIfPropertyT<Pr, PropertyAccess&> add(const P& property,
+                                                     typename Pr::value_type deafault_value,
+                                                     P precondition) {
+        static_assert(Pr::mutability() == PropertyMutability::RW,
+                      "Could not add property with Set precondition to no RW value");
+        return add(property.name(), deafault_value, std::move(precondition));
+    }
+
 private:
     template <typename...>
     struct Ref;
@@ -287,7 +344,8 @@ private:
     struct Ref<T, R> : public Access {
         Ref(std::reference_wrapper<R> ref_, const PropertyMutability mutability_)
             : ref{ref_},
-              mutability{mutability_} {}
+              mutability{mutability_},
+              initial_mutability{mutability_} {}
         Any get(const AnyMap& args) const override {
             return T(ref.get());
         }
@@ -297,11 +355,15 @@ private:
         bool is_mutable() const override {
             return mutability == PropertyMutability::RW;
         }
+        bool is_intially_mutable() const override {
+            return initial_mutability == PropertyMutability::RW;
+        }
         void ro() override {
             mutability = PropertyMutability::RO;
         }
         std::reference_wrapper<R> ref;
         PropertyMutability mutability = PropertyMutability::RW;
+        PropertyMutability initial_mutability = PropertyMutability::RW;
     };
     template <typename T, typename R, typename P>
     struct Ref<T, R, P> : public Ref<T, R> {
@@ -354,38 +416,6 @@ public:
      * @param precondition set property precondition
      * @return Reference to current object
      */
-    template <typename P>
-    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property, const typename Identity<util::GetPropertyType<P>>::type& default_value = {}) {
-        return add(property.name(), default_value, P::mutability());
-    }
-
-    /**
-     * @brief Add read only property access
-     * @tparam T property value type
-     * @tparam M property mutability
-     * @param property property property variable
-     * @param ref reference wrapper to property value
-     * @param precondition set property precondition
-     * @return Reference to current object
-     */
-    template <typename Pr, typename P>
-    util::EnableIfPropertyT<Pr, PropertyAccess&>
-    add(const Pr& property,
-        const typename Identity<util::GetPropertyType<Pr>>::type& default_value,
-        P precondition) {
-        static_assert(Pr::mutability() == PropertyMutability::RW, "Could not add property with Set precondition to no RW value");
-        return add(property.name(), default_value, std::move(precondition));
-    }
-
-    /**
-     * @brief Add read only property access
-     * @tparam T property value type
-     * @tparam M property mutability
-     * @param property property property variable
-     * @param ref reference wrapper to property value
-     * @param precondition set property precondition
-     * @return Reference to current object
-     */
     template <typename P, typename R>
     util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property, std::reference_wrapper<R> ref) {
         find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<P>, R>>(ref, P::mutability());
@@ -402,33 +432,14 @@ public:
      * @return Reference to current object
      */
     template <typename Pr, typename P, typename R>
-    util::EnableIfPropertyT<Pr, PropertyAccess&>
-    add(const Pr& property,
-        std::reference_wrapper<R> ref,
-        P precondition) {
-        static_assert(Pr::mutability() == PropertyMutability::RW, "Could not add property with Set precondition to no RW value");
-        find_or_create(property.name()) = std::make_shared<Ref<util::GetPropertyType<Pr>, R, P>>(ref, std::move(precondition));
+    util::EnableIfPropertyT<Pr, PropertyAccess&> add(const Pr& property,
+                                                     std::reference_wrapper<R> ref,
+                                                     P precondition) {
+        static_assert(Pr::mutability() == PropertyMutability::RW,
+                      "Could not add property with Set precondition to no RW value");
+        find_or_create(property.name()) =
+            std::make_shared<Ref<util::GetPropertyType<Pr>, R, P>>(ref, std::move(precondition));
         return *this;
-    }
-
-    /**
-     * @brief Add read only property access
-     * @tparam T property value type
-     * @tparam M property mutability
-     * @param property property property variable
-     * @param ref reference wrapper to property value
-     * @param precondition set property precondition
-     * @return Reference to current object
-     */
-    template <typename P, typename G, typename... Args>
-    util::EnableIfPropertyT<P, PropertyAccess&> add(const P& property,
-                        G get,
-                        Args&&... args) {
-        if (P::mutability() == PropertyMutability::RW) {
-            return add(property.name(), std::move(get), std::forward<Args>(args)...);
-        } else {
-            return add(property.name(), std::move(get), std::forward<Args>(args)...).ro(property);
-        }
     }
 
     /**
@@ -455,7 +466,9 @@ public:
      * @param mutability sub properties mutability
      * @return Reference to current object
      */
-    PropertyAccess& add(const NamedProperties& named_properties, PropertyAccess sub_accesses, const std::shared_ptr<void>& so_ = {});
+    PropertyAccess& add(const NamedProperties& named_properties,
+                        PropertyAccess sub_accesses,
+                        const std::shared_ptr<void>& so_ = {});
 
     /**
      * @brief Remove property access using defined name
@@ -530,11 +543,12 @@ public:
     /**
      * @brief Returns all properties values
      * @param mutability optional parameter that define what type of properties will be returned
+     * @param intially_mutable If true return values using initial mutability of properties
      * PropertyMutability::RO - ALl readable values will be returned
      * PropertyMutability::RW - Only mutable values will be returned
      * @return map of property values wrapped into Any
      */
-    AnyMap get(const PropertyMutability mutability = PropertyMutability::RW) const;
+    AnyMap get(const PropertyMutability mutability = PropertyMutability::RW, bool intially_mutable = true) const;
 
     /**
      * @brief Returns the value bound to name
@@ -568,11 +582,18 @@ public:
     }
 
     /**
+     * @brief Returns all supported properties names
+     * @return All supported properties names
+     */
+    std::vector<PropertyName> get_supported() const;
+
+    /**
      * @brief Set property value that is bound to name
      * @param name property name
      * @param property property value
+     * @param skip_unsupported if true dose nothing if option is not supported
      */
-    PropertyAccess& set(const std::string& name, const Any& property);
+    PropertyAccess& set(const std::string& name, const Any& property, bool skip_unsupported = false);
 
     /**
      * @brief Set property value that is bound to name
@@ -589,37 +610,44 @@ public:
     /**
      * @brief Set property values that is bound to names
      * @param properties map with property values
+     * @param skip_unsupported if true dose nothing if option is not supported
      */
-    PropertyAccess& set(const AnyMap& properties);
+    PropertyAccess& set(const AnyMap& properties, bool skip_unsupported = false);
 
     /**
      * @brief Set property values that are defined by the string
      * @param properties map with property strings
+     * @param skip_unsupported if true dose nothing if option is not supported
      */
-    PropertyAccess& set(const std::map<std::string, std::string>& properties);
+    PropertyAccess& set(const std::map<std::string, std::string>& properties, bool skip_unsupported = false);
 
     /**
      * @brief Merge given property values with current values. If property value is presented inside
      * it will be overwritten by other property value
      * @param other map with property strings
      * @param mutability optional parameter that define what type of properties will be merged
+     * @param intially_mutable If true merge values using initial mutability of properties
      * PropertyMutability::RO - ALl readable values will be merged
      * PropertyMutability::RW - Only mutable values will be merged
      * @return map of property values wrapped into Any
      */
-    AnyMap merge(const AnyMap& other, const PropertyMutability mutability = PropertyMutability::RW) const;
+    AnyMap merge(const AnyMap& other,
+                 const PropertyMutability mutability = PropertyMutability::RW,
+                 bool intially_mutable = true) const;
 
     /**
      * @brief Merge given property values with current values. If property value is presented inside
      * it will be overwritten by other property value
      * @param other map with property strings
      * @param mutability optional parameter that define what type of properties will be merged
+     * @param intially_mutable If true merge values using initial mutability of properties
      * PropertyMutability::RO - ALl readable values will be merged
      * PropertyMutability::RW - Only mutable values will be merged
      * @return map of property values represented as strings
      */
     std::map<std::string, std::string> merge(const std::map<std::string, std::string>& other,
-                                             const PropertyMutability mutability = PropertyMutability::RW) const;
+                                             const PropertyMutability mutability = PropertyMutability::RW,
+                                             bool intially_mutable = true) const;
 
     /**
      * @brief Returns whether there is no added properties

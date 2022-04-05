@@ -7,8 +7,8 @@
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 
 #include "backend.hpp"
-#include "template_rw_properties.hpp"
 #include "template_executable_network.hpp"
+#include "template_rw_properties.hpp"
 
 //! [plugin:header]
 namespace TemplatePlugin {

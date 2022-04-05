@@ -15,6 +15,7 @@
 #include "ie_plugin_config.hpp"
 #include "executable_network.hpp"
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include <cpp_interfaces/interface/internal_properties.hpp>
 #include <openvino/runtime/properties.hpp>
 // clang-format on
 
@@ -27,19 +28,19 @@ Engine::Engine() {
     _pluginName = "HETERO";
     _properties.set_name(_pluginName)
         .add(KEY_EXCLUSIVE_ASYNC_REQUESTS, true)
-        .add(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), false)
+        .add(ov::internal_property(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)), false)
         .add(ov::device::priorities)
         .add(
-            "TARGET_FALLBACK",
+            ov::legacy_property("TARGET_FALLBACK"),
             [this] {
                 return _properties.get(ov::device::priorities);
             },
             [this](const std::string& str) {
                 _properties.set(ov::device::priorities(str));
             })
-        .add(ov::device::full_name, "HETERO")
-        .add(ov::device::capabilities, {ov::device::capability::EXPORT_IMPORT})
-        .add(ov::device::architecture, [this](const ov::AnyMap& options) {
+        .add(ov::common_property(ov::device::full_name), "HETERO")
+        .add(ov::common_property(ov::device::capabilities), {ov::device::capability::EXPORT_IMPORT})
+        .add(ov::common_property(ov::device::architecture), [this](const ov::AnyMap& options) {
             auto deviceIt = options.find("TARGET_FALLBACK");
             std::string targetFallback;
             if (deviceIt != options.end()) {

@@ -21,15 +21,14 @@
 
 using namespace TemplatePlugin;
 
-
 void TemplatePlugin::ExecutableNetwork::init_properties(const std::map<std::string, std::string>& cfg) {
+    _properties.add(_cfg._properties)
+        .add(ov::common_property(ov::optimal_number_of_infer_requests), std::ref(_cfg._streamsExecutorConfig._streams));
     _properties
-    .add(_cfg._properties)
-    .add(ov::common_property(ov::optimal_number_of_infer_requests), std::ref(_cfg._streamsExecutorConfig._streams));
-    _properties.set(cfg)
-    // IF we need to make some properties read only use ov::PropertyAccess::ro() with property name
-    .ro(ov::streams::num)
-    .ro(ov::infer_property);
+        .set(cfg)
+        // IF we need to make some properties read only use ov::PropertyAccess::ro() with property name
+        .ro(ov::streams::num)
+        .ro(ov::infer_property);
 }
 
 // ! [executable_network:ctor_cnnnetwork]

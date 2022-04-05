@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/internal_properties.hpp"
 #include "ie_parallel.hpp"
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_parameter.hpp"
@@ -17,7 +18,6 @@
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "cpp_interfaces/interface/internal_properties.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
@@ -39,8 +39,9 @@ IStreamsExecutor::Config::Config(std::string name,
       _threads{threads},
       _threadPreferredCoreType(threadPreferredCoreType) {
     properties
-        .add(ov::legacy_property(CONFIG_KEY(CPU_BIND_THREAD)),
-            [this] () -> std::string {
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_BIND_THREAD)),
+            [this]() -> std::string {
                 switch (_threadBindingType) {
                 case IStreamsExecutor::ThreadBindingType::NONE:
                     return {CONFIG_VALUE(NO)};
@@ -50,32 +51,34 @@ IStreamsExecutor::Config::Config(std::string name,
                     return {CONFIG_VALUE(NUMA)};
                 case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
                     return {CONFIG_VALUE(HYBRID_AWARE)};
-                default: OPENVINO_UNREACHABLE("Unsupported thread binding type");
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported thread binding type");
                 }
             },
-            [this] (const std::string value) {
+            [this](const std::string value) {
                 if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
-        #if (defined(__APPLE__) || defined(_WIN32))
+#if (defined(__APPLE__) || defined(_WIN32))
                     _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-        #else
+#else
                     _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
                                                                     : IStreamsExecutor::ThreadBindingType::NUMA;
-        #endif
+#endif
                 } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
                     _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
                 } else if (value == CONFIG_VALUE(NO)) {
                     _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
                 } else {
                     IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD)
-                            << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
-                                "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
+                               << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
+                                  "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
                 }
             })
-        .add(ov::legacy_property(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)),
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)),
             [this] {
                 return std::to_string(_streams);
             },
-            [this] (const std::string value) {
+            [this](const std::string value) {
                 if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
                     _streams = static_cast<int>(getAvailableNUMANodes().size());
                 } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
@@ -87,31 +90,32 @@ IStreamsExecutor::Config::Config(std::string name,
                         val_i = std::stoi(value);
                     } catch (const std::exception&) {
                         IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                                << ". Expected only positive numbers (#streams) or "
-                                << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
+                                   << ". Expected only positive numbers (#streams) or "
+                                   << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
                     }
                     if (val_i < 0) {
                         IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                                << ". Expected only positive numbers (#streams)";
+                                   << ". Expected only positive numbers (#streams)";
                     }
                     _streams = val_i;
                 }
             })
-        .add(ov::legacy_property(CONFIG_KEY(CPU_THREADS_NUM)),
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_THREADS_NUM)),
             [this] {
                 return std::to_string(_threads);
             },
-            [this] (const std::string value) {
+            [this](const std::string value) {
                 int val_i;
                 try {
                     val_i = std::stoi(value);
                 } catch (const std::exception&) {
                     IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                            << ". Expected only positive numbers (#threads)";
+                               << ". Expected only positive numbers (#threads)";
                 }
                 if (val_i < 0) {
                     IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                            << ". Expected only positive numbers (#threads)";
+                               << ". Expected only positive numbers (#threads)";
                 }
                 _threads = val_i;
             })

@@ -6,16 +6,16 @@
 
 #include <algorithm>
 
+#include "cpp_interfaces/interface/internal_properties.hpp"
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/util/common_util.hpp"
-#include "cpp_interfaces/interface/internal_properties.hpp"
 
 namespace ov {
 struct PropertyAccess::SubAccess : public Access {
-    SubAccess(PropertyAccess property_access_, const std::shared_ptr<void>& so_) :
-    property_access{std::move(property_access_)},
-    so{so_} {}
+    SubAccess(PropertyAccess property_access_, const std::shared_ptr<void>& so_)
+        : property_access{std::move(property_access_)},
+          so{so_} {}
     ~SubAccess() {
         property_access = {};
         so = {};
@@ -97,12 +97,22 @@ PropertyAccess::PropertyAccess() {
                     property.erase(i, str.size());
                 }
             }
+            bool skip_internal = false;
+            for (std::string str : {std::string{'.'} + ov::internal_property.name() + '.',
+                                    std::string{ov::internal_property.name()} + '.'}) {
+                for (auto i = property.find(str); i != std::string::npos; i = property.find(str)) {
+                    skip_internal = true;
+                }
+            }
+            if (skip_internal) {
+                continue;
+            }
             properties.emplace_back(std::move(property));
         }
         return properties;
     });
 
-    auto get_legacy_properties = [this] (bool mutability) {
+    auto get_legacy_properties = [this](bool mutability) {
         std::vector<std::string> property_names;
         for (auto&& properties_set : {ov::legacy_property, ov::common_property}) {
             auto it_supported = accesses.find(properties_set.name());
@@ -129,13 +139,19 @@ PropertyAccess& PropertyAccess::add(PropertyAccess sub_accesses) {
     sub_accesses.remove(ov::supported_properties)
         .remove(METRIC_KEY(SUPPORTED_METRICS))
         .remove(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    for (auto&& access : sub_accesses.accesses) {
-        accesses.emplace(std::move(access.first), std::move(access.second));
+    for (auto&& sub_access : sub_accesses.accesses) {
+        if (sub_access.second->is_sub_access()) {
+            add(sub_access.first, sub_access.second->sub_access());
+        } else {
+            accesses.emplace(std::move(sub_access.first), std::move(sub_access.second));
+        }
     }
     return *this;
 }
 
-PropertyAccess& PropertyAccess::add(const std::string& name, PropertyAccess sub_accesses_, const std::shared_ptr<void>& so) {
+PropertyAccess& PropertyAccess::add(const std::string& name,
+                                    PropertyAccess sub_accesses_,
+                                    const std::shared_ptr<void>& so) {
     auto& access = accesses[name];
     sub_accesses_.remove(ov::supported_properties)
         .remove(METRIC_KEY(SUPPORTED_METRICS))
@@ -148,12 +164,53 @@ PropertyAccess& PropertyAccess::add(const std::string& name, PropertyAccess sub_
     return *this;
 }
 
-PropertyAccess& PropertyAccess::add(const NamedProperties& named_properties, PropertyAccess sub_accesses, const std::shared_ptr<void>& so) {
+PropertyAccess& PropertyAccess::add(const NamedProperties& named_properties,
+                                    PropertyAccess sub_accesses,
+                                    const std::shared_ptr<void>& so) {
     return add(named_properties.name(), std::move(sub_accesses), so);
 }
 
+static std::vector<std::string> check_found_pathes(const std::vector<std::vector<std::string>>& found_pathes,
+                                                   const std::string& rout,
+                                                   bool skip_unsupported = false) {
+    if (found_pathes.empty()) {
+        if (!skip_unsupported) {
+            OPENVINO_UNREACHABLE("Property ", rout, " was not found");
+        } else {
+            return {};
+        }
+    } else if (found_pathes.size() > 1) {
+        std::stringstream strm;
+        strm << "Found ambiguous property names:" << std::endl;
+        for (auto&& path : found_pathes) {
+            strm << '\t';
+            for (auto&& part : path) {
+                strm << part << ".";
+            }
+            strm.seekp(-1, strm.cur);
+        }
+        if (!skip_unsupported) {
+            OPENVINO_UNREACHABLE(strm.str());
+        } else {
+            return {};
+        }
+    }
+    return found_pathes.front();
+}
+
 PropertyAccess& PropertyAccess::remove(const std::string& name) {
-    accesses.erase(name);
+    auto names = util::split(name, '.');
+    auto property_access = find_property_access(check_found_pathes(find_property(names), name, "skip_unsupported"));
+    if (property_access == this) {
+        if (names.size() > 1) {
+            remove(util::join(std::vector<std::string>{names.begin() + 1, names.end()}, "."));
+        } else {
+            property_access->accesses.erase(names.back());
+            return *this;
+        }
+    } else if (property_access != nullptr) {
+        property_access->accesses.erase(names.back());
+    }
     return *this;
 }
 
@@ -166,25 +223,6 @@ PropertyAccess& PropertyAccess::ro() {
         }
     }
     return *this;
-}
-
-static std::vector<std::string> check_found_pathes(const std::vector<std::vector<std::string>>& found_pathes,
-                                                   const std::string& rout) {
-    if (found_pathes.empty()) {
-        OPENVINO_UNREACHABLE("Property ", rout, " was not found");
-    } else if (found_pathes.size() > 1) {
-        std::stringstream strm;
-        strm << "Found ambiguous property names:" << std::endl;
-        for (auto&& path : found_pathes) {
-            strm << '\t';
-            for (auto&& part : path) {
-                strm << part << ".";
-            }
-            strm.seekp(-1, strm.cur);
-        }
-        OPENVINO_UNREACHABLE(strm.str());
-    }
-    return found_pathes.front();
 }
 
 PropertyAccess& PropertyAccess::ro(const std::string& name) {
@@ -209,14 +247,23 @@ std::vector<std::vector<std::string>> PropertyAccess::get_all_pathes() const {
         if (!name.empty()) {
             path.push_back(name);
         }
-        path.push_back(access.first);
         if (access.second->is_sub_access()) {
+            auto special_properties = {ov::common_property, ov::legacy_property, ov::internal_property};
+            auto is_specail_property_set = std::any_of(std::begin(special_properties),
+                                                       std::end(special_properties),
+                                                       [&](const NamedProperties& property_set) {
+                                                           return property_set.name() == access.first;
+                                                       });
+            if (!is_specail_property_set) {
+                path.push_back(access.first);
+            }
             auto sub_pathes = access.second->sub_access().get_all_pathes();
             for (auto&& sub_path : sub_pathes) {
                 pathes.emplace_back(path);
                 std::move(sub_path.begin(), sub_path.end(), std::back_inserter(pathes.back()));
             }
         } else {
+            path.push_back(access.first);
             pathes.emplace_back(std::move(path));
         }
     }
@@ -236,10 +283,34 @@ PropertyAccess::Access::Ptr& PropertyAccess::find_or_create(const std::string& n
         if (it_access == accesses.end()) {
             add(path.front(), PropertyAccess{});
         }
-        return accesses.at(path.front())->sub_access().find_or_create(util::join(std::vector<std::string>{path.begin() + 1, path.end()}, "."));
+        return accesses.at(path.front())
+            ->sub_access()
+            .find_or_create(util::join(std::vector<std::string>{path.begin() + 1, path.end()}, "."));
     } else {
         return accesses[in_path.back()];
     }
+};
+
+PropertyAccess* PropertyAccess::find_property_access(const std::vector<std::string>& in_path) {
+    std::vector<std::string> path;
+    PropertyAccess* result = nullptr;
+    if (!name.empty() && (in_path.front() == name)) {
+        result = this;
+        path = {in_path.begin() + 1, in_path.end()};
+    } else {
+        path = in_path;
+    }
+    if (path.size() > 1) {
+        auto it_access = accesses.find(path.front());
+        if (it_access != accesses.end()) {
+            result = it_access->second->sub_access().find_property_access({path.begin() + 1, path.end()});
+        } else {
+            result = nullptr;
+        }
+    } else {
+        result = this;
+    }
+    return result;
 };
 
 const void* PropertyAccess::find_access(const std::vector<std::string>& in_path) const {
@@ -247,17 +318,31 @@ const void* PropertyAccess::find_access(const std::vector<std::string>& in_path)
     const void* result = nullptr;
     if (!name.empty() && (in_path.front() == name)) {
         result = this;
-        path = {in_path.begin() + 1, in_path.end()};
+        path = {std::next(in_path.begin()), in_path.end()};
     } else {
         path = in_path;
     }
     if (!path.empty()) {
         auto it_access = accesses.find(path.front());
-        if (it_access == accesses.end())
-            return nullptr;
+        if (it_access == accesses.end()) {
+            bool found = false;
+            for (auto&& property_set : {ov::common_property, ov::legacy_property, ov::internal_property}) {
+                auto it_special_access = accesses.find(property_set.name());
+                if (it_special_access != accesses.end()) {
+                    it_access = it_special_access->second->sub_access().accesses.find(path.front());
+                    if (it_access != it_special_access->second->sub_access().accesses.end()) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found) {
+                return nullptr;
+            }
+        }
         if (it_access->second->is_sub_access()) {
-            if ((path.begin() + 1) != path.end()) {
-                result = it_access->second->sub_access().find_access({path.begin() + 1, path.end()});
+            if (path.size() > 1) {
+                result = it_access->second->sub_access().find_access({std::next(path.begin()), path.end()});
             } else {
                 result = it_access->second.get();
             }
@@ -314,21 +399,46 @@ std::vector<PropertyName> PropertyAccess::get_supported() const {
     return property_names;
 }
 
-AnyMap PropertyAccess::get(const PropertyMutability mutability) const {
+static AnyMap flatten_special(const AnyMap& any_map) {
+    AnyMap result;
+    for (auto&& value : any_map) {
+        if (value.second.is<AnyMap>()) {
+            auto special_properties = {ov::common_property, ov::legacy_property, ov::internal_property};
+            auto is_specail_property_set = std::any_of(std::begin(special_properties),
+                                                       std::end(special_properties),
+                                                       [&](const NamedProperties& property_set) {
+                                                           return property_set.name() == value.first;
+                                                       });
+            if (is_specail_property_set) {
+                for (auto&& value : flatten_special(value.second.as<AnyMap>())) {
+                    result.insert(value);
+                }
+            } else {
+                result.emplace(value.first, flatten_special(value.second.as<AnyMap>()));
+            }
+        } else {
+            result.insert(value);
+        }
+    }
+    return result;
+};
+
+AnyMap PropertyAccess::get(const PropertyMutability mutability, bool intially_mutable) const {
     AnyMap result;
     for (auto&& access : accesses) {
         if (access.second->is_sub_access()) {
-            auto any_map = access.second->sub_access().PropertyAccess::get(mutability);
+            auto any_map = access.second->sub_access().get(mutability, intially_mutable);
             if (!any_map.empty()) {
                 result.emplace(access.first, any_map);
             }
-        } else if ((mutability == PropertyMutability::RW && access.second->is_mutable()) ||
+        } else if ((mutability == PropertyMutability::RW &&
+                    (intially_mutable ? access.second->is_intially_mutable() : access.second->is_mutable())) ||
                    (mutability == PropertyMutability::RO)) {
             auto any = access.second->get({});
             result.emplace(access.first, any);
         }
     }
-    return result;
+    return flatten_special(result);
 }
 
 Any PropertyAccess::get(const std::string& name, const AnyMap& args) const {
@@ -338,25 +448,31 @@ Any PropertyAccess::get(const std::string& name, const AnyMap& args) const {
         OPENVINO_ASSERT(names.size() > 1);
         return get(util::join(std::vector<std::string>{names.begin() + 1, names.end()}, "."), args);
     } else {
-        OPENVINO_ASSERT(access_ptr != nullptr);
+        if (access_ptr == nullptr)
+            OPENVINO_ASSERT(access_ptr != nullptr);
         auto access = static_cast<const Access*>(access_ptr);
         return access->get(args);
     }
 }
 
-PropertyAccess& PropertyAccess::set(const std::string& name, const Any& property) {
+PropertyAccess& PropertyAccess::set(const std::string& name, const Any& property, bool skip_unsupported) {
     auto names = util::split(name, '.');
-    auto access_ptr = find_access(check_found_pathes(find_property(names), name));
+    auto access_ptr = find_access(check_found_pathes(find_property(names), name, skip_unsupported));
     if (access_ptr == this) {
-        return set(util::join(std::vector<std::string>{names.begin() + 1, names.end()}, "."), property);
+        return set(util::join(std::vector<std::string>{names.begin() + 1, names.end()}, "."),
+                   property,
+                   skip_unsupported);
     } else {
+        if (skip_unsupported && access_ptr == nullptr) {
+            return *this;
+        }
         OPENVINO_ASSERT(access_ptr != nullptr);
         auto access = static_cast<Access*>(access_ptr);
         if (access->is_sub_access() && property.is<AnyMap>()) {
             access->sub_access().PropertyAccess::set(property.as<AnyMap>());
         } else if ((!access->is_sub_access() && property.is<AnyMap>()) ||
                    (access->is_sub_access() && !property.is<AnyMap>())) {
-            OPENVINO_UNREACHABLE("Could not merge unsupported types");
+            OPENVINO_UNREACHABLE("Type dose not matches");
         } else {
             if (!access->is_mutable()) {
                 OPENVINO_ASSERT(access->is_mutable(), "Property ", name, " is not writeable");
@@ -368,66 +484,59 @@ PropertyAccess& PropertyAccess::set(const std::string& name, const Any& property
     return *this;
 }
 
-PropertyAccess& PropertyAccess::set(const AnyMap& properties) {
+PropertyAccess& PropertyAccess::set(const AnyMap& properties, bool skip_unsupported) {
     for (auto&& value : properties) {
-        set(value.first, value.second);
+        set(value.first, value.second, skip_unsupported);
     }
     return *this;
 }
 
-static AnyMap flatten(const AnyMap& properties) {
-    AnyMap result;
-    for (auto&& property : properties) {
-        if (property.second.is<AnyMap>()) {
-            for (auto&& sub_property : flatten(property.second.as<AnyMap>())) {
-                result.emplace(property.first + "." + sub_property.first, sub_property.second);
-            }
-        } else {
-            result.emplace(property);
-        }
+static Any& find_ref(const std::string& name, AnyMap& any_map, const std::vector<std::string>& path_) {
+    auto path = path_;
+    if (path.front() == name) {
+        path = {path.begin() + 1, path.end()};
     }
-    return result;
-}
+    if (path.size() > 1) {
+        auto it_any = any_map.find(path.front());
+        if (it_any == any_map.end())
+            OPENVINO_ASSERT(it_any != any_map.end());
+        return find_ref(name, it_any->second->as<AnyMap>(), {path.begin() + 1, path.end()});
+    } else if (path.size() == 1) {
+        auto it_any = any_map.find(path.front());
+        if (it_any == any_map.end())
+            OPENVINO_ASSERT(it_any != any_map.end());
+        return it_any->second;
+    } else {
+        OPENVINO_UNREACHABLE("Path not found");
+    }
+};
 
-PropertyAccess& PropertyAccess::set(const std::map<std::string, std::string>& properties) {
+PropertyAccess& PropertyAccess::set(const std::map<std::string, std::string>& properties, bool skip_unsupported) {
+    auto current_properties = flatten_special(get(PropertyMutability::RW, !"intially_mutable"));
     for (auto&& property : properties) {
-        auto names = util::split(property.first, '.');
-        auto access_ptr = find_access(check_found_pathes(find_property(names), property.first));
-        auto set_all = [&](PropertyAccess& property_access) {
-            auto any_map = property_access.get();
+        auto found_properties = find_property(util::split(property.first, '.'));
+        if (found_properties.size() == 1) {
+            auto& any = find_ref(name, current_properties, found_properties.front());
             std::stringstream strm{property.second};
-            util::Read<AnyMap>{}(strm, any_map);
-            property_access.set(any_map);
-        };
-        if (access_ptr == this) {
-            set_all(*this);
-        } else {
-            OPENVINO_ASSERT(access_ptr != nullptr);
-            auto access = static_cast<Access*>(access_ptr);
-            if (access->is_sub_access()) {
-                set_all(access->sub_access());
-            } else {
-                OPENVINO_ASSERT(access->is_mutable(), "Could not merge read only property: ", property.first);
-                auto any = access->get({});
-                std::stringstream strm{property.second};
-                any.read(strm);
-                access->precondition(any);
-                access->set(any);
-            }
+            any.read(strm);
+        } else if (!skip_unsupported) {
+            OPENVINO_UNREACHABLE("Property with name was not found: ", property.first);
         }
     }
-    return *this;
+    return set(current_properties, skip_unsupported);
 }
 
-AnyMap PropertyAccess::merge(const AnyMap& properties, const PropertyMutability mutability) const {
-    AnyMap result = get(mutability);
+AnyMap PropertyAccess::merge(const AnyMap& properties,
+                             const PropertyMutability mutability,
+                             bool intially_mutable) const {
+    AnyMap result = get(mutability, intially_mutable);
     for (auto&& property : properties) {
         auto names = util::split(property.first, '.');
         auto found_properties = find_property(names);
         if (found_properties.size() == 1) {
             auto access_ptr = find_access(found_properties.front());
             if ((access_ptr == this) && property.second.is<AnyMap>()) {
-                for (auto&& v : merge(property.second.as<AnyMap>(), mutability)) {
+                for (auto&& v : merge(property.second.as<AnyMap>(), mutability, intially_mutable)) {
                     result.emplace(v.first, util::to_string(v.second));
                 }
             } else if ((access_ptr == this) && !property.second.is<AnyMap>()) {
@@ -436,7 +545,8 @@ AnyMap PropertyAccess::merge(const AnyMap& properties, const PropertyMutability 
                 OPENVINO_ASSERT(access_ptr != nullptr);
                 auto access = static_cast<const Access*>(access_ptr);
                 if (access->is_sub_access() && property.second.is<AnyMap>()) {
-                    auto any_map = access->sub_access().merge(property.second.as<AnyMap>(), mutability);
+                    auto any_map =
+                        access->sub_access().merge(property.second.as<AnyMap>(), mutability, intially_mutable);
                     if (!any_map.empty()) {
                         result[property.first] = any_map;
                     }
@@ -444,7 +554,9 @@ AnyMap PropertyAccess::merge(const AnyMap& properties, const PropertyMutability 
                            (access->is_sub_access() && !property.second.is<AnyMap>())) {
                     OPENVINO_UNREACHABLE("Could not merge unsupported types");
                 } else {
-                    OPENVINO_ASSERT(access->is_mutable(), "Could not merge not writeable property: ", property.first);
+                    OPENVINO_ASSERT(intially_mutable ? access->is_intially_mutable() : access->is_mutable(),
+                                    "Could not merge not writeable property: ",
+                                    property.first);
                     access->precondition(property.second);
                     result[property.first] = property.second;
                 }
@@ -457,45 +569,21 @@ AnyMap PropertyAccess::merge(const AnyMap& properties, const PropertyMutability 
 }
 
 std::map<std::string, std::string> PropertyAccess::merge(const std::map<std::string, std::string>& properties,
-                                                         const PropertyMutability mutability) const {
+                                                         const PropertyMutability mutability,
+                                                         bool intially_mutable) const {
     std::map<std::string, std::string> result;
+    auto current_properties = get(mutability, intially_mutable);
     for (auto&& property : properties) {
         auto found_properties = find_property(util::split(property.first, '.'));
         if (found_properties.size() == 1) {
-            auto access_ptr = find_access(found_properties.front());
-            if (access_ptr == this) {
-                auto any_map = get(mutability);
-                std::stringstream strm{property.second};
-                util::Read<AnyMap>{}(strm, any_map);
-                for (auto&& v : merge(any_map, mutability)) {
-                    result.emplace(v.first, util::to_string(v.second));
-                }
-            } else {
-                auto access = static_cast<const Access*>(access_ptr);
-                if (access->is_sub_access()) {
-                    auto any_map = access->sub_access().PropertyAccess::get(mutability);
-                    std::stringstream strm{property.second};
-                    util::Read<AnyMap>{}(strm, any_map);
-                    any_map = access->sub_access().merge(any_map, mutability);
-                    if (!any_map.empty()) {
-                        result.emplace(property.first, util::to_string(any_map));
-                    }
-                } else {
-                    auto any = access->get({});
-                    if (!access->is_mutable()) {
-                        OPENVINO_ASSERT(access->is_mutable(), "Could not merge read only property: ", property.first);
-                    }
-                    std::stringstream strm{property.second};
-                    any.read(strm);
-                    access->precondition(any);
-                    result.emplace(property.first, any.as<std::string>());
-                }
-            }
+            auto& any = find_ref(name, current_properties, found_properties.front());
+            std::stringstream strm{property.second};
+            any.read(strm);
         } else {
             result.emplace(property.first, property.second);
         }
     }
-    for (auto value : get(mutability)) {
+    for (auto value : current_properties) {
         auto str = value.second.as<std::string>();
         if (!str.empty()) {
             result.emplace(value.first, value.second.as<std::string>());

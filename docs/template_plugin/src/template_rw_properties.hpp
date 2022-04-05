@@ -12,7 +12,6 @@
 #include <threading/ie_istreams_executor.hpp>
 
 #include "cpp_interfaces/interface/internal_properties.hpp"
-
 #include "properties.hpp"
 
 namespace TemplatePlugin {
