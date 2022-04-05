@@ -91,6 +91,12 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -106,8 +112,6 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-# TODO: add find_package calls for zlib and json
-
 if(NOT TARGET gflags)
     find_package(gflags QUIET COMPONENTS nothreads_shared)
 
@@ -119,13 +123,16 @@ if(NOT TARGET gflags)
 endif()
 
 if(NOT TARGET zlib::zlib)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+    if(NOT CMAKE_CROSSCOMPILING)
+        find_host_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(zlib QUIET
+                              IMPORTED_TARGET
+                              zlib)
+            if(zlib_FOUND)
+                set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
+                add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            endif()
         endif()
     endif()
 
@@ -144,7 +151,7 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     find_package(nlohmann_json QUIET)
     if(nlohmann_json_FOUND)
         message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
         add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
     endif()
 endif()

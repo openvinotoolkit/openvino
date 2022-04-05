@@ -37,13 +37,25 @@ set_property(SOURCE ${MIXED_SRC}
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+#
 # Create ov_core_dev library
+#
+
 add_library(ov_core_dev INTERFACE)
 add_library(openvino::core::dev ALIAS ov_core_dev)
 
 target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
 
+set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+
+# Install static libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(ov_core_dev core)
+
+#
 # Create static or shared library depending on BUILD_SHARED_LIBS
+#
+
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)

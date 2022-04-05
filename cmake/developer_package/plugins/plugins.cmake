@@ -13,8 +13,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
@@ -113,7 +113,7 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
         if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
                 add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)

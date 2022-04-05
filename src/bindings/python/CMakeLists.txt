@@ -28,7 +28,6 @@ else()
 
     add_subdirectory(src/compatibility/pyngraph)
     add_subdirectory(src/pyopenvino)
-
 endif()
 
 if(ENABLE_WHEEL)

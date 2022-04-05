@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT TARGET py_ov_frontends)
+    add_custom_target(py_ov_frontends)
+endif()
+
 function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     set(TARGET_NAME ${TARGET})
 
@@ -18,6 +22,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
 
     add_dependencies(${TARGET_NAME} pyopenvino)
+    add_dependencies(py_ov_frontends ${TARGET_NAME})
 
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${PYTHON_SOURCE_DIR}/pyopenvino/utils/")

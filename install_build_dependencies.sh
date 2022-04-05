@@ -44,7 +44,7 @@ if [ -f /etc/lsb-release ]; then
             $x86_64_specific_packages \
             libgtk2.0-dev \
             pkg-config \
-            libflags-dev \
+            libgflags-dev \
             zlib1g-dev \
             unzip \
             automake \
@@ -79,8 +79,13 @@ if [ -f /etc/lsb-release ]; then
     else
         sudo -E apt-get install -y libpng-dev
     fi
+    if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
+        sudo -E apt-get install -y nlohmann-json3-dev
+    else
+        sudo -E apt-get install -y nlohmann-json-dev
+    fi
 elif [ -f /etc/redhat-release ]; then
-    # CentOS 7.x
+    # RHEL 8
     sudo -E yum install -y centos-release-scl epel-release
     sudo -E yum install -y \
             wget \
@@ -100,8 +105,8 @@ elif [ -f /etc/redhat-release ]; then
             gcc-c++ \
             make \
             pkg-config \
-            libflags-dev \
-            zlib1g-dev \
+            gflags-devel.i686 \
+            zlib-devel.i686 \
             glibc-static \
             glibc-devel \
             libstdc++-static \
@@ -157,8 +162,9 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
             libboost-regex-dev \
             libgtk2.0-dev \
             pkg-config \
-            libflags-dev \
+            libgflags-dev \
             zlib1g-dev \
+            nlohmann-json-dev \
             unzip \
             automake \
             libtool \

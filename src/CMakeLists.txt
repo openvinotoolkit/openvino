@@ -4,8 +4,6 @@
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_custom_target(ov_runtime_libraries)
-
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets
@@ -27,7 +25,7 @@ endif()
 add_subdirectory(plugins)
 add_subdirectory(inference)
 include(cmake/openvino.cmake)
-# preprocessing has dependency on ov_runtime for static build
+# preprocessing has dependency on `openvino` for static build
 add_subdirectory(common/preprocessing)
 
 if(ENABLE_TESTS)

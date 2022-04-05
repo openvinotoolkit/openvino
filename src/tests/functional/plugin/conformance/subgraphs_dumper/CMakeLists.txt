@@ -4,11 +4,7 @@
 
 set(TARGET_NAME subgraphsDumper)
 
-if(NOT TARGET gflags)
-    find_package(gflags REQUIRED COMPONENTS nothreads_shared)
-endif()
-
-list(APPEND DEPENDENCIES
+list(APPEND LIBRARIES
         gflags
         inference_engine
         funcTestUtils
@@ -44,7 +40,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         LINK_LIBRARIES
             PRIVATE
-                ${DEPENDENCIES}
+                ${LIBRARIES}
         DEPENDENCIES
             ${DEPENDENCIES}
         ADD_CPPLINT
