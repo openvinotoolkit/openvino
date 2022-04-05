@@ -38,8 +38,8 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
         params.sampling_ratio_y = prim->sampling_ratio;
 
         auto first_layer_scale = prim->pyramid_scales[0];
-        auto image_size_x = arg.P2().get_output_layout().size.spatial[0] * first_layer_scale;
-        auto image_size_y = arg.P2().get_output_layout().size.spatial[1] * first_layer_scale;
+        auto image_size_x = arg.P2().get_output_layout().spatial(0) * first_layer_scale;
+        auto image_size_y = arg.P2().get_output_layout().spatial(1) * first_layer_scale;
         params.image_size_x = image_size_x;
         params.image_size_y = image_size_y;
 

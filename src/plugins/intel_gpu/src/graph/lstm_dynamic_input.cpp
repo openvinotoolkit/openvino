@@ -23,12 +23,12 @@ layout lstm_dynamic_input_inst::calc_output_layout(lstm_dynamic_input_node const
            "Output data type forcing is not supported for lstm_dynamic_node!");
     auto input_layout = node.input().get_output_layout();
     auto weight_layout = node.weights().get_output_layout();
-    auto batch = input_layout.size.batch[0];
+    auto batch = input_layout.batch();
     auto direction = node.direction();
-    auto output_sequence = input_layout.size.feature[0];
+    auto output_sequence = input_layout.feature();
     return layout(input_layout.data_type,
                   input_layout.format,
-                  tensor(batch, output_sequence, weight_layout.size.spatial[1], direction));
+                  tensor(batch, output_sequence, weight_layout.spatial(1), direction));
 }
 
 std::string lstm_dynamic_input_inst::to_string(lstm_dynamic_input_node const& node) {
@@ -41,9 +41,9 @@ std::string lstm_dynamic_input_inst::to_string(lstm_dynamic_input_node const& no
     lstm_dynamic_input_info.add("dyn_length id", desc->dyn_length);
     lstm_dynamic_input_info.add("weights id", desc->weights);
     lstm_dynamic_input_info.add("bias id", bias_id);
-    lstm_dynamic_input_info.add("max seq len", node.input().get_output_layout().size.feature[0]);
-    lstm_dynamic_input_info.add("hidden size", node.weights().get_output_layout().size.spatial[1] / 4);
-    lstm_dynamic_input_info.add("direction", node.weights().get_output_layout().size.feature[0]);
+    lstm_dynamic_input_info.add("max seq len", node.input().get_output_layout().feature());
+    lstm_dynamic_input_info.add("hidden size", node.weights().get_output_layout().spatial(1) / 4);
+    lstm_dynamic_input_info.add("direction", node.weights().get_output_layout().feature());
     node_info->add("lstm_dynamic_input info", lstm_dynamic_input_info);
     node_info->dump(primitive_description);
 
@@ -70,7 +70,7 @@ lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_inp
     auto dyn_length_size = node.dyn_length().get_output_layout().count();
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Batch",
-                          node.get_output_layout().size.batch[0],
+                          node.get_output_layout().batch(),
                           "Dynamic tensor elements count.",
                           dyn_length_size,
                           "Should be equal.");
@@ -78,8 +78,8 @@ lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_inp
     // check weights
     CLDNN_ERROR_BOOL(node.id(), "Weights memory", !node.weights_term(), "Id of weights memory is not set.");
     auto weights_id = node.weights().id();
-    auto weights_tensor = node.weights().get_output_layout().size;
-    auto hidden_size = weights_tensor.spatial[1] / 4;
+    auto weights_layout = node.weights().get_output_layout();
+    auto hidden_size = weights_layout.spatial(1) / 4;
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "weights format",
                                   node.weights().get_output_layout().format.value,
@@ -87,15 +87,15 @@ lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_inp
                                   format::oiyx, format::lstm_weights_dio, format::bfyx);
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Weights batch size",
-                          weights_tensor.batch[0],
+                          weights_layout.batch(),
                           "1",
                           1,
                           "Sizes mismatch, weights_id: " + weights_id);
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Weights x size",
-                          weights_tensor.spatial[0],
+                          weights_layout.spatial(0),
                           "input_size",
-                          input_layout.size.spatial[0],
+                          input_layout.spatial(0),
                           "Sizes mismatch, weights_id: " + weights_id);
 
     // check bias

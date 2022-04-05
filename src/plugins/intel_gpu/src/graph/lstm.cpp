@@ -30,10 +30,10 @@ layout lstm_inst::calc_output_layout(lstm_node const& node) {
     // output    = [ batch,  sequence,       direction,     hidden_size ]
     auto result = layout(input_layout.data_type,
                          format::bfyx,
-                         tensor(hidden_layout.size.feature[0],
-                                input_layout.size.feature[0],
-                                hidden_layout.size.spatial[0],
-                                hidden_layout.size.spatial[1]));
+                         tensor(hidden_layout.feature(),
+                                input_layout.feature(),
+                                hidden_layout.spatial(0),
+                                hidden_layout.spatial(1)));
     return result;
 }
 

@@ -84,10 +84,10 @@ TEST(loop_gpu, basic_no_concat)
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.size.batch[0], 1);
-    EXPECT_EQ(output_layout.size.feature[0], 1);
-    EXPECT_EQ(output_layout.size.spatial[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 5);
+    EXPECT_EQ(output_layout.batch(), 1);
+    EXPECT_EQ(output_layout.feature(), 1);
+    EXPECT_EQ(output_layout.spatial(0), 4);
+    EXPECT_EQ(output_layout.spatial(1), 5);
 
     // value check
     {
@@ -179,10 +179,10 @@ TEST(loop_gpu, basic_concat)
     auto output = outputs.begin()->second.get_memory();
     auto output_layout = output->get_layout();
 
-    EXPECT_EQ(output_layout.size.batch[0], 1);
-    EXPECT_EQ(output_layout.size.feature[0], 1);
-    EXPECT_EQ(output_layout.size.spatial[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 5);
+    EXPECT_EQ(output_layout.batch(), 1);
+    EXPECT_EQ(output_layout.feature(), 1);
+    EXPECT_EQ(output_layout.spatial(0), 4);
+    EXPECT_EQ(output_layout.spatial(1), 5);
 
     // value check
     {
@@ -333,10 +333,10 @@ TEST(loop_gpu, basic_concat_nested)
     /////////////////////////////////
     // compare
     /////////////////////////////////
-    EXPECT_EQ(output_layout.size.batch[0], 1);
-    EXPECT_EQ(output_layout.size.feature[0], 1);
-    EXPECT_EQ(output_layout.size.spatial[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 5);
+    EXPECT_EQ(output_layout.batch(), 1);
+    EXPECT_EQ(output_layout.feature(), 1);
+    EXPECT_EQ(output_layout.spatial(0), 4);
+    EXPECT_EQ(output_layout.spatial(1), 5);
 
     // check output values
     EXPECT_EQ(output_layout.count(), expected.size());

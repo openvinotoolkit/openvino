@@ -62,11 +62,10 @@ protected:
 public:
     static primitive_impl* create(const convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
-        const auto& weights_size = weights_layout.size;
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(primitive->grouped_weights_shape);
 
         const auto &split = primitive->split();
-        const auto& stride = primitive->stride;
+        auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
@@ -94,10 +93,9 @@ public:
         conv_params.split = split;
         conv_params.groups = groups;
 
-        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
-        uint32_t kx = weights_size.spatial[0];
-        uint32_t ky = weights_size.spatial[1];
-        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        uint32_t kx = weights_layout.spatial(0);
+        uint32_t ky = weights_layout.spatial(1);
+        uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);

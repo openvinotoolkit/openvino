@@ -21,13 +21,13 @@ class mvn_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
 template <typename T>
 void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_variance) {
-    auto output_size = output->get_layout().size;
+    auto l = output->get_layout();
 
-    uint32_t batch_size = output_size.batch[0];
-    uint32_t feature_size = output_size.feature[0];
-    uint32_t z_size = output_size.spatial[2];
-    uint32_t y_size = output_size.spatial[1];
-    uint32_t x_size = output_size.spatial[0];
+    uint32_t batch_size = l.batch();
+    uint32_t feature_size = l.feature();
+    uint32_t z_size = l.spatial(2);
+    uint32_t y_size = l.spatial(1);
+    uint32_t x_size = l.spatial(0);
 
     cldnn::mem_lock<T> buff(output, get_test_stream());
 
@@ -64,13 +64,13 @@ void mvn_compute_mean_across_channels(cldnn::memory::ptr output, bool normalize_
 
 template <typename T>
 void mvn_compute_mean_within_channels(cldnn::memory::ptr output, bool normalize_variance) {
-    auto output_size = output->get_layout().size;
+    auto l = output->get_layout();
 
-    uint32_t batch_size = output_size.batch[0];
-    uint32_t feature_size = output_size.feature[0];
-    uint32_t z_size = output_size.spatial[2];
-    uint32_t y_size = output_size.spatial[1];
-    uint32_t x_size = output_size.spatial[0];
+    uint32_t batch_size = l.batch();
+    uint32_t feature_size = l.feature();
+    uint32_t z_size = l.spatial(2);
+    uint32_t y_size = l.spatial(1);
+    uint32_t x_size = l.spatial(0);
 
     cldnn::mem_lock<T> buff(output, get_test_stream());
 
@@ -550,13 +550,13 @@ struct mvn_basic_test_params {
 struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_data(memory::ptr mem, const tests::VVVVVF<T>& data) {
-        auto size = mem->get_layout().size;
+        auto l = mem->get_layout();
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
-        for (size_t bi = 0; bi < static_cast<size_t>(size.batch[0]); ++bi) {
-            for (size_t fi = 0; fi < static_cast<size_t>(size.feature[0]); ++fi) {
-                for (size_t zi = 0; zi < static_cast<size_t>(size.spatial[2]); ++zi) {
-                    for (size_t yi = 0; yi < static_cast<size_t>(size.spatial[1]); ++yi) {
-                        for (size_t xi = 0; xi < static_cast<size_t>(size.spatial[0]); ++xi) {
+        for (size_t bi = 0; bi < static_cast<size_t>(l.batch()); ++bi) {
+            for (size_t fi = 0; fi < static_cast<size_t>(l.feature()); ++fi) {
+                for (size_t zi = 0; zi < static_cast<size_t>(l.spatial(2)); ++zi) {
+                    for (size_t yi = 0; yi < static_cast<size_t>(l.spatial(1)); ++yi) {
+                        for (size_t xi = 0; xi < static_cast<size_t>(l.spatial(0)); ++xi) {
                             auto tensor_addr = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
                             auto offset = mem->get_layout().get_linear_offset(tensor_addr);
                             ptr[offset] = data[bi][fi][xi][yi][zi];
@@ -569,12 +569,12 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
 
     template <typename T>
     void fill_random_data(memory::ptr mem, int min, int max, int k = 8) {
-        auto size = mem->get_layout().size;
-        auto input_data = tests::generate_random_5d<T>(size.batch[0],
-                                                       size.feature[0],
-                                                       size.spatial[0],
-                                                       size.spatial[1],
-                                                       size.spatial[2],
+        auto l = mem->get_layout();
+        auto input_data = tests::generate_random_5d<T>(l.batch(),
+                                                       l.feature(),
+                                                       l.spatial(0),
+                                                       l.spatial(1),
+                                                       l.spatial(2),
                                                        min,
                                                        max,
                                                        k);
@@ -718,15 +718,15 @@ INSTANTIATE_TEST_SUITE_P(extended,
 struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_data(cldnn::memory::ptr mem, const tests::VVVVVF<T>& data) {
-        auto size = mem->get_layout().size;
+        auto l = mem->get_layout();
         cldnn::mem_lock<T> ptr(mem, get_test_stream());
-        for (size_t bi = 0; bi < static_cast<size_t>(size.batch[0]); ++bi) {
-            for (size_t fi = 0; fi < static_cast<size_t>(size.feature[0]); ++fi) {
-                for (size_t zi = 0; zi < static_cast<size_t>(size.spatial[2]); ++zi) {
-                    for (size_t yi = 0; yi < static_cast<size_t>(size.spatial[1]); ++yi) {
+        for (size_t bi = 0; bi < static_cast<size_t>(l.batch()); ++bi) {
+            for (size_t fi = 0; fi < static_cast<size_t>(l.feature()); ++fi) {
+                for (size_t zi = 0; zi < static_cast<size_t>(l.spatial(2)); ++zi) {
+                    for (size_t yi = 0; yi < static_cast<size_t>(l.spatial(1)); ++yi) {
                         auto tensor_addr = tensor(batch(bi), feature(fi), spatial(0, yi, zi, 0));
                         auto offset = mem->get_layout().get_linear_offset(tensor_addr);
-                        for (size_t xi = 0; xi < static_cast<size_t>(size.spatial[0]); ++xi) {
+                        for (size_t xi = 0; xi < static_cast<size_t>(l.spatial(0)); ++xi) {
                             ptr[offset + xi] = data[bi][fi][xi][yi][zi];
                         }
                     }
@@ -737,12 +737,12 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
     template <typename T>
     void fill_random_data(cldnn::memory::ptr mem, int min, int max, int k = 8) {
-        auto size = mem->get_layout().size;
-        auto input_data = tests::generate_random_5d<T>(size.batch[0],
-                                                       size.feature[0],
-                                                       size.spatial[0],
-                                                       size.spatial[1],
-                                                       size.spatial[2],
+        auto l = mem->get_layout();
+        auto input_data = tests::generate_random_5d<T>(l.batch(),
+                                                       l.feature(),
+                                                       l.spatial(0),
+                                                       l.spatial(1),
+                                                       l.spatial(2),
                                                        min,
                                                        max,
                                                        k);
@@ -762,10 +762,10 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
         cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
 

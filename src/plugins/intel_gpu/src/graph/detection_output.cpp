@@ -42,7 +42,7 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
     }
 
     if (node.get_primitive()->top_k != -1) {
-        int top_k = node.get_primitive()->top_k * num_classes * input_layout.size.batch[0];
+        int top_k = node.get_primitive()->top_k * num_classes * input_layout.batch();
         if (top_k < output_size) {
             output_size = top_k;
         }
@@ -50,10 +50,10 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
 
     output_size *= DETECTION_OUTPUT_ROW_SIZE;
     // Add space for number of output results per image - needed in the next detection output step
-    output_size += ((input_layout.size.batch[0] + 15) / 16) * 16;
+    output_size += ((input_layout.batch() + 15) / 16) * 16;
 
     return {input_layout.data_type, cldnn::format::bfyx,
-            cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, node.get_primitive()->keep_top_k * input_layout.size.batch[0])};
+            cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, node.get_primitive()->keep_top_k * input_layout.batch())};
 }
 
 std::string detection_output_inst::to_string(detection_output_node const& node) {
@@ -138,36 +138,33 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
                                   "expected bfyx input format",
                                   format::bfyx);
 
-    tensor location_size = location_layout.size;
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Location input dimensions",
-                          (location_size.feature[0] * location_size.batch[0]),
+                          (location_layout.feature() * location_layout.batch()),
                           "detection output layer dimensions",
                           static_cast<int>(location_layout.count()),
                           "Location input/ detection output dims mismatch");
 
-    tensor confidence_size = confidence_layout.size;
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Confidence input dimensions",
-                          (confidence_size.feature[0] * confidence_size.batch[0]),
+                          (confidence_layout.feature() * confidence_layout.batch()),
                           "detection output layer dimensions",
                           static_cast<int>(confidence_layout.count()),
                           "Confidence input/detection output dims mistmach");
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Confidence batch size",
-                          confidence_size.batch[0],
+                          confidence_layout.batch(),
                           "location input batch size",
-                          location_size.batch[0],
+                          location_layout.batch(),
                           "Batch sizes mismatch.");
 
     auto desc = node.get_primitive();
     int prior_feature_size = desc->variance_encoded_in_target ? 1 : 2;
-    tensor prior_box_size = prior_box_layout.size;
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Prior box spatial X", prior_box_size.spatial[0], "expected value", 1, "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Prior box spatial X", prior_box_layout.spatial(0), "expected value", 1, "");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Prior box feature size",
-                          prior_box_size.feature[0],
+                          prior_box_layout.feature(),
                           "expected value",
                           prior_feature_size,
                           "");

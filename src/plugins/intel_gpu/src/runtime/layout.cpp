@@ -141,6 +141,6 @@ std::vector<size_t> layout::get_dims_order() const {
 
 std::string layout::to_string() const {
     // TODO: Extend with format/data-type info
-    return size.to_string();
+    return format.to_string() + size.to_string();
 }
 }  // namespace cldnn

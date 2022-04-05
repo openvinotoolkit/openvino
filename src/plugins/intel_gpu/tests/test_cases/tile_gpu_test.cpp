@@ -17,15 +17,15 @@ using namespace ::tests;
 template<typename data_t>
 void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis, int num_tiles)
 {
-    auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int>
+    auto get_sizes = [](const layout& l, tile::tile_axis axis) -> std::pair<int, int>
     {
         switch (axis)
         {
-            case tile::along_b: return std::make_pair(1, size.batch[0]*size.feature[0]*size.spatial[2]*size.spatial[1]*size.spatial[0]);
-            case tile::along_f: return std::make_pair(size.batch[0], size.feature[0]*size.spatial[2]*size.spatial[1]*size.spatial[0]);
-            case tile::along_z: return std::make_pair(size.batch[0]*size.feature[0], size.spatial[2]*size.spatial[1]*size.spatial[0]);
-            case tile::along_y: return std::make_pair(size.batch[0]*size.feature[0]*size.spatial[2], size.spatial[1]*size.spatial[0]);
-            case tile::along_x: return std::make_pair(size.batch[0]*size.feature[0]*size.spatial[2]*size.spatial[1], size.spatial[0]);
+            case tile::along_b: return std::make_pair(1, l.batch()*l.feature()*l.spatial(2)*l.spatial(1)*l.spatial(0));
+            case tile::along_f: return std::make_pair(l.batch(), l.feature()*l.spatial(2)*l.spatial(1)*l.spatial(0));
+            case tile::along_z: return std::make_pair(l.batch()*l.feature(), l.spatial(2)*l.spatial(1)*l.spatial(0));
+            case tile::along_y: return std::make_pair(l.batch()*l.feature()*l.spatial(2), l.spatial(1)*l.spatial(0));
+            case tile::along_x: return std::make_pair(l.batch()*l.feature()*l.spatial(2)*l.spatial(1), l.spatial(0));
             default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
         }
     };
@@ -36,7 +36,7 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
 
-    auto sizes = get_sizes(input->get_layout().size, axis);
+    auto sizes = get_sizes(input->get_layout(), axis);
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
