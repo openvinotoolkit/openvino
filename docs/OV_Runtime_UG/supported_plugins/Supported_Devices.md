@@ -192,10 +192,10 @@ The following layers are supported by the plugins:
 | Log                            | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
 | LRN (Norm)                     | Supported     | Supported     | Supported     | Not Supported | Supported\*     |
 | LSTMCell                       | Supported     | Supported     | Supported     | Supported     | Supported       |
-| GRUCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
+| GRUCell                        | Supported     | Supported     | Not Supported | Supported     | Supported       |
 | RNNCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
-| LSTMSequence                   | Supported     | Supported     | Supported     | Not Supported |Supported\*\*\*\*|
-| GRUSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
+| LSTMSequence                   | Supported     | Supported     | Supported     | Supported     |Supported\*\*\*\*|
+| GRUSequence                    | Supported     | Supported     | Not Supported | Supported     |Supported\*\*\*\*|
 | RNNSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
 | LogSoftmax                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Memory                         | Not Supported | Supported     | Not Supported | Supported     | Not Supported   |
