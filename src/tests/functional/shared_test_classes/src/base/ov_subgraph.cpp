@@ -313,11 +313,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     }
 
     const auto& outputs = functionToProcess->outputs();
-    if (outType.size() == 1) {
-        for (size_t i = 1; i < outputs.size(); ++i) {
-            outType.push_back(outType.front());
-        }
-    }
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType[i] != ElementType::undefined && outType[i] != outputs[i].get_element_type()) {
             p.output(i).tensor().set_element_type(outType[i]);
