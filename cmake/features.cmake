@@ -46,10 +46,12 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 # Try to find python3
 find_package(PythonLibs 3 QUIET)
 # Check for Cython to build IE_API 
-ov_check_pip_package(REQUIREMENT "cython>=0.29.22"
+ov_check_pip_packages(REQUIREMENTS_FILE ${CMAKE_SOURCE_DIR}/src/bindings/python/requirements.txt
                      RESULT_VAR IE_PYTHON_DEV_REQS)
+ov_check_pip_package(REQUIREMENT "cython>=0.29.22"
+                     RESULT_VAR CYTHON)
 
-ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;IE_PYTHON_DEV_REQS" OFF)
+ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;CYTHON;IE_PYTHON_DEV_REQS" OFF)
 
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
