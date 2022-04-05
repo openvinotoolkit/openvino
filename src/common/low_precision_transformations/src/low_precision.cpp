@@ -65,6 +65,7 @@
 #include "low_precision/split.hpp"
 #include "low_precision/shuffle_channels.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/tile.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
@@ -237,6 +238,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     common->add_matcher<ngraph::pass::low_precision::ShuffleChannelsTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::SplitTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::StridedSliceTransformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::TileTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::TransposeTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::UnsqueezeTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::VariadicSplitTransformation>(params);

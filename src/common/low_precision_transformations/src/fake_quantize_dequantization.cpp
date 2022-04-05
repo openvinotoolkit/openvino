@@ -179,6 +179,22 @@ std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::sh
     return lastNode;
 }
 
+void FakeQuantizeDequantization::scalarizeConstants() {
+    auto replaceDeqConstToScalar = [](std::shared_ptr<opset1::Constant> constant) {
+        if (constant && ov::shape_size(constant->get_shape()) != 1) {
+            auto scalarConstant = NetworkHelper::toScalarIfPossible(constant);
+            if (constant != scalarConstant) {
+                NetworkHelper::copyInfo(constant, scalarConstant);
+                ov::replace_node(constant, scalarConstant);
+                return ov::as_type_ptr<opset1::Constant>(scalarConstant);
+            }
+        }
+        return constant;
+    };
+    subtractConstant = replaceDeqConstToScalar(subtractConstant);
+    multiplyConstant = replaceDeqConstToScalar(multiplyConstant);
+}
+
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
     std::shared_ptr<ngraph::opset1::Convert>& convert,
