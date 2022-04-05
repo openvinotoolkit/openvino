@@ -179,24 +179,28 @@ public:
     InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
         : m_model_proto{model_proto},
           m_infer_shapes_was_run{false} {}
-    void infer_shapes() {
+
+    bool infer_shapes() {
         try {  // unexpected exceptions of external onnx lib
             ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+            m_infer_shapes_was_run = true;
         } catch (...) {
             release();
         }
-        m_infer_shapes_was_run = true;
+        return m_infer_shapes_was_run;
     }
+
     void release() {
-        if (m_infer_shapes_was_run) {
-            try {
-                m_model_proto->mutable_graph()->clear_value_info();
-            } catch (...) {
-            }
+        try {
+            m_model_proto->mutable_graph()->clear_value_info();
+        } catch (...) {
         }
     }
+
     ~InferShapesAutoRelease() {
-        release();
+        if (m_infer_shapes_was_run) {
+            release();
+        }
     }
 
 private:
@@ -332,9 +336,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
         tensor = initializer;
     } else {
-        try {
-            onnx_shapes.infer_shapes();
-        } catch (const std::exception& e) {
+        auto shape_infer_applied = onnx_shapes.infer_shapes();
+        if (!shape_infer_applied) {
             NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
             return PartialShape::dynamic();
         }
