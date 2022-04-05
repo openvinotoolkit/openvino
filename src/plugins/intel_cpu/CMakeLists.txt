@@ -42,7 +42,7 @@ if(SELECTIVE_BUILD STREQUAL "ON")
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
+target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
                                              inference_engine_snippets)
 
@@ -50,7 +50,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -68,7 +68,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
+    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
@@ -81,7 +81,7 @@ if(BUILD_SHARED_LIBS)
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
     set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
@@ -93,6 +93,8 @@ if(BUILD_SHARED_LIBS)
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
     # LTO
-    set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
-        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+    set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
+
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
