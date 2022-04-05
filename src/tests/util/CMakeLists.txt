@@ -16,4 +16,5 @@ file(GLOB_RECURSE all_util_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURR
 add_clang_format_target(ngraph_test_util_clang FOR_SOURCES ${all_util_src})
 
 # developer package
-openvino_developer_export_targets(COMPONENT core TARGETS ngraph_test_util)
+
+openvino_developer_export_targets(COMPONENT tests TARGETS ngraph_test_util)

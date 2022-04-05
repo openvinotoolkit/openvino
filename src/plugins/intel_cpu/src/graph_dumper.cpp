@@ -8,7 +8,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
-#include "mkldnn_debug.h"
+#include <dnnl_debug.h>
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
@@ -94,7 +94,7 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
             }
         }
     } else {
-        outputLayoutsStr = mkldnn::utils::fmt2str(mkldnn::memory::format_tag::undef);
+        outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 

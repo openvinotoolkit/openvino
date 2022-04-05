@@ -27,7 +27,7 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -54,11 +54,11 @@ void ReorgYolo::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ReorgYolo::executeDynamicImpl(mkldnn::stream strm) {
+void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void ReorgYolo::execute(mkldnn::stream strm) {
+void ReorgYolo::execute(dnnl::stream strm) {
     const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 

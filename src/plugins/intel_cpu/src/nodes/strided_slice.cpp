@@ -13,7 +13,7 @@
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -51,7 +51,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -173,7 +173,7 @@ void StridedSlice::getSupportedDescriptors() {
             THROW_ERROR << "can't cast node on " << type << " port to Input";
         }
         auto blob = constNode->getMemoryPtr();
-        if (blob->GetDataType() != mkldnn::memory::data_type::s32)
+        if (blob->GetDataType() != dnnl::memory::data_type::s32)
             THROW_ERROR << "supports only parameters input with precision I32";
         const int *ptr = static_cast<const int*>(blob->GetPtr());
         parameter.assign(ptr, ptr + size);
@@ -679,7 +679,7 @@ void StridedSlice::StridedSliceExecutor::exec(const uint8_t* srcData, uint8_t* d
     });
 }
 
-void StridedSlice::execute(mkldnn::stream strm) {
+void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have compiled executor!";
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemory().GetPtr());
@@ -687,7 +687,7 @@ void StridedSlice::execute(mkldnn::stream strm) {
     execPtr->exec(srcData, dstData);
 }
 
-void StridedSlice::executeDynamicImpl(mkldnn::stream strm) {
+void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

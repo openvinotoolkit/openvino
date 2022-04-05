@@ -6,18 +6,17 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
@@ -683,7 +682,7 @@ bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngr
 }
 
 DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+        const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1199,7 +1198,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
     });
 }
 
-void DeformableConvolution::execute(mkldnn::stream strm) {
+void DeformableConvolution::execute(dnnl::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();

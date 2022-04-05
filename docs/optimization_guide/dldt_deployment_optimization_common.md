@@ -1,6 +1,9 @@
 # General Optimizations {#openvino_docs_deployment_optimization_guide_common}
 
-## Inputs Pre-processing with OpenVINO
+This chapter covers application-level optimization techniques such as asynchronous execution to improve data pipelining, pre-processing acceleration and so on. 
+While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario (both latency and throughput).
+
+## Inputs Pre-Processing with OpenVINO
 
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, to the weights of the first convolution). Please see [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).

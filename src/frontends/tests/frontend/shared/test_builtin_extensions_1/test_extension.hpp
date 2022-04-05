@@ -5,7 +5,6 @@
 #pragma once
 
 #include <extension/json_transformation.hpp>
-#include <nlohmann/json.hpp>
 #include <openvino/frontend/node_context.hpp>
 
 class TestExtension1 : public ov::frontend::JsonTransformationExtension {

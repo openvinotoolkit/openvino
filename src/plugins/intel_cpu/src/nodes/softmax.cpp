@@ -5,14 +5,14 @@
 #include "softmax.h"
 
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -65,7 +65,7 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -148,7 +148,7 @@ void SoftMax::prepareParams() {
 
     SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
     auto engine = getEngine();
-    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<dnnl::primitive> {
         softmax_forward::primitive_desc prim_desc;
         DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
@@ -185,7 +185,7 @@ void SoftMax::prepareParams() {
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-void SoftMax::executeDynamicImpl(mkldnn::stream strm) {
+void SoftMax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

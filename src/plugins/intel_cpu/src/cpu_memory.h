@@ -8,8 +8,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <mkldnn.hpp>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <cpu_shape.h>
 
 #include "memory_desc/dnnl_memory_desc.h"
@@ -156,8 +155,8 @@ private:
 
 class Memory {
 public:
-    explicit Memory(const mkldnn::engine& eng);
-    Memory(const mkldnn::engine& eng, std::unique_ptr<IMemoryMngr> mngr);
+    explicit Memory(const dnnl::engine& eng);
+    Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr);
 
     Memory(const Memory&) = delete;
     Memory& operator= (const Memory&) = delete;
@@ -165,7 +164,7 @@ public:
     Memory(Memory&&) = delete;
     Memory& operator= (Memory&&) = delete;
 
-    mkldnn::memory GetPrimitive() const {
+    dnnl::memory GetPrimitive() const {
         if (isAllocated()) {
             return *prim;
         } else {
@@ -212,7 +211,7 @@ public:
      */
     void* GetPtr() const;
 
-    mkldnn::memory::data_type GetDataType() const {
+    dnnl::memory::data_type GetDataType() const {
         return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
     }
 
@@ -240,7 +239,7 @@ public:
         return getDesc().getShape().getStaticDims();
     }
 
-    mkldnn::engine getEngine() const {
+    dnnl::engine getEngine() const {
         return eng;
     }
 
@@ -256,13 +255,13 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void update();
 
 private:
     MemoryDescPtr pMemDesc;
-    std::shared_ptr<mkldnn::memory> prim;
-    mkldnn::engine eng;
+    std::shared_ptr<dnnl::memory> prim;
+    dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
 };
 

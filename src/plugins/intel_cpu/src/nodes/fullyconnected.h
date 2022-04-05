@@ -16,11 +16,11 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
+    std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool canBeInPlace() const override {
@@ -40,8 +40,8 @@ public:
     }
 
     void initSupportedPrimitiveDescriptors() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -49,16 +49,16 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() override;
+    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDynamicBatchLim(int lim) override;
 
 private:
-    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
-                                  const mkldnn::memory::desc &outputDesc);
+    void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
+                                  const dnnl::memory::desc &outputDesc);
 
     VectorDims makeDummyInputDims() const;
     VectorDims makeDummyOutputDims(const VectorDims& inDims) const;
@@ -66,7 +66,7 @@ private:
     VectorDims inDims;
     VectorDims outDims;
 
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
 
     bool withBiases = false;
 
