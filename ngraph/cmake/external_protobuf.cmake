@@ -101,6 +101,29 @@ else()
             set(Protobuf_GNUCXX_Compile_Flags "-Wno-stringop-overflow -Wno-inconsistent-missing-override")
         endif()
 
+        # We need to link with libatomic on systems that do not have builtin atomics, or
+        # don't have builtin support for 8 byte atomics
+        set(protobuf_LINK_LIBATOMIC false)
+        if (NOT MSVC)
+            include(CheckCXXSourceCompiles)
+            set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+            set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} -std=c++11)
+            check_cxx_source_compiles("
+                #include <atomic>
+                int main() {
+                return std::atomic<int64_t>{};
+                }
+            " protobuf_HAVE_BUILTIN_ATOMICS)
+            if (NOT protobuf_HAVE_BUILTIN_ATOMICS)
+                set(protobuf_LINK_LIBATOMIC true)
+            endif (NOT protobuf_HAVE_BUILTIN_ATOMICS)
+            set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
+        endif (NOT MSVC)
+
+        if (protobuf_LINK_LIBATOMIC)
+            target_link_libraries(${Protobuf_LIBRARIES} atomic)
+        endif()
+
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
