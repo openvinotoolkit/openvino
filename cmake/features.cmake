@@ -45,7 +45,7 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 # Try to find python3
 find_package(PythonLibs 3 QUIET)
-ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND" OFF)
+ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONLIBS_FOUND" OFF)
 
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)

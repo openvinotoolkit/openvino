@@ -113,7 +113,10 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    find_package(gflags QUIET COMPONENTS nothreads_static)
+    if(NOT APPLE)
+        # on Apple only dynamic libraries are available
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 
     if(gflags_FOUND)
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
