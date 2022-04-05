@@ -31,7 +31,12 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         VPU_LOGGER_SECTION(env.log);
 
         switch (input->desc().type()) {
-            case DataType::U8:
+            case DataType::U8: {
+                if (_core && _core->isNewAPI()) {
+                    env.log->trace("OpenVINO API 2.0 has already inserted Convert operations. Skip this legacy pass for inputs.");
+                    continue;
+                }
+            }
             case DataType::FP32: {
                 env.log->trace("Convert to FP16");
 
