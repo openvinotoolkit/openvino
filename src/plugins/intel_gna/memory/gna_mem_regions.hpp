@@ -26,7 +26,7 @@ inline int rRegionOrder(const rRegion region) {
     return static_cast<int>(region);
 }
 
-inline const char* rRegionToStr(uint8_t region) {
+inline const char* rRegionToStr(const rRegion region) {
    const char* strRegion = "UNKNOWN";
    switch (region) {
         case REGION_INPUTS:
