@@ -593,6 +593,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
                 new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
             }
+            // TODO: check other types for first conv
 
             if (new_layout == input_layout)
                 return;

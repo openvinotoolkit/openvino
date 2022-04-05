@@ -220,6 +220,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
 
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv2),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv2),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv2),

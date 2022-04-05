@@ -965,7 +965,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         // bool is_first_conv = input_layout.size.feature[0] < 4;
 
         if (i8_u8_output) {
-            if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
+            if (!non_grouped && is_dw) {
+                expected_format = cldnn::format::byxf;
+
+            } else if ((non_grouped || valid_grouped || valid_int8_dw) && is_2d) {
                 if (input_layout.batch() >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
@@ -987,7 +990,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         } else if ((output_layout.data_type == data_types::f16 || output_layout.data_type == data_types::f32) && is_2d) {
             expected_tensor = current_layout.size;
 
-            if (input_layout.batch() >= 16 && onednn_valid_post_ops) {
+            if (input_layout.batch() >= 16) {
                 if (non_grouped || valid_grouped || is_dw) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv16;
                 } else {
@@ -1334,6 +1337,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_formats = {
+            format::byxf,
             format::b_fs_zyx_fsv16,
             format::b_fs_zyx_fsv32,
             format::b_fs_yx_fsv32,
@@ -1551,10 +1555,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
             expected = format::bfyx;
-        } else if (use_onednn_impls && data_type_traits::is_i8_u8(layout.data_type) &&
-            needs_all_usr_onednn_small_ic_to_blocked(node)) {
+        } else if (use_onednn_impls  && needs_all_usr_onednn_small_ic_to_blocked(node)) {
             // All user nodes are convolutions which satisfy options for onednn first conv
-            expected = format::bs_fs_yx_bsv8_fsv4;
+            if (layout.data_type == data_types::f16) {
+                expected = (layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
+            } else if (data_type_traits::is_i8_u8(layout.data_type)) {
+                expected = (layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
+            }
+            // TODO: check other types for first conv
         } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.batch() % 16 == 0) {
