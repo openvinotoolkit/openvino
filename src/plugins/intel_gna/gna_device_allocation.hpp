@@ -19,6 +19,8 @@
 #include "memory/gna_mem_regions.hpp"
 #include "gna_lib_ver_selector.hpp"
 
+using GNAPluginNS::memory::rRegion;
+
 struct GnaAllocation {
     void* ptr = nullptr;
     size_t sizeRequested = 0;
@@ -50,23 +52,30 @@ struct GnaAllocation {
         }
         return "Gna2MemoryTag_" + std::to_string(tag) + "_";
     }
-    int GetRegionOrder() const {
-        static const std::map<Gna2MemoryTag, int> tm = {
-            {Gna2MemoryTagInput, 1},
-            {Gna2MemoryTagOutput, 2},
-            {Gna2MemoryTagReadOnly, 0},
-            {Gna2MemoryTagScratch, 4},
-            {Gna2MemoryTagState, 3},
+
+    static rRegion GetRegionForTag(Gna2MemoryTag tag) {
+        static const std::map<Gna2MemoryTag, rRegion> tm = {
+            {Gna2MemoryTagInput, rRegion::REGION_INPUTS},
+            {Gna2MemoryTagOutput, rRegion::REGION_OUTPUTS},
+            {Gna2MemoryTagReadOnly, rRegion::REGION_RO},
+            {Gna2MemoryTagScratch, rRegion::REGION_SCRATCH},
+            {Gna2MemoryTagState, rRegion::REGION_STATES},
+            {Gna2MemoryTagExternalBufferInput, rRegion::REGION_INPUTS},
+            {Gna2MemoryTagExternalBufferOutput, rRegion::REGION_OUTPUTS},
         };
-        if (!isTagSet) {
-            return 10;
-        }
         auto f = tm.find(tag);
         if (f != tm.end()) {
             return f->second;
         }
-        return 1000;
+        return rRegion::REGION_AUTO;
     }
+
+    int GetRegionOrder() const {
+        const auto region = GetRegionForTag(tag);
+        const auto order = rRegionOrder(region);
+        return order;
+    }
+
     std::pair<bool, size_t> getOffset(void* offset) const {
         std::pair<bool, size_t> v;
         v.first = offset >= ptr && offset < static_cast<uint8_t*>(ptr) + sizeGranted;

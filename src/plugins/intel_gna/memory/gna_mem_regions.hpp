@@ -13,13 +13,18 @@ namespace memory {
  * @brief region of firmware data
  */
 enum rRegion {
-    REGION_AUTO = 0,
-    REGION_INPUTS,
-    REGION_OUTPUTS,
-    REGION_SCRATCH,
-    REGION_STATES,
-    REGION_RO,
+    REGION_INPUTS = 0x0,
+    REGION_OUTPUTS = 0x1,
+    REGION_SCRATCH = 0x10,
+    REGION_STATES = 0x100,
+    REGION_RO = 0x1000,
+    REGION_AUTO = 0x10000,
 };
+
+// When model is exported its memory is exported following this order
+inline int rRegionOrder(const rRegion region) {
+    return static_cast<int>(region);
+}
 
 inline const char* rRegionToStr(uint8_t region) {
    const char* strRegion = "UNKNOWN";

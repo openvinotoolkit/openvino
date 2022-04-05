@@ -67,7 +67,18 @@ protected:
         _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue()));
         _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue()));
         _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue()));
+    }
+
+    std::vector<rRegion> getAllRegionsOrdered() const {
+        std::vector<rRegion> regionList;
+        for (const auto& q : _mem_queues) {
+            regionList.push_back(q.first);
         }
+        std::sort(regionList.begin(), regionList.end(), [](const rRegion& l, const rRegion& r) {
+            return rRegionOrder(l) <= rRegionOrder(r);
+        });
+        return regionList;
+    }
 
  public:
     explicit GNAMemory(size_t pageAlignment = 1)
@@ -126,17 +137,11 @@ protected:
     }
 
     std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
-        std::list<rRegion> orderOfQueue{
-            rRegion::REGION_INPUTS,
-            rRegion::REGION_OUTPUTS,
-            rRegion::REGION_SCRATCH,
-            rRegion::REGION_STATES,
-            rRegion::REGION_RO,
-        };
+        const auto allRegionsOrdered = getAllRegionsOrdered();
 
         uint32_t curOffset = 0;
-        for (auto r : orderOfQueue) {
-            auto& q = *getQueue(r);
+        for (auto region : allRegionsOrdered) {
+            auto& q = *getQueue(region);
             auto ptrBegin = static_cast<uint8_t*>(q.getBasePtr());
             auto size = q.getSize();
             if (ptr >= ptrBegin && ptr < ptrBegin + size) {
@@ -236,7 +241,6 @@ protected:
             // skipping Bind, crossregion and empty requests
             if (re._type == REQUEST_BIND || re._ptr_out == nullptr) continue;
 
-            // uint8_t offset = mRequests->_basePtr.get() + re._offset;
             auto cptr = mRequests->_basePtr.get() + re._offset;
             size_t cptr_avail_size = r_size - re._offset;
             auto sz = re._element_size * re._num_elements;
