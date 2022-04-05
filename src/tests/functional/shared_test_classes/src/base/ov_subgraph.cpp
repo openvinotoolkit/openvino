@@ -313,11 +313,9 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     }
 
     const auto& outputs = functionToProcess->outputs();
-    size_t gapSize = outputs.size() - outType.size();
-    if (gapSize) {
-        auto outTypeDefaultValue = outType[0];
-        for (size_t i = 1; i <= gapSize; i++) {
-            outType.push_back(outTypeDefaultValue);
+    if (outType.size() == 1) {
+        for (size_t i = 1; i < outputs.size(); ++i) {
+            outType.push_back(outType.front());
         }
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
