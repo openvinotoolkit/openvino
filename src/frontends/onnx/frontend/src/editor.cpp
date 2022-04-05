@@ -180,16 +180,23 @@ public:
         : m_model_proto{model_proto},
           m_infer_shapes_was_run{false} {}
     void infer_shapes() {
-        ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+        try {  // unexpected exceptions of external onnx lib
+            ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+        } catch (...) {
+            release();
+        }
         m_infer_shapes_was_run = true;
     }
-    ~InferShapesAutoRelease() {
-        try {
-            if (m_infer_shapes_was_run) {
+    void release() {
+        if (m_infer_shapes_was_run) {
+            try {
                 m_model_proto->mutable_graph()->clear_value_info();
+            } catch (...) {
             }
-        } catch (...) {
         }
+    }
+    ~InferShapesAutoRelease() {
+        release();
     }
 
 private:
