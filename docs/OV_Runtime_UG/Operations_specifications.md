@@ -119,6 +119,7 @@
    NonMaxSuppression-3 <openvino_docs_ops_sort_NonMaxSuppression_3>
    NonMaxSuppression-4 <openvino_docs_ops_sort_NonMaxSuppression_4>
    NonMaxSuppression-5 <openvino_docs_ops_sort_NonMaxSuppression_5>
+   NonMaxSuppression-9 <openvino_docs_ops_sort_NonMaxSuppression_9>
    NonZero-3 <openvino_docs_ops_condition_NonZero_3>
    NormalizeL2-1 <openvino_docs_ops_normalization_NormalizeL2_1>
    NotEqual-1 <openvino_docs_ops_comparison_NotEqual_1>
