@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 usage() {
-    echo "Build inference engine samples"
+    echo "Build OpenVINO Runtime samples"
     echo
     echo "Options:"
     echo "  -h                       Print the help message"
@@ -14,7 +14,7 @@ usage() {
     exit 1
 }
 
-samples_type=$(basename "$PWD")
+samples_type=$(basename "$( dirname "${BASH_SOURCE[0]-$0}" )" )
 build_dir="$HOME/inference_engine_${samples_type}_samples_build"
 sample_install_dir=""
 
@@ -70,7 +70,7 @@ else
 fi
 
 if ! command -v cmake &>/dev/null; then
-    printf "\n\nCMAKE is not installed. It is required to build Inference Engine samples. Please install it. \n\n"
+    printf "\n\nCMAKE is not installed. It is required to build OpenVINO Runtime samples. Please install it. \n\n"
     exit 1
 fi
 

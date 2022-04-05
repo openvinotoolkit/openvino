@@ -14,18 +14,19 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGenericNode : public MKLDNNNode {
+class Generic : public Node {
 public:
-    MKLDNNGenericNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNGenericNode() = default;
+    Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~Generic() = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool created(const MKLDNNExtensionManager::Ptr& extMgr) override;
+    bool created(const ExtensionManager::Ptr& extMgr) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -39,11 +40,11 @@ protected:
     NodeConfig convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig);
     InferenceEngine::LayerConfig convertNodeToLayerConfig(const NodeConfig &nodeConfig);
 
-    InferenceEngine::ILayerImplFactory::Ptr extFactory;
     std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
 
     const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

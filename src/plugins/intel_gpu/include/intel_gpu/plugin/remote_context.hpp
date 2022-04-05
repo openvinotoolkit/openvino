@@ -89,6 +89,8 @@ protected:
 
     cldnn::memory::ptr m_memObject;
 
+    mutable std::mutex lockedMutex;
+    mutable size_t lockedCounter;
     mutable std::unique_ptr<cldnn::mem_lock<uint8_t>> lockedHolder;
     mutable void* _handle;
     mutable std::shared_ptr<InferenceEngine::IAllocator> _allocator;
@@ -115,7 +117,8 @@ public:
 
     void allocate() noexcept override {
         try {
-            _impl.allocate();
+            if (!_impl.is_allocated())
+                _impl.allocate();
         } catch (...) {}
     }
     bool deallocate() noexcept override { return _impl.deallocate(); }

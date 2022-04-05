@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-add_subdirectory(shared)
 
 if (ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
@@ -9,10 +8,6 @@ endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
-endif()
-
-if (ENABLE_OV_TF_FRONTEND)
-    add_subdirectory(tensorflow)
 endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)

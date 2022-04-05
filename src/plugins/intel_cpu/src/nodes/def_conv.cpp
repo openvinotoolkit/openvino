@@ -6,20 +6,22 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
@@ -27,7 +29,7 @@ template <cpu_isa_t isa>
 struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
-    constexpr static int sampledPointsPerPixel = MKLDNNDeformableConvolutionNode::sampledPointsPerPixel;
+    constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
     explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
 
@@ -114,6 +116,11 @@ private:
     inline Xmm get_xmm_acc(int idx) { return Xmm(idx + jcp_.ur_w + 1); }
 
     Xbyak::Label l_table;
+
+    inline void checkZeroWei(const Xbyak::Xmm &x1, Label &nullifyLabel) {
+        uni_vtestps(x1, x1);
+        jz(nullifyLabel);
+    }
 
     void ow_loop() {
         Label ow_loop_main;
@@ -280,6 +287,22 @@ private:
                         Label ic_loop_main;
                         Label ic_loop_tail;
                         Label loop_end;
+                        Label nullify_v1;
+                        Label nullify_v2;
+                        Label nullify_v3;
+                        Label nullify_v4;
+                        Label nullify_v1_end;
+                        Label nullify_v2_end;
+                        Label nullify_v3_end;
+                        Label nullify_v4_end;
+                        Label nullify_v1_tail;
+                        Label nullify_v2_tail;
+                        Label nullify_v3_tail;
+                        Label nullify_v4_tail;
+                        Label nullify_v1_end_tail;
+                        Label nullify_v2_end_tail;
+                        Label nullify_v3_end_tail;
+                        Label nullify_v4_end_tail;
 
                         mov(aux2_reg_input, aux_reg_input);
                         add(aux2_reg_input, (ow * jcp_.stride_w * jcp_.ic) * jcp_.typesize_in);
@@ -337,35 +360,69 @@ private:
                             cmp(reg_ic_iter, simd_w);
                             jl(ic_loop_tail, T_NEAR);
 
+                            // check zero markers
+                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v1, nullify_v1);
                             uni_vmovups(vmm_v1, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v1, vmm_v1, vmm_w1);
+                            jmp(nullify_v1_end, T_NEAR);
+                            L(nullify_v1);
+                            {
+                                uni_vpxor(vmm_v1, vmm_v1, vmm_v1);
+                            }
+                            L(nullify_v1_end);
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
                             uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v2, nullify_v2);
                             uni_vmovups(vmm_v2, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v2, vmm_v2, vmm_w2);
+                            jmp(nullify_v2_end, T_NEAR);
+                            L(nullify_v2);
+                            {
+                                uni_vpxor(vmm_v2, vmm_v2, vmm_v2);
+                            }
+                            L(nullify_v2_end);
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
                             uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v3, nullify_v3);
                             uni_vmovups(vmm_v3, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v3, vmm_v3, vmm_w3);
+                            jmp(nullify_v3_end, T_NEAR);
+                            L(nullify_v3);
+                            {
+                                uni_vpxor(vmm_v3, vmm_v3, vmm_v3);
+                            }
+                            L(nullify_v3_end);
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
                             uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v4, nullify_v4);
                             uni_vmovups(vmm_v4, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v4, vmm_v4, vmm_w4);
+                            jmp(nullify_v4_end, T_NEAR);
+                            L(nullify_v4);
+                            {
+                                uni_vpxor(vmm_v4, vmm_v4, vmm_v4);
+                            }
+                            L(nullify_v4_end);
 
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v2);
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v3);
@@ -383,34 +440,68 @@ private:
                             cmp(reg_ic_iter, 1);
                             jl(loop_end, T_NEAR);
 
+                            // check zero markers
+                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v1, nullify_v1_tail);
                             uni_vmovss(xmm_v1, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v1, xmm_v1, xmm_w1);
+                            jmp(nullify_v1_end_tail, T_NEAR);
+                            L(nullify_v1_tail);
+                            {
+                                uni_vpxor(xmm_v1, xmm_v1, xmm_v1);
+                            }
+                            L(nullify_v1_end_tail);
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
                             uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v2, nullify_v2_tail);
                             uni_vmovss(xmm_v2, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v2, xmm_v2, xmm_w2);
+                            jmp(nullify_v2_end_tail, T_NEAR);
+                            L(nullify_v2_tail);
+                            {
+                                uni_vpxor(xmm_v2, xmm_v2, xmm_v2);
+                            }
+                            L(nullify_v2_end_tail);
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
                             uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v3, nullify_v3_tail);
                             uni_vmovss(xmm_v3, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v3, xmm_v3, xmm_w3);
+                            jmp(nullify_v3_end_tail, T_NEAR);
+                            L(nullify_v3_tail);
+                            {
+                                uni_vpxor(xmm_v3, xmm_v3, xmm_v3);
+                            }
+                            L(nullify_v3_end_tail);
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
                             uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
+                            checkZeroWei(xmm_v4, nullify_v4_tail);
                             uni_vmovss(xmm_v4, ptr[reg_tmp_64]);
                             uni_vmulss(xmm_v4, xmm_v4, xmm_w4);
+                            jmp(nullify_v4_end_tail, T_NEAR);
+                            L(nullify_v4_tail);
+                            {
+                                uni_vpxor(xmm_v4, xmm_v4, xmm_v4);
+                            }
+                            L(nullify_v4_end_tail);
 
                             uni_vaddss(xmm_v1, xmm_v1, xmm_v2);
                             uni_vaddss(xmm_v1, xmm_v1, xmm_v3);
@@ -576,7 +667,7 @@ private:
     }
 };
 
-bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ngraph::op::v1::DeformableConvolution::get_type_info_static(),
@@ -590,8 +681,8 @@ bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr
     return true;
 }
 
-MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
+        const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -627,7 +718,7 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     }
 }
 
-void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
+void DeformableConvolution::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
@@ -646,7 +737,7 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
+void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -731,7 +822,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
+void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         const float* offsets, const float* modulation, bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -854,7 +945,7 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
     });
 }
 
-MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
+DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
                                 const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) {
     if (descVector.size() != 4 && descVector.size() != 5) {
         IE_THROW() << "Deformable Convolution executor got incorrect desc's count (" << descVector.size() << ")";
@@ -932,7 +1023,7 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     jcp.nthr = dnnl_get_max_threads();
 }
 
-MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
+DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
                 DefConvExecutor(defConvAttr, descVector) {
     if (mayiuse(cpu::x64::avx512_common)) {
@@ -951,7 +1042,7 @@ MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const De
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src, const float* offsets,
+void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst,
         int *pSampledCoordsVector, float *pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
@@ -1010,7 +1101,7 @@ void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src,
                 });
 }
 
-void MKLDNNDeformableConvolutionNode::prepareParams() {
+void DeformableConvolution::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
@@ -1071,11 +1162,11 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+void DeformableConvolution::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src, const float* offsets,
+void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst,
         int *pSampledCoordsVector, float *pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
@@ -1107,7 +1198,7 @@ void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src,
     });
 }
 
-void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
+void DeformableConvolution::execute(dnnl::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
@@ -1137,18 +1228,20 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::updatePadding() {
+void DeformableConvolution::updatePadding() {
     if (isDynamicNode() && autoPadding) {
         defConvAttr.padL = shapeInference->get_pads_begin();
     }
 }
 
-bool MKLDNNDeformableConvolutionNode::created() const {
-    return getType() == DeformableConvolution;
+bool DeformableConvolution::created() const {
+    return getType() == Type::DeformableConvolution;
 }
 
-InferenceEngine::Precision MKLDNNDeformableConvolutionNode::getRuntimePrecision() const {
+InferenceEngine::Precision DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNDeformableConvolutionNode, DeformableConvolution);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

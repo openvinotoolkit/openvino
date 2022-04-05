@@ -13,12 +13,13 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNEltwiseNode;
+class Eltwise;
 
-class MKLDNNConvolutionNode : public MKLDNNNode {
+class Convolution : public Node {
 public:
-    MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -33,12 +34,12 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    mkldnn::memory getWeights() const;
-    mkldnn::memory getBias() const;
+    dnnl::memory getWeights() const;
+    dnnl::memory getBias() const;
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return getOriginalInputsNumber();
     }
 
@@ -55,7 +56,7 @@ public:
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
 
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     bool isDepthWise() const {
         return isGrouped && 1 == groupOC && 1 == groupIC;
     }
@@ -65,9 +66,9 @@ public:
     void setDynamicBatchLim(int lim) override;
 
 protected:
-    InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
-    void addFusedNode(const MKLDNNNodePtr &fusingNode) override;
+    void addFusedNode(const NodePtr &fusingNode) override;
 
 private:
     class FusedSubgraph;
@@ -77,27 +78,27 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
-                                const mkldnn::memory::desc& inMemDesc,
-                                const mkldnn::memory::desc& weightMemDesc,
-                                const mkldnn::memory::desc& outMemDesc,
-                                const mkldnn::engine& engine);
+            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+                                const dnnl::memory::desc& inMemDesc,
+                                const dnnl::memory::desc& weightMemDesc,
+                                const dnnl::memory::desc& outMemDesc,
+                                const dnnl::engine& engine);
     };
 
     void prepareParams() override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
-    void addZeroPoints(mkldnn::primitive_attr& attr);
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights);
+    void addZeroPoints(dnnl::primitive_attr& attr);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
+    bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
-    MemoryDescPtr getSumMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it);
-    MKLDNNMemoryPtr getOutputMemory() const;
+    MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
+    MemoryPtr getOutputMemory() const;
 
     void appendZeroPointsArgs();
 
@@ -119,7 +120,7 @@ private:
     size_t dw_conv_iw;
     std::vector<size_t> dw_conv_kernel;
     std::vector<size_t> dw_conv_strides;
-    mkldnn::memory::data_type dw_conv_in_dt;
+    dnnl::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
     size_t IC;
@@ -135,12 +136,13 @@ private:
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
-    std::unordered_map<MKLDNNNodePtr, std::vector<MKLDNNNodePtr>> fusedConstNodes;
+    std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
 
-    MKLDNNMemoryPtr inputZeroPointsMemPtr;
-    MKLDNNMemoryPtr weightsZeroPointsMemPtr;
-    MKLDNNMemoryPtr outputCompensationMemPtr;
+    MemoryPtr inputZeroPointsMemPtr;
+    MemoryPtr weightsZeroPointsMemPtr;
+    MemoryPtr outputCompensationMemPtr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

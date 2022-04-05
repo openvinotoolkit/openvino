@@ -10,18 +10,18 @@
 #include <string>
 #include <vector>
 
-
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNBroadcastNode : public MKLDNNNode, public TileBroadcastCommon {
+class Broadcast : public Node, public TileBroadcastCommon {
 public:
-    MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
 
     bool isExecutable() const override;
@@ -34,7 +34,7 @@ protected:
     std::vector<VectorDims> shapeInfer() const override;
 
 private:
-    void plainExecute(mkldnn::stream strm);
+    void plainExecute(dnnl::stream strm);
 
     enum AutoBroadcastType {
         NUMPY,
@@ -52,5 +52,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

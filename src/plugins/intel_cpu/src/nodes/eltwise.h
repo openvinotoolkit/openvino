@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 #define MAX_ELTWISE_INPUTS 7
 #define MAX_ELTWISE_DIM_RANK 12
@@ -47,7 +48,7 @@ struct jit_eltwise_call_args_indexes {
     size_t indexes[MAX_ELTWISE_DIM_RANK];
 };
 
-class MKLDNNEltwiseNode;
+class Eltwise;
 
 struct jit_uni_eltwise_kernel {
     void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
@@ -65,11 +66,11 @@ struct jit_uni_eltwise_kernel {
     jit_eltwise_params jep_;
 };
 
-class MKLDNNEltwiseNode : public MKLDNNNode {
+class Eltwise : public Node {
 public:
     struct EltwiseData {
         Algorithm algo;
-        mkldnn::algorithm mkldnnAlgorithm;
+        dnnl::algorithm onednnAlgorithm;
         float alpha;
         float beta;
         float gamma;
@@ -89,26 +90,26 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
-    bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
-    void fuseInto(MKLDNNNodePtr& parentNode) override;
+    bool canFuse(const NodePtr& node) const override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
+    void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void fuseInto(NodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
 
-    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
+    dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
@@ -117,7 +118,7 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDynamicBatchLim(int lim) override;
 
@@ -135,7 +136,7 @@ private:
     executorPtr execPtr = nullptr;
     BroadcastingPolicy broadcastingPolicy;
 
-    mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
+    dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
@@ -153,17 +154,17 @@ private:
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
-    MKLDNNMemoryPtr scalesMemory;
-    MKLDNNMemoryPtr shiftsMemory;
+    MemoryPtr scalesMemory;
+    MemoryPtr shiftsMemory;
 
     std::vector<float> depthwiseData = {};
-    MKLDNNMemoryPtr depthwiseMemory;
+    MemoryPtr depthwiseMemory;
     size_t depthwiseDataSize = 0;
 
-    std::vector<MKLDNNMemoryPtr> memPtrs = {};
+    std::vector<MemoryPtr> memPtrs = {};
     std::vector<const void*> fqDataPtrs;
 
-    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
+    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, Eltwise& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
     static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
@@ -171,11 +172,12 @@ private:
     size_t getOpInputsNum() const;
 
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
 
-    void appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem);
-    void appendMemory(const std::vector<float> &data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+    void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
+    void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -10,8 +10,8 @@
 #include "conv.h"
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
@@ -31,14 +31,17 @@
 # endif
 #endif
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
@@ -46,7 +49,7 @@ template <cpu_isa_t isa>
 struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
-    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
+    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
             jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
 
     void create_ker() override {
@@ -103,13 +106,13 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
             solve_common(1, jcp_.oc_block);
 
             sub(reg_oc_work, jcp_.oc_block);
-            add(reg_kernel_base, jcp_.oc_block * jcp_.nb_ic * jcp_.kh * jcp_.kw * ov::intel_cpu::div_up(jcp_.ic_block, nbits) * jcp_.typesize_in);
+            add(reg_kernel_base, jcp_.oc_block * jcp_.nb_ic * jcp_.kh * jcp_.kw * div_up(jcp_.ic_block, nbits) * jcp_.typesize_in);
 
             if (jcp_.with_dw_conv) {
                 add(reg_output_base, jcp_.oc_block * jcp_dw_conv_.kh * jcp_.ow * jcp_.typesize_out);
             } else {
                 if (jcp_.with_binarization)
-                    add(reg_output_base, ov::intel_cpu::div_up(jcp_.oc_block, nbits) * jcp_.typesize_out);
+                    add(reg_output_base, div_up(jcp_.oc_block, nbits) * jcp_.typesize_out);
                 else
                     add(reg_output_base, jcp_.oc_block * jcp_.typesize_out);
             }
@@ -210,7 +213,7 @@ private:
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
 
-    void cvt2ps(mkldnn::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
+    void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
         Xmm xmm_in = Xmm(vmm_in.getIdx());
 
         switch (type_in) {
@@ -315,16 +318,16 @@ private:
         int nbits = 8;
 
         for (int ki = 0; ki < kw; ki++) {
-            int jj_start = nstl::max(0, ov::intel_cpu::div_up(pad_l - ki * dilate_w, stride_w));
-            int jj_end = ur_w  - nstl::max(0, ov::intel_cpu::div_up(ki*dilate_w+pad_r-(kw-1)*dilate_w, stride_w));
+            int jj_start = nstl::max(0, div_up(pad_l - ki * dilate_w, stride_w));
+            int jj_end = ur_w  - nstl::max(0, div_up(ki*dilate_w+pad_r-(kw-1)*dilate_w, stride_w));
 
             int _start = (!jcp_.exclude_pad) ? 0 : jj_start;
             int _end = (!jcp_.exclude_pad) ? ur_w : jj_end;
 
             for (int ifm2 = 0; ifm2 < ic_blocks; ifm2++) {
                 for (int jj = _start; jj < _end; jj++) {
-                    int inp_off = ((ki*dilate_w + jj*stride_w - pad_l)*ov::intel_cpu::div_up(jcp_.ic, nbits) +
-                                   ifm2 * ov::intel_cpu::div_up(ic_blk, nbits)) * jcp_.typesize_in;
+                    int inp_off = ((ki*dilate_w + jj*stride_w - pad_l)*div_up(jcp_.ic, nbits) +
+                                   ifm2 * div_up(ic_blk, nbits)) * jcp_.typesize_in;
 
                     if (h_padded || jj < jj_start || jj >= jj_end) {
                         uni_vmovups(vmm_src, ptr[reg_table + 8 * vlen]);
@@ -334,10 +337,10 @@ private:
 
                     for (int r = 0; r < repeats; r++) {
                         for (int ii = 0; ii < oc_blocks; ii++) {
-                            int ker_off = (ifm2 * kh * kw * ov::intel_cpu::div_up(ic_blk, nbits) * oc_blk
-                                           + ii * jcp_.nb_ic * ov::intel_cpu::div_up(ic_blk, nbits) * kh * kw * oc_blk
-                                           + ki * ov::intel_cpu::div_up(ic_blk, nbits) * oc_blk
-                                           + r * ov::intel_cpu::div_up(ic_blk, nbits) * (oc_blk / 2)) * jcp_.typesize_in;
+                            int ker_off = (ifm2 * kh * kw * div_up(ic_blk, nbits) * oc_blk
+                                           + ii * jcp_.nb_ic * div_up(ic_blk, nbits) * kh * kw * oc_blk
+                                           + ki * div_up(ic_blk, nbits) * oc_blk
+                                           + r * div_up(ic_blk, nbits) * (oc_blk / 2)) * jcp_.typesize_in;
 
                             uni_vmovups(vmm_tmp, ptr[aux1_reg_kernel + ker_off]);
 
@@ -393,7 +396,7 @@ private:
         int kw = jcp_.kw;
 
         int nbits = 8;
-        int inp_mult = ov::intel_cpu::div_up(jcp_.ic_block, nbits);
+        int inp_mult = div_up(jcp_.ic_block, nbits);
         int out_mult = jcp_.oc_block;
 
         Label icb_main_loop;
@@ -427,7 +430,7 @@ private:
         int dilate_h = jcp_.dilate_h + 1;
 
         int nbits = 8;
-        const int inp_mult = dilate_h * ov::intel_cpu::div_up(jcp_.ic, nbits);
+        const int inp_mult = dilate_h * div_up(jcp_.ic, nbits);
 
         Label t_overflow_label, no_t_overflow_label,
                 b_overflow_label, no_b_overflow_label;
@@ -447,7 +450,7 @@ private:
             L(t_overflow_label); {
                 oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, true);
 
-                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
+                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * div_up(jcp_.ic_block, nbits));
                 dec(reg_overflow);
                 cmp(reg_overflow, 0);
                 jg(t_overflow_label, T_NEAR);
@@ -468,7 +471,7 @@ private:
         {
             oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, false);
 
-            add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
+            add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * div_up(jcp_.ic_block, nbits));
             add(aux_reg_input, jcp_.typesize_in * iw * inp_mult);
 
             dec(reg_kh);
@@ -485,7 +488,7 @@ private:
             L(b_overflow_label); {
                 oh_step_unroll_kw(ur_w, pad_l, pad_r, oc_blocks, oc_step, true);
 
-                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * ov::intel_cpu::div_up(jcp_.ic_block, nbits));
+                add(aux_reg_kernel, jcp_.typesize_in * kw * jcp_.oc_block * div_up(jcp_.ic_block, nbits));
                 dec(reg_overflow);
                 cmp(reg_overflow, 0);
                 jg(b_overflow_label, T_NEAR);
@@ -528,8 +531,8 @@ private:
                     kw_padding[jj] = 0;
 
                 for (int ki = 0; ki < jcp_.kw; ki++) {
-                    int jj_start = nstl::max(0, ov::intel_cpu::div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
-                    int jj_end = ur_w - nstl::max(0, ov::intel_cpu::div_up(ki * (jcp_.dilate_w + 1) + pad_r -
+                    int jj_start = nstl::max(0, div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
+                    int jj_end = ur_w - nstl::max(0, div_up(ki * (jcp_.dilate_w + 1) + pad_r -
                                                                           (jcp_.kw - 1) * (jcp_.dilate_w + 1), jcp_.stride_w));
                     for (int jj = jj_start; jj < jj_end; jj++) {
                         kw_padding[jj]++;
@@ -677,10 +680,10 @@ private:
 
                         if (r == repeats - 1) {
                             if (isa == x64::avx512_common && oc_step > nbits) {
-                                const size_t o_off = (2 * ii + jj * ov::intel_cpu::div_up(jcp_.oc, nbits));
+                                const size_t o_off = (2 * ii + jj * div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_16);
                             } else {
-                                const size_t o_off = (ii + jj * ov::intel_cpu::div_up(jcp_.oc, nbits));
+                                const size_t o_off = (ii + jj * div_up(jcp_.oc, nbits));
                                 mov(ptr[reg_output + o_off * jcp_.typesize_out], reg_tmp_8);
                             }
                         }
@@ -754,8 +757,8 @@ private:
         int str_w = jcp_.stride_w;
 
         int nbits = 8;
-        const int inp_mult = ov::intel_cpu::div_up(jcp_.ic, nbits);
-        const int out_mult = jcp_.with_dw_conv ? jcp_.oc_block : jcp_.with_binarization ? ov::intel_cpu::div_up(jcp_.oc, nbits) : jcp_.oc;
+        const int inp_mult = div_up(jcp_.ic, nbits);
+        const int out_mult = jcp_.with_dw_conv ? jcp_.oc_block : jcp_.with_binarization ? div_up(jcp_.oc, nbits) : jcp_.oc;
 
         int l_pad = jcp_.l_pad;
         int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w
@@ -872,7 +875,7 @@ private:
     }
 };
 
-bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -894,9 +897,9 @@ bool MKLDNNBinaryConvolutionNode::isSupportedOperation(const std::shared_ptr<con
     return true;
 }
 
-MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
-                                                         const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
+                                                         const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
@@ -926,15 +929,15 @@ MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const std::shared_ptr<n
     }
 }
 
-void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
+void BinaryConvolution::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    withBinarization = isFusedWith(FakeQuantize);
+    withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
     int expectedInputEdgesNum = 2;
     for (int i = 0; i < fusedWith.size(); i++) {
-        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+        auto *eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
@@ -960,7 +963,7 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
+void BinaryConvolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1015,7 +1018,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNBinaryConvolutionNode::createPrimitive() {
+void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -1079,7 +1082,7 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(dstPrecision);
+    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(dstPrecision);
     jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
     jcp.typesize_out = dstPrecision == Precision::BIN ? 1 : dstPrecision.size();
 
@@ -1102,16 +1105,16 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
         bin_conv_kernel->create_ker();
 }
 
-bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
+bool BinaryConvolution::canFuse(const NodePtr& node) const {
     if (implType == impl_desc_type::ref)
         return false;
 
     // Binarization have to be last operation in fusing chain
-    if (isFusedWith(FakeQuantize))
+    if (isFusedWith(Type::FakeQuantize))
         return false;
 
-    if (node->getType() == FakeQuantize) {
-        bool ret = node->getAlgorithm() == FQBinarization;
+    if (node->getType() == Type::FakeQuantize) {
+        bool ret = node->getAlgorithm() == Algorithm::FQBinarization;
         for (size_t i = 1; i < node->getParentEdges().size(); i++) {
             ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
         }
@@ -1121,12 +1124,12 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     }
 }
 
-void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
-    mkldnn::post_ops ops;
+void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
@@ -1137,7 +1140,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
             continue;
         }
 
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
             continue;
@@ -1149,13 +1152,13 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     attr.set_post_ops(ops);
 }
 
-void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
+void BinaryConvolution::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
                                                    const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_f32 = reinterpret_cast<float *>(dst);
 
     const int MB = jcp.mb;
 
-    int ocb_work = ov::intel_cpu::div_up(jcp.nb_oc, jcp.nb_oc_blocking);
+    int ocb_work = div_up(jcp.nb_oc, jcp.nb_oc_blocking);
     int nbits = 8;
 
     parallel_for4d(MB, jcp.ngroups, ocb_work, jcp.oh, [&](int n, int g, int ocbb, int oh) {
@@ -1165,8 +1168,8 @@ void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uin
         auto par_conv = jit_bin_conv_call_args();
 
         const int ij = oh * jcp.stride_h;
-        const int i_t_overflow = nstl::min(jcp.kh, ov::intel_cpu::div_up(nstl::max(0, jcp.t_pad - ij), (jcp.dilate_h+1)));
-        const int i_b_overflow = nstl::min(jcp.kh, ov::intel_cpu::div_up(nstl::max(jcp.ih, ij + (jcp.kh-1) * (jcp.dilate_h+1) -
+        const int i_t_overflow = nstl::min(jcp.kh, div_up(nstl::max(0, jcp.t_pad - ij), (jcp.dilate_h+1)));
+        const int i_b_overflow = nstl::min(jcp.kh, div_up(nstl::max(jcp.ih, ij + (jcp.kh-1) * (jcp.dilate_h+1) -
                                                                                           jcp.t_pad+1) - jcp.ih, (jcp.dilate_h + 1)));
 
         const size_t _oc = g * jcp.nb_oc + ocb;
@@ -1199,7 +1202,7 @@ void MKLDNNBinaryConvolutionNode::executeOptimized(const uint8_t* src, const uin
     });
 }
 
-void MKLDNNBinaryConvolutionNode::executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
+void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
                                                    const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_fp = reinterpret_cast<float *>(dst);
 
@@ -1276,12 +1279,12 @@ void MKLDNNBinaryConvolutionNode::executeReference(const uint8_t* src, const uin
             const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
             const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
             const int kw_padding =
-                    KW - ov::intel_cpu::div_up(i_left_overflow, (KDW + 1)) - ov::intel_cpu::div_up(i_right_overflow, (KDW + 1));
+                    KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
 
             const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
             const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
             const int kh_padding =
-                    KH - ov::intel_cpu::div_up(i_top_overflow, (KDH + 1)) - ov::intel_cpu::div_up(i_bottom_overflow, (KDH + 1));
+                    KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
             base_value = IC * kh_padding * kw_padding;
         } else {
@@ -1294,7 +1297,7 @@ void MKLDNNBinaryConvolutionNode::executeReference(const uint8_t* src, const uin
     });
 }
 
-void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
+void BinaryConvolution::execute(dnnl::stream strm) {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
@@ -1333,8 +1336,10 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNBinaryConvolutionNode::created() const {
-    return getType() == BinaryConvolution;
+bool BinaryConvolution::created() const {
+    return getType() == Type::BinaryConvolution;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNBinaryConvolutionNode, BinaryConvolution);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

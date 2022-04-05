@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -14,14 +14,17 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
-bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -54,8 +57,8 @@ bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNPSROIPoolingNode::MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -125,7 +128,7 @@ MKLDNNPSROIPoolingNode::MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Nod
     nw = static_cast<int>(outDims[3]);
 }
 
-void MKLDNNPSROIPoolingNode::initSupportedPrimitiveDescriptors() {
+void PSROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -186,7 +189,7 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
     return value;
 }
 
-void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
+void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
                                           int& hInputStride, int& wInputStride,
                                           int& hOutputStride, int& wOutputStride,
                                           int& inBlockSize, int& outBlockSize,
@@ -229,7 +232,7 @@ void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, cons
 }
 
 template <typename inputType, typename outputType>
-void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
+void PSROIPooling::executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                             const int n, const int roiBatchInd,
                                             const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
@@ -312,7 +315,7 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
 }
 
 template <typename inputType, typename outputType>
-void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
+void PSROIPooling::executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                              const int currentRoi, const int roiBatchInd,
                                              const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
@@ -415,7 +418,7 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
 }
 
 template <typename inputType, typename outputType>
-void MKLDNNPSROIPoolingNode::executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
+void PSROIPooling::executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                                        const float *bottomTrans, const int numClasses, const int channelsEachClass,
                                                        const int currentRoi, const int roiBatchInd) {
     const float roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale - 0.5f;
@@ -478,7 +481,7 @@ void MKLDNNPSROIPoolingNode::executeBilinearDeformable(const inputType *srcData,
 }
 
 template <typename inputType, typename outputType>
-void MKLDNNPSROIPoolingNode::executeSpecified() {
+void PSROIPooling::executeSpecified() {
     const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -523,12 +526,12 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
 
 namespace {
 struct PSROIPoolingContext {
-    MKLDNNPSROIPoolingNode &node;
+    PSROIPooling &node;
 };
 }
 
 template<typename T>
-struct MKLDNNPSROIPoolingNode::PSROIPoolingExecute {
+struct PSROIPooling::PSROIPoolingExecute {
     using srcT = typename std::tuple_element<0, T>::type;
     using dstT = typename std::tuple_element<1, T>::type;
 
@@ -537,7 +540,7 @@ struct MKLDNNPSROIPoolingNode::PSROIPoolingExecute {
     }
 };
 
-void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
+void PSROIPooling::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
 
@@ -555,8 +558,10 @@ void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
               OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
 }
 
-bool MKLDNNPSROIPoolingNode::created() const {
-    return getType() == PSROIPooling;
+bool PSROIPooling::created() const {
+    return getType() == Type::PSROIPooling;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNPSROIPoolingNode, PSROIPooling)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

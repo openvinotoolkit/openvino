@@ -8,10 +8,13 @@
 #include "embedding_segments_sum.h"
 #include <ngraph/opsets/opset3.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagSegSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingSegmentsSum>(op);
         if (!embBagSegSumOp) {
@@ -24,8 +27,8 @@ bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<
     return true;
 }
 
-MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), MKLDNNEmbeddingBagSumNode(op, 4lu, 1lu, 5lu, 4lu) {
+EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -41,7 +44,7 @@ MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared
                    << getInputShapeAtPort(SEGMENT_ID_IDX).getRank();
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
+void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -74,11 +77,11 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::prepareParams() {
-    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
+void EmbeddingSegmentsSum::prepareParams() {
+    EmbeddingBagSum::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {
+void EmbeddingSegmentsSum::initFromInputs() {
     indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
     indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().GetShape().getElementsCount();
 
@@ -93,7 +96,7 @@ void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {
     }
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+void EmbeddingSegmentsSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (embIndex >= numSegments_)
         IE_THROW() << "Invalid embedding bag index.";
 
@@ -121,19 +124,19 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
     }
 }
 
-std::vector<VectorDims> MKLDNNEmbeddingSegmentsSumNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
+std::vector<VectorDims> EmbeddingSegmentsSum::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingSegmentsSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNEmbeddingSegmentsSumNode::isExecutable() const {
+bool EmbeddingSegmentsSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
+void EmbeddingSegmentsSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;
@@ -141,12 +144,14 @@ void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+    EmbeddingBagSum::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
                                        inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
-bool MKLDNNEmbeddingSegmentsSumNode::created() const {
-    return getType() == EmbeddingSegmentsSum;
+bool EmbeddingSegmentsSum::created() const {
+    return getType() == Type::EmbeddingSegmentsSum;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNEmbeddingSegmentsSumNode, EmbeddingSegmentsSum)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

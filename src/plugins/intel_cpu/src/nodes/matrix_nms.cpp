@@ -14,13 +14,16 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
 
-bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
         if (!nms) {
@@ -44,8 +47,8 @@ bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache)
-    : MKLDNNNode(op, eng, cache) {
+MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
+    : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -103,7 +106,7 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
         IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 }
 
-void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
+void MatrixNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -125,8 +128,8 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-bool MKLDNNMatrixNmsNode::created() const {
-    return getType() == MatrixNms;
+bool MatrixNms::created() const {
+    return getType() == Type::MatrixNms;
 }
 
 namespace {
@@ -164,7 +167,7 @@ static inline float intersectionOverUnion(const float* bbox1, const float* bbox2
 }
 }  // namespace
 
-size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx) {
+size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx) {
     std::vector<int32_t> candidateIndex(m_numBoxes);
     std::iota(candidateIndex.begin(), candidateIndex.end(), 0);
     auto end = std::remove_if(candidateIndex.begin(), candidateIndex.end(), [&scoresData, this](int32_t idx) {
@@ -240,7 +243,7 @@ size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* score
     return numDet;
 }
 
-void MKLDNNMatrixNmsNode::prepareParams() {
+void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
@@ -281,11 +284,11 @@ void MKLDNNMatrixNmsNode::prepareParams() {
     }
 }
 
-bool MKLDNNMatrixNmsNode::isExecutable() const {
-    return isDynamicNode() || MKLDNNNode::isExecutable();
+bool MatrixNms::isExecutable() const {
+    return isDynamicNode() || Node::isExecutable();
 }
 
-void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {
+void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -293,7 +296,7 @@ void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
+void MatrixNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
@@ -405,9 +408,11 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNMatrixNmsNode::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MatrixNms::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << m_errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMatrixNmsNode, MatrixNms);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

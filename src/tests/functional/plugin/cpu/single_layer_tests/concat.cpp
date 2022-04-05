@@ -91,7 +91,7 @@ TEST_P(ConcatLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Concatenation");
+    CheckPluginRelatedResults(compiledModel, "Concatenation");
 }
 
 namespace {
@@ -116,7 +116,7 @@ const auto blocked16_5D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "unknown
 const auto blocked16_4D_ref = CPUSpecificParams{{nChw16c}, {nChw16c}, {}, "ref"};
 const auto blocked16_5D_ref = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "ref"};
 
-// List of precisions natively supported by mkldnn.
+// List of precisions natively supported by onednn.
 const std::vector<ElementType> netPrecisions = {
         ElementType::i8,
         ElementType::i32,

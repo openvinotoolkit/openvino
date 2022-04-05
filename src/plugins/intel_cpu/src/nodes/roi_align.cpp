@@ -3,12 +3,11 @@
 //
 
 #include "roi_align.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <math.h>
-#include <extension_utils.h>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
@@ -18,14 +17,17 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_load_store_emitters.hpp"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
 
@@ -629,7 +631,7 @@ private:
     }
 };
 
-bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
         if (!roiAlign) {
@@ -648,8 +650,8 @@ bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                       MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
@@ -670,7 +672,7 @@ MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, 
     }
 }
 
-void MKLDNNROIAlignNode::getSupportedDescriptors() {
+void ROIAlign::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
@@ -707,7 +709,7 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNROIAlignNode::createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout) {
+void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout) {
     auto jcp = jit_roi_align_params();
     jcp.alg = algorithm;
     jcp.data_prc = dataPrec;
@@ -728,7 +730,7 @@ void MKLDNNROIAlignNode::createJitKernel(const InferenceEngine::Precision& dataP
         roi_align_kernel->create_ker();
 }
 
-void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
+void ROIAlign::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -781,7 +783,7 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNROIAlignNode::createPrimitive() {
+void ROIAlign::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -804,12 +806,12 @@ void MKLDNNROIAlignNode::createPrimitive() {
 
 namespace {
 struct ROIAlignContext {
-    MKLDNNROIAlignNode &node;
+    ROIAlign &node;
 };
 }
 
 template<typename T>
-struct MKLDNNROIAlignNode::ROIAlignExecute {
+struct ROIAlign::ROIAlignExecute {
     using srcT = typename std::tuple_element<0, T>::type;
     using dstT = typename std::tuple_element<1, T>::type;
 
@@ -817,11 +819,11 @@ struct MKLDNNROIAlignNode::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
+void ROIAlign::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
+          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
 
     ROIAlignContext ctx = {
@@ -829,12 +831,12 @@ void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
     };
 
     OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
-              OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(dnnl_f32, dnnl_f32, float, float),
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
-void MKLDNNROIAlignNode::executeSpecified() {
+void ROIAlign::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
@@ -1103,16 +1105,18 @@ void MKLDNNROIAlignNode::executeSpecified() {
     }
 }
 
-bool MKLDNNROIAlignNode::created() const {
-    return getType() == ROIAlign;
+bool ROIAlign::created() const {
+    return getType() == Type::ROIAlign;
 }
 
-bool MKLDNNROIAlignNode::needPrepareParams() const {
+bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
+void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNROIAlignNode, ROIAlign)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

@@ -62,7 +62,7 @@ endif()
 
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
 list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
@@ -77,6 +77,8 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+
+addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

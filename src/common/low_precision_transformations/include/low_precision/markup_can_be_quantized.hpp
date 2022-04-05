@@ -25,12 +25,12 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  * is created with empty precisions.
  *
  * For more details about the transformation, refer to
- * [MarkupCanBeQuantized](@ref openvino_docs_IE_DG_lpt_MarkupCanBeQuantized) page
+ * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupCanBeQuantized", "0");
     MarkupCanBeQuantized(const std::vector<ngraph::element::Type> defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:

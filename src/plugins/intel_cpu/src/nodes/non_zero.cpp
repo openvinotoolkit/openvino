@@ -6,10 +6,13 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNNonZeroNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
@@ -21,8 +24,8 @@ bool MKLDNNNonZeroNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNNonZeroNode::MKLDNNNonZeroNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "NonZero layer with name '" + getName() + "' ";
@@ -34,7 +37,7 @@ MKLDNNNonZeroNode::MKLDNNNonZeroNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-void MKLDNNNonZeroNode::getSupportedDescriptors() {
+void NonZero::getSupportedDescriptors() {
     if (!descs.empty())
         return;
     if (getParentEdges().size() != 1)
@@ -43,7 +46,7 @@ void MKLDNNNonZeroNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
-void MKLDNNNonZeroNode::initSupportedPrimitiveDescriptors() {
+void NonZero::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -59,7 +62,7 @@ void MKLDNNNonZeroNode::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-size_t MKLDNNNonZeroNode::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+size_t NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
     size_t count = 0;
     size_t inSize = inShape.getElementsCount();
@@ -76,21 +79,21 @@ size_t MKLDNNNonZeroNode::getNonZeroElementsCount(const T* src, const Shape& inS
 }
 namespace {
 struct NonZeroContext {
-    MKLDNNNonZeroNode &node;
+    NonZero &node;
 };
 }
 template<typename T>
-struct MKLDNNNonZeroNode::NonZeroExecute {
+struct NonZero::NonZeroExecute {
     void operator()(NonZeroContext & ctx) {
         ctx.node.executeSpecified<T>();
     }
 };
 
-void MKLDNNNonZeroNode::executeDynamicImpl(mkldnn::stream strm) {
+void NonZero::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNNonZeroNode::execute(mkldnn::stream strm) {
+void NonZero::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
@@ -102,7 +105,7 @@ void MKLDNNNonZeroNode::execute(mkldnn::stream strm) {
               OV_CASE(Precision::U8, uint8_t))
 }
 template <typename T>
-void MKLDNNNonZeroNode::executeSpecified() {
+void NonZero::executeSpecified() {
     T zero = 0;
     T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -137,8 +140,10 @@ void MKLDNNNonZeroNode::executeSpecified() {
     }
 }
 
-bool MKLDNNNonZeroNode::created() const {
-    return getType() == NonZero;
+bool NonZero::created() const {
+    return getType() == Type::NonZero;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNNonZeroNode, NonZero)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

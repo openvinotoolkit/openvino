@@ -37,11 +37,15 @@ OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
 OP_CONVERTER(flatten_contiguous_range);
+OP_CONVERTER(floor);
+OP_CONVERTER(gather);
 OP_CONVERTER(gelu);
+OP_CONVERTER(greater_than);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
+OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
@@ -67,6 +71,7 @@ OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
 OP_CONVERTER(rnn);
+OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
@@ -76,10 +81,12 @@ OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
+OP_CONVERTER(strided_slice);
 OP_CONVERTER(tanh);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(where);
 OP_CONVERTER(yolo_box);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -115,12 +122,16 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
+            {"floor", op::floor},
+            {"gather", op::gather},
             {"gelu", op::gelu},
             {"greater_equal", op::elementwise_greater_equal},
+            {"greater_than", op::greater_than},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
+            {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
             {"log", op::log},
             {"logical_and", op::logical_and},
@@ -149,6 +160,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
             {"rnn", op::rnn},
+            {"roi_align", op::roi_align},
             {"scale", op::scale},
             {"shape", op::shape},
             {"slice", op::slice},
@@ -158,11 +170,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"split", op::split},
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
+            {"strided_slice", op::strided_slice},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
+            {"where", op::where},
             {"yolo_box", op::yolo_box}};
 };
 

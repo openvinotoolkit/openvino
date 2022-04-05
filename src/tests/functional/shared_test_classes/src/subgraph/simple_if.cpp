@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace SubgraphTestsDefinitions {
 std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple> &obj) {

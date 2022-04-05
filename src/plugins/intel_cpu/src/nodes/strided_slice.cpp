@@ -13,10 +13,13 @@
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
@@ -26,7 +29,7 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
     return start;
 }
 
-bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v1::StridedSlice>(op) &&
                 !ov::is_type<ov::op::v8::Slice>(op)) {
@@ -48,8 +51,8 @@ bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ov
     return true;
 }
 
-MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -119,10 +122,12 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
         attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
 
         auto origEllipsisMask = ss->get_ellipsis_mask();
+        bool isEllipsis = false;
         for (const auto &o : origEllipsisMask) {
+            isEllipsis = isEllipsis || o != 0;
             attrs.ellipsisMask.push_back(o);
         }
-        if (attrs.ellipsisMask.size() == 0) {
+        if (attrs.ellipsisMask.size() == 0 || !isEllipsis) {
             for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
         }
     } else {
@@ -140,7 +145,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
     }
 }
 
-void MKLDNNStridedSliceNode::getSupportedDescriptors() {
+void StridedSlice::getSupportedDescriptors() {
     const size_t inputRank = getInputShapeAtPort(DATA_ID).getRank();
     const size_t outputRank = getOutputShapeAtPort(0).getRank();
     const size_t nDims = std::max(inputRank, outputRank);
@@ -163,12 +168,12 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     }
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-        const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
+        const auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgesAtPort(type)[0]->getParent());
         if (!constNode) {
-            THROW_ERROR << "can't cast node on " << type << " port to MKLDNNInputNode";
+            THROW_ERROR << "can't cast node on " << type << " port to Input";
         }
         auto blob = constNode->getMemoryPtr();
-        if (blob->GetDataType() != mkldnn::memory::data_type::s32)
+        if (blob->GetDataType() != dnnl::memory::data_type::s32)
             THROW_ERROR << "supports only parameters input with precision I32";
         const int *ptr = static_cast<const int*>(blob->GetPtr());
         parameter.assign(ptr, ptr + size);
@@ -209,7 +214,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 }
 
 
-void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims, int ellipsisPos1) {
+void StridedSlice::addHiddenDims(const size_t nSrcDims, int ellipsisPos1) {
     // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
     // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
     size_t afterDims = attrs.ellipsisMask.size() - ellipsisPos1 - 1;
@@ -236,7 +241,7 @@ void MKLDNNStridedSliceNode::addHiddenDims(const size_t nSrcDims, int ellipsisPo
     addHiddenDims(attrs.shrinkAxisMask);
 }
 
-void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
+void StridedSlice::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -300,11 +305,11 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNStridedSliceNode::isExecutable() const {
+bool StridedSlice::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void MKLDNNStridedSliceNode::createPrimitive() {
+void StridedSlice::createPrimitive() {
     if (!isExecutable()) {
         return;
     }
@@ -326,7 +331,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     }
 }
 
-void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& srcMemPtr) {
+void StridedSlice::orderParametersByLayouts(const MemoryPtr& srcMemPtr) {
     size_t blk = 1;
     bool isBlockedLayout = false;
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
@@ -371,13 +376,13 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& src
     }
 }
 
-void MKLDNNStridedSliceNode::prepareParams() {
+void StridedSlice::prepareParams() {
     execPtr = std::make_shared<StridedSliceExecutor>(attrs,
                                                      getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
                                                      getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
 }
 
-MKLDNNStridedSliceNode::StridedSliceExecutor::StridedSliceExecutor(const StridedSliceAttributes& attrs,
+StridedSlice::StridedSliceExecutor::StridedSliceExecutor(const StridedSliceAttributes& attrs,
                                                                    const VectorDims& srcBlockedDims,
                                                                    const VectorDims& dstBlockedDims) {
     StridedSliceParams params;
@@ -391,7 +396,7 @@ MKLDNNStridedSliceNode::StridedSliceExecutor::StridedSliceExecutor(const Strided
     indicesCalculation(params);
 }
 
-void MKLDNNStridedSliceNode::StridedSliceExecutor::dimsNormalization(StridedSliceParams& params) {
+void StridedSlice::StridedSliceExecutor::dimsNormalization(StridedSliceParams& params) {
     // creating new src and dst dimensions and parameters of the same size using masks
     //
     // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1]
@@ -500,7 +505,7 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::dimsNormalization(StridedSlic
     }
 }
 
-void MKLDNNStridedSliceNode::StridedSliceExecutor::dimsGluing(StridedSliceParams& params, const size_t realNDims) {
+void StridedSlice::StridedSliceExecutor::dimsGluing(StridedSliceParams& params, const size_t realNDims) {
     // gluing of dimensions if there aren't begin, end and stride != 1 on this axis
     // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims = [4, 6, 4, 3, 2]
     //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims = [24, 4, 6]
@@ -594,7 +599,7 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::dimsGluing(StridedSliceParams
     }
 }
 
-void MKLDNNStridedSliceNode::StridedSliceExecutor::indicesCalculation(const StridedSliceParams& params) {
+void StridedSlice::StridedSliceExecutor::indicesCalculation(const StridedSliceParams& params) {
     // indices calculation before execution for the best performance
     srcIndices.resize(workAmount, 0);
     dstIndices.resize(workAmount, 0);
@@ -644,7 +649,7 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::indicesCalculation(const Stri
     });
 }
 
-void MKLDNNStridedSliceNode::StridedSliceExecutor::indicesCalculationForOptimized(const StridedSliceParams& params) {
+void StridedSlice::StridedSliceExecutor::indicesCalculationForOptimized(const StridedSliceParams& params) {
     const size_t dstIdx0 = params.dstStrides[0] * params.attrs.dataSize;
     const size_t dstIdx1 = params.dstStrides[1] * params.attrs.dataSize;
     const size_t srcIdx0 = params.attrs.stride[0] * params.srcStrides[0] * params.attrs.dataSize;
@@ -663,7 +668,7 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::indicesCalculationForOptimize
     }
 }
 
-void MKLDNNStridedSliceNode::StridedSliceExecutor::exec(const uint8_t* srcData, uint8_t* dstData) {
+void StridedSlice::StridedSliceExecutor::exec(const uint8_t* srcData, uint8_t* dstData) {
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -674,7 +679,7 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::exec(const uint8_t* srcData, 
     });
 }
 
-void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
+void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have compiled executor!";
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemory().GetPtr());
@@ -682,12 +687,14 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     execPtr->exec(srcData, dstData);
 }
 
-void MKLDNNStridedSliceNode::executeDynamicImpl(mkldnn::stream strm) {
+void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNStridedSliceNode::created() const {
-    return getType() == StridedSlice;
+bool StridedSlice::created() const {
+    return getType() == Type::StridedSlice;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNStridedSliceNode, StridedSlice);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

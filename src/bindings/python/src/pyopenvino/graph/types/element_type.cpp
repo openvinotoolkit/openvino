@@ -19,20 +19,25 @@ void regclass_graph_Type(py::module m) {
     type.attr("f16") = ov::element::f16;
     type.attr("f32") = ov::element::f32;
     type.attr("f64") = ov::element::f64;
+    type.attr("i4") = ov::element::i4;
     type.attr("i8") = ov::element::i8;
     type.attr("i16") = ov::element::i16;
     type.attr("i32") = ov::element::i32;
     type.attr("i64") = ov::element::i64;
     type.attr("u1") = ov::element::u1;
+    type.attr("u4") = ov::element::u4;
     type.attr("u8") = ov::element::u8;
     type.attr("u16") = ov::element::u16;
     type.attr("u32") = ov::element::u32;
     type.attr("u64") = ov::element::u64;
     type.attr("bf16") = ov::element::bf16;
+    type.attr("undefined") = ov::element::undefined;
 
     type.def("__repr__", [](const ov::element::Type& self) {
         std::string bitwidth = std::to_string(self.bitwidth());
-        if (self.is_signed()) {
+        if (self == ov::element::undefined) {
+            return "<Type: '" + self.c_type_string() + "'>";
+        } else if (self.is_signed()) {
             return "<Type: '" + self.c_type_string() + bitwidth + "'>";
         }
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";

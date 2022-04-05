@@ -37,8 +37,8 @@ The implementation `CompileNetwork` is fully device-specific.
 
 The function accepts a const shared pointer to `ngraph::Function` object and performs the following steps:
 
-1. Applies ngraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in [Low Precision Transformations](@ref openvino_docs_IE_DG_lpt) guide.
-2. Maps the transformed graph to a backend specific graph representation (for example, to MKLDNN graph for Intel CPU).
+1. Applies nGraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in [Low Precision Transformations](@ref openvino_docs_OV_UG_lpt) guide.
+2. Maps the transformed graph to a backend specific graph representation (for example, to CPU plugin internal graph representation).
 3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
 
 @snippet src/template_executable_network.cpp executable_network:map_graph

@@ -13,20 +13,21 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNRNN : public MKLDNNNode {
+class RNN : public Node {
 public:
-    MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    RNN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
 
     inline bool hasNativeOrder() const {
         return nativeOrder;
@@ -37,7 +38,7 @@ public:
 protected:
     std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void initCell();
@@ -62,16 +63,16 @@ private:
     bool nativeOrder = true;
 
     /** Direction of iteration through sequence dimension */
-    mkldnn::rnn_direction direction = mkldnn::rnn_direction::unidirectional;
+    dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional;
 
     /** RNN Cell type (type/activation_alg/clip)*/
-    mkldnn::algorithm cell_type = mkldnn::algorithm::vanilla_lstm;
+    dnnl::algorithm cell_type = dnnl::algorithm::vanilla_lstm;
 
     /** activation type for vanilla RNN cell */
-    mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
+    dnnl::algorithm cell_act = dnnl::algorithm::eltwise_tanh;
 
     /** Weights data and state memory format: ldigo or any */
-    mkldnn::memory::format_tag wFormat = mkldnn::memory::format_tag::any;
+    dnnl::memory::format_tag wFormat = dnnl::memory::format_tag::any;
 
     struct Interval {
         Interval() = default;
@@ -96,12 +97,12 @@ private:
     size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
     size_t Gb = 0;  /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
     size_t S = 2;   /**< Num of state. LSTM - 2, GRU & RNN - 1 */
-    const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
+    const size_t L = 1;   /**< What is it??. Constant for onednn impl */
     const size_t D = 1;   /**< Num of direction. 1 or 2 */
 
     std::vector<DnnlBlockedMemoryDescPtr> inDataDescs;
     std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
-    std::vector<mkldnn::memory::desc> wDescs;
+    std::vector<dnnl::memory::desc> wDescs;
 
     enum RNNInOutKind {
         Layer       = 0,
@@ -121,5 +122,6 @@ private:
     bool wasMemoryPrepared = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

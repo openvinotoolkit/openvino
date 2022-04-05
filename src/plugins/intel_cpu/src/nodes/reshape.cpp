@@ -4,8 +4,8 @@
 
 #include "reshape.h"
 #include <string>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/shape_inference/static_shape.hpp>
@@ -13,11 +13,14 @@
 
 #include "common/cpu_memcpy.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
             !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
@@ -31,8 +34,8 @@ bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -61,7 +64,7 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-bool MKLDNNReshapeNode::needShapeInfer() const {
+bool Reshape::needShapeInfer() const {
     if (inputShapesModified()) {
         return true;
     }
@@ -75,7 +78,7 @@ bool MKLDNNReshapeNode::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
+std::vector<VectorDims> Reshape::shapeInfer() const {
     const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
 
     const int32_t *sndInput = reinterpret_cast<const int32_t *>(memPtr.GetPtr());
@@ -88,14 +91,14 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
     return shapeInferGeneric(PortMask(1));
 }
 
-void MKLDNNReshapeNode::getSupportedDescriptors() {
+void Reshape::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 }
 
-void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
+void Reshape::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -124,11 +127,14 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
+void Reshape::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNReshapeNode::created() const {
-    return getType() == Reshape;
+bool Reshape::created() const {
+    return getType() == Type::Reshape;
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

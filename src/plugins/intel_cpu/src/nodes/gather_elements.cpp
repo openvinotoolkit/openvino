@@ -12,10 +12,13 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v6::GatherElements::get_type_info_static())) {
@@ -29,8 +32,8 @@ bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const 
     return true;
 }
 
-MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -54,7 +57,7 @@ MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph:
     axis_ = axis;
 }
 
-void MKLDNNGatherElementsNode::prepareParams() {
+void GatherElements::prepareParams() {
     const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     strideAxDst_ = 1;
@@ -69,20 +72,20 @@ void MKLDNNGatherElementsNode::prepareParams() {
     }
 }
 
-void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
+void GatherElements::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
-    if (!ov::intel_cpu::one_of(inDataPrecision.size(),
-                              sizeof(PrecisionTrait<Precision::I32>::value_type),
-                              sizeof(PrecisionTrait<Precision::I16>::value_type),
-                              sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+    if (!one_of(inDataPrecision.size(),
+                sizeof(PrecisionTrait<Precision::I32>::value_type),
+                sizeof(PrecisionTrait<Precision::I16>::value_type),
+                sizeof(PrecisionTrait<Precision::I8>::value_type))) {
         IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << inDataPrecision;
     }
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
-    if (!ov::intel_cpu::one_of(indicesPrecision, Precision::I32, Precision::I64)) {
+    if (!one_of(indicesPrecision, Precision::I32, Precision::I64)) {
         IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
     }
 
@@ -94,12 +97,12 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGatherElementsNode::executeDynamicImpl(mkldnn::stream strm) {
+void GatherElements::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
 template <typename dataType>
-void MKLDNNGatherElementsNode::directExecution() {
+void GatherElements::directExecution() {
     const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->GetPtr());
     const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -131,7 +134,7 @@ void MKLDNNGatherElementsNode::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void MKLDNNGatherElementsNode::execute(mkldnn::stream strm) {
+void GatherElements::execute(dnnl::stream strm) {
     switch (dataTypeSize_) {
         case sizeof(PrecisionTrait<Precision::I32>::value_type):
             return directExecution<PrecisionTrait<Precision::I32>::value_type>();
@@ -144,8 +147,10 @@ void MKLDNNGatherElementsNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNGatherElementsNode::created() const {
-    return getType() == GatherElements;
+bool GatherElements::created() const {
+    return getType() == Type::GatherElements;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGatherElementsNode, GatherElements)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

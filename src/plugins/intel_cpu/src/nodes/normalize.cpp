@@ -10,7 +10,7 @@
 #include "eltwise.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "emitters/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
@@ -24,22 +24,25 @@
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct NormalizeKey {
-    MKLDNNNormalizeL2Node::NormalizeL2Attrs attrs;
-    mkldnn::primitive_attr kernel_attrs;
+    NormalizeL2::NormalizeL2Attrs attrs;
+    dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
 
     size_t hash() const;
@@ -202,7 +205,7 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_kernel_f32)
 
-    explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr)
+    explicit jit_uni_normalize_kernel_f32(jit_normalize_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_normalize_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -693,7 +696,7 @@ private:
     }
 };
 
-bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
@@ -751,8 +754,8 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -774,7 +777,7 @@ MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>
     attrs.cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
 }
 
-void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
+void NormalizeL2::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -843,22 +846,22 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
-bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
+bool NormalizeL2::canFuse(const NodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
-    mkldnn::post_ops ops;
+void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
@@ -870,7 +873,7 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
     kernel_attrs.set_post_ops(ops);
 }
 
-void MKLDNNNormalizeL2Node::createPrimitive() {
+void NormalizeL2::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -901,11 +904,11 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     }
 }
 
-bool MKLDNNNormalizeL2Node::isExecutable() const {
+bool NormalizeL2::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void MKLDNNNormalizeL2Node::prepareParams() {
+void NormalizeL2::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
 
     setPostOps(kernel_attrs, dims, true);
@@ -913,7 +916,7 @@ void MKLDNNNormalizeL2Node::prepareParams() {
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
     auto engine = getEngine();
-    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> {
+    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
         return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
@@ -927,11 +930,11 @@ void MKLDNNNormalizeL2Node::prepareParams() {
     execPtr = result.first;
 }
 
-void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
+void NormalizeL2::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
+void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have a compiled executor.";
 
@@ -940,14 +943,14 @@ void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
-std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
+std::vector<VectorDims> NormalizeL2::shapeInfer() const {
     return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
 }
 
 // *====================* CornerCase *===================*
 
 template <typename in_data_t, typename out_data_t>
-class MKLDNNNormalizeL2Node::NormalizeL2CornerCaseExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2CornerCaseExecutor(const VectorDims& dims) {
         workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
@@ -971,10 +974,10 @@ private:
 // *=================* JIT case *=================*
 
 template <typename in_data_t, typename out_data_t>
-class MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
-                           const mkldnn::primitive_attr& kernel_attrs,
+                           const dnnl::primitive_attr& kernel_attrs,
                            const VectorDims& dims)
         : attrs(attrs_) {
         if (attrs.layout != LayoutType::ncsp && attrs.layout != LayoutType::nspc &&
@@ -982,8 +985,8 @@ public:
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
-        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
-        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
+        jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
         jcp.src_data_size = attrs.input_prec.size();
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;
@@ -1309,9 +1312,9 @@ private:
 // *=============* Reference case *===============*
 
 template <typename in_data_t, typename out_data_t>
-class MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) :
+    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) :
         attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
         if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
@@ -1467,17 +1470,17 @@ private:
     }
 
     VectorDims dims;
-    mkldnn::primitive_attr kernel_attrs;
+    dnnl::primitive_attr kernel_attrs;
     NormalizeL2Attrs attrs;
 
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+    std::vector<std::shared_ptr<dnnl::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
+    std::vector<std::shared_ptr<dnnl::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
 };
 
 // *=================* *======* *=================*
 
-std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::getNormalizeL2Executor(
-        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) {
+std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::getNormalizeL2Executor(
+        const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) {
     NormalizeContext ctx = { nullptr, attrs, kernel_attrs, dims };
 
     OV_SWITCH(intel_cpu, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
@@ -1496,8 +1499,8 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
 }
 
 template <typename in_data_t, typename out_data_t>
-std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::makeExecutor(
-        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) {
+std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Executor::makeExecutor(
+        const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) {
     if (attrs.cornerCase)
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
     else if (mayiuse(cpu::x64::sse41))
@@ -1508,8 +1511,10 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
         IE_THROW() << "'NormalizeL2' cannot create Executor";
 }
 
-bool MKLDNNNormalizeL2Node::created() const {
-    return getType() == NormalizeL2;
+bool NormalizeL2::created() const {
+    return getType() == Type::NormalizeL2;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNNormalizeL2Node, NormalizeL2);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

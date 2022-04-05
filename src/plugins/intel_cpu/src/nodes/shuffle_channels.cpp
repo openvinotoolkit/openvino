@@ -5,7 +5,7 @@
 #include "shuffle_channels.h"
 
 #include <ie_parallel.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/blocked_desc_creator.h"
 
@@ -18,13 +18,16 @@
 
 #define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 
-size_t MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::hash() const {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
@@ -41,7 +44,7 @@ size_t MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::hash() const {
     return seed;
 }
 
-bool MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
+bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
     bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank &&
                   axis == rhs.axis && spatialRank == rhs.spatialRank &&
                   group == rhs.group && dataSize == rhs.dataSize && srcDims == rhs.srcDims &&
@@ -49,7 +52,7 @@ bool MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::operator==(const Shuf
     return result;
 }
 
-bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
@@ -62,8 +65,8 @@ bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -82,7 +85,7 @@ MKLDNNShuffleChannelsNode::MKLDNNShuffleChannelsNode(const std::shared_ptr<ngrap
     supportDynamicBatch = (attrs.axis != 0);
 }
 
-void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
+void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -123,7 +126,7 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNShuffleChannelsNode::createPrimitive() {
+void ShuffleChannels::createPrimitive() {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -147,7 +150,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     }
 }
 
-void MKLDNNShuffleChannelsNode::prepareParams() {
+void ShuffleChannels::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
         return std::make_shared<ShuffleChannelsExecutor>(key);
@@ -164,11 +167,11 @@ void MKLDNNShuffleChannelsNode::prepareParams() {
     execPtr = result.first;
 }
 
-MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
+ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
         IE_THROW() << "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
 
-    const bool isBlocked = ov::intel_cpu::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
     const auto& srcDims = attrs.srcDims;
     const auto& srcBlockedDims = attrs.srcBlockedDims;
@@ -273,7 +276,7 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
-void MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
+void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
@@ -283,11 +286,11 @@ void MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::exec(const uint8_t* src
         permuteKernel->execute(srcData, dstData);
 }
 
-void MKLDNNShuffleChannelsNode::executeDynamicImpl(mkldnn::stream strm) {
+void ShuffleChannels::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
+void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";
 
@@ -300,8 +303,10 @@ void MKLDNNShuffleChannelsNode::execute(mkldnn::stream strm) {
     execPtr->exec(srcData, dstData, MB);
 }
 
-bool MKLDNNShuffleChannelsNode::created() const {
-    return getType() == ShuffleChannels;
+bool ShuffleChannels::created() const {
+    return getType() == Type::ShuffleChannels;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNShuffleChannelsNode, ShuffleChannels);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

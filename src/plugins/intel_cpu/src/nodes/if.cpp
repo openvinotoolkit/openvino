@@ -4,7 +4,7 @@
 
 #include "if.h"
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
@@ -12,16 +12,18 @@
 #include <string>
 #include <vector>
 
-using namespace ov::intel_cpu;
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
-MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const std::deque<MKLDNNMemoryPtr>& to,
-                                           const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
+If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
+                                           const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->GetSize();
 }
 
-void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
+void If::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
@@ -29,7 +31,7 @@ void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
     cpu_memcpy(dstMemPtrs.front()->GetPtr(), srcMemPtr->GetPtr(), size);
 }
 
-void MKLDNNIfNode::PortMapHelper::redefineTo() {
+void If::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
@@ -42,7 +44,7 @@ void MKLDNNIfNode::PortMapHelper::redefineTo() {
     }
 }
 
-bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::to_string(op->get_type_info().version) +
@@ -55,15 +57,15 @@ bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-MKLDNNIfNode::MKLDNNIfNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-void MKLDNNIfNode::getSupportedDescriptors() {
+void If::getSupportedDescriptors() {
     auto ifOp = ov::as_type_ptr<ov::op::v8::If>(ovOp);
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
@@ -145,7 +147,7 @@ void MKLDNNIfNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
+void If::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -172,7 +174,7 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MKLDNNIfNode::createPrimitive() {
+void If::createPrimitive() {
     const auto& eng = getEngine();
     prepareBeforeMappers(true, eng);
     prepareBeforeMappers(false, eng);
@@ -184,7 +186,7 @@ void MKLDNNIfNode::createPrimitive() {
     }
 }
 
-void MKLDNNIfNode::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
+void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputPortMap = isThen ? thenInputPortMap : elseInputPortMap;
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
@@ -196,7 +198,7 @@ void MKLDNNIfNode::prepareBeforeMappers(const bool isThen, const dnnl::engine& e
     }
 }
 
-void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
+void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     auto &outputPortMap = isThen ? thenOutputPortMap : elseOutputPortMap;
     auto &outputMems = isThen ? outputMemThen : outputMemElse;
     auto &afterMappers = isThen ? afterThenMappers : afterElseMappers;
@@ -208,14 +210,14 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
     }
 }
 
-std::deque<MKLDNNMemoryPtr> MKLDNNIfNode::getToMemories(const MKLDNNNode* node, const size_t port) const {
-    std::deque<MKLDNNMemoryPtr> memories;
+std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
+    std::deque<MemoryPtr> memories;
     for (auto edge : node->getChildEdgesAtPort(port))
         memories.push_back(edge->getMemoryPtr());
     return memories;
 }
 
-void MKLDNNIfNode::execute(mkldnn::stream strm) {
+void If::execute(dnnl::stream strm) {
     const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
@@ -230,12 +232,14 @@ void MKLDNNIfNode::execute(mkldnn::stream strm) {
         mapper->execute(strm);
 }
 
-void MKLDNNIfNode::executeDynamicImpl(mkldnn::stream strm) {
+void If::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNIfNode::created() const {
-    return getType() == If;
+bool If::created() const {
+    return getType() == Type::If;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNIfNode, If);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

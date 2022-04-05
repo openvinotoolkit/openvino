@@ -5,10 +5,13 @@
 #include "shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNShapeOfNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                     ngraph::op::v0::ShapeOf::get_type_info_static(),
@@ -22,8 +25,8 @@ bool MKLDNNShapeOfNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNShapeOfNode::MKLDNNShapeOfNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";
@@ -34,7 +37,7 @@ MKLDNNShapeOfNode::MKLDNNShapeOfNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-void MKLDNNShapeOfNode::getSupportedDescriptors() {
+void ShapeOf::getSupportedDescriptors() {
     if (!descs.empty())
         return;
     if (getParentEdges().size() != 1)
@@ -43,7 +46,7 @@ void MKLDNNShapeOfNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
-void MKLDNNShapeOfNode::initSupportedPrimitiveDescriptors() {
+void ShapeOf::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -57,11 +60,11 @@ void MKLDNNShapeOfNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNShapeOfNode::isExecutable() const {
+bool ShapeOf::isExecutable() const {
     return true;
 }
 
-void MKLDNNShapeOfNode::execute(mkldnn::stream strm) {
+void ShapeOf::execute(dnnl::stream strm) {
     auto inPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto inDims = inPtr->getStaticDims();
@@ -76,8 +79,10 @@ void MKLDNNShapeOfNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNShapeOfNode::created() const {
-    return getType() == ShapeOf;
+bool ShapeOf::created() const {
+    return getType() == Type::ShapeOf;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNShapeOfNode, ShapeOf)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

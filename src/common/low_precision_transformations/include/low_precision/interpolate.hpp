@@ -15,12 +15,12 @@ namespace low_precision {
  * @brief InterpolateTransformation propagates dequantization operations through Interpolate operation.
  *
  * For more details about the transformation, refer to
- * [InterpolateTransformation](@ref openvino_docs_IE_DG_lpt_InterpolateTransformation) page
+ * [InterpolateTransformation](@ref openvino_docs_OV_UG_lpt_InterpolateTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API InterpolateTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InterpolateTransformation", "0");
     InterpolateTransformation(const Params& params = Params());
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

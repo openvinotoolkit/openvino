@@ -8,10 +8,13 @@
 #include "ie_parallel.hpp"
 #include "grn.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -28,8 +31,8 @@ bool MKLDNNGRNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNGRNNode::MKLDNNGRNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -47,7 +50,7 @@ MKLDNNGRNNode::MKLDNNGRNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     bias = grn->get_bias();
 }
 
-void MKLDNNGRNNode::initSupportedPrimitiveDescriptors() {
+void GRN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -56,7 +59,7 @@ void MKLDNNGRNNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGRNNode::execute(mkldnn::stream strm) {
+void GRN::execute(dnnl::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
@@ -79,8 +82,10 @@ void MKLDNNGRNNode::execute(mkldnn::stream strm) {
     });
 }
 
-bool MKLDNNGRNNode::created() const {
-    return getType() == GRN;
+bool GRN::created() const {
+    return getType() == Type::GRN;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGRNNode, GRN)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

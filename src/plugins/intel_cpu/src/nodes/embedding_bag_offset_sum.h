@@ -13,14 +13,15 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNEmbeddingBagOffsetSumNode : public MKLDNNNode, public MKLDNNEmbeddingBagSumNode {
+class EmbeddingBagOffsetSum : public Node, public EmbeddingBagSum {
 public:
-    MKLDNNEmbeddingBagOffsetSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool isExecutable() const override;
@@ -28,7 +29,7 @@ public:
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void initFromInputs() override;
@@ -44,5 +45,6 @@ private:
     size_t _offsetsLen = 0;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

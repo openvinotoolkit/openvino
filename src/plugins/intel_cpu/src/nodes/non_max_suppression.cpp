@@ -19,15 +19,18 @@
 #include "emitters/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_nms_args, field)
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 template <cpu_isa_t isa>
 struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator {
@@ -43,7 +46,7 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     void generate() override {
         load_emitter.reset(new jit_load_emitter(this, isa));
         store_emitter.reset(new jit_store_emitter(this, isa));
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();
 
@@ -391,7 +394,7 @@ private:
         } else {
             // pure sse path, make sure don't spoil vmm_temp3, which may used in after soft-suppression
             uni_vmovups(vmm_temp4, vmm_temp3);
-            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for unorders
+            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
 
             uni_vmovups(vmm_temp2, vmm_temp3);
             cmpps(vmm_temp2, vmm_iou_threshold, 0x05);   // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
@@ -546,7 +549,7 @@ private:
     }
 };
 
-bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
@@ -569,8 +572,8 @@ bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<con
     return true;
 }
 
-MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), isSoftSuppressedByIOU(true) {
+NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(true) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;
@@ -613,7 +616,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
             IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_shape.getDims()[1];
 }
 
-void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
+void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -670,7 +673,7 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     createJitKernel();
 }
 
-void MKLDNNNonMaxSuppressionNode::prepareParams() {
+void NonMaxSuppression::prepareParams() {
     const auto& boxesDims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
                                                getInputShapeAtPort(NMS_BOXES).getStaticDims();
     const auto& scoresDims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
@@ -689,11 +692,11 @@ void MKLDNNNonMaxSuppressionNode::prepareParams() {
         i.resize(numClasses);
 }
 
-bool MKLDNNNonMaxSuppressionNode::isExecutable() const {
-    return isDynamicNode() || MKLDNNNode::isExecutable();
+bool NonMaxSuppression::isExecutable() const {
+    return isDynamicNode() || Node::isExecutable();
 }
 
-void MKLDNNNonMaxSuppressionNode::createJitKernel() {
+void NonMaxSuppression::createJitKernel() {
     auto jcp = jit_nms_config_params();
     jcp.box_encode_type = boxEncodingType;
     jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
@@ -710,7 +713,7 @@ void MKLDNNNonMaxSuppressionNode::createJitKernel() {
         nms_kernel->create_ker();
 }
 
-void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
+void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
@@ -720,7 +723,7 @@ void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
+void NonMaxSuppression::execute(dnnl::stream strm) {
     const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
@@ -822,11 +825,11 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     *valid_outputs = static_cast<int>(validOutputs);
 }
 
-bool MKLDNNNonMaxSuppressionNode::created() const {
-    return getType() == NonMaxSuppression;
+bool NonMaxSuppression::created() const {
+    return getType() == Type::NonMaxSuppression;
 }
 
-float MKLDNNNonMaxSuppressionNode::intersectionOverUnion(const float *boxesI, const float *boxesJ) {
+float NonMaxSuppression::intersectionOverUnion(const float *boxesI, const float *boxesJ) {
     float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
     if (boxEncodingType == NMSBoxEncodeType::CENTER) {
         //  box format: x_center, y_center, width, height
@@ -861,7 +864,7 @@ float MKLDNNNonMaxSuppressionNode::intersectionOverUnion(const float *boxesI, co
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MKLDNNNonMaxSuppressionNode::nmsWithSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
+void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
                                                              const VectorDims &scoresStrides, std::vector<filteredBoxes> &filtBoxes) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
@@ -983,7 +986,7 @@ void MKLDNNNonMaxSuppressionNode::nmsWithSoftSigma(const float *boxes, const flo
     });
 }
 
-void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
+void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
                                                                 const VectorDims &scoresStrides, std::vector<filteredBoxes> &filtBoxes) {
     int max_out_box = static_cast<int>(maxOutputBoxesPerClass);
     parallel_for2d(numBatches, numClasses, [&](int batch_idx, int class_idx) {
@@ -1070,13 +1073,13 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
     });
 }
 
-void MKLDNNNonMaxSuppressionNode::checkPrecision(const Precision& prec, const std::vector<Precision>& precList,
+void NonMaxSuppression::checkPrecision(const Precision& prec, const std::vector<Precision>& precList,
                                                            const std::string& name, const std::string& type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
-void MKLDNNNonMaxSuppressionNode::check1DInput(const Shape& shape, const std::vector<Precision>& precList,
+void NonMaxSuppression::check1DInput(const Shape& shape, const std::vector<Precision>& precList,
                                                          const std::string& name, const size_t port) {
     checkPrecision(getOriginalInputPrecisionAtPort(port), precList, name, inType);
 
@@ -1087,7 +1090,7 @@ void MKLDNNNonMaxSuppressionNode::check1DInput(const Shape& shape, const std::ve
             IE_THROW() << errorPrefix << "has unsupported '" << name << "' input 1st dimension size: " << MemoryDescUtils::dim2str(shape.getDims()[0]);
 }
 
-void MKLDNNNonMaxSuppressionNode::checkOutput(const Shape& shape, const std::vector<Precision>& precList,
+void NonMaxSuppression::checkOutput(const Shape& shape, const std::vector<Precision>& precList,
                                                         const std::string& name, const size_t port) {
     checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name, outType);
 
@@ -1097,5 +1100,6 @@ void MKLDNNNonMaxSuppressionNode::checkOutput(const Shape& shape, const std::vec
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << MemoryDescUtils::dim2str(shape.getDims()[1]);
 }
 
-
-REG_MKLDNN_PRIM_FOR(MKLDNNNonMaxSuppressionNode, NonMaxSuppression)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

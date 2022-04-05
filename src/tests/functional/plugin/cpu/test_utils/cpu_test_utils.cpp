@@ -44,7 +44,7 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
 cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 #define CASE(_fmt) do { \
     if (!strcmp(#_fmt, str) \
-            || !strcmp("mkldnn_" #_fmt, str)) \
+            || !strcmp("dnnl_" #_fmt, str)) \
         return _fmt; \
 } while (0)
     CASE(undef);
@@ -114,24 +114,24 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
-    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+    CheckPluginRelatedResultsImpl(function, nodeType);
 }
 
-void CPUTestsBase::CheckPluginRelatedResults(ov::CompiledModel &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     auto function = execNet.get_runtime_model();
-    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+    CheckPluginRelatedResultsImpl(function, nodeType);
 }
 
-void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
@@ -140,7 +140,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model
             IE_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
-        auto getExecValueOutputsLayout = [] (std::shared_ptr<ngraph::Node> node) -> std::string {
+        auto getExecValueOutputsLayout = [] (const std::shared_ptr<ngraph::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
             IE_ASSERT(rtInfo.end() != it);
@@ -261,16 +261,18 @@ std::string CPUTestsBase::getPrimitiveType() const {
 }
 
 CPUTestsBase::CPUInfo
-CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<cpu_memory_format_t> outFmts, std::vector<std::string> priority) {
+CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
+                          const std::vector<cpu_memory_format_t>& outFmts,
+                          const std::vector<std::string>& priority) {
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({ngraph::MKLDNNInputMemoryFormats::get_type_info_static(),
-                ngraph::MKLDNNInputMemoryFormats(fmts2str(inFmts, "cpu:"))});
+        cpuInfo.insert({ov::intel_cpu::InputMemoryFormats::get_type_info_static(),
+                        ov::intel_cpu::InputMemoryFormats(fmts2str(inFmts, "cpu:"))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({ngraph::MKLDNNOutputMemoryFormats::get_type_info_static(),
-                ngraph::MKLDNNOutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
+        cpuInfo.insert({ov::intel_cpu::OutputMemoryFormats::get_type_info_static(),
+                        ov::intel_cpu::OutputMemoryFormats(fmts2str(outFmts, "cpu:"))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", impls2str(priority)});

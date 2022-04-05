@@ -8,6 +8,10 @@ endif()
 
 add_subdirectory(common)
 
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
+
 if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()

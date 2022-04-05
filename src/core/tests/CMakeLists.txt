@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
@@ -13,8 +15,6 @@ set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(util)
-    add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -165,6 +165,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/if.cpp
     type_prop/interpolate.cpp
+    type_prop/irdft.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
@@ -197,6 +198,7 @@ set(SRC
     type_prop/prior_box_clustered.cpp
     type_prop/random_uniform.cpp
     type_prop/range.cpp
+    type_prop/rdft.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
@@ -263,6 +265,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asin.cpp
     visitors/op/asinh.cpp
+    visitors/op/assign.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
     visitors/op/avg_pool.cpp
@@ -324,6 +327,7 @@ set(SRC
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/idft.cpp
+    visitors/op/irdft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -360,6 +364,8 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/rdft.cpp
+    visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -417,7 +423,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
@@ -446,7 +452,7 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     endif()
 endif()
 
-if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_TEMPLATE AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
@@ -577,9 +583,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads

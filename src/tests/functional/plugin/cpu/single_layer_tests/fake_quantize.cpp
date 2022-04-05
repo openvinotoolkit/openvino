@@ -5,7 +5,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace ngraph;
@@ -152,7 +152,7 @@ TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 
-    CheckPluginRelatedResults(executableNetwork, layerName);
+    CheckPluginRelatedResults(compiledModel, layerName);
 }
 
 

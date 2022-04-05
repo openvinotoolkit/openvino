@@ -11,10 +11,9 @@
 #include <array>
 #include <tuple>
 
-#include <mkldnn.hpp>
-#include <mkldnn_debug.h>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_debug.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
@@ -24,15 +23,18 @@
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
         dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
 
@@ -54,7 +56,7 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
     }
 }
 
-void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
+void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -162,11 +164,11 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
-void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
+void Snippet::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
-void MKLDNNSnippetNode::createPrimitive() {
+void Snippet::createPrimitive() {
     // schedule definition part
     // it defines offsets, strides and sizes for snippet kernel scheduling
     define_schedule();
@@ -179,9 +181,9 @@ void MKLDNNSnippetNode::createPrimitive() {
     generate();
 }
 
-void MKLDNNSnippetNode::execute(dnnl::stream strm) {
+void Snippet::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
-        IE_THROW() << "MKLDNNSnippetNode can't use Optimized implementation and can't fallback to reference";
+        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
     }
     jit_snippets_call_args call_args;
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
@@ -197,12 +199,12 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     }
 }
 
-bool MKLDNNSnippetNode::created() const {
-    return getType() == Subgraph;
+bool Snippet::created() const {
+    return getType() == Type::Subgraph;
 }
 
-bool MKLDNNSnippetNode::canBeInPlace() const {
-    if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Input) {
+bool Snippet::canBeInPlace() const {
+    if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
         return false;
     }
 
@@ -212,7 +214,7 @@ bool MKLDNNSnippetNode::canBeInPlace() const {
             return false;
 
         // WA to prevent memory corruption caused by inplace feature
-        if (parent->getType() == Concatenation) {
+        if (parent->getType() == Type::Concatenation) {
             for (auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1)
@@ -247,8 +249,8 @@ static auto collapseLastDims(std::vector<size_t>& dims, size_t dimsToCollapse) -
     }
 }
 
-void MKLDNNSnippetNode::define_schedule() {
-    auto edgeToBlockedShape = [](const MKLDNNEdgePtr& edge) {
+void Snippet::define_schedule() {
+    auto edgeToBlockedShape = [](const EdgePtr& edge) {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
         ngraph::Shape shape(blockedDesc->getBlockDims());
         ngraph::AxisVector blocking(blockedDesc->getOrder());
@@ -413,7 +415,7 @@ void MKLDNNSnippetNode::define_schedule() {
     initSchedulingInfo();
 }
 
-void MKLDNNSnippetNode::generate() {
+void Snippet::generate() {
     jit_snippets_compile_args jcp;
     jcp.output_dims = exec_domain;
     std::copy(sch_dims.begin(), sch_dims.end(), jcp.scheduler_dims);
@@ -435,7 +437,7 @@ void MKLDNNSnippetNode::generate() {
     schedule = snippet->generate(reinterpret_cast<void*>(&jcp));
 }
 
-void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& call_args) const {
+void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
     const auto& dom = exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -445,7 +447,7 @@ void MKLDNNSnippetNode::schedule_6d(const jit_snippets_call_args& call_args) con
         });
 }
 
-void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& call_args) const {
+void Snippet::schedule_nt(const jit_snippets_call_args& call_args) const {
     const auto& work_size = exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -464,5 +466,6 @@ void MKLDNNSnippetNode::schedule_nt(const jit_snippets_call_args& call_args) con
     });
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNSnippetNode, Subgraph);
-
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

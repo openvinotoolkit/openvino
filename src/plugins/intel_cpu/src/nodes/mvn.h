@@ -12,6 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_mvn_config_params {
     bool planar_layout;
@@ -30,8 +31,6 @@ struct jit_mvn_call_args {
     float *sum;
     float *mean;
     float *variance;
-    const float *eps;
-    float *size;
     size_t src_stride;
     size_t dst_stride;
     size_t work_amount;
@@ -63,25 +62,25 @@ struct jit_uni_mvn_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_mvn_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_mvn_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
-class MKLDNNMVNNode : public MKLDNNNode {
+class MVN : public Node {
 public:
-    MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -94,7 +93,7 @@ public:
         return mvnAttrs.normalizeVariance_;
     }
 
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
     void prepareParams() override;
 
     // Defines way to add epsilon: inside sqrt or outside.
@@ -121,7 +120,7 @@ public:
     };
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
 
     void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
@@ -146,7 +145,7 @@ private:
     class MVNJitExecutor : public MVNExecutor {
         public:
             MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                           const mkldnn::primitive_attr &attr);
+                           const dnnl::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
@@ -170,5 +169,6 @@ private:
     };
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

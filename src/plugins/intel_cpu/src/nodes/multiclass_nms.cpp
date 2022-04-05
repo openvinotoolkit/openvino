@@ -17,12 +17,15 @@
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 
-bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
         if (!nms) {
@@ -41,8 +44,8 @@ bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const n
     return true;
 }
 
-MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache)
-    : MKLDNNNode(op, eng, cache) {
+MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
+    : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -83,7 +86,7 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
         IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 }
 
-void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
+void MultiClassNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -105,7 +108,7 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNMultiClassNmsNode::prepareParams() {
+void MultiClassNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
@@ -138,11 +141,11 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
     m_numBoxOffset.resize(m_numBatches);
 }
 
-bool MKLDNNMultiClassNmsNode::isExecutable() const {
-    return isDynamicNode() || MKLDNNNode::isExecutable();
+bool MultiClassNms::isExecutable() const {
+    return isDynamicNode() || Node::isExecutable();
 }
 
-void MKLDNNMultiClassNmsNode::executeDynamicImpl(mkldnn::stream strm) {
+void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -150,7 +153,7 @@ void MKLDNNMultiClassNmsNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
+void MultiClassNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
@@ -299,11 +302,11 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNMultiClassNmsNode::created() const {
-    return getType() == MulticlassNms;
+bool MultiClassNms::created() const {
+    return getType() == Type::MulticlassNms;
 }
 
-float MKLDNNMultiClassNmsNode::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
+float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
     float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
     const float norm = static_cast<float>(normalized == false);
 
@@ -327,7 +330,7 @@ float MKLDNNMultiClassNmsNode::intersectionOverUnion(const float* boxesI, const 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+void MultiClassNms::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -393,7 +396,7 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
     });
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+void MultiClassNms::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         if (class_idx != m_backgroundClass) {
             const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
@@ -437,9 +440,11 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
     });
 }
 
-void MKLDNNMultiClassNmsNode::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MultiClassNms::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << m_errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNmsNode, MulticlassNms)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

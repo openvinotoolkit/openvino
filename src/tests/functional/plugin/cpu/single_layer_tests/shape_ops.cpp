@@ -5,7 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -164,7 +164,7 @@ TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Reshape");
+    CheckPluginRelatedResults(compiledModel, "Reshape");
 }
 
 namespace reshapeTest {

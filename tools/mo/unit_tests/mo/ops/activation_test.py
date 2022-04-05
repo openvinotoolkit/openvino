@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from openvino.tools.mo.ops.activation_ops import Elu, SoftPlus, Mish
+from openvino.tools.mo.ops.activation_ops import Elu, SoftPlus, Mish, Swish
 from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -111,6 +111,35 @@ class TestActivationOp(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
         exp_value = np.array([-0.30340146, 0.0, 0.8650984, 20.0])
+        for i, value in enumerate(exp_shape):
+            self.assertEqual(res_shape[i], value)
+        for i, value in enumerate(exp_value):
+            self.assertAlmostEqual(res_value[i], value)
+
+    def test_activation_swish_infer(self):
+        graph = build_graph(self.nodes_attributes,
+                            [
+                                ('node_1', 'activation_node'),
+                                ('activation_node', 'node_3')
+                            ],
+                            {
+                                'node_1': {
+                                    'value': np.array([-1.0, 0.0, 1.0, 20.0])
+                                },
+                                'activation_node': {
+                                    'op': 'Swish',
+                                },
+                                'node_3': {
+                                    'value': None
+                                }
+                            })
+        graph.graph['layout'] = 'NCHW'
+        activation_node = Node(graph, 'activation_node')
+        Swish.infer(activation_node)
+        exp_shape = np.array([4])
+        res_shape = graph.node['node_3']['shape']
+        res_value = graph.node['node_3']['value']
+        exp_value = np.array([-0.26894142, 0.0, 0.73105858, 19.99999996])
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):

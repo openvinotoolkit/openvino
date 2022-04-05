@@ -7,11 +7,10 @@
 #include <pybind11/iostream.h>
 #include <pybind11/stl.h>
 
-#include <pyopenvino/graph/any.hpp>
-
 #include "common.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
 PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
@@ -33,6 +32,7 @@ void regclass_CompiledModel(py::module m) {
         [](ov::CompiledModel& self) {
             return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Creates an inference request object used to infer the compiled model.
             The created request has allocated input and output tensors.
@@ -47,17 +47,22 @@ void regclass_CompiledModel(py::module m) {
             auto request = self.create_infer_request();
             // Update inputs if there are any
             Common::set_request_tensors(request, inputs);
-            request.infer();
+            {
+                py::gil_scoped_release release;
+                request.infer();
+            }
             return Common::outputs_to_dict(self.outputs(), request);
         },
         py::arg("inputs"),
         R"(
             Infers specified input(s) in synchronous mode.
-            Blocks all methods of CompiledModel while request is running.
+            Blocks all methods of CompiledModel while the request is running.
 
             Method creates new temporary InferRequest and run inference on it.
-            It is advised to use dedicated InferRequest class for performance,
-            optimizing workflows and creating advanced pipelines.
+            It is advised to use a dedicated InferRequest class for performance,
+            optimizing workflows, and creating advanced pipelines.
+
+            GIL is released during the inference.
 
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
@@ -72,8 +77,11 @@ void regclass_CompiledModel(py::module m) {
             self.export_model(_stream);
             return py::bytes(_stream.str());
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Exports the compiled model to bytes/output stream.
+
+            GIL is released while running this function.
 
             :return: Bytes object that contains this compiled model.
             :rtype: bytes
@@ -99,7 +107,10 @@ void regclass_CompiledModel(py::module m) {
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
             std::stringstream _stream;
-            self.export_model(_stream);
+            {
+                py::gil_scoped_release release;
+                self.export_model(_stream);
+            }
             model_stream.attr("flush")();
             model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
@@ -108,11 +119,13 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Exports the compiled model to bytes/output stream.
 
-            Advanced version of `export_model`. It utilizes, streams from standard
+            Advanced version of `export_model`. It utilizes, streams from the standard
             Python library `io`.
 
-            Function performs flushing of the stream, writes to it and then rewinds
+            Function performs flushing of the stream, writes to it, and then rewinds
             the stream to the beginning (using seek(0)).
+
+            GIL is released while running this function.
 
             :param model_stream: A stream object to which the model will be serialized.
             :type model_stream: io.BytesIO
@@ -134,9 +147,9 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -149,19 +162,10 @@ void regclass_CompiledModel(py::module m) {
             :rtype: None
         )");
 
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_config",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_config() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-        },
-        py::arg("name"));
-
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
+            return Common::utils::from_ov_any(self.get_property(name));
         },
         py::arg("name"),
         R"(
@@ -172,26 +176,18 @@ void regclass_CompiledModel(py::module m) {
             :rtype: Any
         )");
 
-    // todo: remove after Accuracy Checker migration to set/get_property API
-    cls.def(
-        "get_metric",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            PyErr_WarnEx(PyExc_DeprecationWarning, "get_metric() is deprecated, use get_property() instead.", 1);
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-        },
-        py::arg("name"));
-
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
+            py::call_guard<py::gil_scoped_release>(),
             R"(
                 Gets runtime model information from a device.
 
-                This object (returned model) represents the internal device specific model
-                which is optimized for particular accelerator. It contains device specific nodes,
-                runtime information and can be used only to understand how the source model
-                is optimized and which kernels, element types and layouts are selected.
+                This object (returned model) represents the internal device-specific model
+                which is optimized for the particular accelerator. It contains device-specific nodes,
+                runtime information, and can be used only to understand how the source model
+                is optimized and which kernels, element types, and layouts are selected.
 
-                :return: Model containing Executable Graph information.
+                :return: Model, containing Executable Graph information.
                 :rtype: openvino.runtime.Model
             )");
 
@@ -219,7 +215,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("index"),
             R"(
                 Gets input of a compiled model identified by an index.
-                If an input with given index is not found, this method throws an exception.
+                If the input with given index is not found, this method throws an exception.
 
                 :param index: An input index.
                 :type index: int
@@ -232,9 +228,9 @@ void regclass_CompiledModel(py::module m) {
             py::arg("tensor_name"),
             R"(
                 Gets input of a compiled model identified by a tensor_name.
-                If an input with given tensor name is not found, this method throws an exception.
+                If the input with given tensor name is not found, this method throws an exception.
 
-                :param tensor_name: An input tensor's name.
+                :param tensor_name: An input tensor name.
                 :type tensor_name: str
                 :return: A compiled model input.
                 :rtype: openvino.runtime.ConstOutput
@@ -253,7 +249,7 @@ void regclass_CompiledModel(py::module m) {
             (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::output,
             R"(
                 Gets a single output of a compiled model.
-                If a model has more than one output, this method throws an exception.
+                If the model has more than one output, this method throws an exception.
 
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput
@@ -264,7 +260,7 @@ void regclass_CompiledModel(py::module m) {
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
-                If an output with given index is not found, this method throws an exception.
+                If the output with given index is not found, this method throws an exception.
 
                 :param index: An output index.
                 :type index: int
@@ -277,9 +273,9 @@ void regclass_CompiledModel(py::module m) {
             py::arg("tensor_name"),
             R"(
                 Gets output of a compiled model identified by a tensor_name.
-                If an output with given tensor name is not found, this method throws an exception.
+                If the output with given tensor name is not found, this method throws an exception.
 
-                :param tensor_name: An output tensor's name.
+                :param tensor_name: An output tensor name.
                 :type tensor_name: str
                 :return: A compiled model output.
                 :rtype: openvino.runtime.ConstOutput

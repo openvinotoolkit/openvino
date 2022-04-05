@@ -12,13 +12,16 @@
 #include <utils/general_utils.h>
 #include "kernels/gather_uni_kernel.hpp"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn::impl::cpu;
+using namespace dnnl::impl::cpu;
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
-bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v7::Gather::get_type_info_static(),
@@ -38,8 +41,8 @@ bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ov::Node
     return true;
 }
 
-MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), batchDims(0) {
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -89,7 +92,7 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
     }
 }
 
-void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
+void Gather::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -129,7 +132,7 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
                          isDynamicNode());
 }
 
-void MKLDNNGatherNode::createPrimitive() {
+void Gather::createPrimitive() {
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_common) ? x64::cpu_isa_traits<x64::avx512_common>::vlen / idxTypeSize :
@@ -195,17 +198,17 @@ void MKLDNNGatherNode::createPrimitive() {
         }
     }
 
-    MKLDNNNode::createPrimitive();
+    Node::createPrimitive();
 }
 
-bool MKLDNNGatherNode::needPrepareParams() const {
+bool Gather::needPrepareParams() const {
     bool result = inputShapesModified();
     if (!isAxisInputConst)
         result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
     return result;
 }
 
-void MKLDNNGatherNode::prepareParams() {
+void Gather::prepareParams() {
     auto& dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
@@ -260,7 +263,7 @@ void MKLDNNGatherNode::prepareParams() {
     }
 }
 
-void MKLDNNGatherNode::execute(mkldnn::stream strm) {
+void Gather::execute(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -313,7 +316,7 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNGatherNode::executeDynamicImpl(mkldnn::stream strm) {
+void Gather::executeDynamicImpl(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -372,7 +375,7 @@ void MKLDNNGatherNode::executeDynamicImpl(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNGatherNode::initShortParams(threadExecParams& p, const uint64_t start) {
+void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
     if (!jitKernel)
         THROW_ERROR << "has uninitialized kernel in function initShortParams.";
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
@@ -439,7 +442,7 @@ void MKLDNNGatherNode::initShortParams(threadExecParams& p, const uint64_t start
     }
 }
 
-void MKLDNNGatherNode::execReference() {
+void Gather::execReference() {
     const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr());
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -471,12 +474,14 @@ void MKLDNNGatherNode::execReference() {
     });
 }
 
-std::vector<VectorDims> MKLDNNGatherNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2, 3));
+std::vector<VectorDims> Gather::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
-bool MKLDNNGatherNode::created() const {
-    return getType() == Gather;
+bool Gather::created() const {
+    return getType() == Type::Gather;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGatherNode, Gather)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

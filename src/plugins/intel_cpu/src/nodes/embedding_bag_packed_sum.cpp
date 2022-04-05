@@ -8,10 +8,13 @@
 #include "embedding_bag_packed_sum.h"
 #include <ngraph/opsets/opset3.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
@@ -24,8 +27,8 @@ bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr
     return true;
 }
 
-MKLDNNEmbeddingBagPackedSumNode::MKLDNNEmbeddingBagPackedSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), MKLDNNEmbeddingBagSumNode(op, 2lu, 1lu, 2lu, 3lu) {
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -35,7 +38,7 @@ MKLDNNEmbeddingBagPackedSumNode::MKLDNNEmbeddingBagPackedSumNode(const std::shar
         IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
+void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -64,17 +67,17 @@ void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::prepareParams() {
+void EmbeddingBagPackedSum::prepareParams() {
     _batch = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
     _indicesPerBag = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[1];
-    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
+    EmbeddingBagSum::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::initFromInputs() {
+void EmbeddingBagPackedSum::initFromInputs() {
     _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (embIndex >= _batch * _indicesPerBag)
         IE_THROW() << "Invalid embedding bag index.";
 
@@ -86,15 +89,15 @@ void MKLDNNEmbeddingBagPackedSumNode::getIndices(int embIndex, const int*& indic
     weightsIdx = embIndex * _indicesPerBag;
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingBagPackedSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNEmbeddingBagPackedSumNode::isExecutable() const {
+bool EmbeddingBagPackedSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::execute(mkldnn::stream strm) {
+void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;
@@ -102,12 +105,14 @@ void MKLDNNEmbeddingBagPackedSumNode::execute(mkldnn::stream strm) {
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+    EmbeddingBagSum::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
                                        inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
-bool MKLDNNEmbeddingBagPackedSumNode::created() const {
-    return getType() == EmbeddingBagPackedSum;
+bool EmbeddingBagPackedSum::created() const {
+    return getType() == Type::EmbeddingBagPackedSum;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNEmbeddingBagPackedSumNode, EmbeddingBagPackedSum)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov
