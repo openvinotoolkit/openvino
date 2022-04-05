@@ -1021,3 +1021,24 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto relu = std::make_shared<Relu>(input);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{6, 3, 3, 3}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            auto relu2 = std::make_shared<Relu>(multiply);
+            weights = relu2;
+        }
+        auto conv = std::make_shared<opset8::Convolution>(relu, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+        function_ref = ov::clone_model(*function);
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
