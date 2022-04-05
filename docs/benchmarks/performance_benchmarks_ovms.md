@@ -1,20 +1,20 @@
 # OpenVINO™ Model Server Benchmark Results {#openvino_docs_performance_benchmarks_ovms}
 
-OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
+OpenVINO™ Model Server is an open-source, production-grade inference platform which exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It uses the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
 
 ![OpenVINO™ Model Server](../img/performance_benchmarks_ovms_01.png)
 
 ## Measurement Methodology
 
-OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected by ethernet network. The network bandwidth depends on the platforms as well as models under investigation and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup is consists of four main parts:
+OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected via ethernet network. The network bandwidth depends on the platforms as well as models under investigation and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup is consists of four main parts:
 
 ![OVMS Benchmark Setup Diagram](../img/performance_benchmarks_ovms_02.png)
 
-* **OpenVINO™ Model Server** is launched as a docker container on the server platform and it listens (and answers on) requests from clients. OpenVINO™ Model Server is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by OpenVINO™ Model Server are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
+* **OpenVINO™ Model Server** is launched as a docker container on the server platform and it listens (and answers) to requests from clients. OpenVINO™ Model Server is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by OpenVINO™ Model Server located are in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
-* **Clients** are run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow* API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it will send a new next request. The role played by the clients is also verification of responses.
+* **Clients** are run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow* API and they work as parallel processes. Each client awaits for a response from OpenVINO™ Model Server before it sends a new next request. The verification of responses role is also played by the clients.
 
-* **Load balancer** works on the client platform in a docker container. HAProxy is used for this purpose. Its main role is counting of requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason of locating the load balancer on the client site is to simulate real life scenario that includes impact of physical network on reported metrics.
+* **Load balancer** works on the client platform in a docker container using HAProxy. Its main role is counting of requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason of locating the load balancer on the client site is to simulate real life scenario that includes impact of physical network on reported metrics.
 
 * **Execution Controller** is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from the load balancer, and presenting the final report of the execution.
 
@@ -479,7 +479,7 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
 @endsphinxdirective
 
 ## Supported Image Formats for OVMS Compression
-- Always supported:
+- Fully supported:
 
   - Portable image format - *.pbm, *.pgm, *.ppm *.pxm, *.pnm
   - Radiance HDR - *.hdr, *.pic

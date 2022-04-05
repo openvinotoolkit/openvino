@@ -1,24 +1,25 @@
 # Performance Information Frequently Asked Questions {#openvino_docs_performance_benchmarks_faq}
 
-The following questions and answers are related to [performance benchmarks](./performance_benchmarks.md) published on the documentation site.
+Below questions and answers are related to [performance benchmarks.](./performance_benchmarks.md)
 
 #### 1. How often do performance benchmarks get updated?
-New performance benchmarks are typically published on every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
+New performance benchmarks are mostly published with every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
 
 #### 2. Where can I find the models used in the performance benchmarks?
-All of the models used are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository.
+All used models are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository.
 
 #### 3. Will there be new models added to the list used for benchmarking?
-The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. We're continuing to add new models that support a diverse set of workloads and usage.
+The models used in the performance benchmarks were chosen based upon general adoption and usage in deployment scenarios. We're continuing to add new models that support a diverse set of workloads and usage.
 
 #### 4. What does CF or TF in the graphs stand for?
-CF means Caffe*, while TF means TensorFlow*.
+* CF - Caffe*
+* TF - TensorFlow*.
 
 #### 5. How can I run the benchmark results on my own?
 All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md).
 
 #### 6. What image sizes are used for the classification network models?
-The image size used in the inference depends on the network being benchmarked. The following table shows the list of input sizes for each network model.
+The image size used in the inference depends on the benchmarked network. Below table shows the list of input sizes for each network model.
 |   **Model**                                                                                                                        |   **Public Network**               |     **Task**                | **Input Size** (Height x Width)   |
 |------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|-----------------------------|-----------------------------------|
 | [bert-base-cased](https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1)                                                           | BERT                               | question / answer           | 124                               |
@@ -58,13 +59,18 @@ The image size used in the inference depends on the network being benchmarked. T
 Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
 
 #### 8. How can I optimize my models for better performance or accuracy?
-We published a set of guidelines and recommendations to optimize your models available in the [optimization guide](../optimization_guide/dldt_optimization_guide.md). For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
+Guidelines and recommendations on how to optimize your models are available in the [optimization guide](../optimization_guide/dldt_optimization_guide.md). For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
 
 #### 9. Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
 The benefit of low-precision optimization using the OpenVINO™ toolkit model optimizer extends beyond processors supporting VNNI through Intel® DL Boost. The reduced bit width of INT8 compared to FP32 allows Intel® CPU to process the data faster and thus offers better throughput on any converted model agnostic of the intrinsically supported low-precision optimizations within Intel® hardware. Refer to [Model Accuracy for INT8 and FP32 Precision](performance_int8_vs_fp32.md) for comparison on boost factors for different network models and a selection of Intel® CPU architectures, including AVX-2 with Intel® Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel® Xeon® 8270.
 
 #### 10. Where can I search for OpenVINO™ performance results based on HW-platforms?
-The web site format has changed in order to support the more common search approach of looking for the performance of a given neural network model on different HW-platforms. As opposed to review a given HW-platform's performance on different neural network models.
+Web site format has changed to support more common search approach of looking for the performance of a given neural network model on different HW-platforms. As opposed to review given by HW-platform's performance on different neural network models.
 
 #### 11. How is Latency measured?
-Latency is measured by running the OpenVINO™ Runtime in synchronous mode. In synchronous mode each frame or image is processed through the entire set of stages (pre-processing, inference, post-processing) before the next frame or image is processed. This KPI is relevant for applications where the inference on a single image is required, for example the analysis of an ultra sound image in a medical application or the analysis of a seismic image in the oil & gas industry. Other use cases include real-time or near real-time applications like an industrial robot's response to changes in its environment and obstacle avoidance for autonomous vehicles where a quick response to the result of the inference is required.
+Latency is measured by running the OpenVINO™ Runtime in synchronous mode. In this mode each frame or image is processed through all stages (pre-processing, inference, post-processing) before start of the next frame or image process. This KPI is relevant for applications where the inference on a single image is required. For example:
+ 
+* Analysis of an ultra sound image in a medical application 
+* Analysis of a seismic image in the oil & gas industry. 
+
+Other use cases include real-time or near real-time applications like an industrial robot's response to changes in its environment and obstacle avoidance for autonomous vehicles where a quick response to the result of the inference is required.
