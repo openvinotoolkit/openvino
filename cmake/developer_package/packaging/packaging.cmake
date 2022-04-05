@@ -69,29 +69,34 @@ endif()
 # List of public OpenVINO components
 #
 
-# core components
-set(OV_CPACK_COMP_CORE "core")
-set(OV_CPACK_COMP_CORE_C "core_c")
-set(OV_CPACK_COMP_CORE_DEV "core_dev")
-set(OV_CPACK_COMP_CORE_C_DEV "core_c_dev")
-# licensing
-set(OV_CPACK_COMP_LICENSING "licensing")
-# samples
-set(OV_CPACK_COMP_CPP_SAMPLES "cpp_samples")
-set(OV_CPACK_COMP_C_SAMPLES "c_samples")
-set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
-# python
-set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
-set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
-set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
-# tools
-set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
-set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
-set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
+macro(ov_define_component_names)
+    # core components
+    set(OV_CPACK_COMP_CORE "core")
+    set(OV_CPACK_COMP_CORE_C "core_c")
+    set(OV_CPACK_COMP_CORE_DEV "core_dev")
+    set(OV_CPACK_COMP_CORE_C_DEV "core_c_dev")
+    # licensing
+    set(OV_CPACK_COMP_LICENSING "licensing")
+    # samples
+    set(OV_CPACK_COMP_CPP_SAMPLES "cpp_samples")
+    set(OV_CPACK_COMP_C_SAMPLES "c_samples")
+    set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
+    # python
+    set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
+    set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+    # tools
+    set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
+    set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
+    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
+endmacro()
+
+ov_define_component_names()
 
 # Include Debian specific configuration file:
-# - overrides directories set by ov_cpack_set_dirs()
-# - merges some components
+# - overrides directories set by ov_debian_cpack_set_dirs()
+# - merges some components using ov_override_component_names()
+# - sets ov_debian_specific_settings()
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
 endif()

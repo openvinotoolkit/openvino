@@ -64,11 +64,9 @@ install(FILES cpp/CMakeLists.txt
 
 # install Python samples
 
-if(ENABLE_PYTHON)
-    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES})
+ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES})
 
-    install(DIRECTORY python/
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/python
-            USE_SOURCE_PERMISSIONS
-            COMPONENT ${OV_CPACK_COMP_PYTHON_SAMPLES})
-endif()
+install(DIRECTORY python/
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/python
+        USE_SOURCE_PERMISSIONS
+        COMPONENT ${OV_CPACK_COMP_PYTHON_SAMPLES})

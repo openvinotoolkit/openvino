@@ -3,7 +3,7 @@
 #
 
 #
-# ov_cpack_set_dirs()
+# ov_debian_cpack_set_dirs()
 #
 # Set directories for cpack
 #
