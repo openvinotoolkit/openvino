@@ -29,7 +29,7 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                      WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -76,7 +76,7 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void Bucketize::execute(mkldnn::stream strm) {
+void Bucketize::execute(dnnl::stream strm) {
     auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {

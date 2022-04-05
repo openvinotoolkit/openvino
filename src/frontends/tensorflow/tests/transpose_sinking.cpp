@@ -82,7 +82,6 @@ TEST(TransposeSinkingTest, PoolAdd1) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -123,7 +122,6 @@ TEST(TransposeSinkingTest, PoolAdd2) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -178,7 +176,6 @@ TEST(TransposeSinkingTest, PoolAdd3) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -371,7 +368,6 @@ TEST(TransposeSinkingTest, MultiOutput) {
     ngraph::Shape shape_nchw{1, 1, 4, 6};
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, shape_nchw);  // NCHW
 
@@ -441,7 +437,6 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
     ngraph::Shape shape_nchw{1, 96, 55, 55};
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     // X
     auto X = make_shared<Parameter>(input_type, shape_nhwc);  // NHWC

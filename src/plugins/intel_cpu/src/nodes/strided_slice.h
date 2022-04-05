@@ -14,13 +14,13 @@ namespace node {
 
 class StridedSlice : public Node {
 public:
-    StridedSlice(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -30,7 +30,7 @@ public:
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void addHiddenDims(const size_t nSrcDims, int ellipsisPos1);

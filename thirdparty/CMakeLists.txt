@@ -12,7 +12,6 @@ endif()
 
 add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
-add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
@@ -23,12 +22,33 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak openvino_common)
 
 #
+# zlib
+#
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_host_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                        IMPORTED_TARGET GLOBAL
+                        zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+        endif()
+    endif()
+endif()
+
+if(NOT zlib_FOUND)
+    add_subdirectory(zlib EXCLUDE_FROM_ALL)
+endif()
+
+#
 # Pugixml
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
     find_package(PugiXML REQUIRED)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
     add_library(pugixml::static ALIAS pugixml)
 else()
     function(ie_build_pugixml)
@@ -64,8 +84,14 @@ ov_install_static_lib(fluid openvino_common)
 # Gflags
 #
 
-add_subdirectory(gflags EXCLUDE_FROM_ALL)
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+find_package(gflags QUIET COMPONENTS nothreads_shared)
+if(gflags_FOUND)
+    set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
+else()
+    add_subdirectory(gflags EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
+endif()
 
 #
 # Google Tests framework
@@ -145,22 +171,33 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 # Install
 #
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+if(CPACK_GENERATOR STREQUAL "DEB")
+    # These libraries are dependencies for openvino-samples-2022.1 package
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+    if(NOT gflags_FOUND)
+        message(FATAL_ERROR "gflags must be used as a debian package. Install libflags-dev")
+    endif()
+    if(NOT zlib_FOUND)
+        message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
+    endif()
+else()
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS)
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS)
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS)
+endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
         DESTINATION "samples/cpp/thirdparty"
         COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
