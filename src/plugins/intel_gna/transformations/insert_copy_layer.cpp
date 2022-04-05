@@ -12,6 +12,7 @@
 #include <ops/copy.hpp>
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ie/ie_common.h>
+#include <ie_algorithm.hpp>
 #include <openvino/core/except.hpp>
 
 #include "gna_plugin_log.hpp"
@@ -28,13 +29,35 @@ NGRAPH_RTTI_DEFINITION(HandleNonComputationalSubgraphs, "HandleNonComputationalS
 
 
 namespace {
+
+    bool is_aligned_split(std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
+        size_t offset = 0;
+        // currently split layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this is not necessary but is useful for testing
+        const int bytesPerSplitElement = 2;
+
+        if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
+            for (size_t index = 0; index < input_op_out_index; index++) {
+                auto curr_out_shape = input_op->get_output_shape(index);
+                auto outputSize = InferenceEngine::details::product(std::begin(curr_out_shape), std::end(curr_out_shape));
+                offset += outputSize * bytesPerSplitElement;
+            }
+        }
+        return offset == ALIGN64(offset);
+    }
+
     void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,
                                    std::shared_ptr<ngraph::Node> output_op,
                                    const size_t& index) {
         NGRAPH_CHECK(input_op);
         NGRAPH_CHECK(output_op);
 
-        auto copy_op = std::make_shared<ov::intel_gna::op::Copy>(input_op->output(output_op->input(index).get_source_output().get_index()));
+        auto input_op_out_index = output_op->input(index).get_source_output().get_index();
+        // In this case we no need copy layer insertion, because after insertion of aligning filter graph will have conv func layer
+        // Should be removed, when InsertSplitAligningFilterPass will be moved on nGraph, because it should be running before the copy layer passes
+        if (!is_aligned_split(input_op, input_op_out_index))
+            return;
+
+        auto copy_op = std::make_shared<ov::intel_gna::op::Copy>(input_op->output(input_op_out_index));
         copy_op->set_friendly_name(input_op->get_friendly_name() + "/copy_layer/" + output_op->get_friendly_name() + "." + std::to_string(index));
         ngraph::copy_runtime_info(input_op, copy_op);
 
@@ -172,11 +195,11 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
                 current_node = current_node->get_input_node_shared_ptr(0);
             }
 
-            // // Crop -> Concat, Input -> Split -> Concat
+            // Crop -> Concat, Input -> Split -> Concat
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
-                    insert_copy_layer_between(concat_input, concat, i);
+                insert_copy_layer_between(concat_input, concat, i);
             }
         }
 

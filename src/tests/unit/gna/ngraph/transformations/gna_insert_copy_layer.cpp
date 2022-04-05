@@ -110,7 +110,7 @@ public:
 class InsertCopyLayerSplitConcatTest: public InsertCopyLayerTest {
 public:
     void SetUp() override {
-        ngraph::Shape input_shape{10};
+        ngraph::Shape input_shape{256};
         InsertCopyLayerTest::SetUp();
 
         {
@@ -134,8 +134,10 @@ public:
 
             ngraph::OutputVector concat_inputs;
             for (int i = 0; i < m_inputs_num; ++i) {
-                auto copy = std::make_shared<ov::intel_gna::op::Copy>(split->output(i));
-                concat_inputs.push_back(copy);
+                if (m_inputs_num == 1 || (i % (m_inputs_num / 8) == 0))
+                    concat_inputs.push_back(std::make_shared<ov::intel_gna::op::Copy>(split->output(i)));
+                else
+                    concat_inputs.push_back(split->output(i));
             }
             auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, m_axis);
 
@@ -1353,7 +1355,7 @@ TEST(TransformationTests, InsertCopyLayerSplitNFLConcatTest) {
 }
 
 const size_t axis = 0;
-const std::vector<size_t> inputCounts = {1, 2, 5, 10};
+const std::vector<size_t> inputCounts = {1, 64, 128, 256};
 
 TEST_P(InsertCopyLayerConcatTest, CompareWithRefs) {
     Run();

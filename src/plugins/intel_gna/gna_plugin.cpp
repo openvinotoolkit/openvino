@@ -716,7 +716,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
-        // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.register_pass<InsertCopyBeforeMemoryLayer>();
         manager.register_pass<InsertCopyBeforeConcatLayer>();
