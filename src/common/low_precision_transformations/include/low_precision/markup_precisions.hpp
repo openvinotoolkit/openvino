@@ -10,7 +10,7 @@
 
 #include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
-#include "low_precision/common/operation_precision_restriction.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -48,7 +48,7 @@ public:
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
-    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {},
+    explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
