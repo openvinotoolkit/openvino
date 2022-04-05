@@ -18,12 +18,8 @@ ov::CompiledModel compileModel2 = core.compile_model(model, "MULTI", ov::device:
 
 // Optional
 // MULTI is pre-configured (globally) with the explicit option.
-// Additionally, once the priority list is set, you can alter it on the fly:
 core.set_property("MULTI", ov::device::priorities("HDDL,GPU"));
 
-compileModel.set_property(ov::device::priorities("GPU,HDDL"));
-compileModel.set_property(ov::device::priorities("GPU"));
-compileModel.set_property(ov::device::priorities("HDDL,GPU"));
 //! [part0]
 return 0;
 }

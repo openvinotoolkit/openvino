@@ -20,31 +20,35 @@ def MULTI_0():
 
     # Optional
     # MULTI is pre-configured (globally) with the explicit option.
-    # Additionally, once the priority list is set, you can alter it on the fly:
-    core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
     
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"})
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU"})
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
+    core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
 
 #! [MULTI_0]
 
-
-
-
-def Option_2():
-#! [Option_2]
+def MULTI_1():
+#! [MULTI_1]
     core = Core()
-
-    # Read a network in IR or ONNX format
     model = core.read_model(model_path)
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
-    # Change priorities
+    # Once the priority list is set, you can alter it on the fly:
+    # reverse the order of priorities
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,HDDL"})
+    
+    # exclude some devices (in this case, HDDL)
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU"})
+    
+    # return excluded devices
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
+
+    # You cannot add new devices on the fly!
+    # Attempting to do so, for example, adding CPU:
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,HDDL,GPU"})
-#! [Option_2]
+    # would trigger the following exception:
+    # [ ERROR ] [NOT_FOUND] You can only change device
+    # priorities but not add new devices with the model's
+    # ov::device::priorities. CPU device was not in the original device list!
+
+#! [MULTI_1]
 
 def available_devices_1():
 #! [available_devices_1]
@@ -76,7 +80,7 @@ def available_devices_2():
 
 
 
-def set_property():
+def MULTI_4():
 #! [MULTI_4]
     core = Core()
     cpu_config = {}
@@ -97,7 +101,7 @@ def set_property():
 
 def main():
     MULTI_0()
-    Option_2()
+    MULTI_1()
     available_devices_1()
     available_devices_2()
     MULTI_4()
