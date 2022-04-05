@@ -14,7 +14,7 @@ target_include_directories(${TARGET_NAME}
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime gflags)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE gflags)
 
 if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

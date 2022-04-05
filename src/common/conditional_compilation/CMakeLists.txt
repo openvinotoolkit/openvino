@@ -50,4 +50,4 @@ ov_install_static_lib(${TARGET_NAME} core)
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::conditional_compilation)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)

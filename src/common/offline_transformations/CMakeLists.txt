@@ -21,7 +21,7 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev
                                      PRIVATE openvino::itt pugixml::static openvino::runtime ngraph::reference
-                                             nlohmann_json_schema_validator nlohmann_json)
+                                             nlohmann_json_schema_validator)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
