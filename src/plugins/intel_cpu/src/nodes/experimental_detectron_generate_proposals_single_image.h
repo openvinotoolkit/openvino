@@ -14,16 +14,16 @@ namespace node {
 class ExperimentalDetectronGenerateProposalsSingleImage : public Node {
 public:
     ExperimentalDetectronGenerateProposalsSingleImage(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+        const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:

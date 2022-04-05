@@ -27,7 +27,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                      WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -82,11 +82,11 @@ void LogSoftmax::prepareParams() {
         reducedAxisStride *= dims[i];
 }
 
-void LogSoftmax::executeDynamicImpl(mkldnn::stream strm) {
+void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(mkldnn::stream strm) {
+void LogSoftmax::execute(dnnl::stream strm) {
     const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
