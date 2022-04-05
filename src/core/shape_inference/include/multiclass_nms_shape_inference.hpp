@@ -45,7 +45,6 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
     const auto& scores_ps = input_shapes[1];
 
     const auto& nms_attrs = op->get_attrs();
-    const auto output_type = nms_attrs.output_type;
     const auto nms_top_k = nms_attrs.nms_top_k;
     const auto keep_top_k = nms_attrs.keep_top_k;
 
