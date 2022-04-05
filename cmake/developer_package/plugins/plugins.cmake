@@ -81,18 +81,7 @@ function(ie_add_plugin)
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
-        # For compatibility with old InferenceEngine Developer Package
-        if(TARGET IE::inference_engine_plugin_api)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine IE::inference_engine_plugin_api)
-        elseif(TARGET inference_engine_plugin_api)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine inference_engine_plugin_api)
-        endif()
-
-        # new OpenVINO Developer Package
-        # TODO: looks like openvino::runtime::dev is not defined yet here
-        # if(TARGET openvino::runtime::dev)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
-        # endif()
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
         if(WIN32)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
