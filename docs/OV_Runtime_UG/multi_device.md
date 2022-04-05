@@ -2,7 +2,7 @@
 
 
 
-The Multi-Device execution mode, or MULTI for short, uses a "virtual" or a "proxy" device, which does not bind to a specific type of hardware. Instead, it assigns available computing devices to particular inference requests, which are then executed in parallel. 
+The Multi-Device execution mode, or MULTI for short, acts as a "virtual" or a "proxy" device, which does not bind to a specific type of hardware. Instead, it assigns available computing devices to particular inference requests, which are then executed in parallel. 
 
 The potential gains from using Multi-Device execution are:
 * improved throughput from using multiple devices at once,
