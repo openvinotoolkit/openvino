@@ -29,7 +29,7 @@ struct MVNParams {
     size_t N;
     size_t C;
     size_t H;
-    size_t W;
+    size_t W = 0;
     size_t num_parts;
     float eps;
     ngraph::op::MVNEpsMode eps_mode;

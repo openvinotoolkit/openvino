@@ -21,7 +21,7 @@ yes_or_no() {
 
 # install dependencies
 if [ -f /etc/lsb-release ]; then
-    # Ubuntu
+    # Ubuntu 18.04, 20.04, 21.10, 22.04
     host_cpu=$(uname -m)
     if [ "$host_cpu" = "x86_64" ]; then
         x86_64_specific_packages="gcc-multilib g++-multilib"
@@ -31,54 +31,57 @@ if [ -f /etc/lsb-release ]; then
 
     sudo -E apt update
     sudo -E apt-get install -y \
+            `# build step tools` \
             build-essential \
             cmake \
             ccache \
             curl \
             wget \
-            libssl-dev \
             ca-certificates \
             git \
             git-lfs \
-            libboost-regex-dev \
             $x86_64_specific_packages \
-            libgtk2.0-dev \
-            pkg-config \
-            libgflags-dev \
-            zlib1g-dev \
             unzip \
-            automake \
-            libtool \
-            autoconf \
             shellcheck \
+            `# python and wheel packages` \
             patchelf \
-            libenchant1c2a \
             python3-pip \
             python3-enchant \
             python3-setuptools \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libusb-1.0-0-dev \
+            libpython3-dev \
+            `# openvino` \
             libtbb-dev \
-            libtinfo5 \
-            libopenblas-dev
-    if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
-        sudo -E apt-get install -y libjson-c2
-    else
-        sudo -E apt-get install -y libjson-c3
+            `# samples` \
+            pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
+            `# myriad` \
+            libusb-1.0-0-dev \
+            `# hddl` \
+            libudev1 \
+            libusb-1.0-0 \
+            `# cl_compiler` \
+            libtinfo5
+    # hddl
+    if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
+        # ubuntu 18.04
+        sudo -E apt-get install -y \
+            libjson-c3 \
+            libboost-filesystem1.65.1 \
+            libboost-program-options1.65.1 \
+            libboost-system1.65.1
+    elif apt-cache search --names-only '^libjson-c4'| grep -q libjson-c4; then
+        # ubuntu 20.04
+        sudo -E apt-get install -y \
+            libjson-c4 \
+            libboost-filesystem1.71.0 \
+            libboost-program-options1.71.0
     fi
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
+    # for python3-enchant
+    if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
+        sudo -E apt-get install -y libenchant1c2a
     fi
+    # samples
     if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
         sudo -E apt-get install -y nlohmann-json3-dev
     else
@@ -154,37 +157,15 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            curl \
             wget \
-            libssl-dev \
             ca-certificates \
             git \
-            libboost-regex-dev \
-            libgtk2.0-dev \
             pkg-config \
             libgflags-dev \
             zlib1g-dev \
             nlohmann-json-dev \
             unzip \
-            automake \
-            libtool \
-            autoconf \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libusb-1.0-0-dev \
-            libopenblas-dev
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
-    fi
+            libusb-1.0-0-dev
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
@@ -195,6 +176,13 @@ required_cmake_ver=3.17
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
     tar xf cmake-3.18.4.tar.gz
+
+    if [ -f /etc/lsb-release ] || [ -f /etc/os-release ] ; then
+        sudo -E apt-get install -y libssl-dev
+    elif [ -f /etc/redhat-release ] ; then
+        sudo -E yum install -y libssl-dev
+    fi
+
     (cd cmake-3.18.4 && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
     rm -rf cmake-3.18.4 cmake-3.18.4.tar.gz
 fi

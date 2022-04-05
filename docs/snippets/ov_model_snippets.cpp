@@ -108,7 +108,7 @@ void visualize_example(const std::shared_ptr<ov::Model>& m) {
 // ! [ov:visualize]
 
 void model_inputs() {
-std::shared_ptr<ov::Model> model;
+std::shared_ptr<ov::Model> model = std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{});
 //! [all_inputs_ouputs]
 /* Take information about all topology inputs */
 auto inputs = model->inputs();
