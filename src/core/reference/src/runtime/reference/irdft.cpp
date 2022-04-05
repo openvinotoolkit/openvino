@@ -155,6 +155,50 @@ std::vector<int64_t> lengths_except_given_axis(const std::vector<int64_t>& v, in
 
 enum class FFTKind { Forward, Inverse };
 
+// This function gathers data from the input of 1D FFT to the contiguous buffer. Returns true
+// if copied blob is zero, and false otherwise.
+bool gather_to_buffer(const complex_type* data,
+                      int64_t length,
+                      int64_t start,
+                      int64_t stride,
+                      complex_type* buffer,
+                      bool expand_input) {
+    bool blob_is_zero = true;
+    const int64_t ub = expand_input ? length / 2 + 1 : length;
+    for (int64_t k = 0; k < ub; ++k) {
+        complex_type value = data[start + k * stride];
+        buffer[k] = value;
+        blob_is_zero = blob_is_zero && (value == complex_type{0.0f, 0.0f});
+        if (expand_input) {
+            // Use conjugates of the values at indices [1 ... (ub - 2)] when the
+            // length is even and at indices [1 ... (ub - 1)] when the length is odd
+            // to calculate missing values at indices [(length - 1) ... ub].
+            if (k > 0 && k < (length - ub + 1)) {
+                buffer[length - k] = std::conj(value);
+            }
+        }
+    }
+    return blob_is_zero;
+}
+
+static constexpr float pi = 3.141592653589793238462643f;
+
+// This function calculates e^{-2i\pi k / length} for the forward FFT, and
+// e^{2i\pi k / length} otherwise. Here 'i' is an imaginary unit.
+complex_type twiddle(int64_t k, int64_t length, FFTKind fft_kind) {
+    float angle = -2.0f * pi * static_cast<float>(k) / static_cast<float>(length);
+    complex_type result = std::exp(complex_type(0.0f, angle));
+    return (fft_kind == FFTKind::Inverse) ? std::conj(result) : result;
+}
+
+std::vector<complex_type> generate_twiddles(int64_t length, FFTKind fft_kind) {
+    std::vector<complex_type> twiddles(length / 2);
+    for (int64_t k = 0; k < length / 2; ++k) {
+        twiddles[k] = twiddle(k, length, fft_kind);
+    }
+    return twiddles;
+}
+
 // Non-recursive implementation of the Cooley-Tukey radix-2 decimation in
 // time. Performs 1D FFT transform for the lengths, which are powers of 2.
 // Runs in O(length * log(length)) time. Uses the same parameters as the naive
@@ -168,40 +212,40 @@ void optimized_fft1d(int64_t length,
                      complex_type* buffer,
                      FFTKind fft_kind,
                      bool expand_input) {
-//     gather_to_buffer(data, length, fft_offset, stride, buffer);
-//     if (blob_is_zero(buffer, length)) {
-//         return;
-//     }
-//
-//     int64_t in_base = length;
-//     int64_t out_base = 0;
-//     for (int64_t num_blocks = 1; num_blocks < length; num_blocks *= 2) {
-//         std::swap(in_base, out_base);
-//
-//         auto twiddles = generate_twiddles(num_blocks * 2, fft_kind);
-//         const int64_t block_size = length / num_blocks;
-//         const int64_t next_iteration_block_size = block_size / 2;
-//         for (int64_t block = 0; block < num_blocks; block++) {
-//             const int64_t in_offset = in_base + block * block_size;
-//             const int64_t out_offset = out_base + block * next_iteration_block_size;
-//
-//             for (int64_t pair = 0; pair < block_size / 2; pair++) {
-//                 const complex_type even = buffer[in_offset + pair];
-//                 const complex_type odd = buffer[in_offset + block_size / 2 + pair];
-//                 const complex_type twiddled_odd = twiddles[block] * odd;
-//                 buffer[out_offset + pair] = even + twiddled_odd;
-//                 buffer[out_offset + length / 2 + pair] = even - twiddled_odd;
-//             }
-//         }
-//     }
-//
-//     for (int64_t k = 0; k < length; k++) {
-//         complex_type value = buffer[out_base + k];
-//         if (fft_kind == FFTKind::Inverse) {
-//             value /= complex_type(length, 0.0f);
-//         }
-//         data[fft_offset + k * stride] = value;
-//     }
+    bool gathered_blob_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer, expand_input);
+    if (gathered_blob_is_zero) {
+        return;
+    }
+
+    int64_t in_base = length;
+    int64_t out_base = 0;
+    for (int64_t num_blocks = 1; num_blocks < length; num_blocks *= 2) {
+        std::swap(in_base, out_base);
+
+        auto twiddles = generate_twiddles(num_blocks * 2, fft_kind);
+        const int64_t block_size = length / num_blocks;
+        const int64_t next_iteration_block_size = block_size / 2;
+        for (int64_t block = 0; block < num_blocks; block++) {
+            const int64_t in_offset = in_base + block * block_size;
+            const int64_t out_offset = out_base + block * next_iteration_block_size;
+
+            for (int64_t pair = 0; pair < block_size / 2; pair++) {
+                const complex_type even = buffer[in_offset + pair];
+                const complex_type odd = buffer[in_offset + block_size / 2 + pair];
+                const complex_type twiddled_odd = twiddles[block] * odd;
+                buffer[out_offset + pair] = even + twiddled_odd;
+                buffer[out_offset + length / 2 + pair] = even - twiddled_odd;
+            }
+        }
+    }
+
+    for (int64_t k = 0; k < length; k++) {
+        complex_type value = buffer[out_base + k];
+        if (fft_kind == FFTKind::Inverse) {
+            value /= complex_type(length, 0.0f);
+        }
+        data[fft_offset + k * stride] = value;
+    }
 }
 
 // Naive implementation of 1D FFT
@@ -212,21 +256,21 @@ void naive_fft1d(int64_t length,
                  complex_type* buffer,
                  FFTKind fft_kind,
                  bool expand_input) {
-//     gather_to_buffer(data, length, fft_offset, stride, buffer);
-//     if (blob_is_zero(buffer, length)) {
-//         return;
-//     }
-//
-//     for (int64_t k = 0; k < length; ++k) {
-//         complex_type value = complex_type(0.0f, 0.0f);
-//         for (int64_t n = 0; n < length; ++n) {
-//             value += buffer[n] * twiddle(n * k, length, fft_kind);
-//         }
-//         if (fft_kind == FFTKind::Inverse) {
-//             value /= complex_type(length, 0.0f);
-//         }
-//         data[fft_offset + k * stride] = value;
-//     }
+    bool gathered_blob_is_zero = gather_to_buffer(data, length, fft_offset, stride, buffer, expand_input);
+    if (gathered_blob_is_zero) {
+        return;
+    }
+
+    for (int64_t k = 0; k < length; ++k) {
+        complex_type value = complex_type(0.0f, 0.0f);
+        for (int64_t n = 0; n < length; ++n) {
+            value += buffer[n] * twiddle(n * k, length, fft_kind);
+        }
+        if (fft_kind == FFTKind::Inverse) {
+            value /= complex_type(length, 0.0f);
+        }
+        data[fft_offset + k * stride] = value;
+    }
 }
 
 void fft1d(int64_t length,
@@ -240,6 +284,22 @@ void fft1d(int64_t length,
         optimized_fft1d(length, fft_offset, stride, data, buffer, fft_kind, expand_input);
     } else {
         naive_fft1d(length, fft_offset, stride, data, buffer, fft_kind, expand_input);
+    }
+}
+
+// Copying calculated data to the given memory domain.
+void copy_data_to_output(complex_type* output,
+                         const complex_type* data,
+                         int64_t dst_index,
+                         int64_t fft_size,
+                         const std::vector<int64_t>& fft_strides,
+                         const std::vector<int64_t>& output_fft_strides) {
+    for (int64_t idx = 0; idx < fft_size; ++idx) {
+        auto coords = fft_common::coords_from_index(idx, fft_strides);
+        complex_type value = data[idx];
+        int64_t offset = fft_common::offset_from_coords_and_strides(coords, output_fft_strides);
+
+        output[dst_index + offset] = value;
     }
 }
 
@@ -387,6 +447,16 @@ void irdft_calculation(const float* input_data,
                 }
             }
         }
+
+        // Copying current calculated data to the output blob.
+        int64_t outer_output_offset = fft_common::offset_from_coords_and_strides(outer_coords, output_outer_strides);
+        std::cout << "    outer_output_offset: " << outer_output_offset << "\n";
+        copy_data_to_output(complex_output_ptr,
+                            data.data(),
+                            outer_output_offset,
+                            fft_size,
+                            fft_strides,
+                            output_fft_strides);
     }
 }
 
