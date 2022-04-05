@@ -66,11 +66,6 @@ struct Parsed {
 
 namespace {
 
-std::mutex& get_plugin_mutex(const std::string& plugin_name) {
-    static std::map<std::string, std::mutex> mutexes;
-    return mutexes[plugin_name];
-}
-
 size_t string_to_size_t(const std::string& s) {
     std::stringstream sstream(s);
     size_t idx;
@@ -273,7 +268,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
-    mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+    mutable std::unordered_map<std::string, std::mutex> plugins_mutexes;
+    std::mutex& get_mutex(const std::string& name = "") const {
+        static std::mutex l_mutex;
+        std::lock_guard<std::mutex> lock(l_mutex);
+        return plugins_mutexes[name];
+    }
 
     const bool newAPI;
 
@@ -461,7 +461,7 @@ public:
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
 
         auto parse_result = ParseXml(xmlConfigFile.c_str());
         if (!parse_result.error_msg.empty()) {
@@ -536,7 +536,7 @@ public:
      * @param static_registry a statically defined configuration with device / plugin information
      */
     void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
 
         for (const auto& plugin : static_registry) {
             const auto& deviceName = plugin.first;
@@ -715,7 +715,7 @@ public:
 
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0 ||
-                                 pluginRegistry.at(deviceName).pluginCreateFunc == ov::proxy::create_plugin;
+                                 pluginRegistry.at(parsed._deviceName).pluginCreateFunc == ov::proxy::create_plugin;
         if (forceDisableCache) {
             // remove this config key from parsed as plugins can throw unsupported exception
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
@@ -1019,7 +1019,7 @@ public:
         auto deviceName = pluginName;
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
-        std::lock_guard<std::mutex> lock(get_plugin_mutex(deviceName));
+        std::lock_guard<std::mutex> lock(get_mutex(deviceName));
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
@@ -1046,6 +1046,10 @@ public:
                     reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                         ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
                     plugin = InferencePlugin{plugin_impl, so};
+                }
+                {
+                    std::lock_guard<std::mutex> lock_plugins(get_mutex());
+                    plugins.insert({deviceName, plugin});
                 }
 
                 {
@@ -1124,8 +1128,7 @@ public:
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
 
-                std::lock_guard<std::mutex> lock_plugins(pluginsMutex);
-                return plugins.emplace(deviceName, plugin).first->second;
+                return plugin;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
@@ -1142,12 +1145,13 @@ public:
      * @param deviceName A name of device
      */
     void UnloadPluginByName(const std::string& deviceName) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex(deviceName));
         auto it = plugins.find(deviceName);
         if (it == plugins.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
+        std::lock_guard<std::mutex> lock_plugins(get_mutex());
         plugins.erase(deviceName);
     }
 
@@ -1159,7 +1163,7 @@ public:
                               const std::string& deviceName,
                               const std::string& proxy_name,
                               size_t priority) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
 
         auto it = pluginRegistry.find(deviceName);
         if (it != pluginRegistry.end()) {
@@ -1193,7 +1197,7 @@ public:
      * @return A list of plugin names
      */
     std::vector<std::string> GetListOfDevicesInRegistry() const {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
 
         std::vector<std::string> listOfDevices;
         for (auto&& pluginDesc : pluginRegistry) {
@@ -1216,8 +1220,6 @@ public:
         InferenceEngine::DeviceIDParser parser(deviceName);
         std::string clearDeviceName = parser.getDeviceName();
 
-        std::lock_guard<std::mutex> lock(get_plugin_mutex(deviceName));
-
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
         } else {
@@ -1229,18 +1231,22 @@ public:
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+            std::lock_guard<std::mutex> lock(get_mutex(deviceName));
             PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
             pluginRegistry[deviceName] = desc;
         }
 
         // set config for plugins in registry
         bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
-            if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
+        {
+            std::lock_guard<std::mutex> lock(get_mutex(deviceName));
+            for (auto& desc : pluginRegistry) {
+                if (deviceName.empty() || deviceName == desc.first) {
+                    for (auto&& conf : config) {
+                        desc.second.defaultConfig[conf.first] = conf.second;
+                    }
+                    configIsSet = true;
                 }
-                configIsSet = true;
             }
         }
 
@@ -1252,6 +1258,7 @@ public:
         for (auto& plugin : plugins) {
             if ((deviceName.empty() && pluginRegistry.at(plugin.first).proxy_name.empty()) ||
                 clearDeviceName == plugin.first) {
+                std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 allowNotImplemented([&]() {
                     auto configCopy = config;
                     if (DeviceSupportsCacheDir(plugin.second)) {
@@ -1349,12 +1356,12 @@ public:
      *        Such extensions can be used for both CNNNetwork readers and device plugins
      */
     void AddExtension(const ie::IExtensionPtr& extension) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
         AddExtensionUnsafe(extension);
     }
 
     void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+        std::lock_guard<std::mutex> lock(get_mutex());
         for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
             if (auto op_base_ext = std::dynamic_pointer_cast<BaseOpExtension>(ext)) {
@@ -1750,11 +1757,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
-    if (deviceName.empty()) {
-        _impl->SetConfigForPlugins(config, std::string());
-    } else {
-        _impl->SetConfigForPlugins(config, deviceName);
-    }
+    _impl->SetConfigForPlugins(config, deviceName);
 }
 
 Parameter Core::GetConfig(const std::string& deviceName, const std::string& name) const {
