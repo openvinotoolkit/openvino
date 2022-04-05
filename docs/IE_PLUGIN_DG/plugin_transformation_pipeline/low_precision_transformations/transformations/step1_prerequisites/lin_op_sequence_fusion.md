@@ -1,4 +1,4 @@
-# LinOpSequenceFusion transformation {#openvino_docs_IE_DG_lpt_LinOpSequenceFusion}
+# LinOpSequenceFusion transformation {#openvino_docs_OV_UG_lpt_LinOpSequenceFusion}
 
 ngraph::pass::LinOpSequenceFusion class represents the `LinOpSequenceFusion` transformation.
 

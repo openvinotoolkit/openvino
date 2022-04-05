@@ -71,6 +71,7 @@ OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
 OP_CONVERTER(rnn);
+OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
@@ -80,10 +81,12 @@ OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
+OP_CONVERTER(strided_slice);
 OP_CONVERTER(tanh);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(where);
 OP_CONVERTER(yolo_box);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -157,6 +160,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
             {"rnn", op::rnn},
+            {"roi_align", op::roi_align},
             {"scale", op::scale},
             {"shape", op::shape},
             {"slice", op::slice},
@@ -166,11 +170,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"split", op::split},
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
+            {"strided_slice", op::strided_slice},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
+            {"where", op::where},
             {"yolo_box", op::yolo_box}};
 };
 

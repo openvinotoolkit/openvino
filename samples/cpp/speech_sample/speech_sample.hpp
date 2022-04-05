@@ -51,6 +51,9 @@ static const char enable_log_message[] = "Optional. Enable GNA logging, which ma
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
+/// @brief message for disabling of compact (memory_reuse) mode
+static const char memory_reuse_message[] = "Optional. Disables memory optimizations for compiled model.";
+
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU plugin custom layers."
                                                  "Absolute path to a shared library with the kernels implementations.";
@@ -96,10 +99,6 @@ static const char scale_factor_message[] =
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
 
-/// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async"
-                                                " inference requests on the GNA.";
-
 /// @brief message for left context window argument
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
@@ -133,6 +132,9 @@ static const char pwl_max_error_percent_message[] = "Optional. The maximum perce
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
+
+/// \brief Define flag for disabling compact (memory_reuse) mode <br>
+DEFINE_bool(memory_reuse_off, false, memory_reuse_message);
 
 /// \brief Define parameter for set image file <br>
 /// It is a required parameter
@@ -184,9 +186,6 @@ DEFINE_string(sf, "", scale_factor_message);
 /// @brief Batch size (default 0)
 DEFINE_int32(bs, 0, batch_size_message);
 
-/// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
-DEFINE_int32(nthreads, 1, infer_num_threads_message);
-
 /// @brief Right context window size (default 0)
 DEFINE_int32(cw_r, 0, context_window_message_r);
 
@@ -235,6 +234,7 @@ static void show_usage() {
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
+    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
 }
 
 /**

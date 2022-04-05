@@ -480,7 +480,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build);
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;
