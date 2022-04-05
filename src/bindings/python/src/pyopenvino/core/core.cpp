@@ -118,7 +118,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
-            return self.compile_model(model, device_name, {properties.begin(), properties.end()});
+            return self.compile_model(model, device_name, _properties);
         },
         py::arg("model"),
         py::arg("device_name"),
