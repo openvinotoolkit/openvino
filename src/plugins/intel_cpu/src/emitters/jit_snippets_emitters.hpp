@@ -90,7 +90,12 @@ public:
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
+
 private:
+    void validate_arguments(const std::vector<size_t> &in,
+                            const std::vector<size_t> &out,
+                            const std::vector<size_t> &pool,
+                            const std::vector<size_t> &gpr) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,

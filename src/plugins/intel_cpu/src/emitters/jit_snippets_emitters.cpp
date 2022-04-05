@@ -14,15 +14,6 @@ namespace intel_cpu {
 // Define some helper functions in the anonymous namespace
 namespace {
 
-//void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
-//    auto regs_removed = std::remove_if(pool.begin(), pool.end(),
-//                                      [&to_remove](size_t reg_num) {
-//                                          return to_remove.count(reg_num) != 0;
-//                                      });
-//    if (pool.end() - regs_removed != to_remove.size())
-//        IE_THROW() << "Attempt to remove regs that are not in the pool";
-//    pool.erase(regs_removed, pool.end());
-//}
 void remove_regs_from_pool(std::vector<size_t>& pool, const std::vector<size_t>& to_remove) {
     // It's important to keep the order of other elements
     for (const auto &reg_num : to_remove) {
@@ -182,9 +173,17 @@ void TileSchedulerEmitter::emit_code(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
                                      const std::vector<size_t> &pool,
                                      const std::vector<size_t> &gpr) const {
-//        todo: Enable validate arguments
-//        validate_arguments(in, out, pool, gpr);
+    validate_arguments(in, out, pool, gpr);
     emit_impl(in, out, pool, gpr, nullptr);
+}
+void TileSchedulerEmitter::validate_arguments(const std::vector<size_t> &in,
+                                     const std::vector<size_t> &out,
+                                     const std::vector<size_t> &pool,
+                                     const std::vector<size_t> &gpr) const {
+    if (in.size() != 5)
+        IE_THROW() << "TileSchedulerEmitter got invalid number of inputs. Expected 5, got " << in.size();
+    if (out.size() != in[0] + in[1])
+        IE_THROW() << "TileSchedulerEmitter got invalid number of outputs. Expected " << in[0] + in[1] << " , got " << out.size();
 }
 
 void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
@@ -198,23 +197,19 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
     const size_t num_params = num_inputs + num_outputs;
     const size_t outer_work_amount = jcp.scheduler_dims[0];
     const size_t inner_work_amount = jcp.scheduler_dims[1];
-//    const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 
     // It is critical that reg_outer_amount and reg_inner_amount represent the
     // first two runtime arguments, since they are used to calculating offsets
     Reg64 reg_outer_amount = Reg64(static_cast<int>(in[3]));
     Reg64 reg_inner_amount = Reg64(static_cast<int>(in[4]));
-//    Reg64 reg_tmp_64{dnnl::impl::cpu::x64::abi_not_param1};
+
     std::vector<size_t> gp_regs_pool(gpr_pool);
-//    remove_regs_from_pool(gp_regs_pool, {static_cast<size_t>(reg_tmp_64.getIdx())});
     Reg64 reg_tmp_64 = Reg64(static_cast<int>(gp_regs_pool.back()));
     gp_regs_pool.pop_back();
 
-//    std::vector<int> available_registers{0, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15};
     Label for_body;
 
-    // We won't need them after offsets are calculated, so pass further to Tiles
     Reg64 reg_indexes = reg_outer_amount;
     Reg64 reg_const_params = reg_inner_amount;
     auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
@@ -276,9 +271,7 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
         h->mov(reg_outer_amount, outer_work_amount);
         h->L(for_body);
         {
-//            h->push(reg_amount);
             emit_tiles();
-//            h->pop(reg_amount);
 
             // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
             //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).
@@ -316,12 +309,10 @@ void TileEmitter::validate_arguments(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
                                      const std::vector<size_t> &pool,
                                      const std::vector<size_t> &gpr) const {
-    if (in.size() != 2)
-        IE_THROW() << "TileEmitter got invalid number of inputs. Expected 1, got " << in.size();
-//    if (out.size() != in[])
-//        IE_THROW() << "TileEmitter got invalid number of outputs. Expected 1, got " << out.size();
-//    if (out.size() != 0)
-//        IE_THROW() << "TileEmitter got unexpected output arguments.";
+    if (in.size() != 3)
+        IE_THROW() << "TileEmitter got invalid number of inputs. Expected 2, got " << in.size();
+    if (out.size() != in[0])
+        IE_THROW() << "TileEmitter got invalid number of outputs. Expected " << in[0] << " , got " << out.size();
 }
 
 void TileEmitter::emit_impl(const std::vector<size_t>& in,
@@ -329,10 +320,10 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& vec_pool,
                             const std::vector<size_t>& gpr_pool,
                             const ov::intel_cpu::emitter_context *emit_context) const {
-    const size_t inc = in[0];
+    const size_t inc = in[1];
     // Todo: Note that both Tiles use the same reg for amount and this is a problem,
     //  since we can't just pop it from the pool (we don't know whether it's first/second or the only tile at this point)
-    Reg64 amount = Reg64(static_cast<int>(in[1]));
+    Reg64 amount = Reg64(static_cast<int>(in[2]));
     Label for_body;
 
     // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
