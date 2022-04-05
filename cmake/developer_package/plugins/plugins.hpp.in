@@ -1,0 +1,26 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+
+namespace {
+@IE_PLUGINS_DECLARATIONS@
+
+struct Value {
+    InferenceEngine::CreatePluginEngineFunc * m_create_plugin_func;
+    InferenceEngine::CreateExtensionFunc * m_create_extension_func;
+    std::map<std::string, std::string> m_default_config;
+};
+
+using Key = std::string;
+using PluginsStaticRegistry = std::map<Key, Value>;
+
+const std::map<Key, Value> getStaticPluginsRegistry() {
+@IE_PLUGINS_MAP_DEFINITION@
+    return plugins_hpp;
+}
+
+} // namespace

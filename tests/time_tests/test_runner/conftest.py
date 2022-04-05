@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -43,7 +43,7 @@ def pytest_addoption(parser):
     test_args_parser.addoption(
         "--test_conf",
         type=Path,
-        help="path to a test config",
+        help="Path to a test config",
         default=Path(__file__).parent / "test_config.yml"
     )
     test_args_parser.addoption(
@@ -51,20 +51,25 @@ def pytest_addoption(parser):
         required=True,
         dest="executable",
         type=Path,
-        help="path to a timetest binary to execute"
+        help="Path to a timetest binary to execute"
     )
     test_args_parser.addoption(
         "--niter",
         type=check_positive_int,
-        help="number of iterations to run executable and aggregate results",
+        help="Number of iterations to run executable and aggregate results",
         default=3
+    )
+    test_args_parser.addoption(
+        "--model_cache",
+        action='store_true',
+        help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
+        help='Submit results to the database. ' \
              '`RUN_ID` should be a string uniquely identifying the run' \
              ' (like Jenkins URL or time)'
     )
@@ -79,19 +84,21 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in database',
+        help='Collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
         '--db_metadata',
         type=str,
         default=None,
-        help='path to JSON-formatted file to extract additional information')
+        help='Path to JSON-formatted file to extract additional information'
+    )
     db_args_parser.addoption(
         '--manifest',
         type=Path,
         required=is_db_used,
-        help='path to build manifest to extract commit information')
+        help='Path to build manifest to extract commit information'
+    )
 
 
 @pytest.fixture(scope="session")
@@ -112,7 +119,14 @@ def niter(request):
     return request.config.getoption('niter')
 
 
+@pytest.fixture(scope="session")
+def model_cache(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('model_cache')
+
+
 # -------------------- CLI options --------------------
+
 
 @pytest.fixture(scope="function")
 def temp_dir(pytestconfig):
@@ -236,6 +250,9 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
 
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
+
     # add test info
     info = {
         # results will be added immediately before uploading to DB in `pytest_runtest_makereport`
@@ -313,7 +330,7 @@ def manifest_metadata(request):
         {
             "type": "object",
             "properties": {
-                "product_type": {"enum": ["private_linux_ubuntu_18_04", "private_windows_vs2019"]},
+                "product_type": {"type": "string"},
                 "repo_url": {"type": "string"},
                 "commit_sha": {"type": "string"},
                 "commit_date": {"type": "string"},

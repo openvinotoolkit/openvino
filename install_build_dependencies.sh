@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 params=$1
@@ -33,6 +33,7 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt-get install -y \
             build-essential \
             cmake \
+            ccache \
             curl \
             wget \
             libssl-dev \
@@ -43,6 +44,8 @@ if [ -f /etc/lsb-release ]; then
             $x86_64_specific_packages \
             libgtk2.0-dev \
             pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
             unzip \
             automake \
             libtool \
@@ -63,6 +66,8 @@ if [ -f /etc/lsb-release ]; then
             libgstreamer1.0-0 \
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
+            libtbb-dev \
+            libtinfo5 \
             libopenblas-dev
     if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
         sudo -E apt-get install -y libjson-c2
@@ -74,8 +79,13 @@ if [ -f /etc/lsb-release ]; then
     else
         sudo -E apt-get install -y libpng-dev
     fi
+    if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
+        sudo -E apt-get install -y nlohmann-json3-dev
+    else
+        sudo -E apt-get install -y nlohmann-json-dev
+    fi
 elif [ -f /etc/redhat-release ]; then
-    # CentOS 7.x
+    # RHEL 8
     sudo -E yum install -y centos-release-scl epel-release
     sudo -E yum install -y \
             wget \
@@ -94,6 +104,9 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            pkg-config \
+            gflags-devel.i686 \
+            zlib-devel.i686 \
             glibc-static \
             glibc-devel \
             libstdc++-static \
@@ -149,6 +162,9 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
             libboost-regex-dev \
             libgtk2.0-dev \
             pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
+            nlohmann-json-dev \
             unzip \
             automake \
             libtool \
@@ -175,7 +191,7 @@ fi
 
 # cmake 3.13 or higher is required to build OpenVINO
 current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
-required_cmake_ver=3.13
+required_cmake_ver=3.17
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
     tar xf cmake-3.18.4.tar.gz

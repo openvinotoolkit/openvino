@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,6 +6,8 @@ import pytest
 
 from openvino.tools.pot.statistics.function_selector import AGGREGATION_FN, ACTIVATIONS_STATS_FN, WEIGHTS_STATS_FN, \
     get_aggregation_function, get_stats_function_for_activations, get_stats_function_for_weights, PERCHANNEL, PERTENSOR
+
+from openvino.tools.pot.algorithms.quantization.fake_quantize import get_num_levels
 
 INPUT_SHAPES = [(2, 2, 1), (2, 2, 2)]
 AGG_INPUTS = [np.reshape(np.array(range(np.prod(shape)), dtype=np.float32), shape) for shape in INPUT_SHAPES]
@@ -137,14 +139,17 @@ WEIGHTS_CH_STATS_FUNCTIONS = [(name, True) for name in
                               WEIGHTS_STATS_FN[PERCHANNEL].registry_dict.keys()]
 
 
-@pytest.mark.parametrize(
-    'name, transpose', WEIGHTS_CH_STATS_FUNCTIONS,
-    ids=['{}_{}'.format(fn[0], fn[1]) for fn in WEIGHTS_CH_STATS_FUNCTIONS])
-def test_weights_transpose_function(name, transpose):
-    fn = get_stats_function_for_weights(name, PERCHANNEL)
-    if name in ['quantile', 'abs_quantile']:
-        result = fn(INPUT, q=1e-2, transpose=transpose)
-    else:
-        result = fn(INPUT, transpose=transpose)
-    expected = GOLD_VALUES_CH_TRANS_WEIGHT_FUNCTIONS[name]
-    np.testing.assert_almost_equal(result, expected)
+NUM_LEVELS_PARAMS = [
+    (np.random.randint, (0, 2, (3, 100, 100)), 1, 1),
+    (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1),
+    (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1/512),
+    (np.random.rand, (3, 100, 100), -1, 1),
+    (np.random.randint, (0, 1, (3, 100, 100)), 0, 1)
+]
+
+
+@pytest.mark.parametrize('gen_func,params,expected,coef', NUM_LEVELS_PARAMS)
+def test_get_num_levels_function(gen_func, params, expected, coef):
+    test_1 = gen_func(*params) * coef
+    result = get_num_levels(test_1)
+    assert result == expected

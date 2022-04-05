@@ -1,4 +1,4 @@
-## FloorMod <a name="FloorMod"></a> {#openvino_docs_ops_arithmetic_FloorMod_1}
+# FloorMod  {#openvino_docs_ops_arithmetic_FloorMod_1}
 
 **Versioned name**: *FloorMod-1*
 

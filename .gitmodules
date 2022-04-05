@@ -1,5 +1,5 @@
-[submodule "inference-engine/thirdparty/mkl-dnn"]
-	path = inference-engine/thirdparty/mkl-dnn
+[submodule "src/plugins/intel_cpu/thirdparty/onednn"]
+	path = src/plugins/intel_cpu/thirdparty/onednn
 	url = https://github.com/openvinotoolkit/oneDNN.git
 	ignore = dirty
 [submodule "thirdparty/xbyak"]
@@ -44,8 +44,8 @@
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
-[submodule "runtime/bindings/python/thirdparty/pybind11"]
-	path = runtime/bindings/python/thirdparty/pybind11
+[submodule "src/bindings/python/thirdparty/pybind11"]
+	path = src/bindings/python/thirdparty/pybind11
 	url = https://github.com/pybind/pybind11.git
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
@@ -54,8 +54,16 @@
 	path = cmake/developer_package/ncc_naming_style/ncc
 	url = https://github.com/nithinn/ncc.git
 [submodule "thirdparty/onednn_gpu"]
-	path = thirdparty/onednn_gpu
+	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
 	url = https://github.com/oneapi-src/oneDNN.git
 [submodule "tools/pot/thirdparty/open_model_zoo"]
-	path = tools/pot/thirdparty/open_model_zoo
+	path = thirdparty/open_model_zoo
 	url = https://github.com/openvinotoolkit/open_model_zoo.git
+[submodule "thirdparty/json/nlohmann_json"]
+	path = thirdparty/json/nlohmann_json
+	url = https://github.com/nlohmann/json.git
+	shallow = true
+[submodule "thirdparty/json/nlohmann_json_schema_validator"]
+	path = thirdparty/json/nlohmann_json_schema_validator
+	url = https://github.com/pboettch/json-schema-validator.git
+	shallow = true

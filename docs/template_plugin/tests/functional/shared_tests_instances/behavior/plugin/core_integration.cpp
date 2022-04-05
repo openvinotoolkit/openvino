@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("templatePlugin", CommonTestUtils::DEVICE_TEMPLATE)));
+        ::testing::Values(std::make_pair("openvino_template_plugin", CommonTestUtils::DEVICE_TEMPLATE)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,
@@ -130,10 +130,10 @@ TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
             std::string defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID));
             std::cout << CONFIG_KEY(DEVICE_ID) << " : " << defaultDeviceID << std::endl;
         } else if (CONFIG_KEY(PERF_COUNT) == confKey) {
-            bool defaultPerfCount = ie.GetConfig(deviceName, CONFIG_KEY(PERF_COUNT));
+            auto defaultPerfCount = ie.GetConfig(deviceName, CONFIG_KEY(PERF_COUNT)).as<bool>();
             std::cout << CONFIG_KEY(PERF_COUNT) << " : " << defaultPerfCount << std::endl;
         } else if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) == confKey) {
-            bool defaultExclusive = ie.GetConfig(deviceName, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+            auto defaultExclusive = ie.GetConfig(deviceName, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)).as<bool>();
             std::cout << CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) << " : " << defaultExclusive << std::endl;
         }
     }

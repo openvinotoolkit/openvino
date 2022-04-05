@@ -1,25 +1,25 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 import subprocess
 import sys
+from pathlib import Path
 
+from openvino.tools.mo import mo
 import numpy as np
-
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    # Get default mo args
-    mo = os.path.join(os.environ.get("MO_ROOT"), "mo.py")
+    mo_path = Path(mo.__file__).parent
+    mo_runner = mo_path.joinpath('main.py').as_posix()
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(os.environ.get("MO_ROOT")),
-                  '--omit=*_test.py', mo]
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_path.parent),
+                  '--omit=*_test.py', mo_runner]
     else:
-        params = [sys.executable, mo]
+        params = [sys.executable, mo_runner]
     for key, value in kwargs.items():
         if key == "batch":
             params.extend(("-b", str(value)))
@@ -79,6 +79,9 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
-    abs_diff = np.absolute(cur_array - ref_array)
+    if cur_array.dtype == bool:
+        abs_diff = np.absolute(cur_array ^ ref_array)
+    else:
+        abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()

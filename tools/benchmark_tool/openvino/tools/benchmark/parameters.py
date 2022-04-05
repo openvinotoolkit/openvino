@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys,argparse
@@ -33,7 +33,9 @@ def parse_args():
                       help='Show this help message and exit.')
     args.add_argument('-i', '--paths_to_input', action='append', nargs='+', type=str, required=False,
                       help='Optional. '
-                           'Path to a folder with images and/or binaries or to specific image or binary file.')
+                           'Path to a folder with images and/or binaries or to specific image or binary file.'
+                           'It is also allowed to map files to network inputs: '
+                           'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
@@ -48,19 +50,20 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
-                      help='Optional. Performance hint (optimize for latency or throughput). '
-                            'The hint allows the OpenVINO device to select the right network-specific settings, '
-                            'as opposite to accepting specific values like  \'nstreams\' from the command line. '
-                            'So you can specify just the hint without adding explicit device-specific options')
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency', 'none'],
+                      help='Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
+                            '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
+                            '\'latency\': device performance mode will be set to LATENCY. \n'
+                            '\'none\': no device performance mode will be set. \n'
+                            'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
-    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=None,
+    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
-    args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
+    args.add_argument('-b', '--batch_size', type=str, required=False, default='',
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
@@ -75,7 +78,13 @@ def parse_args():
                            'Show progress bar (can affect performance measurement). Default values is \'False\'.')
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
-                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
+                           'This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.')
+    args.add_argument('-data_shape', type=str, required=False, default='',
+                      help='Optional. '
+                           'Optional if network shapes are all static (original ones or set by -shape).'
+                           'Required if at least one input shape is dynamic and input images are not provided.'
+                           'Set shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.')
     args.add_argument('-layout', type=str, required=False, default='',
                       help='Optional. '
                            'Prompts how network layouts should be treated by application. '
@@ -91,10 +100,6 @@ def parse_args():
                            'See samples README for more details.')
     args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
-    args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
-                      help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
-                           '\'true\'  - enable  bfloat16 regardless of platform support. '
-                           '\'false\' - disable bfloat16 regardless of platform support.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
@@ -108,6 +113,11 @@ def parse_args():
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Report latencies for each shape in -data_shape sequence.', )
+    args.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
+                      help='Optional. If true inputs filling only once before measurements (default for static models), '
+                                     'else inputs filling is included into loop measurement (default for dynamic models)', )
     args.add_argument('-report_type', '--report_type', type=str, required=False,
                       choices=['no_counters', 'average_counters', 'detailed_counters'],
                       help="Optional. Enable collecting statistics report. \"no_counters\" report contains "
@@ -119,18 +129,18 @@ def parse_args():
     args.add_argument('-report_folder', '--report_folder', type=str, required=False, default='',
                       help="Optional. Path to a folder where statistics report is stored.")
     args.add_argument('-dump_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to dump IE parameters, which were set by application.")
+                      help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
     args.add_argument('-load_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to load custom IE parameters."
+                      help="Optional. Path to JSON file to load custom OpenVINO parameters."
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
-    args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
-                      help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-infer_precision', type=str, required=False,
+                      help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all output layers of the network.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
-                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
+                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
     args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,

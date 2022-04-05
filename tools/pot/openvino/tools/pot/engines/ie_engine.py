@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import multiprocessing
@@ -7,9 +7,12 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.inference_engine import IECore, StatusCode   # pylint: disable=E0611
+from openvino.runtime import Core, AsyncInferQueue, Shape   # pylint: disable=E0611,E0401
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, \
+    restore_original_node_names, align_stat_names_with_results, \
+    add_tensor_names, cast_friendly_names, collect_model_outputs, \
+    process_raw_output, get_clean_name
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -19,32 +22,34 @@ from ..utils.utils import create_tmp_dir, convert_output_key
 logger = get_logger(__name__)
 
 
+# pylint: disable=W0631
 class IEEngine(Engine):
 
     def __init__(self, config, data_loader=None, metric=None):
         super().__init__(config, data_loader, metric)
-        self._ie = IECore()
+        self._ie = Core()
         self._model = None
         self._nx_model = None
         self._output_layers = None
         self._accumulated_layer_stats = dict()
         self._per_sample_metrics = []
         self._tmp_dir = create_tmp_dir()
+        self._device = self.config.device
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         if model.is_cascade:
             raise Exception('Cascade models are not supported in current engine')
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = list(self._model.outputs.keys())
+        self._output_layers = [get_clean_name(output.get_node().friendly_name) for output in self._model.outputs]
 
     def _set_model(self, model):
-        """Creates IENetwork instances from NetworkX models in NXModel.
-        :param: model: NXModel instance
+        """Creates IENetwork instances from NetworkX models in CompressedModel.
+        :param: model: CompressedModel instance
         :return: list of dictionaries:
                  [
                     {
@@ -57,8 +62,7 @@ class IEEngine(Engine):
         paths = save_model(model, self._tmp_dir.name, 'tmp_model', for_stat_collection=True)
         ie_networks = []
         for path_dict in paths:
-            ie_net = {'model': self._ie.read_network(model=path_dict['model'],
-                                                     weights=path_dict['weights'])}
+            ie_net = {'model': self._ie.read_model(model=path_dict['model'], weights=path_dict['weights'])}
             if 'name' in path_dict:
                 ie_net.update(name=path_dict['name'])
             ie_networks.append(ie_net)
@@ -90,11 +94,25 @@ class IEEngine(Engine):
 
         stat_names_aliases = None
         if stats_layout:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            self._add_outputs(nodes_name)
+            nodes_names_map = nodes_names_map[self._model.friendly_name]
+            nodes_name = list(nodes_names_map.keys())
+            cast_friendly_names(self._model.outputs)
+
+            outputs = self._add_outputs(list(nodes_names_map.values()))
+            add_tensor_names(outputs, nodes_name)
+
+            model_output_names = collect_model_outputs(self._model)
+
+            align_stat_names_with_results(model_output_names,
+                                          nodes_name,
+                                          output_to_node_names,
+                                          stats_layout,
+                                          stat_aliases)
+
             # Creating statistics layout with IE-like names
             stats_layout, stat_names_aliases = self._convert_stats_names(stats_layout)
 
@@ -109,6 +127,9 @@ class IEEngine(Engine):
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
 
+        if stats_layout:
+            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
+
         # Calculate metrics of required type. Reset collected statistics
         metrics = None
         if self._metric:
@@ -122,8 +143,12 @@ class IEEngine(Engine):
 
     @staticmethod
     def postprocess_output(outputs, _metadata):
-        """ Processes raw model output using the image metadata obtained during data loading """
-        return outputs
+        """ Processes model output data using the image metadata obtained during data loading
+        :param outputs: dictionary of output data per output name
+        :param _metadata: metadata obtained during data loading
+        :return: list of the output data in an order expected by the accuracy metric if any is used
+        """
+        return list(outputs.values())
 
     def _reset(self):
         """ Resets collected statistics """
@@ -133,7 +158,7 @@ class IEEngine(Engine):
         self._accumulated_layer_stats = {}
 
     def _add_outputs(self, nodes_name):
-        self._model.add_outputs(nodes_name)
+        return self._model.add_outputs(nodes_name)
 
     def _predict(self, stats_layout, sampler, print_progress=False,
                  need_metrics_per_sample=False):
@@ -161,13 +186,12 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        output = predictions[self._output_layers[0]]
-        predictions[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        processed_outputs = process_raw_output(predictions)
+        outputs = {name: processed_outputs[name] for name in self._output_layers}
+        logits = self.postprocess_output(outputs, batch_meta)
 
         # Update metrics
         if batch_annotations:
-            # TODO: Create some kind of an order for the correct metric calculation
-            logits = [predictions[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
@@ -199,75 +223,57 @@ class IEEngine(Engine):
                                                          'metric_name': metric_name,
                                                          'result': metric_value[i]})
 
-    def _populate_free_requests(self, free_irs, queued_irs, data_iterator):
-        """Fills free inference requests with new data batch and start inference
-        :param free_irs: list of completed infer requests
-        :param queued_irs: list of running infer requests with corresponding image ids
-        :param data_iterator: dataset iterator
-        """
-        for ir in free_irs:
-            data_batch = next(data_iterator, None)
-            if not data_batch:
-                break
-            batch_id, batch = data_batch
-            image_ids, images, batch_meta = self._process_batch(batch)
-            ir.async_infer(inputs=self._fill_input(self._model, images))
-            queued_irs.append((batch_id, image_ids, batch_meta, ir))
-
-        free_irs.clear()
-
-    @staticmethod
-    def _wait_for_any(irs):
-        """Waits for any queued infer requests to finish inference.
-        :param irs: list of queued infer requests
-        :return list of results of completed infer requests [(batch_id, annotations, layer_outputs, infer_request)]
-                list of queued infer requests
-        """
-        if not irs:
-            return [], []
-
-        result = []
-        free_indexes = []
-        for ir_id, (batch_id, image_annotations, batch_meta, ir) in enumerate(irs):
-            infer_status = ir.wait(0)
-            if infer_status == StatusCode.RESULT_NOT_READY:
-                continue
-
-            if infer_status != StatusCode.OK:
-                logger.debug('Infer request %d returned %s message', ir_id, infer_status)
-                return [], []
-
-            outputs = {out_name: out_blob.buffer for out_name, out_blob in ir.output_blobs.items()}
-            result.append((batch_id, image_annotations, batch_meta, outputs, ir))
-            free_indexes.append(ir_id)
-        irs = [ir for ir_id, ir in enumerate(irs) if ir_id not in free_indexes]
-        return result, irs
-
     def _fill_input(self, model, image_batch):
         """Matches network input name with corresponding input batch
         :param model: IENetwork instance
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
-        if isinstance(image_batch[0], dict):
-            return image_batch[0]
+        input_info = model.inputs
 
-        input_info = model.input_info
+        def is_dynamic_input(input_blob):
+            return input_blob.partial_shape.is_dynamic
+
+        def process_input(input_blob, input_data):
+            return input_data if is_dynamic_input(input_blob) else np.reshape(input_data, input_blob.shape)
+
+        if isinstance(image_batch[0], dict):
+            feed_dict = {}
+            input_blobs = {get_clean_name(in_node.get_node().friendly_name): in_node for in_node in input_info}
+            for input_name in image_batch[0].keys():
+                input_blob = input_blobs[input_name]
+                input_blob_name = self._get_input_any_name(input_blob)
+                feed_dict[input_blob_name] = process_input(input_blob, image_batch[0][input_name])
+            return feed_dict
+
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
-            return {input_blob: np.stack(image_batch, axis=0)}
+            input_blob_name = self._get_input_any_name(input_blob)
+            image_batch = {input_blob_name: process_input(input_blob, image_batch)}
+            if not is_dynamic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
+                                 f"Try to specify the layout of the model.")
+            return image_batch
 
         if len(input_info) == 2:
             image_info_nodes = list(filter(
-                lambda x: len(x[1].input_data.shape) == 2, input_info.items()))
+                lambda x: len(x.shape) == 2, input_info))
 
             if len(image_info_nodes) != 1:
                 raise Exception('Two inputs networks must contain exactly one ImageInfo node')
 
-            image_info_name, _ = image_info_nodes[0]
-            image_tensor_name, _ = next(iter(filter(
-                lambda x: x[0] != image_info_name, input_info.items())))
+            image_info_node = image_info_nodes[0]
+            image_info_name = self._get_input_any_name(image_info_node)
+            image_tensor_node = next(iter(filter(
+                lambda x: x.get_any_name() != image_info_name, input_info)))
+            image_tensor_name = image_tensor_node.get_any_name()
 
-            image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
+            image_tensor = (image_tensor_name, process_input(image_tensor_node, image_batch))
+            if not is_dynamic_input(image_tensor_node) and \
+                    Shape(image_tensor[1].shape) != image_tensor_node.shape:
+                raise ValueError(f"Incompatible input shapes. "
+                                 f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
+                                 f"Try to specify the layout of the model.")
 
             ch, height, width = image_batch[0].shape
             image_info = (image_info_name,
@@ -308,38 +314,40 @@ class IEEngine(Engine):
         :param requests_num: number of infer requests
         """
 
-        progress_log_fn = logger.info if print_progress else logger.debug
+        def completion_callback(request, user_data):
+            start_time, batch_id, batch_annotations, batch_meta = user_data
+            predictions = request.results
+            self._process_infer_output(stats_layout, predictions,
+                                       batch_annotations, batch_meta,
+                                       need_metrics_per_sample)
 
+            # Print progress
+            if self._print_inference_progress(progress_log_fn,
+                                              batch_id, len(sampler),
+                                              start_time, time()):
+                start_time = time()
+
+        progress_log_fn = logger.info if print_progress else logger.debug
+        self._ie.set_property(self._device,
+                              {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
         # Load model to the plugin
-        executable_model = self._ie.load_network(network=self._model,
-                                                 device_name=self.config.device,
-                                                 num_requests=requests_num)
-        free_irs = executable_model.requests
-        queued_irs = []
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
+        optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        requests_num = optimal_requests_num if requests_num == 0 else requests_num
+        logger.debug('Async mode requests number: %d', requests_num)
+        infer_queue = AsyncInferQueue(compiled_model, requests_num)
 
         progress_log_fn('Start inference of %d images', len(sampler))
 
         sampler_iter = iter(enumerate(sampler))
         # Start inference
         start_time = time()
-        while free_irs or queued_irs:
-            self._populate_free_requests(free_irs, queued_irs, sampler_iter)
-
-            ready_irs, queued_irs = self._wait_for_any(queued_irs)
-            if ready_irs:
-                batch_id, batch_annotations, batch_meta, predictions, ir = ready_irs.pop(0)
-                free_irs.append(ir)
-
-                self._process_infer_output(stats_layout, predictions,
-                                           batch_annotations, batch_meta,
-                                           need_metrics_per_sample)
-
-                # Print progress
-                if self._print_inference_progress(progress_log_fn,
-                                                  batch_id, len(sampler),
-                                                  start_time, time()):
-                    start_time = time()
-
+        infer_queue.set_callback(completion_callback)
+        for batch_id, data_batch in sampler_iter:
+            batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
+            user_data = (start_time, batch_id, batch_annotations, batch_meta)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), user_data)
+        infer_queue.wait_all()
         progress_log_fn('Inference finished')
 
     def _process_dataset(self, stats_layout, sampler, print_progress=False,
@@ -355,8 +363,8 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        executable_model = self._ie.load_network(network=self._model,
-                                                 device_name=self.config.device)
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
+        infer_request = compiled_model.create_infer_request()
 
         progress_log_fn('Start inference of %d images', len(sampler))
 
@@ -366,9 +374,10 @@ class IEEngine(Engine):
             batch_annotations, image_batch, batch_meta = self._process_batch(batch)
 
             # Infer batch of images
-            predictions = executable_model.infer(self._fill_input(self._model, image_batch))
+            predictions = infer_request.infer(self._fill_input(compiled_model, image_batch))
+            outputs = predictions
 
-            self._process_infer_output(stats_layout, predictions,
+            self._process_infer_output(stats_layout, outputs,
                                        batch_annotations, batch_meta,
                                        need_metrics_per_sample)
 
@@ -394,11 +403,15 @@ class IEEngine(Engine):
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain annotation, and some do not.')
 
+        if not all([isinstance(item[0], tuple) for item in batch]):
+            images, image_annotation = [data[0] for data in batch], [(idx, data[1]) for idx, data in enumerate(batch)]
+        else:
+            images, image_annotation = [data[1] for data in batch], [data[0] for data in batch]
+
         if all([len(item) == 2 for item in batch]):
-            image_annotation, images = map(list, zip(*batch))
             meta_data = [{}]*len(images)
         elif all([len(item) == 3 for item in batch]):
-            image_annotation, images, meta_data = map(list, zip(*batch))
+            meta_data = [data[2] for data in batch]
         else:
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain meta data, and some do not.')
@@ -429,3 +442,18 @@ class IEEngine(Engine):
         stats_layout_ie_style = {convert_output_key(key): value
                                  for key, value in stats_layout.items()}
         return stats_layout_ie_style, stat_names_aliases
+
+    @staticmethod
+    def _get_input_any_name(input_node):
+        """ Returns any_name for nGraph input const node
+            If any_name not exists, sets this name as friendly_name
+            :param input_node - nGraph ConstOutput object
+            :returns - a string tensor name
+        """
+        try:
+            input_name = input_node.get_any_name()
+        except RuntimeError:
+            name_set = set([input_node.node.friendly_name])
+            input_name = input_node.get_tensor().set_names(name_set)
+            input_name = input_node.get_any_name()
+        return input_name

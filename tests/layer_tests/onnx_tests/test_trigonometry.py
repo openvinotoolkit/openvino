@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -179,120 +179,140 @@ class TestTrigonomery(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sin(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Sin'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sin(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Sin'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sinh(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Sinh'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_sinh(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Sinh'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_asin(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Asin'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_asin(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Asin'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_cos_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Cos'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_cos_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Cos'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_cos(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Cos'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_cos(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Cos'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_cosh(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Cosh'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_cosh(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Cosh'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_acos(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Acos'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_acos(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Acos'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tan(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Tan'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_tan(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Tan'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tanh(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Tanh'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_tanh(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Tanh'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_atan(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, op='Atan'), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_atan(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, op='Atan'), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sin_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Sin'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sin_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Sin'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sinh_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Sinh'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sinh_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Sinh'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_asin_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Asin'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_asin_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Asin'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_cos_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cos'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_cos_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cos'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_cos_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cos'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_cos_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cos'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_cosh_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cosh'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_cosh_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cosh'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_acos_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Acos'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_acos_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Acos'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tan_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Tan'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_tan_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Tan'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tanh_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Tanh'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_tanh_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Tanh'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_atan_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Atan'),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_atan_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Atan'),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

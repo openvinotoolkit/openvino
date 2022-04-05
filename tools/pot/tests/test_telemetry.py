@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -27,9 +27,10 @@ TEST_MODEL = ('mobilenet-v2-pytorch', 'pytorch')
 TOOL_CONFIG_NAME = ['mobilenet-v2-pytorch.json', 'mobilenet-v2-pytorch_aa.json', 'mobilenet-v2-pytorch_sparsity.json']
 
 
+# pylint: disable=W0221
 class TelemetryTest(Telemetry):
     def __init__(self):
-        super().__init__()
+        super().__init__(app_name='pot', app_version=None, tid=None)
         self.value = set()
 
     def send_event(self, event_category, event_label, event_value):

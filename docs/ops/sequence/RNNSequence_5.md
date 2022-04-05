@@ -1,4 +1,4 @@
-## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_5}
+# RNNSequence {#openvino_docs_ops_sequence_RNNSequence_5}
 
 **Versioned name**: *RNNSequence-5*
 
@@ -46,7 +46,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 * *direction*
 
-  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements.
+  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse*, then `num_directions = 1`. If it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements. When the operation is bidirectional, the input goes through forward and reverse ways. The outputs are concatenated.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
   * **Required**: *yes*
@@ -55,7 +55,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 * **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from RNNCell 1st input only by additional axis with size `seq_length`. **Required.**
 
-* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
+* **2**: `H` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
 * **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
 

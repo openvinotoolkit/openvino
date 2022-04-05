@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # FindOpenVINO
@@ -9,9 +9,10 @@
 #
 # The following components are supported:
 #
-#  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend manager
+#  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
 #  * `ONNX`: OpenVINO ONNX frontend
-#  * `PaddlePaddle`: OpenVINO PaddlePaddle frontend
+#  * `Paddle`: OpenVINO Paddle frontend
+#  * `TensorFlow`: OpenVINO TensorFlow frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -32,19 +33,16 @@
 #   `openvino::runtime::c`
 #   The OpenVINO C Inference Runtime
 #
-#   `openvino::core`
-#   The OpenVINO C++ Core Runtime
-#
 #  Frontend specific targets:
-#
-#   `openvino::frontend::manager`
-#   OpenVINO frontend manager
 #
 #   `openvino::frontend::onnx`
 #   ONNX FrontEnd target (optional)
 #
-#   `openvino::frontend::paddlepaddle`
-#   PaddlePaddle FrontEnd target (optional)
+#   `openvino::frontend::paddle`
+#   Paddle FrontEnd target (optional)
+#
+#   `openvino::frontend::tensorflow`
+#   TensorFlow FrontEnd target (optional)
 #
 # Result variables:
 # ------
@@ -60,8 +58,11 @@
 #   `OpenVINO_Frontend_ONNX_FOUND`
 #   OpenVINO ONNX frontend is available
 #
-#   `OpenVINO_Frontend_PaddlePaddle_FOUND`
-#   OpenVINO PaddlePaddle frontend is available
+#   `OpenVINO_Frontend_Paddle_FOUND`
+#   OpenVINO Paddle frontend is available
+#
+#   `OpenVINO_Frontend_TensorFlow_FOUND`
+#   OpenVINO TensorFlow frontend is available
 #
 #   `OpenVINO_Frontend_IR_FOUND`
 #   OpenVINO IR frontend is available
@@ -145,20 +146,68 @@ endfunction()
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-    set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
+    set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
+    if(NOT enable_system_tbb)
+        set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+        set(find_package_tbb_extra_args
+            CONFIG
+            PATHS
+                # oneTBB case exposed via export TBBROOT=<custom TBB root>
+                "$ENV{TBBROOT}/lib64/cmake/TBB"
+                "$ENV{TBBROOT}/lib/cmake/TBB"
+                # "$ENV{TBB_DIR}"
+                # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
+                "${TBBROOT}/cmake"
+                # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
+                ${_tbb_dir}
+            NO_CMAKE_FIND_ROOT_PATH
+            NO_DEFAULT_PATH)
+        unset(_tbb_dir)
+    endif()
+    unset(enable_system_tbb)
+
     _ov_find_dependency(TBB
                         COMPONENTS tbb tbbmalloc
+                        ${find_package_tbb_extra_args})
+
+    set(install_tbbbind "@install_tbbbind@")
+    if(install_tbbbind)
+        set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+        _ov_find_dependency(TBBBIND_2_5
+                            PATHS ${_tbb_bind_dir}
+                            NO_CMAKE_FIND_ROOT_PATH
+                            NO_DEFAULT_PATH)
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
+    endif()
+    unset(install_tbbbind)
+endif()
+
+_ov_find_dependency(Threads)
+
+set(ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
+set(ENABLE_INTEL_GNA_SHARED "@BUILD_SHARED_LIBS@")
+if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
+    set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
+    _ov_find_dependency(libGNA
+                        COMPONENTS KERNEL
                         CONFIG
-                        PATHS ${TBBROOT}/cmake
-                              ${_tbb_dir}
+                        PATHS "${CMAKE_CURRENT_LIST_DIR}"
                         NO_CMAKE_FIND_ROOT_PATH
                         NO_DEFAULT_PATH)
 endif()
 
-if(NOT TARGET inference_engine)
+if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
+
+    # WA for cmake version < 3.16 which does not export
+    # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
+    if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
+        foreach (type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
+            set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "TBB::tbb;TBB::tbbmalloc")
+        endforeach()
+    endif()
 endif()
 
 #
@@ -167,12 +216,13 @@ endif()
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
 
-set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
-set(${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
-set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @NGRAPH_TF_FRONTEND_ENABLE@)
+set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @ENABLE_OV_ONNX_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND @ENABLE_OV_PADDLE_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @ENABLE_OV_TF_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @ENABLE_OV_IR_FRONTEND@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
-set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PaddlePaddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_Paddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
 
@@ -185,9 +235,8 @@ endif()
 # Apply common functions
 #
 
-foreach(target openvino::runtime openvino::runtime::c openvino::core
-               openvino::frontend::manager openvino::frontend::onnx
-               openvino::frontend::paddlepaddle openvino::frontend::tensorflow)
+foreach(target openvino::runtime openvino::runtime::c
+               openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow)
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
@@ -205,6 +254,7 @@ if(_need_package_name_reset)
     unset(_need_package_name_reset)
 endif()
 
-unset(${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND)
+unset(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND)
+unset(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,5 +17,8 @@ macro(_set_if_not_defined var val)
     endif()
 endmacro()
 
+# for ittapi
+_set_if_not_defined(FORCE_32 ON)
+
 # need libusb 32-bits version
-_set_if_not_defined(ENABLE_VPU OFF)
+_set_if_not_defined(ENABLE_INTEL_MYRIAD_COMMON OFF)

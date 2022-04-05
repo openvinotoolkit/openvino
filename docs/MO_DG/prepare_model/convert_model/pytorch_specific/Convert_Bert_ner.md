@@ -1,4 +1,4 @@
-# Convert PyTorch* BERT-NER to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
+# Convert PyTorch* BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
 
 ## Download and Convert the Model to ONNX*
 
@@ -49,7 +49,7 @@ The script generates ONNX* model file `bert-ner.onnx`.
 ## Convert ONNX* BERT-NER model to IR
 
 ```bash
-python mo.py --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
+mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
 ```
 
 where `1` is `batch_size` and `128` is `sequence_length`.

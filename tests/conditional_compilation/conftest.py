@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # pylint: disable=line-too-long
@@ -236,13 +236,15 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     Download and convert Open Model Zoo model to Intermediate Representation,
     get path to model XML.
     """
-    # Step 1: downloader
     omz_log = logging.getLogger("prepare_omz_model")
 
     python_executable = sys.executable
-    downloader_path = omz_repo / "tools" / "downloader" / "downloader.py"
+    converter_path = omz_repo / "tools" / "model_tools" / "converter.py"
+    downloader_path = omz_repo / "tools" / "model_tools" / "downloader.py"
+    info_dumper_path = omz_repo / "tools" / "model_tools" / "info_dumper.py"
     model_path_root = tmpdir
 
+    # Step 1: downloader
     cmd = [f'{python_executable}', f'{downloader_path}',
            '--name', f'{model["name"]}',
            f'--precisions={model["precision"]}',
@@ -257,7 +259,6 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     assert return_code == 0, "Downloading OMZ models has failed!"
 
     # Step 2: converter
-    converter_path = omz_repo / "tools" / "downloader" / "converter.py"
     ir_path = model_path_root / "_IR"
     # Note: remove --precisions if both precisions (FP32 & FP16) are required
     cmd = [f'{python_executable}', f'{converter_path}',
@@ -265,14 +266,12 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
            '-p', f'{python_executable}',
            f'--precisions={model["precision"]}',
            '--output_dir', f'{ir_path}',
-           '--download_dir', f'{model_path_root}',
-           '--mo', f'{openvino_ref / "tools"/ "model_optimizer" / "mo.py"}']
+           '--download_dir', f'{model_path_root}']
 
     return_code, output = cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
     assert return_code == 0, "Converting OMZ models has failed!"
 
     # Step 3: info_dumper
-    info_dumper_path = omz_repo / "tools" / "downloader" / "info_dumper.py"
     cmd = [f'{python_executable}',
            f'{info_dumper_path}',
            '--name', f'{model["name"]}']

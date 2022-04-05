@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -11,7 +11,6 @@ from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ...quantization import fake_quantize as fqut
 from ....graph import editor as ge
 from ....graph import node_utils as nu
-from ....graph.editor import get_nodes_by_type
 from ....graph.special_operations import is_eltwise
 
 
@@ -36,7 +35,7 @@ class DataFreeQuantization(Algorithm):
         # init BatchNorm dict
         for node in ge.get_all_operation_nodes(model):
             if 'bn_weights' in node:
-                self._bn_dict[node.name] = node['bn_weights']
+                self._bn_dict[node.fullname] = node['bn_weights']
 
         fqut.insert_fake_quantize_nodes(self._config, model)
         fake_quantize_config = fqut.compute_stats_layouts(self._config, model)
@@ -48,7 +47,7 @@ class DataFreeQuantization(Algorithm):
         # compute weights statistics
         weights_stats = fqut.compute_weights_stats(model, weights_stats_layout)
 
-        for fq_ in get_nodes_by_type(model, ['FakeQuantize']):
+        for fq_ in ge.get_nodes_by_type(model, ['FakeQuantize']):
             # get zero parent because this is FakeQuantize node input
             _node_input = fqut.get_fake_quantize_input(fq_)
             if _node_input.type != 'Const':
@@ -60,10 +59,10 @@ class DataFreeQuantization(Algorithm):
                                         self._std_multiplier * stats_dict['std'])
                 else:
                     tensor_min, tensor_max = stats_dict['min'], stats_dict['max']
-                fq_input_stats[_node_input.name] = {'min': tensor_min,
-                                                    'max': max(tensor_max, np.abs(tensor_min))}
+                fq_input_stats[_node_input.fullname] = {'min': tensor_min,
+                                                        'max': max(tensor_max, np.abs(tensor_min))}
 
-            if fake_quantize_config[fq_.name]['mode'] == 'symmetric':
+            if fake_quantize_config[fq_.fullname]['mode'] == 'symmetric':
                 min_level_, max_level_ = fqut.symmetric_range(_node_input, fq_, weights_stats,
                                                               fq_input_stats, fake_quantize_config)
             else:
@@ -88,15 +87,15 @@ class DataFreeQuantization(Algorithm):
             range_estimator_config = get_range_estimator_config(config, 'weights', scale_, q_mode_)
             return get_tensor_statistics(range_estimator_config, for_weights=True)
 
-        fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
+        fq_nodes = ge.get_nodes_by_type(model, ['FakeQuantize'])
         weights_layout = {}
         for fq in fq_nodes:
             fq_input = fqut.get_fake_quantize_input(fq)
-            layer_config = fake_quantize_config[fq.name]
+            layer_config = fake_quantize_config[fq.fullname]
             scale = layer_config['granularity'] if layer_config['granularity'] else 'pertensor'
             q_mode = layer_config['mode']
             if fq_input.type == 'Const':
-                weights_layout[fq.name] = _get_stats(scale, q_mode)
+                weights_layout[fq.fullname] = _get_stats(scale, q_mode)
         return weights_layout
 
     @staticmethod
@@ -120,11 +119,11 @@ class DataFreeQuantization(Algorithm):
                                            node_min, node_max)
         tensor_max = np.max(bn_weight_dict['mean'] + self._std_multiplier * bn_weight_dict['std'])
         tensor_min = np.min(bn_weight_dict['mean'] - self._std_multiplier * bn_weight_dict['std'])
-        self._bn_dict[node.name] = {'mean': clipped_mean,
-                                    'std': clipped_sigma,
-                                    'max': np.array(min(tensor_max, node_max)),
-                                    'min': np.array(max(tensor_min, node_min))}
-        return self._bn_dict[node.name]
+        self._bn_dict[node.fullname] = {'mean': clipped_mean,
+                                        'std': clipped_sigma,
+                                        'max': np.array(min(tensor_max, node_max)),
+                                        'min': np.array(max(tensor_min, node_min))}
+        return self._bn_dict[node.fullname]
 
     def _propagate_stats(self, bn_weights, node):
         # will need to be handled, when perchannel quantization of activations will be supported
@@ -143,9 +142,9 @@ class DataFreeQuantization(Algorithm):
         pass_ops = channel_changing_ops + \
             stat_prop_agnostic_ops
 
-        if node.name in self._bn_dict:
+        if node.fullname in self._bn_dict:
             stats_dict = bn_weights
-            if 'max' not in self._bn_dict[node.name]:
+            if 'max' not in self._bn_dict[node.fullname]:
                 tensor_max = np.max(bn_weights['mean'] +
                                     self._std_multiplier * bn_weights['std'])
                 tensor_min = np.min(bn_weights['mean'] -
@@ -170,8 +169,8 @@ class DataFreeQuantization(Algorithm):
                 node.type == 'ScaleShift' and nu.get_node_input(node, 0).type == 'Parameter':
             stats_dict = bn_weights
         else:
-            raise RuntimeError('{} layer {} does not support stats propagation'.format(node.type, node.name))
-        self._bn_dict[node.name] = stats_dict
+            raise RuntimeError('{} layer {} does not support stats propagation'.format(node.type, node.fullname))
+        self._bn_dict[node.fullname] = stats_dict
         return stats_dict
 
     def _find_stats_in_branch(self, start_node):
@@ -179,13 +178,13 @@ class DataFreeQuantization(Algorithm):
         current_node = start_node
         visited_nodes = [start_node]
         while True:
-            if current_node.name in self._bn_dict:
-                bn_weights = self._bn_dict[current_node.name]
+            if current_node.fullname in self._bn_dict:
+                bn_weights = self._bn_dict[current_node.fullname]
                 for node in visited_nodes[::-1]:
                     bn_weights = self._propagate_stats(bn_weights, node)
                 return bn_weights
             if branching_ops(current_node):
-                self._bn_dict[current_node.name] = self._collect_stats_for_branching_op(current_node)
+                self._bn_dict[current_node.fullname] = self._collect_stats_for_branching_op(current_node)
                 continue
             if nu.get_node_inputs(current_node):
                 current_node = nu.get_node_input(current_node, 0)
@@ -194,7 +193,7 @@ class DataFreeQuantization(Algorithm):
                 if current_node.type != 'Parameter':
                     raise RuntimeError('Node has no parents and stats were not found')
                 bn_weights = {'mean': np.array(0.0), 'std': np.array(1.0)}
-                self._bn_dict[current_node.name] = bn_weights
+                self._bn_dict[current_node.fullname] = bn_weights
                 for node in visited_nodes[::-1]:
                     bn_weights = self._propagate_stats(bn_weights, node)
                 return bn_weights

@@ -1,4 +1,4 @@
-# Convert TensorFlow* FaceNet Models to Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow}
+# Convert TensorFlow FaceNet Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow}
 
 [Public pre-trained FaceNet models](https://github.com/davidsandberg/facenet#pre-trained-models) contain both training
 and inference part of graph. Switch between this two states is manageable with placeholder value.
@@ -14,7 +14,7 @@ There are two inputs in this network: boolean `phase_train` which manages state 
 
 To generate FaceNet IR provide TensorFlow FaceNet model to Model Optimizer with parameters:
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model path_to_model/model_name.pb       \
 --freeze_placeholder_with_value "phase_train->False"
 ```

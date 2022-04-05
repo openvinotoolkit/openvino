@@ -6,10 +6,10 @@ Sometimes some parts of a model must be removed while the Model Optimizer is con
 
 The following examples are the situations when model cutting is useful or even required:
 
-*   model has pre- or post-processing parts that cannot be translated to existing Inference Engine layers.
+*   model has pre- or post-processing parts that cannot be translated to existing OpenVINO operations.
 *   model has a training part that is convenient to be kept in the model, but not used during inference.
 *   model is too complex (contains lots of unsupported operations that cannot be easily implemented as custom layers), so the complete model cannot be converted in one shot.
-*   problem with model conversion in the Model Optimizer or inference in the Inference Engine occurred. To localize the issue, limit the scope for conversion by iteratively searching for problematic places in the model.
+*   problem with model conversion in the Model Optimizer or inference in the OpenVINO Runtime occurred. To localize the issue, limit the scope for conversion by iteratively searching for problematic places in the model.
 *   single custom layer or a combination of custom layers is isolated for debugging purposes.
 
 ## Command-Line Options
@@ -39,8 +39,7 @@ In the TensorBoard, it looks the following way together with some predecessors:
 
 Convert this model and put the results in a writable output directory:
 ```sh
-${INTEL_OPENVINO_DIR}/tools/model_optimizer
-python3 mo.py --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 (The other examples on this page assume that you first cd to the `model_optimizer` directory and add the `--output_dir` argument with a directory where you have write permissions.)
 
@@ -81,9 +80,9 @@ The last layer in the model is `InceptionV1/Logits/Predictions/Reshape_1`, which
 ```
 Due to automatic identification of inputs and outputs, you do not need to provide the `--input` and `--output` options to convert the whole model. The following commands are equivalent for the Inception V1 model:
 ```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
-python3 mo.py --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb -b 1 --input input --output InceptionV1/Logits/Predictions/Reshape_1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 The Intermediate Representations are identical for both conversions. The same is true if the model has multiple inputs and/or outputs.
 
@@ -98,9 +97,9 @@ Now consider how to cut some parts of the model off. This chapter uses the first
 If you want to cut your model at the end, you have the following options:
 
 1. The following command cuts off the rest of the model after the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`, making this node the last in the model:
-```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation has three layers:
 ```xml
 <?xml version="1.0" ?>
@@ -142,9 +141,9 @@ python3 mo.py --input_model inception_v1.pb -b 1 --output=InceptionV1/InceptionV
    As you can see in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm` to the convolution `InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`, and it is not present in the final Intermediate Representation. This is not an effect of the `--output` option, it is usual behavior of the Model Optimizer for batch normalizations and convolutions. The effect of the `--output` is that the `ReLU` layer becomes the last one in the converted model.
 
 2. The following command cuts the edge that comes from 0 output port of the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` and the rest of the model, making this node the last one in the model:
-```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0 --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation has three layers, which are the same as in the previous case:
 ```xml
 <?xml version="1.0" ?>
@@ -186,9 +185,9 @@ python3 mo.py --input_model inception_v1.pb -b 1 --output InceptionV1/InceptionV
    This type of cutting is useful to cut edges in case of multiple output edges.
 
 3. The following command cuts the edge that comes to 0 input port of the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` and the rest of the model including `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`, deleting this node and making the previous node `InceptionV1/InceptionV1/Conv2d_1a_7x7/Conv2D` the last in the model:
-```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model inception_v1.pb -b 1 --output=0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation has two layers, which are the same as the first two layers in the previous case:
 ```xml
 <?xml version="1.0" ?>
@@ -224,9 +223,9 @@ python3 mo.py --input_model inception_v1.pb -b 1 --output=0:InceptionV1/Inceptio
 If you want to go further and cut the beginning of the model, leaving only the `ReLU` layer, you have the following options:
 
 1.  You can use the following command line, where `--input` and `--output` specify the same node in the graph:
-```sh
-python3 mo.py --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation looks as follows:
 ```xml
 <xml version="1.0">
@@ -256,9 +255,9 @@ Even though `--input_shape` is not specified in the command line, the shapes for
 
 2. You can cut edge incoming to layer by port number. To specify incoming port use notation `--input=port:input_node`. 
 So, to cut everything before `ReLU` layer, cut edge incoming in port 0 of `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` node:
-```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation looks as follows:
 ```xml
 <xml version="1.0">
@@ -288,9 +287,9 @@ Even though `--input_shape` is not specified in the command line, the shapes for
 
 3. You can cut edge outcoming from layer by port number. To specify outcoming port use notation `--input=input_node:port`.
 So, to cut everything before `ReLU` layer, cut edge from `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1` node to `ReLU`:
-```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
-```
+   ```sh
+   mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+   ```
    The resulting Intermediate Representation looks as follows:
 ```xml
 <xml version="1.0">
@@ -318,9 +317,9 @@ python3 mo.py --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1
 
 ## Shape Override for New Inputs
 
-The input shape can be overridden with `--input_shape`. In this case, the shape is applied to the node referenced in `--input`, not to the original `Placeholder` in the model. For example, this command line
+The input shape can be overridden with `--input_shape`. In this case, the shape is applied to the node referenced in `--input`, not to the original `Placeholder` in the model. For example, the command below
 ```sh
-python3 mo.py --input_model inception_v1.pb --input_shape=[1,5,10,20] --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model inception_v1.pb --input_shape=[1,5,10,20] --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 gives the following shapes in the `Input` and `ReLU` layers:
@@ -369,14 +368,14 @@ There are operations that contain more than one input ports. In the example cons
 Following this behavior, the Model Optimizer creates an `Input` layer for port 0 only, leaving port 1 as a constant. So the result of:
 
 ```sh
-python3 mo.py --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 is identical to the result of conversion of the model as a whole, because this convolution is the first executable operation in Inception V1.
 
 Different behavior occurs when `--input_shape` is also used as an attempt to override the input shape:
 ```sh
-python3 mo.py --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 ```
 An error occurs (for more information, see <a href="MO_FAQ.html#FAQ30">FAQ #30</a>):
 ```sh
@@ -388,5 +387,5 @@ In this case, when `--input_shape` is specified and the node contains multiple i
 
 The correct command line is:
 ```sh
-python3 mo.py --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model inception_v1.pb --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape=[1,224,224,3] --output_dir <OUTPUT_MODEL_DIR>
 ```

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include "openvino/op/exp.hpp"
 #include "base_reference_test.hpp"
+
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -24,13 +26,14 @@ struct ExpParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceExpLayerTest : public testing::TestWithParam<ExpParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType);
         inputData = {params.inputData};
@@ -46,11 +49,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
-        return std::make_shared<ov::Function>(NodeVector {Exp}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {Exp}, ParameterVector {in});
     }
 };
 
@@ -72,12 +75,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
         const auto ExpInPlace = std::make_shared<op::v0::Exp>(Exp);
-        return std::make_shared<ov::Function>(NodeVector {ExpInPlace}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {ExpInPlace}, ParameterVector {in});
     }
 };
 
@@ -160,9 +163,7 @@ std::vector<ExpParams> generateExpCombinedParams() {
         generateExpFloatParams<element::Type_t::f32>(),
         generateExpFloatParams<element::Type_t::f16>(),
         generateExpIntParams<element::Type_t::i32>(),
-        generateExpIntParams<element::Type_t::i64>(),
-        generateExpUintParams<element::Type_t::u32>(),
-        generateExpUintParams<element::Type_t::u64>()
+        generateExpIntParams<element::Type_t::i64>()
         };
     std::vector<ExpParams> combinedParams;
 

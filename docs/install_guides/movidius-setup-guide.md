@@ -1,25 +1,18 @@
-# Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_movidius_setup_guide}
+# Configurations for IEI Mustang-V100-MX8-R10 card {#openvino_docs_install_guides_movidius_setup_guide}
 
-> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-linux-ivad-vpu.md).      
+> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-config-ivad-vpu.md).      
 
-## See Also
-
-- [Intel® Movidius™ VPUs Programming Guide for use with the Intel® Distribution of OpenVINO™](movidius-programming-guide.md)
-- <a class="download" href="<domain_placeholder>/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius™_VPUs-HAL Configuration Guide_rev1.3.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613514_Intel Vision Accelerator Design with Intel Movidius™ VPUs Workload Distribution_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613759_Intel Vision Accelerator Design with Intel Movidius™ VPUs Scheduler_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/Intel Vision Accelerator Design with Intel Movidius™ VPUs Errata.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata</a>
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
+This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
 
 Instructions in this guide for configuring your accelerator include:
-1.	Installing the required IEI\* BSL reset software
+1.	Installing the required IEI BSL reset software
 2.	Configuration settings for the `hddldaemon` service
 
-> **NOTE**: This guide does not apply to Uzel\* cards.
+> **NOTE**: This guide does not apply to Uzel cards.
 
-## IEI  Reset Software Installation
+## Installing IEI Reset Software
 
 Using the IEI Mustang-V100-MX8 requires downloading and installing the most current software for your system.
 
@@ -28,14 +21,14 @@ Search for **Mustang-V100-MX8**.
 
 Download the appropriate software for your system, decompress the downloaded archive, enter the newly created directory, and run the install script:
 
-On **Linux**\*:
+On **Linux**:
 -  Run the `install.sh script` with `sudo`, or as `root`.
 
-On **Windows**\*, do one of the following:<br>
+On **Windows**, do one of the following:<br>
 -  **GUI**: Double-click `install.bat`
 -  **CLI**: Open a console with administrator privileges, cd into the directory, and run `install.bat`.
 
-## Mustang-V100-MX8 Service Configuration
+## Configuring Mustang-V100-MX8 Service
 
 The `hddldaemon` is a system service, a binary executable that is run to manage the computational workload on the board.  It is a required abstraction layer that handles inference, graphics processing, and any type of computation that should be run on the video processing units (VPUs).  Depending on the board configuration, there can be 8 or 16 VPUs.
 
@@ -43,29 +36,29 @@ The `hddldaemon` is a system service, a binary executable that is run to manage 
 
 ### Conventions Used in This Document
 
-`<IE>` refers to the following default OpenVINO&trade; Inference Engine directories:
+`<OV>` refers to the following default OpenVINO&trade; Runtime directories:
 -  **Linux:**	   
  ```
- /opt/intel/openvino_2022/inference_engine
+ /opt/intel/openvino_2022/runtime
  ```
 -  **Windows:**	    
 ``` 
-C:\Program Files (x86)\IntelSWTools\openvino\inference_engine 
+C:\Program Files (x86)\IntelSWTools\openvino\runtime 
 ```
 
 If you have installed OpenVINO&trade; in a different directory on your system, you will need to enter your unique directory path.
 
 ### Configuration File Location
 
-`<IE>\external\hddl\config\hddl_service.config`
+`<OV>\3rdparty\hddl\config\hddl_service.config`
 
 ### Service Configuration File Settings
 
 Below are some possible configuration options. 
 
-> **NOTE:**  After changing a configuration file, the `hddldaemon` must be restarted. 
+> **NOTE**:  After changing a configuration file, the `hddldaemon` must be restarted. 
 
-### Recommended Settings
+#### Recommended Settings
 
 `device_snapshot_mode`       
 Changes the output of the `hddldaemon` to display a table with individual VPU statistics.
@@ -121,7 +114,7 @@ This setting reports the amount of memory being used by each VPU.
 `"max_cycle_switchout": 3`                   
 Requires the squeeze scheduler.  This setting might speed up performance significantly, depending on the app.  
 
-> **NOTE:** This setting works in conjunction with: `max_task_number_switch_out`.
+> **NOTE**: This setting works in conjunction with: `max_task_number_switch_out`.
 
 `"client_fps" : "off"`                          
 This setting reports the total FPS for the dispatching hddl_service (which will have one or more clients per app).
@@ -134,5 +127,8 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 ## Additional Resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
-
-- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvinotoolkit.org)
+- [Troubleshooting Guide](troubleshooting.md)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide](/downloads/613759_Intel Vision Accelerator Design with Intel Movidius VPUs Scheduler_UG_r0.9.pdf)
+- [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata](/downloads/Intel Vision Accelerator Design with Intel Movidius VPUs Errata.pdf)

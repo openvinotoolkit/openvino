@@ -20,10 +20,11 @@ typedef          char schar;
 
 typedef unsigned short ushort;
 
+#define CV_USRTYPE1 (void)"CV_USRTYPE1 support has been dropped in OpenCV 4.0"
+
 #define CV_CN_MAX     512
 #define CV_CN_SHIFT   3
 #define CV_DEPTH_MAX  (1 << CV_CN_SHIFT)
-
 
 #define CV_8U   0
 #define CV_8S   1
@@ -33,7 +34,6 @@ typedef unsigned short ushort;
 #define CV_32F  5
 #define CV_64F  6
 #define CV_16F  7
-#define CV_USRTYPE1 8
 
 #define CV_MAT_DEPTH_MASK       (CV_DEPTH_MAX - 1)
 #define CV_MAT_DEPTH(flags)     ((flags) & CV_MAT_DEPTH_MASK)
@@ -71,7 +71,6 @@ typedef unsigned short ushort;
 #define CV_32SC4 CV_MAKETYPE(CV_32S,4)
 #define CV_32SC(n) CV_MAKETYPE(CV_32S,(n))
 
-
 #define CV_16FC1 CV_MAKETYPE(CV_16F,1)
 #define CV_16FC2 CV_MAKETYPE(CV_16F,2)
 #define CV_16FC3 CV_MAKETYPE(CV_16F,3)
@@ -91,6 +90,16 @@ typedef unsigned short ushort;
 #define CV_64FC(n) CV_MAKETYPE(CV_64F,(n))
 
 // cvdef.h:
+
+#ifndef CV_ALWAYS_INLINE
+#  if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+#    define CV_ALWAYS_INLINE inline __attribute__((always_inline))
+#  elif defined(_MSC_VER)
+#    define CV_ALWAYS_INLINE __forceinline
+#  else
+#    define CV_ALWAYS_INLINE inline
+#  endif
+#endif
 
 #define CV_MAT_CN_MASK          ((CV_CN_MAX - 1) << CV_CN_SHIFT)
 #define CV_MAT_CN(flags)        ((((flags) & CV_MAT_CN_MASK) >> CV_CN_SHIFT) + 1)

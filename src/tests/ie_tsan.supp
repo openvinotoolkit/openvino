@@ -1,0 +1,38 @@
+# ThreadSanitizer suppression file for Inference Engine
+
+# global const variables from CPU plugin
+race:^ov::intel_cpu::type_to_name_tbl[abi:cxx11]$
+
+# global variable from CPU plugin which is initialized during plugin loading
+race:^ov::intel_cpu::Node::GetNodesHolder()::localHolder$
+
+# global const variable from pugixml
+race:^pugi::impl::(anonymous namespace)::dummy_node_set$
+
+# global const variable from GNA plugin
+race:^GNAPluginNS::supported_values[abi:cxx11]$
+
+# global const variable from MYRIAD plugin
+race:^vpu::consoleOutput()::obj$
+race:^vpu::ParsedConfigBase::switches[abi:cxx11]$
+race:^vpu::ParsedConfigBase::parse*::logLevels[abi:cxx11]$
+race:^vpu::ParsedConfig::parse*::perfReports[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::parse*::platforms[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::parse*::platformsDepr[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::parse*::protocols[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::parse*::watchdogIntervals[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::parse*::powerConfigs[abi:cxx11]$
+race:^vpu::ParsedConfigBase::getCompileOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::ParsedConfigBase::getRunTimeOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::ParsedConfigBase::getDeprecatedOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::ParsedConfig::getCompileOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::ParsedConfig::getDeprecatedOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::ParsedConfig::getRunTimeOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::getDeprecatedOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::getRunTimeOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::MyriadPlugin::MyriadConfig::getCompileOptions[abi:cxx11]() const::options[abi:cxx11]$
+race:^vpu::(anonymous namespace)::operators[abi:cxx11]$
+race:^vpu::(anonymous namespace)::function[abi:cxx11]$
+race:^vpu::(anonymous namespace)::ConvertStage::expectedTypes$
+race:^vpu::(anonymous namespace)::eltwise_map$
+

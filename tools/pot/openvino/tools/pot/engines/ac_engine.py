@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -9,7 +9,9 @@ from functools import partial
 
 import numpy as np
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, \
+    restore_original_node_names, align_stat_names_with_results, \
+    add_tensor_names, cast_friendly_names, collect_model_outputs
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -20,6 +22,7 @@ from ..utils.utils import create_tmp_dir, convert_output_key
 logger = get_logger(__name__)
 
 
+# pylint: disable=R0912
 class ACEngine(Engine):
 
     def __init__(self, config):
@@ -66,7 +69,7 @@ class ACEngine(Engine):
 
     def set_model(self, model):
         """ Load NetworkX model into InferenceEngine and stores it in Engine class
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         def _set_model(path):
             tmp_model_name = 'tmp_model'
@@ -122,12 +125,34 @@ class ACEngine(Engine):
         callback_layout, stat_names_aliases = {}, {}
         # add outputs for activation statistics collection
         if stats_layout is not None:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            add_outputs(self._model, nodes_name)
+
+            for model in self._model:
+                cast_friendly_names(model['model'].outputs)
+
+            outputs_per_model = add_outputs(self._model, nodes_names_map)
+            for model_name, outputs_data in outputs_per_model.items():
+                add_tensor_names(outputs_data, nodes_names_map[model_name].keys())
+
             self._model_evaluator.load_network(self._model)
+
+            model_output_names = []
+            for model in self._model:
+                model_output_names.extend(collect_model_outputs(model['model']))
+
+            nodes_name = []
+            for names_map in nodes_names_map.values():
+                nodes_name.extend(list(names_map.keys()))
+
+            align_stat_names_with_results(model_output_names,
+                                          nodes_name,
+                                          output_to_node_names,
+                                          stats_layout,
+                                          stat_aliases)
+
             # Creating statistics layout with IE-like names
             stat_names_aliases = {convert_output_key(key): key for key in stats_layout}
             callback_layout = {convert_output_key(key): value
@@ -188,6 +213,9 @@ class ACEngine(Engine):
         self._accumulated_layer_stats = {}
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
+
+        if stats_layout:
+            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
 
         return metrics, accumulated_stats
 

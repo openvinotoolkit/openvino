@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,22 +35,20 @@ Plugin::Plugin() {
     _pluginName = "TEMPLATE";
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor =
-        InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    _waitExecutor = executorManager()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
-    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    executorManager()->clear("TemplateStreamsExecutor");
+    executorManager()->clear("TemplateWaitExecutor");
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
-    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+    // executorManager()->clear("TemplateCallbackExecutor");
 }
 // ! [plugin:dtor]
 
@@ -84,8 +82,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 
@@ -152,14 +150,24 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
-    auto opset = ngraph::get_opset4();
+    ngraph::OpSet op_super_set;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef _OPENVINO_OP_REG
     for (auto&& node : transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
+                if (op_super_set.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
@@ -253,6 +261,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
                                                CONFIG_KEY(PERF_COUNT),
+                                               ov::hint::performance_mode.name(),
                                                TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
         auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
@@ -289,6 +298,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "openvino_template_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

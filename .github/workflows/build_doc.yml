@@ -14,15 +14,25 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -e
+          # install doc dependencies
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
-          python3 -m pip install lxml
+          cd docs
+          python -m pip install -r requirements.txt --user
+          cd openvino_sphinx_theme
+          python setup.py install --user
+          cd ../..
+          # install doxyrest
+          wget https://github.com/vovkos/doxyrest/releases/download/doxyrest-2.1.3/doxyrest-2.1.3-linux-amd64.tar.xz
+          tar -xf doxyrest-2.1.3-linux-amd64.tar.xz
+          echo "$(pwd)/doxyrest-2.1.3-linux-amd64/bin/" >> $GITHUB_PATH
           # install doxygen
           mkdir doxygen
           cd doxygen
           git clone https://github.com/doxygen/doxygen.git
           cd doxygen
-          git checkout Release_1_9_1
+          git checkout Release_1_9_2
           mkdir build
           cd build
           cmake ..
@@ -33,15 +43,55 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_DOCS=ON ..
+          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DNGRAPH_PYTHON_BUILD_ENABLE=ON -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build doc
-        run: cmake --build . --target openvino_docs
+        run: |
+          cmake --build . --target sphinx_docs -j8
         working-directory: build
+      
+      - name: Archive HTML
+        run: |
+          zip -r openvino_html.zip _build
+        working-directory: build/docs
+      
+      - name: Run Pytest
+        run: |
+          pytest --doxygen="./build/docs/doxygen.log" \
+                 --include_pot \
+                 --sphinx="./build/docs/sphinx.log" \
+                 --suppress-warnings="./docs/suppress_warnings.txt" \
+                 --confcutdir="./docs/scripts/tests/" \
+                 --html="./build/docs/_artifacts/doc-generation.html" \
+                 --doxygen-strip="$(pwd)" \
+                 --sphinx-strip="$(pwd)/build/docs/rst" \
+                 --doxygen-xfail="./docs/doxygen-xfail.txt" \
+                 --self-contained-html ./docs/scripts/tests/test_docs.py
 
-      - name: 'Upload doc'
-        if: github.event_name == 'push'
+      - name: 'Upload test results'
+        if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: openvino_doc
-          path: build/docs/html/
+          name: openvino_doc_pytest
+          path: build/docs/_artifacts/
+      
+      - name: 'Upload doxygen.log'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: doxygen_log
+          path: build/docs/doxygen.log
+
+      - name: 'Upload sphinx.log'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: sphinx_log
+          path: build/docs/sphinx.log
+
+      - name: 'Upload html'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: openvino_html
+          path: build/docs/openvino_html.zip

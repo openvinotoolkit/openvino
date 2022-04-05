@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Utility module."""
@@ -10,7 +10,7 @@ from pymongo import MongoClient
 
 # constants
 REFS_FACTOR = 1.2  # 120%
-TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
+TIMELINE_SIMILARITY = ('model', 'device', 'test_exe', 'os', 'cpu_info', 'target_branch')
 
 
 def _transpose_dicts(items, template=None):
@@ -37,6 +37,7 @@ def _transpose_dicts(items, template=None):
 def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memory items committed previously
     """
+
     def timeline_key(item):
         """ Defines order for timeline report entries
         """
@@ -45,10 +46,10 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
             if len(item['results'][step_name]['vmhwm']) <= 1:
                 return 1
             order = item['results'][step_name]['vmhwm']["avg"][-1] - item['results'][step_name]['vmhwm']["avg"][-2] + \
-                item['results'][step_name]['vmrss']["avg"][-1] - item['results'][step_name]['vmrss']["avg"][-2]
+                    item['results'][step_name]['vmrss']["avg"][-1] - item['results'][step_name]['vmrss']["avg"][-2]
             if not item['status']:
                 # ensure failed cases are always on top
-                order += sys.maxsize/2
+                order += sys.maxsize / 2
         return order
 
     client = MongoClient(db_url)

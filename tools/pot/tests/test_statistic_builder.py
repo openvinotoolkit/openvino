@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -10,33 +10,34 @@ from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.data_loaders.creator import create_data_loader
 from openvino.tools.pot.engines.creator import create_engine
 from openvino.tools.pot.statistics.collector import StatisticsCollector
-# from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
-# from openvino.tools.pot.algorithms.quantization.fast_bias_correction.algorithm import FastBiasCorrection
-# from openvino.tools.pot.algorithms.quantization.channel_alignment.algorithm import ActivationChannelAlignment
+from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
+from openvino.tools.pot.algorithms.quantization.fast_bias_correction.algorithm import FastBiasCorrection
+from openvino.tools.pot.algorithms.quantization.bias_correction.algorithm import BiasCorrection
+from openvino.tools.pot.algorithms.quantization.channel_alignment.algorithm import ActivationChannelAlignment
 from openvino.tools.pot.statistics.utils import merge_stats_by_algo_names
 from openvino.tools.pot.statistics.statistic_graph_builder import StatisticGraphBuilder
 from tests.utils.config import PATHS2DATASETS_CONFIG
 from tests.utils.check_graph import check_model
 
 TEST_MODELS = [
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
-    #  'max', 'min'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
-    #  'abs_max', 'min'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 0,
-    #  'abs_max', 'max'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 71,
-    #  'min', 'quantile'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 71,
-    #  'quantile', 'abs_quantile'),
-    # ('mobilenet-v2-pytorch', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
-    #  'perchannel', 2, None, None),
-    # ('squeezenet1.1', 'caffe', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
-    #  None, None),
-    # ('mobilenet-ssd', 'caffe', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
-    # None, None),
-    #  ('se-resnet-50', 'caffe', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 2,
-    # None, None)
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
+     'max', 'min'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
+     'abs_max', 'min'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 0,
+     'abs_max', 'max'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 23,
+     'min', 'quantile'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 23,
+     'quantile', 'abs_quantile'),
+    ('mobilenetv2_example', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
+     'perchannel', 1, None, None),
+    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 42,
+     None, None),
+    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 117,
+     None, None),
+    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 53,
+     None, None)
 ]
 
 
@@ -87,7 +88,7 @@ def create_(tmp_path, models, model_name, model_framework, quantization_mode,
 @pytest.mark.parametrize(
     'model_name, model_framework, quantization_mode, inplace_statistics, \
      algorithm,  preset, granularity, add_output_nodes, type_max, type_min', TEST_MODELS,
-    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4],
+    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4].name,
                                              m[5], m[6], m[7], m[8], m[9]) for m in TEST_MODELS])
 def test_statistics_collector_subsets(tmp_path, models, model_name, model_framework,
                                       quantization_mode, inplace_statistics, algorithm,
@@ -100,8 +101,8 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     algo.register_statistics(model, collector)
     statistic_graph_builder = StatisticGraphBuilder()
     act_stats_layout, stat_aliases = merge_stats_by_algo_names([algorithm.name], collector._layout_by_algo)
-    model_with_nodes, nodes_names = statistic_graph_builder.insert_statistic(model, act_stats_layout, stat_aliases)
+    model_with_nodes, nodes_names, _ = statistic_graph_builder.insert_statistic(model, act_stats_layout, stat_aliases)
     ir_name = f'{model_name}_stat_{type_max}_{type_min}' if type_min is not None \
         else f'{model_name}_stat_mean'
     check_model(tmp_path, model_with_nodes, ir_name, model_framework)
-    assert len(set(nodes_names)) == add_output_nodes
+    assert len(set(nodes_names[model.models[0]['model'].name])) == add_output_nodes

@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
-from mo.front.common.partial_infer.utils import int64_array
+
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
 
 
@@ -37,7 +37,8 @@ def get_flatten_shape(src_shape, axis):
 class TestLog(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.rand(*(inputs_dict[input])).astype(np.float32) * 255 + 0.5
+            inputs_dict[input] = np.random.rand(*(inputs_dict[input])).astype(
+                np.float32) * 255 + 0.5
         return inputs_dict
 
     def create_net(self, shape, logsoftmax_axis, ir_version):
@@ -95,19 +96,24 @@ class TestLog(OnnxRuntimeLayerTest):
                                           'kind': 'data',
                                           'value': int64_array(reshape_data_val)},
                     'flatten_shape': {'type': 'Const', 'kind': 'op', 'shape': 2},
-                    'flatten_shape_data': {'shape': int64_array([2]), 'kind': 'data', 'value': None},
+                    'flatten_shape_data': {'shape': int64_array([2]), 'kind': 'data',
+                                           'value': None},
                     'reshape': {'kind': 'op', 'type': 'Reshape'},
                     'reshape_data': {'kind': 'data', 'shape': flatten_shape, 'value': None},
-                    'reduce_max_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data', 'value': int64_array([1])},
+                    'reduce_max_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data',
+                                            'value': int64_array([1])},
                     'reduce_max_axis': {'type': 'Const', 'kind': 'op', 'shape': 1},
-                    'reduce_max_axis_data': {'shape': int64_array([1]), 'kind': 'data', 'value': None},
+                    'reduce_max_axis_data': {'shape': int64_array([1]), 'kind': 'data',
+                                             'value': None},
                     'reduce_max': {'type': 'ReduceMax', 'kind': 'op', 'keep_dims': True},
                     'reduce_max_data': {'shape': reduce_sum_shape, 'kind': 'data', 'value': None},
                     'sub_first': {'type': 'Subtract', 'kind': 'op'},
                     'sub_first_data': {'shape': flatten_shape, 'kind': 'data', 'value': None},
-                    'reduce_sum_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data', 'value': int64_array([1])},
+                    'reduce_sum_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data',
+                                            'value': int64_array([1])},
                     'reduce_sum_axis': {'type': 'Const', 'kind': 'op', 'shape': 1},
-                    'reduce_sum_axis_data': {'shape': int64_array([1]), 'kind': 'data', 'value': None},
+                    'reduce_sum_axis_data': {'shape': int64_array([1]), 'kind': 'data',
+                                             'value': None},
                     'reduce_sum': {'type': 'ReduceSum', 'kind': 'op', 'keep_dims': True},
                     'reduce_sum_data': {'shape': reduce_sum_shape, 'kind': 'data', 'value': None},
                     'exp': {'type': 'Exp', 'kind': 'op'},
@@ -156,19 +162,24 @@ class TestLog(OnnxRuntimeLayerTest):
                                           'kind': 'data',
                                           'value': int64_array(reshape_data_val)},
                     'flatten_shape': {'type': 'Const', 'kind': 'op', 'shape': 2},
-                    'flatten_shape_data': {'shape': int64_array([2]), 'kind': 'data', 'value': None},
+                    'flatten_shape_data': {'shape': int64_array([2]), 'kind': 'data',
+                                           'value': None},
                     'reshape': {'kind': 'op', 'type': 'Reshape'},
                     'reshape_data': {'kind': 'data', 'shape': flatten_shape, 'value': None},
-                    'reduce_max_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data', 'value': int64_array([1])},
+                    'reduce_max_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data',
+                                            'value': int64_array([1])},
                     'reduce_max_axis': {'type': 'Const', 'kind': 'op', 'shape': 1},
-                    'reduce_max_axis_data': {'shape': int64_array([1]), 'kind': 'data', 'value': None},
+                    'reduce_max_axis_data': {'shape': int64_array([1]), 'kind': 'data',
+                                             'value': None},
                     'reduce_max': {'type': 'ReduceMax', 'kind': 'op', 'keep_dims': True},
                     'reduce_max_data': {'shape': reduce_sum_shape, 'kind': 'data', 'value': None},
                     'sub_first': {'type': 'Subtract', 'kind': 'op'},
                     'sub_first_data': {'shape': flatten_shape, 'kind': 'data', 'value': None},
-                    'reduce_sum_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data', 'value': int64_array([1])},
+                    'reduce_sum_axis_val': {'shape': int64_array([1]).shape, 'kind': 'data',
+                                            'value': int64_array([1])},
                     'reduce_sum_axis': {'type': 'Const', 'kind': 'op', 'shape': 1},
-                    'reduce_sum_axis_data': {'shape': int64_array([1]), 'kind': 'data', 'value': None},
+                    'reduce_sum_axis_data': {'shape': int64_array([1]), 'kind': 'data',
+                                             'value': None},
                     'reduce_sum': {'type': 'ReduceSum', 'kind': 'op', 'keep_dims': True},
                     'reduce_sum_data': {'shape': reduce_sum_shape, 'kind': 'data', 'value': None},
                     'exp': {'type': 'Exp', 'kind': 'op'},
@@ -177,9 +188,11 @@ class TestLog(OnnxRuntimeLayerTest):
                     'log_data': {'shape': reduce_sum_shape, 'kind': 'data', 'value': None},
                     'sub_second': {'type': 'Subtract', 'kind': 'op'},
                     'sub_second_data': {'shape': flatten_shape, 'kind': 'data', 'value': None},
-                    'last_shape_val': {'shape': int64_array(shape).shape, 'kind': 'data', 'value': int64_array(shape)},
+                    'last_shape_val': {'shape': int64_array(shape).shape, 'kind': 'data',
+                                       'value': int64_array(shape)},
                     'last_shape': {'type': 'Const', 'kind': 'op', 'shape': len(shape)},
-                    'last_shape_data': {'shape': int64_array([len(shape)]), 'kind': 'data', 'value': None},
+                    'last_shape_data': {'shape': int64_array([len(shape)]), 'kind': 'data',
+                                        'value': None},
                     'last_reshape': {'kind': 'op', 'type': 'Reshape'},
                     'last_reshape_data': {'kind': 'data', 'shape': shape, 'value': None},
                     'result': {'kind': 'op', 'type': 'Result'},
@@ -235,6 +248,7 @@ class TestLog(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_log(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_log(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

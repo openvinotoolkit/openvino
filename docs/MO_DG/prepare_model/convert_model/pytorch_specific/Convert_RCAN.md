@@ -1,4 +1,4 @@
-# Convert PyTorch* RCAN to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
+# Convert PyTorch* RCAN Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
 
 [RCAN](https://github.com/yulunzhang/RCAN): Image Super-Resolution Using Very Deep Residual Channel Attention Networks
 
@@ -27,5 +27,5 @@ The script generates the ONNX\* model file RCAN.onnx. You can find more informat
 ## Convert ONNX* RCAN Model to IR
 
 ```sh
-./mo.py --input_model RCAN.onnx
+mo --input_model RCAN.onnx
 ```

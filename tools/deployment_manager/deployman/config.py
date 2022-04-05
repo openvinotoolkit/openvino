@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2021 Intel Corporation
+ Copyright (c) 2018-2022 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,8 +32,7 @@ class Component:
         self.logger = logger
         self.root_dir = os.getenv('INTEL_OPENVINO_DIR',
                                   os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                               os.pardir, os.pardir,
-                                                               os.pardir, os.pardir)))
+                                                               os.pardir, os.pardir, os.pardir)))
 
     def is_exist(self):
         self.logger.debug("Checking {} component...".format(self.name))

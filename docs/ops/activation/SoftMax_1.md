@@ -1,4 +1,4 @@
-## SoftMax <a name="SoftMax"></a> {#openvino_docs_ops_activation_SoftMax_1}
+# SoftMax {#openvino_docs_ops_activation_SoftMax_1}
 
 **Versioned name**: *SoftMax-1*
 

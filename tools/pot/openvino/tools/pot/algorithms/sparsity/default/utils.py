@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -35,7 +35,7 @@ def check_model_sparsity_level(model,
         all_nodes_with_weights = [
             node
             for node in all_nodes_with_weights
-            if (node.name not in sparsity_ignored_scope)
+            if (node.fullname not in sparsity_ignored_scope)
         ]
     for node in all_nodes_with_weights:
         weight_node = nu.get_weights_for_node(node)

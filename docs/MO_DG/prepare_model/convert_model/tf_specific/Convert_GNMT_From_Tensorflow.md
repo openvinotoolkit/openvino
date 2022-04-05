@@ -1,4 +1,4 @@
-# Convert GNMT* Model to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
+# Convert TensorFlow GNMT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
 
 This tutorial explains how to convert Google\* Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
@@ -17,20 +17,20 @@ index 2cbef07..e185490 100644
 +++ b/nmt/inference.py
 @@ -17,9 +17,11 @@
  from __future__ import print_function
- 
+
  import codecs
 +import os
  import time
- 
+
  import tensorflow as tf
 +from tensorflow.python.framework import graph_io
- 
+
  from . import attention_model
  from . import gnmt_model
 @@ -105,6 +107,29 @@ def start_sess_and_load_model(infer_model, ckpt_path):
    return sess, loaded_infer_model
- 
- 
+
+
 +def inference_dump_graph(ckpt_path, path_to_dump, hparams, scope=None):
 +    model_creator = get_model_creator(hparams)
 +    infer_model = model_helper.create_infer_model(model_creator, hparams, scope)
@@ -64,7 +64,7 @@ index f5823d8..a733748 100644
 @@ -310,6 +310,13 @@ def add_arguments(parser):
    parser.add_argument("--num_intra_threads", type=int, default=0,
                        help="number of intra_op_parallelism_threads")
- 
+
 +  # Special argument for inference model dumping without inference
 +  parser.add_argument("--dump_inference_model", type="bool", nargs="?",
 +                      const=True, default=False,
@@ -72,7 +72,7 @@ index f5823d8..a733748 100644
 +
 +  parser.add_argument("--path_to_dump", type=str, default="",
 +                      help="Path to dump inference graph.")
- 
+
  def create_hparams(flags):
    """Create training hparams."""
 @@ -396,6 +403,9 @@ def create_hparams(flags):
@@ -83,12 +83,12 @@ index f5823d8..a733748 100644
 +      dump_inference_model=flags.dump_inference_model,
 +      path_to_dump=flags.path_to_dump,
    )
- 
- 
+
+
 @@ -613,7 +623,7 @@ def create_or_load_hparams(
    return hparams
- 
- 
+
+
 -def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
 +def run_main(flags, default_hparams, train_fn, inference_fn, inference_dump, target_session=""):
    """Run main."""
@@ -97,7 +97,7 @@ index f5823d8..a733748 100644
 @@ -653,8 +663,26 @@ def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
          out_dir, default_hparams, flags.hparams_path,
          save_hparams=(jobid == 0))
- 
+
 -  ## Train / Decode
 -  if flags.inference_input_file:
 +  #  Dumping inference model
@@ -130,8 +130,8 @@ index f5823d8..a733748 100644
 -  run_main(FLAGS, default_hparams, train_fn, inference_fn)
 +  inference_dump = inference.inference_dump_graph
 +  run_main(FLAGS, default_hparams, train_fn, inference_fn, inference_dump)
- 
- 
+
+
  if __name__ == "__main__":
 
 ```
@@ -196,7 +196,7 @@ tgt_vocab_size -= 1
 **Step 4**. Convert the model to the IR:
 
 ```sh
-python3 path/to/model_optimizer/mo_tf.py
+mo
 --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
 --input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1 50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
 --output dynamic_seq2seq/decoder/decoder/GatherTree
@@ -224,7 +224,7 @@ For more information about model cutting, refer to [Cutting Off Parts of a Model
 Inputs of the model:
 * `IteratorGetNext/placeholder_out_port_0` input with shape `[batch_size, max_sequence_length]` contains `batch_size` decoded input sentences.
  Every sentence is decoded the same way as indices of sentence elements in vocabulary and padded with index of `eos` (end of sentence symbol). If the length of the sentence is less than `max_sequence_length`, remaining elements are filled with index of `eos` token.
- 
+
 * `IteratorGetNext/placeholder_out_port_1` input with shape `[batch_size]` contains sequence lengths for every sentence from the first input. \
  For example, if `max_sequence_length = 50`, `batch_size = 1` and the sentence has only 30 elements, then the input tensor for `IteratorGetNext/placeholder_out_port_1` should be `[30]`.
 
@@ -240,11 +240,11 @@ Outputs of the model:
 
 1. With benchmark app:
 ```sh
-python3 benchmark_app.py -m <path to the generated GNMT IR> -d CPU
+benchmark_app -m <path to the generated GNMT IR> -d CPU
 ```
 
 
-2. With Inference Engine Python API:
+2. With OpenVINO Runtime Python API:
 
 > **NOTE**: Before running the example, insert a path to your GNMT `.xml` and `.bin` files into `MODEL_PATH` and `WEIGHTS_PATH`, and fill `input_data_tensor` and `seq_lengths` tensors according to your input data.
 
@@ -274,4 +274,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to [Inference Engine Python API Overview](../../../../../runtime/bindings/python/docs/api_overview.md).
+For more information about Python API, refer to [OpenVINO Runtime Python API](ie_python_api/api.html).

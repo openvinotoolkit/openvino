@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -26,7 +26,7 @@ TEST_MODELS_DEFAULT = [
     ('mobilenet-v1-1.0-224-tf', 'tf', 'FP32', {
         'performance': {'accuracy@top1': 0.70896, 'accuracy@top5': 0.89792},
         'mixed': {'accuracy@top1': 0.70922, 'accuracy@top5': 0.89806}}),
-    ('mobilenet-v2-pytorch', 'pytorch', 'FP32', {
+    ('mobilenet-v2-pytorch', 'pytorch', 'FP16', {
         'performance': {'accuracy@top1': 0.71552, 'accuracy@top5': 0.90222},
         'mixed': {'accuracy@top1': 0.71512, 'accuracy@top5': 0.90172}}),
     ('resnet-50-pytorch', 'pytorch', 'FP32', {
@@ -35,12 +35,12 @@ TEST_MODELS_DEFAULT = [
     ('googlenet-v3-pytorch', 'pytorch', 'FP32', {
         'performance': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363},
         'mixed': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363}}),
-    # ('densenet-121', 'caffe', 'FP32', {
-    #    'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
-    #    'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
-    #('mobilenet-ssd', 'caffe', 'FP32', {
-    #    'performance': {'map': 0.71978},
-    #    'mixed': {'map': 0.71931}}),
+    ('densenet-121', 'caffe', 'FP32', {
+        'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
+        'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
+    ('mobilenet-ssd', 'caffe', 'FP32', {
+        'performance': {'map': 0.666},
+        'mixed': {'map': 0.664}}),
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
@@ -52,7 +52,7 @@ TEST_MODELS_DEFAULT = [
 TEST_MODELS_ACC_AWARE = [
     ('efficientnet-b0-pytorch', 'pytorch', 'CPU', {'performance': {'accuracy@top1': 0.7663,
                                                                    'accuracy@top5': 0.9294}}),
-    #('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.7222}}),
+    ('mobilenet-ssd', 'caffe', 'CPU', {'performance': {'map': 0.67}}),
     ('ssd512', 'caffe', 'CPU', {'performance': {'map': 0.7917}}),
     ('mobilenet-v1-0.25-128', 'tf', 'GNA', {'performance': {'accuracy@top1': 0.4133, 'accuracy@top5': 0.6626}})
 ]
@@ -121,7 +121,7 @@ def test_accuracy_aware_quantization(model_params, tmp_path, models, algorithm, 
 
 
 def run_quantization(models, model_name, model_framework, algorithm_config,
-                     expected_accuracy, tmp_path, tolerance=0.001, model_precision='FP32'):
+                     expected_accuracy, tmp_path, tolerance=0.0015, model_precision='FP32'):
     model = models.get(model_name, model_framework, tmp_path, model_precision)
     engine_config = get_engine_config(model_name)
 

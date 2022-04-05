@@ -1,0 +1,106 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/op_conversions/batch_norm_decomposition.hpp"
+
+#include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
+#include <vector>
+
+#include "itt.hpp"
+
+using namespace ngraph;
+
+ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
+    MATCHER_SCOPE(BatchNormDecomposition);
+    auto bn_1 = pattern::wrap_type<opset1::BatchNormInference>({pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_rank()),
+                                                                pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_shape())});
+    auto bn_5 = pattern::wrap_type<opset5::BatchNormInference>({pattern::any_input(pattern::has_static_rank()),
+                                                                pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::any_input(pattern::has_static_shape())});
+    auto bn = std::make_shared<ngraph::pattern::op::Or>(OutputVector{bn_1, bn_5});
+
+    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto m_bn = m.get_match_root();
+        Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
+        double eps;
+        if (auto m_bn_v1 = dynamic_pointer_cast<opset1::BatchNormInference>(m_bn)) {
+            m_gamma = m_bn_v1->input_value(0);
+            m_beta = m_bn_v1->input_value(1);
+            m_input = m_bn_v1->input_value(2);
+            m_mean = m_bn_v1->input_value(3);
+            m_var = m_bn_v1->input_value(4);
+            eps = m_bn_v1->get_eps_value();
+        } else if (auto m_bn_v5 = dynamic_pointer_cast<opset5::BatchNormInference>(m_bn)) {
+            m_input = m_bn_v5->input_value(0);
+            m_gamma = m_bn_v5->input_value(1);
+            m_beta = m_bn_v5->input_value(2);
+            m_mean = m_bn_v5->input_value(3);
+            m_var = m_bn_v5->input_value(4);
+            eps = m_bn_v5->get_eps_value();
+        } else {
+            return false;
+        }
+
+        const auto& input_type = m_input.get_element_type();
+        // scale_add = variance + eps
+        auto scale_add = std::make_shared<opset5::Add>(m_var, opset5::Constant::create(input_type, Shape{}, {eps}));
+        // scale = sqrt(variance + eps)
+        auto scale = std::make_shared<opset5::Sqrt>(scale_add);
+        // Divide `gamma` by `sqrt(variance + eps)`
+        auto gamma_div_scale = std::make_shared<opset5::Divide>(m_gamma, scale);
+
+        int64_t dims_to_add = m_input.get_partial_shape().rank().get_length() - 2;
+        const auto one = op::Constant::create(element::i64, Shape{1}, {1});
+        const auto tail_shape_rank = op::Constant::create(element::i64, Shape{1}, {dims_to_add});
+        const auto tail_shape = std::make_shared<opset5::Broadcast>(one, tail_shape_rank);
+        const auto C_dim = std::make_shared<opset5::ShapeOf>(m_gamma);
+        // create new shape [1, C, 1, 1, ...]
+        const auto new_shape = std::make_shared<opset5::Concat>(OutputVector{one, C_dim, tail_shape}, 0);
+
+        std::shared_ptr<Node> gamma_div_scale_aligned =
+            std::make_shared<opset5::Reshape>(gamma_div_scale, new_shape, true);
+        std::shared_ptr<Node> beta_aligned = std::make_shared<opset5::Reshape>(m_beta, new_shape, true);
+        std::shared_ptr<Node> mean_aligned = std::make_shared<opset5::Reshape>(m_mean, new_shape, true);
+        std::shared_ptr<Node> mean_negative = std::make_shared<opset5::Multiply>(
+            mean_aligned,
+            opset5::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
+
+        if (auto constant = ov::get_constant_from_source(beta_aligned))
+            beta_aligned = constant;
+        if (auto constant = ov::get_constant_from_source(mean_negative))
+            mean_negative = constant;
+        if (auto constant = ov::get_constant_from_source(gamma_div_scale_aligned))
+            gamma_div_scale_aligned = constant;
+
+        // input_sub_mean = input + mean * -1
+        auto input_sub_mean = register_new_node<opset5::Add>(m_input, mean_negative);
+        // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
+        auto mul = register_new_node<opset5::Multiply>(input_sub_mean, gamma_div_scale_aligned);
+        // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
+        auto add = register_new_node<opset5::Add>(mul, beta_aligned);
+
+        add->set_friendly_name(m_bn->get_friendly_name());
+
+        copy_runtime_info(
+            m_bn,
+            {scale_add, scale, gamma_div_scale, gamma_div_scale_aligned, beta_aligned, input_sub_mean, mul, add});
+
+        replace_node(m_bn, add);
+
+        return true;
+    };
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
+    this->register_matcher(m, callback);
+}

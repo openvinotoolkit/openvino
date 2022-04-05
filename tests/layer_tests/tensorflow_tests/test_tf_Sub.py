@@ -1,14 +1,15 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestSub(CommonTFLayerTest):
-    def create_sub_placeholder_const_net(self, x_shape, y_shape, ir_version):
+    def create_sub_placeholder_const_net(self, x_shape, y_shape, ir_version, use_new_frontend):
         """
             Tensorflow net                  IR net
 
@@ -30,11 +31,9 @@ class TestSub(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             tf_x_shape = x_shape.copy()
             tf_y_shape = y_shape.copy()
-            # reshaping
-            if len(tf_x_shape) >= 3:
-                tf_x_shape.append(tf_x_shape.pop(1))
-            if len(tf_y_shape) >= 3:
-                tf_y_shape.append(tf_y_shape.pop(1))
+
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
 
             x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
             constant_value = np.random.randint(-256, 256, tf_y_shape).astype(np.float32)
@@ -55,23 +54,6 @@ class TestSub(CommonTFLayerTest):
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
 
-        if len(sub_shape) >= 3:
-            # Permute sub_shape to (N,C,...) format
-            order = [0, len(sub_shape) - 1] + list(range(1, len(sub_shape) - 1))
-            sub_shape = [sub_shape[i] for i in order]
-
-        y_shape_to_compare = tf_y_shape.copy()
-        while len(y_shape_to_compare) < len(x_shape):
-            # Expand shape of constant with 1
-            y_shape_to_compare = [1] + y_shape_to_compare
-            constant_value = np.expand_dims(constant_value, axis=0)
-
-        if len(y_shape_to_compare) >= 3:
-            # Permute constant_value to (N,C,...) format for correct further reshape
-            order = [0, len(y_shape_to_compare) - 1] + list(range(1, len(y_shape_to_compare) - 1))
-            y_shape_to_compare = [y_shape_to_compare[i] for i in order]
-            constant_value = np.transpose(constant_value, order)
-
         ref_net = None
 
         return tf_net, ref_net
@@ -87,10 +69,12 @@ class TestSub(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_2D = [
         # Power
@@ -98,37 +82,45 @@ class TestSub(CommonTFLayerTest):
         # ScaleShift
         dict(x_shape=[1, 3], y_shape=[1, 3]),
         # Eltwise
-        pytest.param(dict(x_shape=[3, 1], y_shape=[3, 1]), marks=pytest.mark.xfail(reason="*-19180")),
+        pytest.param(dict(x_shape=[3, 1], y_shape=[3, 1]),
+                     marks=pytest.mark.xfail(reason="*-19180")),
         # Eltwise
         dict(x_shape=[2, 3], y_shape=[2, 3])
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_3D = [
         # Power
         dict(x_shape=[1, 1, 1], y_shape=[1, 1, 1]),
         # ScaleShift
-        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1, 3, 1]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1, 3, 1]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # Eltwise
         pytest.param(dict(x_shape=[1, 1, 3], y_shape=[1, 1, 3]),
-                     marks=[pytest.mark.xfail(reason="*-19053"), pytest.mark.xfail(reason="*-18830")]),
+                     marks=[pytest.mark.xfail(reason="*-19053"),
+                            pytest.mark.xfail(reason="*-18830")]),
         # Eltwise
-        pytest.param(dict(x_shape=[1, 3, 224], y_shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053"))
+        pytest.param(dict(x_shape=[1, 3, 224], y_shape=[1, 3, 224]),
+                     marks=pytest.mark.xfail(reason="*-19053"))
     ]
 
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_4D = [
         # Power
@@ -136,7 +128,8 @@ class TestSub(CommonTFLayerTest):
         # ScaleShift
         dict(x_shape=[1, 3, 1, 1], y_shape=[1, 3, 1, 1]),
         # Eltwise
-        pytest.param(dict(x_shape=[1, 1, 1, 3], y_shape=[1, 1, 1, 3]), marks=pytest.mark.xfail(reason="*-19180")),
+        pytest.param(dict(x_shape=[1, 1, 1, 3], y_shape=[1, 1, 1, 3]),
+                     marks=pytest.mark.xfail(reason="*-19180")),
         # Eltwise
         dict(x_shape=[1, 3, 222, 224], y_shape=[1, 3, 222, 224])
     ]
@@ -144,10 +137,12 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_5D = [
         # Power
@@ -164,10 +159,12 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
+                                      use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     ###############################################################################################
     #                                                                                             #
@@ -181,10 +178,12 @@ class TestSub(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_broadcast_1D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version,
+                                                temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_broadcast_2D = [
         # Power
@@ -196,40 +195,51 @@ class TestSub(CommonTFLayerTest):
         # Eltwise
         dict(x_shape=[3, 1], y_shape=[3]),
         # Eltwise
-        pytest.param(dict(x_shape=[3, 1], y_shape=[1, 3, 1, 1]), marks=pytest.mark.xfail(reason="*-19051"))
+        pytest.param(dict(x_shape=[3, 1], y_shape=[1, 3, 1, 1]),
+                     marks=pytest.mark.xfail(reason="*-19051"))
     ]
 
     @pytest.mark.parametrize("params", test_data_broadcast_2D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version,
+                                                temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_broadcast_3D = [
         # Power
         dict(x_shape=[1, 1, 1], y_shape=[1]),
         # Power
-        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # ScaleShift
-        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # Eltwise
-        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3, 1]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3, 1]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # Eltwise
-        pytest.param(dict(x_shape=[1, 1, 1], y_shape=[3, 1]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[1, 1, 1], y_shape=[3, 1]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # Eltwise
-        pytest.param(dict(x_shape=[3, 1, 224], y_shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[3, 1, 224], y_shape=[1, 3, 224]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
         # Eltwise
-        pytest.param(dict(x_shape=[2, 3, 1], y_shape=[1, 3, 2]), marks=pytest.mark.xfail(reason="*-19053")),
+        pytest.param(dict(x_shape=[2, 3, 1], y_shape=[1, 3, 2]),
+                     marks=pytest.mark.xfail(reason="*-19053")),
     ]
 
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_broadcast_3D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version,
+                                                temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_broadcast_4D = [
         # Power
@@ -258,10 +268,12 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_broadcast_4D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version,
+                                                temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_broadcast_5D = [
         # Power
@@ -288,7 +300,9 @@ class TestSub(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_broadcast_5D)
     @pytest.mark.nightly
-    def test_sub_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version),
+    def test_sub_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version,
+                                                temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
+                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)

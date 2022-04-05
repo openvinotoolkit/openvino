@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -61,9 +61,9 @@ class QuantizeModelFinetuning(LayerwiseModelFinetuning):
         quantized_model = model
 
         # Add first convolutions and their weight FQ's to tuning ignored scope
-        input_nodes = mu.get_nodes_by_type(model, ['Parameter'])
+        input_nodes = mu.get_nodes_by_type(model, ['Parameter'], recursively=False)
         input_convolutions = get_first_convolutions(input_nodes)
-        input_convolutions_names = [node.name for node in input_convolutions]
+        input_convolutions_names = [node.fullname for node in input_convolutions]
         self._tconf['tuning_ignored_scope'].extend(input_convolutions_names)
         logger.debug('Tuning ignored scope updated with: {}'.format(input_convolutions_names))
 
@@ -111,8 +111,8 @@ class QuantizeModelFinetuning(LayerwiseModelFinetuning):
             fq_node = mu.get_node_by_name(modified_model, op_name)
             wrapped_op, params = self._wrap_node(fq_node, FakeQuantize, op_info['params'])
             if wrapped_op:
-                wrapped_ops[fq_node.name] = wrapped_op
-                ops_parameters[fq_node.name] = params
+                wrapped_ops[fq_node.fullname] = wrapped_op
+                ops_parameters[fq_node.fullname] = params
 
         for op_name, op_info in nodes_to_tune.items():
             if op_name in wrapped_ops:
@@ -120,13 +120,13 @@ class QuantizeModelFinetuning(LayerwiseModelFinetuning):
             conv_node = mu.get_node_by_name(modified_model, op_name)
             conv_node_input = nu.get_node_input(conv_node, 0)
             input_fq = None
-            if conv_node_input.type == 'FakeQuantize' and conv_node_input.name in wrapped_ops:
-                input_fq = wrapped_ops[conv_node_input.name]
+            if conv_node_input.type == 'FakeQuantize' and conv_node_input.fullname in wrapped_ops:
+                input_fq = wrapped_ops[conv_node_input.fullname]
             op_info['input_fq'] = input_fq
             wrapped_op, params = self._wrap_node(conv_node, LinearModule, op_info['params'])
             if wrapped_op:
-                wrapped_ops[conv_node.name] = wrapped_op
-                ops_parameters[conv_node.name] = params
+                wrapped_ops[conv_node.fullname] = wrapped_op
+                ops_parameters[conv_node.fullname] = params
 
         return wrapped_ops, ops_parameters
 

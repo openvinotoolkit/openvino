@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,8 +11,8 @@ file(GLOB SRCS
 add_executable(${TARGET_NAME} ${SRCS})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-    ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
+    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/graph_transformer/include
+    ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/common/include
 )
 
 if (CMAKE_COMPILER_IS_GNUCXX)

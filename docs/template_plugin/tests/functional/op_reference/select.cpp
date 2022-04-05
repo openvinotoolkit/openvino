@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,12 @@ struct SelectParams {
     element::Type data_type;
     op::AutoBroadcastSpec broadcast;
     PartialShape select_input_pshape;
-    ov::runtime::Tensor select_input;
+    ov::Tensor select_input;
     PartialShape if_input_pshape;
-    ov::runtime::Tensor if_input;
+    ov::Tensor if_input;
     PartialShape else_input_pshape;
-    ov::runtime::Tensor else_input;
-    ov::runtime::Tensor expected_output;
+    ov::Tensor else_input;
+    ov::Tensor expected_output;
 };
 
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {
@@ -56,12 +56,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
                                                     const PartialShape& select_pshape, const PartialShape& if_pshape, const PartialShape& else_pshape) {
         auto A = std::make_shared<op::v0::Parameter>(element::boolean, select_pshape);
         auto B = std::make_shared<op::v0::Parameter>(data_type, if_pshape);
         auto C = std::make_shared<op::v0::Parameter>(data_type, else_pshape);
-        return std::make_shared<ov::Function>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
+        return std::make_shared<ov::Model>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
     }
 };
 

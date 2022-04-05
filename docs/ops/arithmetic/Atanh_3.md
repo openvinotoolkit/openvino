@@ -1,4 +1,4 @@
-## Atanh <a name="Atanh"></a> {#openvino_docs_ops_arithmetic_Atanh_3}
+# Atanh {#openvino_docs_ops_arithmetic_Atanh_3}
 
 **Versioned name**: *Atanh-3*
 
@@ -8,7 +8,18 @@
 
 **Detailed description**: *Atanh* performs element-wise hyperbolic inverse tangent (arctangenth) operation on a given input tensor, based on the following mathematical formula:
 
+Float type input:
+
 \f[ a_{i} = atanh(a_{i}) \f]
+
+Signed Intragral type put:
+
+\f[ a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+
+Unsigned Intragral type put:
+
+\f[ a_{i} = (i > 0) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+
 
 **Attributes**: Atanh operation has no attributes.
 

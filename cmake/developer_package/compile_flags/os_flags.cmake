@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -28,6 +28,8 @@ macro(disable_deprecated_warnings)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
 
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ie_c_cxx_deprecated}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ie_c_cxx_deprecated}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ie_c_cxx_deprecated}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated}")
 endmacro()
@@ -42,7 +44,9 @@ macro(ie_deprecated_no_errors)
             set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # show 4996 only for /w4
-            set(ie_c_cxx_deprecated_no_errors "/w44996")
+            set(ie_c_cxx_deprecated_no_errors "/wd4996")
+            # WA for VPUX plugin
+            set(ie_c_cxx_deprecated_no_errors "${ie_c_cxx_deprecated_no_errors} /wd4146 /wd4703")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -56,6 +60,8 @@ macro(ie_deprecated_no_errors)
         endif()
     endif()
 
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
 endmacro()
@@ -186,6 +192,10 @@ macro(ie_add_compiler_flags)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
     endforeach()
 endmacro()
+
+function(ov_add_compiler_flags)
+    ie_add_compiler_flags(${ARGN})
+endfunction()
 
 #
 # Forced includes certain header file to all target source files
@@ -332,9 +342,14 @@ else()
     if(APPLE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
     elseif(LINUX)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
+        if(NOT ENABLE_FUZZING)
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--exclude-libs,ALL")
+        endif()
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
 
@@ -354,10 +369,7 @@ function(link_system_libraries TARGET_NAME)
                 )
             endif()
 
-            target_link_libraries(${TARGET_NAME}
-                ${MODE}
-                    ${arg}
-            )
+            target_link_libraries(${TARGET_NAME} ${MODE} ${arg})
         endif()
     endforeach()
 endfunction()

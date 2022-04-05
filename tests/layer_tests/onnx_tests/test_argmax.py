@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -101,7 +101,8 @@ class TestArgMax(OnnxRuntimeLayerTest):
                                          'squeeze_const': {'kind': 'op', 'type': 'Const'},
                                          'squeeze_const_data': {'shape': [1], 'kind': 'data'},
                                          'squeeze': {'kind': 'op', 'type': 'Squeeze'},
-                                         'squeeze_data': {'shape': output_shape_squeeze, 'kind': 'data'}
+                                         'squeeze_data': {'shape': output_shape_squeeze,
+                                                          'kind': 'data'}
                                          })
                 edges.extend([('squeeze_const_indata', 'squeeze_const'),
                               ('squeeze_const', 'squeeze_const_data'),
@@ -115,8 +116,9 @@ class TestArgMax(OnnxRuntimeLayerTest):
                      'flatten_const': {'kind': 'op', 'type': 'Const'},
                      'flatten_const_data': {'shape': [2], 'kind': 'data'},
                      'flatten': {'kind': 'op', 'type': 'Reshape'},
-                     'flatten_data': {'shape': [output_shape_squeeze[0], np.prod(output_shape_squeeze[1:])],
-                                      'kind': 'data'}
+                     'flatten_data': {
+                         'shape': [output_shape_squeeze[0], np.prod(output_shape_squeeze[1:])],
+                         'kind': 'data'}
                      })
                 edges.extend([('indices_data', 'flatten'),
                               ('flatten_const_indata', 'flatten_const'),
@@ -148,6 +150,6 @@ class TestArgMax(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keepdims", [None, 0])
     @pytest.mark.nightly
-    def test_argmax(self, params, keepdims, ie_device, precision, ir_version, temp_dir):
+    def test_argmax(self, params, keepdims, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, ir_version=ir_version, keepdims=keepdims),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

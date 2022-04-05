@@ -1,9 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
 
+from .utils import process_ignored_scope
 from ..api.engine import Engine
 
 
@@ -22,6 +23,9 @@ class Algorithm(ABC):
         self.params = {}
         self.default_steps_size = 0.05
         self.total_exec_steps = 0
+
+        if isinstance(self._config.ignored, dict) and 'scope' in self._config.ignored:
+            self._config.ignored.scope = process_ignored_scope(self._config.ignored.scope)
 
     @property
     def config(self):
@@ -53,11 +57,9 @@ class Algorithm(ABC):
         :return: None
         """
 
-    def get_parameter_meta(self, _model, _optimizer_state):
+    def get_parameter_meta(self, _model):
         """ Get parameters metadata
         :param _model: model to get parameters for
-        :param _optimizer_state: dictionary describing optimizer state that allow to tune created search space
-        differently for different optimizer states
         :return params_meta: metadata of optional parameters
         """
         return []

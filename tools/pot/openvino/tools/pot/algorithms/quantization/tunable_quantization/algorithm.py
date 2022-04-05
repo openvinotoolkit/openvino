@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -45,7 +45,7 @@ class TunableQuantization(MinMaxQuantization):
     def __get_activations_statistics_layout(self, model, qscheme=None):
         """
         Compute statistics layout for activations
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :return: statistics layout in format {node_name: [stat_1, stat_2] .. }
         """
         fake_quantize_config = fqut.compute_stats_layouts(self._config, model, qscheme=qscheme)
@@ -54,14 +54,9 @@ class TunableQuantization(MinMaxQuantization):
 
         return activations_stats_layout
 
-    def get_parameter_meta(self, model, optimizer_state):
+    def get_parameter_meta(self, model):
         param_grid = []
-        if 'range_estimator' in self._config.tuning_scope:
-            for variable in self._config.estimator_tuning_scope:
-                self._config.tuning_scope.append('estimator_' + variable)
         config = deepcopy(self._config)
-        if optimizer_state['first_iteration'] or optimizer_state['fully_quantized']:
-            config['tuning_scope'] = []
 
         hardware_config = load_hardware_config(config)
         model = deepcopy(model)
@@ -72,7 +67,7 @@ class TunableQuantization(MinMaxQuantization):
         for fq in get_nodes_by_type(model, ['FakeQuantize']):
             node_input = get_node_input(fq, 0)
             op_type = 'weights' if node_input.type == 'Const' else 'activations'
-            fq_node_config = fq_configuration[fq.name][op_type]
+            fq_node_config = fq_configuration[fq.fullname][op_type]
             for child_name, child_config in fq_node_config:
                 if child_name not in nodes_config:
                     nodes_config[child_name] = {'weights': [], 'activations': []}
@@ -82,17 +77,14 @@ class TunableQuantization(MinMaxQuantization):
             if 'activations' in node_config:
                 node_config['activations'] = ut.append_estimator_configs(
                     node_config['activations'], False, config,
-                    self.params[node_name] if not optimizer_state['fully_quantized']
-                    and node_name in self.params else None)
+                    self.params[node_name] if node_name in self.params else None)
             if 'weights' in node_config:
                 node_config['weights'] = ut.append_estimator_configs(
                     node_config['weights'], True, config,
-                    self.params[node_name] if not optimizer_state['fully_quantized']
-                    and node_name in self.params else None)
+                    self.params[node_name] if node_name in self.params else None)
 
         for node_name, node_config in nodes_config.items():
             op_config = ut.get_quantize_op_config(node_config, config,
-                                                  self.params[node_name] if not optimizer_state['fully_quantized']
-                                                  and node_name in self.params else None)
+                                                  self.params[node_name] if node_name in self.params else None)
             param_grid.append((node_name, 'choice', op_config))
         return param_grid

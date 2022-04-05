@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -143,8 +143,8 @@ class SparseModelFinetuning(LayerwiseModelFinetuning):
     def _collect_nodes_to_tune(self, modified_model):
         nodes_to_tune = {}
         for op_node in mu.get_nodes_by_type(modified_model, self._weighted_operations):
-            if op_node.name not in self._tconf['tuning_ignored_scope']:
-                nodes_to_tune[op_node.name] = {
+            if op_node.fullname not in self._tconf['tuning_ignored_scope']:
+                nodes_to_tune[op_node.fullname] = {
                     'type': op_node.type,
                     'params': {}
                 }
@@ -158,8 +158,8 @@ class SparseModelFinetuning(LayerwiseModelFinetuning):
             op_node = mu.get_node_by_name(modified_model, op_name)
             wrapped_op, params = self._wrap_node(op_node, LinearModule, op_info['params'])
             if wrapped_op:
-                wrapped_ops[op_node.name] = wrapped_op
-                ops_parameters[op_node.name] = params
+                wrapped_ops[op_node.fullname] = wrapped_op
+                ops_parameters[op_node.fullname] = params
         return wrapped_ops, ops_parameters
 
     def _fallback_to_baseline(self):

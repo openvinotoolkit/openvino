@@ -1,4 +1,4 @@
-##  MulticlassNonMaxSuppression<a name="MulticlassNonMaxSuppression"></a> {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
+##  MulticlassNonMaxSuppression {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
 
 **Versioned name**: *MulticlassNonMaxSuppression-8*
 
@@ -115,11 +115,11 @@ Boxes of `background_class` are skipped and thus eliminated.
 
 *   **1**: `boxes` - tensor of type *T* and shape `[num_batches, num_boxes, 4]` with box coordinates. The box coordinates are layout as `[xmin, ymin, xmax, ymax]`. **Required.**
 
-*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
+*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. The tensor type should be same with `boxes`. **Required.**
 
 **Outputs**:
 
-*   **1**: `selected_outputs` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 6]` containing the selected boxes with score and class as tuples `[class_id, box_score, xmin, ymin, xmax, ymax]`.
+*   **1**: `selected_outputs` - tensor of type *T* which should be same with `boxes` and shape `[number of selected boxes, 6]` containing the selected boxes with score and class as tuples `[class_id, box_score, xmin, ymin, xmax, ymax]`.
 
 *   **2**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 1]` the selected indices in the flattened `boxes`, which are absolute values cross batches. Therefore possible valid values are in the range `[0, num_batches * num_boxes - 1]`.
 
@@ -130,10 +130,6 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
 **Types**
 
 * *T*: floating-point type.
-
-* *T_MAX_BOXES*: integer type.
-
-* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 

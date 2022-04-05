@@ -1,4 +1,4 @@
-## Round <a name="Round"></a> {#openvino_docs_ops_arithmetic_Round_5}
+# Round {#openvino_docs_ops_arithmetic_Round_5}
 
 **Versioned name**: *Round-5*
 

@@ -1,7 +1,10 @@
 # build/artifact dirs
 _*
-# but ensure we don't skip __init__.py
+# but ensure we don't skip __init__.py and __main__.py
 !__init__.py
+!__main__.py
+# and sphinx documentation folders
+!docs/_*
 
 # developer tools
 *.idea
@@ -19,13 +22,12 @@ doc/
 !ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
-inference-engine/temp
 inference-engine/report
+temp/
 .repo/
 docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
-inference-engine/ie_bridges/python/wheel/.env
 
 *.project
 *.cproject
@@ -47,14 +49,14 @@ __pycache__
 *pylint_report_comments.txt
 
 # Artifacts
-/model-optimizer/*.bin
-/model-optimizer/*.xml
-/model-optimizer/*.json
-/model-optimizer/*.so
-/model-optimizer/*.txt
-/model-optimizer/*.pb
-/model-optimizer/*.pbtxt
-/model-optimizer/!CMakeLists.txt
-/model-optimizer/*.mapping
-/model-optimizer/*.dat
-/model-optimizer/*.svg
+/tools/mo/*.bin
+/tools/mo/*.xml
+/tools/mo/*.json
+/tools/mo/*.so
+/tools/mo/*.txt
+/tools/mo/*.pb
+/tools/mo/*.pbtxt
+/tools/mo/!CMakeLists.txt
+/tools/mo/*.mapping
+/tools/mo/*.dat
+/tools/mo/*.svg

@@ -105,3 +105,6 @@ ENV/
 
 # snapshots
 *.tar
+
+# version file
+version.txt

@@ -1,0 +1,43 @@
+:root {
+    --textfield-color: #2b2c30;
+    --textfield-color-valid: #708541;
+    --textfield-color-invalid: #c81326;
+    --textfield-color-disabled: #b2b3b9;
+}
+
+.textfield-q .left-slot-container {
+    left: 0;
+}
+.textfield-q.textfield-size-m.left-slot .input,
+.textfield-q.textfield-size-s.left-slot .input {
+    padding-left: 20px;
+}
+.textfield-q.textfield-size-l.left-slot .input {
+    padding-left: 24px;
+}
+.textfield {
+    position: relative;
+    box-sizing: border-box;
+}
+.textfield .input {
+    width: 100%;
+}
+.textfield .is-valid {
+    color: var(--textfield-color-valid);
+}
+.textfield.is-disabled {
+    color: var(--textfield-color-disabled);
+}
+.textfield :not(.input).is-invalid {
+    color: var(--textfield-color-invalid);
+}
+.textfield .slot {
+    top: 0;
+    bottom: 0;
+    display: flex;
+    position: absolute;
+    align-items: center;
+}
+.textfield.is-invalid + .message {
+    color: var(--textfield-color-invalid);
+}

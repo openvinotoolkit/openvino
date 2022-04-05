@@ -1,4 +1,4 @@
-# Executable Network {#executable_network}
+# Executable Network {#openvino_docs_ie_plugin_dg_executable_network}
 
 `ExecutableNetwork` class functionality:
 - Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
@@ -37,8 +37,8 @@ The implementation `CompileNetwork` is fully device-specific.
 
 The function accepts a const shared pointer to `ngraph::Function` object and performs the following steps:
 
-1. Applies ngraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. 
-2. Maps the transformed graph to a backend specific graph representation (for example, to MKLDNN graph for Intel CPU).
+1. Applies nGraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in [Low Precision Transformations](@ref openvino_docs_OV_UG_lpt) guide.
+2. Maps the transformed graph to a backend specific graph representation (for example, to CPU plugin internal graph representation).
 3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
 
 @snippet src/template_executable_network.cpp executable_network:map_graph
@@ -63,8 +63,8 @@ The implementation of the method should write all data to the `model` stream, wh
 
 The method creates an asynchronous inference request and returns it. While the public Inference Engine API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-- [Synchronous inference request](@ref infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
-- [Asynchronous inference request](@ref async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
+- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
+- [Asynchronous inference request](@ref openvino_docs_ie_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
@@ -73,7 +73,7 @@ The method creates an asynchronous inference request and returns it. While the p
 
 ### `CreateInferRequestImpl()`
 
-This is a helper method used by `CreateInferRequest` to create a [synchronous inference request](@ref infer_request), which is later wrapped with the asynchronous inference request class:
+This is a helper method used by `CreateInferRequest` to create a [synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which is later wrapped with the asynchronous inference request class:
 
 @snippet src/template_executable_network.cpp executable_network:create_infer_request_impl
 
@@ -97,4 +97,4 @@ Returns a current value for a configuration key with the name `name`. The method
 
 This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](../_inference_engine_tools_compile_tool_README.html)).
 
-The next step in plugin library implementation is the [Synchronous Inference Request](@ref infer_request) class.
+The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,13 +6,25 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" ON "ENABLE_CLDNN" OFF)
+
+if (NOT ENABLE_CLDNN OR ANDROID OR
+    (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll
+    # build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+else()
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
@@ -38,15 +50,16 @@ ie_dependent_option (ENABLE_PYTHON "enables ie python bridge build" OFF "PYTHONL
 find_package(PythonInterp 3 QUIET)
 ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
 
+# this option should not be a part of InferenceEngineDeveloperPackage
+# since wheels can be built only together with main OV build
+cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
+    "PYTHONINTERP_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
+
 #
 # Inference Engine specific options
 #
 
-ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
-
-ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
-
-# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
@@ -62,33 +75,48 @@ if (NOT THREADING STREQUAL "TBB" AND
     message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
 endif()
 
-if (ENABLE_GNA)
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        set (DEFAULT_GNA_LIB GNA1)
-    else()
-        set (DEFAULT_GNA_LIB GNA2)
-    endif()
-    set(GNA_LIBRARY_VERSION "${DEFAULT_GNA_LIB}" CACHE STRING "GNAVersion")
-    set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1" "GNA1_1401" "GNA2")
-    list (APPEND IE_OPTIONS GNA_LIBRARY_VERSION)
-    if (NOT GNA_LIBRARY_VERSION STREQUAL "GNA1" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA1_1401" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA2")
-        message(FATAL_ERROR "GNA_LIBRARY_VERSION should be set to GNA1, GNA1_1401 or GNA2. Default option is ${DEFAULT_GNA_LIB}")
-    endif()
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+    (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
+    set(ENABLE_TBBBIND_2_5_DEFAULT ON)
+else()
+    set(ENABLE_TBBBIND_2_5_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
+ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
+    "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_MYRIAD" OFF)
+if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
+    set(ENABLE_IR_V7_READER_DEFAULT ON)
+else()
+    set(ENABLE_IR_V7_READER_DEFAULT OFF)
+endif()
 
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_TESTS" OFF)
+ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+
+ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+
+ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
+ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
+
+ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
+
+ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+
+ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
+
+ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
+
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+
+ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
+
+ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 
-ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_MYRIAD" OFF)
+ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_INTEL_MYRIAD" OFF)
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
@@ -106,7 +134,18 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
+
+get_linux_name(LINUX_OS_NAME)
+if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
+    # Debian packages are enabled on Ubuntu systems
+    # so, system TBB can be tried for usage
+    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+endif()
+
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
@@ -120,58 +159,57 @@ else()
     set(protoc_available ON)
 endif()
 
-ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON "protoc_available" OFF)
-ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
-ie_option(NGRAPH_IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
-ie_dependent_option(NGRAPH_TF_FRONTEND_ENABLE "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
-ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" ON
-    "NGRAPH_ONNX_FRONTEND_ENABLE" OFF)
-ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE" OFF)
-ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
-ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
-    "NGRAPH_UNIT_TEST_ENABLE" OFF)
-ie_option(OPENVINO_DEBUG_ENABLE "Enable output for OPENVINO_DEBUG statements" OFF)
+ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON "protoc_available" OFF)
+ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
+ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
+ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
+    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
+    "ENABLE_OV_CORE_UNIT_TESTS" OFF)
+ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
+if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
+    set(FORCE_FRONTENDS_USE_PROTOBUF ON)
+else()
+    set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+endif()
+
 # WA for ngraph python build on Windows debug
-list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+list(REMOVE_ITEM IE_OPTIONS ENABLE_OV_CORE_UNIT_TESTS ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
 
 #
 # Process featues
 #
 
-if(NGRAPH_DEBUG_ENABLE)
-    add_definitions(-DNGRAPH_DEBUG_ENABLE)
+if(ENABLE_OPENVINO_DEBUG)
+    add_definitions(-DENABLE_OPENVINO_DEBUG)
 endif()
 
 if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-if (ENABLE_MYRIAD)
-    add_definitions(-DENABLE_MYRIAD=1)
+if (ENABLE_INTEL_MYRIAD)
+    add_definitions(-DENABLE_INTEL_MYRIAD=1)
 endif()
 
-if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
+if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_INTEL_MYRIAD)
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
-if (ENABLE_CLDNN)
-    add_definitions(-DENABLE_CLDNN=1)
+if (ENABLE_INTEL_GPU)
+    add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
-if (ENABLE_MKL_DNN)
-    add_definitions(-DENABLE_MKL_DNN=1)
+if (ENABLE_INTEL_CPU)
+    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
-if (ENABLE_GNA)
-    add_definitions(-DENABLE_GNA)
-
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
-        set(GNA_LIBRARY_VERSION GNA1)
-    endif()
+if (ENABLE_INTEL_GNA)
+    add_definitions(-DENABLE_INTEL_GNA)
 endif()
 
 print_enabled_features()

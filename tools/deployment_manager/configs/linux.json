@@ -16,23 +16,22 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "licensing"
+        "docs/licensing"
       ]
     },
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libinference_engine.so",
-        "runtime/lib/intel64/libinference_engine_transformations.so",
-        "runtime/lib/intel64/libinference_engine_preproc.so",
-        "runtime/lib/intel64/libinference_engine_c_api.so",
-        "runtime/lib/intel64/libHeteroPlugin.so",
-        "runtime/lib/intel64/libMultiDevicePlugin.so",
-        "runtime/lib/intel64/libngraph.so",
-        "runtime/lib/intel64/libfrontend_manager.so",
-        "runtime/lib/intel64/libir_ngraph_frontend.so",
-        "runtime/lib/intel64/libonnx_ngraph_frontend.so",
-        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.so",
+        "runtime/lib/intel64/libopenvino.so",
+        "runtime/lib/intel64/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/libopenvino_c.so",
+        "runtime/lib/intel64/libopenvino_hetero_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_batch_plugin.so",
+        "runtime/lib/intel64/libopenvino_ir_frontend.so",
+        "runtime/lib/intel64/libopenvino_onnx_frontend.so",
+        "runtime/lib/intel64/libopenvino_paddle_frontend.so",
+        "runtime/lib/intel64/libopenvino_tensorflow_fe.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -42,8 +41,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
-        "runtime/lib/intel64/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so"
       ]
     },
     "gpu": {
@@ -52,8 +50,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/cache.json",
-        "runtime/lib/intel64/libclDNNPlugin.so",
-        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
+        "runtime/lib/intel64/libopenvino_intel_gpu_plugin.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
     },
@@ -65,9 +62,8 @@
         "runtime/3rdparty/97-myriad-usbboot.rules",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
-        "runtime/lib/intel64/libmyriadPlugin.so",
+        "runtime/lib/intel64/libopenvino_intel_myriad_plugin.so",
         "runtime/lib/intel64/vpu_custom_kernels",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]
     },
@@ -78,9 +74,8 @@
       "files": [
         "runtime/lib/intel64/libgna.so",
         "runtime/lib/intel64/libgna.so.2",
-        "runtime/lib/intel64/libgna.so.2.0.0.1226",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
-        "runtime/lib/intel64/libGNAPlugin.so"
+        "runtime/lib/intel64/libgna.so.3.0.0.1377",
+        "runtime/lib/intel64/libopenvino_intel_gna_plugin.so"
       ]
     },
     "hddl": {
@@ -88,34 +83,14 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libHDDLPlugin.so",
-        "runtime/lib/intel64/libinference_engine_legacy.so",
+        "runtime/lib/intel64/libopenvino_intel_hddl_plugin.so",
         "runtime/3rdparty/hddl"
-      ]
-    },
-    "opencv": {
-      "ui_name": "OpenCV",
-      "group": ["opencv"],
-      "dependencies" : [],
-      "files": [
-        "opencv/version.txt",
-        "opencv/setupvars.sh",
-        "opencv/lib",
-        "opencv/bin"
-      ]
-    },
-    "python_common": {
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3",
-        "python/requirements.txt"
       ]
     },
     "python3.6": {
       "ui_name": "OpenVINO Python API for Python3.6",
       "group": ["python"],
-      "dependencies" : ["ie_core", "python_common"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.6"
       ]
@@ -123,7 +98,7 @@
     "python3.7": {
       "ui_name": "OpenVINO Python API for Python3.7",
       "group": ["python"],
-      "dependencies" : ["ie_core", "python_common"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.7"
       ]
@@ -131,7 +106,7 @@
     "python3.8": {
       "ui_name": "OpenVINO Python API for Python3.8",
       "group": ["python"],
-      "dependencies" : ["ie_core", "python_common"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.8"
       ]
@@ -139,7 +114,7 @@
     "python3.9": {
       "ui_name": "OpenVINO Python API for Python3.9",
       "group": ["python"],
-      "dependencies" : ["ie_core", "python_common"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
       ]

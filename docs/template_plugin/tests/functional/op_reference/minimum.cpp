@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,9 @@ struct MinimumParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    ov::runtime::Tensor inputData1;
-    ov::runtime::Tensor inputData2;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferenceMinimumLayerTest : public testing::TestWithParam<MinimumParams>, public CommonReferenceTest {
@@ -48,10 +48,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& shape, const element::Type& data_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& shape, const element::Type& data_type) {
         auto A = std::make_shared<op::v0::Parameter>(data_type, shape);
         auto B = std::make_shared<op::v0::Parameter>(data_type, shape);
-        return std::make_shared<ov::Function>(std::make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
+        return std::make_shared<ov::Model>(std::make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
     }
 };
 

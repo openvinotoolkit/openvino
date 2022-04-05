@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +49,9 @@ struct CumSumParams {
     element::Type axisType;
     element::Type inType;
     element::Type outType;
-    ov::runtime::Tensor axisData;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor axisData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 
     bool testDefaults = false;
 };
@@ -85,18 +85,18 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& data_shape, const element::Type& data_type, const PartialShape& axis_shape,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& data_shape, const element::Type& data_type, const PartialShape& axis_shape,
                                                     const element::Type& axis_type, const bool execlusive, const bool reverse) {
         const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
         const auto axis_param = std::make_shared<op::v0::Parameter>(axis_type, axis_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param, axis_param, execlusive, reverse);
-        return std::make_shared<ov::Function>(NodeVector {cum_sum}, ParameterVector {data_param, axis_param});
+        return std::make_shared<ov::Model>(NodeVector {cum_sum}, ParameterVector {data_param, axis_param});
     }
 
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& data_shape, const element::Type& data_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& data_shape, const element::Type& data_type) {
         const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param);
-        return std::make_shared<ov::Function>(NodeVector {cum_sum}, ParameterVector {data_param});
+        return std::make_shared<ov::Model>(NodeVector {cum_sum}, ParameterVector {data_param});
     }
 };
 

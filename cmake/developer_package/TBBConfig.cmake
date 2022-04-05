@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,12 +23,13 @@ else()
     unset(IE_OWN_TBB_CONFIG)
 endif()
 
+unset(TBB_DIR)
+unset(TBB_DIR CACHE)
+
 find_package(TBB
     CONFIG
     PATHS ${TBBROOT}/cmake
           ${IEDevScripts_DIR}/${IE_OWN_TBB_CONFIG}
-    NO_CMAKE_FIND_ROOT_PATH
-    NO_DEFAULT_PATH
-)
+    NO_DEFAULT_PATH)
 
 find_package_handle_standard_args(TBB CONFIG_MODE)

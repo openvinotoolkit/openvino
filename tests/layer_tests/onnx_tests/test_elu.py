@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -137,7 +137,8 @@ class TestElu(Caffe2OnnxLayerTest):
         #
         #   Create reference IR net
         #
-        constant = np.clip(constant, 0, np.inf) + (np.exp(np.clip(constant, -np.inf, 0)) - 1) * alpha
+        constant = np.clip(constant, 0, np.inf) + (
+                    np.exp(np.clip(constant, -np.inf, 0)) - 1) * alpha
         if precision == 'FP16':
             constant = constant.astype(np.float16)
 
@@ -174,12 +175,13 @@ class TestElu(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_elu(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_elu(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_elu_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_elu_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

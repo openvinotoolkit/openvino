@@ -1,8 +1,3 @@
-{
-  "name": "scaleshift_fuse",
-  "framework": "dldt",
-  "mo_args": {
-    "model": "$model_dir/scaleshift_fuse/scaleshift_fuse.xml",
-    "weights": "$model_dir/scaleshift_fuse/scaleshift_fuse.bin"
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:91b323d1ac69cbf8ee95f26aea9dcb06e6ea31144d62cdf317f50d8c9242d112
+size 146

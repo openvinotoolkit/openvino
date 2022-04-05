@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import OrderedDict
@@ -18,7 +18,8 @@ from ....graph.transformer import GraphTransformer
 from ....samplers.creator import create_sampler
 from ....statistics.functions import activations as asf
 from ....statistics.functions import aggregation as agf
-from ....statistics.statistics import TensorStatisticAxis
+from ....statistics.statistics import TensorStatisticAxis, TensorStatistic
+from ..utils import get_input_shape_for_bias
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
 
@@ -112,16 +113,16 @@ class BiasCorrection(Algorithm):
 
         def skip_node(node):
             if not nu.node_with_quantized_weights(node) and not self._apply_for_all_nodes:
-                logger.debug('%s skipped because it does not have FQ weights.', node.name)
+                logger.debug('%s skipped because it does not have FQ weights.', node.fullname)
                 return True
 
             if not nu.check_const_input(node):
-                logger.debug('%s skipped because channel axis is not defined', node.name)
+                logger.debug('%s skipped because channel axis is not defined', node.fullname)
                 return True
 
             bias_node = nu.get_bias_for_node(node)
             if bias_node is None:
-                logger.debug('%s skipped because its bias is empty.', node.name)
+                logger.debug('%s skipped because its bias is empty.', node.fullname)
                 return True
 
             return False
@@ -135,9 +136,9 @@ class BiasCorrection(Algorithm):
                 continue
             input_nodes, stats_nodes, output_nodes = self._get_subgraph_data_for_node(node)
             subgraphs_data[node_name] = {
-                'input_nodes': [n.name for n in input_nodes],
-                'stats_nodes': [n.name for n in stats_nodes],
-                'output_nodes': [n.name for n in output_nodes]
+                'input_nodes': [n.fullname for n in input_nodes],
+                'stats_nodes': [n.fullname for n in stats_nodes],
+                'output_nodes': [n.fullname for n in output_nodes]
             }
         del model_copy
         return subgraphs_data
@@ -147,7 +148,7 @@ class BiasCorrection(Algorithm):
         fq_names_to_cut = []
         for fq_node in fq_nodes:
             if nu.get_node_input(fq_node, 0).type != 'Const':
-                fq_names_to_cut.append(fq_node.name)
+                fq_names_to_cut.append(fq_node.fullname)
         self._graph_transformer.remove_fq_nodes(model, fq_names_to_cut, True)
 
     def _get_subgraph_data_for_node(self, main_node):
@@ -170,9 +171,10 @@ class BiasCorrection(Algorithm):
                     walk_to_parents(stat_node_parent)
 
         def fill_output_nodes():
-            assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'])
+            assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'], recursively=False)
             for node_name in checked_input_names:
-                node = ge.get_node_by_name(main_node.graph, node_name)
+                node = ge.get_node_by_name(main_node.graph, node_name, recursively=False)
+
                 if node.type == 'ReadValue':
                     output_nodes.extend(nu.get_lstm_ends(node, assigns, checked_input_names))
 
@@ -183,13 +185,15 @@ class BiasCorrection(Algorithm):
                 # Jump over Split nodes
                 if node_input_0.type in self._split_types:
                     node_input_0 = nu.get_node_input(node_input_0, 0)
+
+            node_input_0_name = nu.create_node_name(node_input_0)
             if node.type in self._types_with_bias \
                     and (nu.node_with_quantized_weights(node) and not self._apply_for_all_nodes):
-                if node_input_0.name not in checked_stat_names:
-                    checked_stat_names.append(node_input_0.name)
-                    checked_input_names.append(node_input_0.name)
+                if node_input_0.fullname not in checked_stat_names:
+                    checked_stat_names.append(node_input_0.fullname)
+                    checked_input_names.append(node_input_0.fullname)
                     stats_nodes.append(node_input_0)
-                    self._collected_stat_inputs.append(node_input_0.name)
+                    self._collected_stat_inputs.append(node_input_0_name)
             elif is_this_branch_node and len(node_parents) > 1:
                 return
             else:
@@ -200,10 +204,10 @@ class BiasCorrection(Algorithm):
 
         def walk_to_parents(node):
             node_parents = self.get_node_parents(node)
-            if node.name in checked_input_names:
+            if node.fullname in checked_input_names:
                 return
-            checked_input_names.append(node.name)
-            if node.name in self._collected_stat_inputs:
+            checked_input_names.append(node.fullname)
+            if node.fullname in self._collected_stat_inputs:
                 if node not in input_nodes:
                     input_nodes.append(node)
             else:
@@ -225,11 +229,11 @@ class BiasCorrection(Algorithm):
             model.clean_up()
         else:
             input_nodes = [mu.get_node_by_name(model, name) for name in
-                           self._subgraphs_data[node.name]['input_nodes']]
+                           self._subgraphs_data[node.fullname]['input_nodes']]
             stats_nodes = [mu.get_node_by_name(model, name) for name in
-                           self._subgraphs_data[node.name]['stats_nodes']]
+                           self._subgraphs_data[node.fullname]['stats_nodes']]
             output_nodes = [mu.get_node_by_name(model, name) for name in
-                            self._subgraphs_data[node.name]['output_nodes']]
+                            self._subgraphs_data[node.fullname]['output_nodes']]
 
             self._remove_default_results(node.graph)
             if node_bias_add not in output_nodes:
@@ -248,30 +252,39 @@ class BiasCorrection(Algorithm):
 
     @staticmethod
     def _remove_default_results(graph):
-        graph_outputs = ge.get_nodes_by_type(graph, ['Result'])
+        graph_outputs = ge.get_nodes_by_type(graph, ['Result'], recursively=False)
         for graph_output in graph_outputs:
             graph.remove_node(graph_output.id)
 
     @staticmethod
     def _create_parameters_for_input_nodes(input_nodes):
-        outputs_shapes = {n.name: nu.get_output_shape(n, 0).copy() for n in input_nodes}
+        outputs_shapes = {nu.create_node_name(n): nu.get_output_shape(n, 0).copy() for n in input_nodes}
         inputs_data = []
+        param_type = 'Parameter'
+        nodes_data = []
         for input_node in input_nodes:
-            c_input_shape = outputs_shapes[input_node.name]
+            input_node_name = nu.create_node_name(input_node)
+            c_input_shape = outputs_shapes[input_node_name]
             c_input_shape[0] = 1
-            parameter_name = input_node.name + '/parameter'
-            param_node = ge.create_node(input_node.graph, parameter_name, 'Parameter',
-                                        {'shape': c_input_shape})
+            if input_node.type == param_type:
+                parameter_name = input_node.name
+            else:
+                input_node_data_type = nu.get_node_data_type(input_node)
+                parameter_name = input_node_name + '/parameter'
+                param_node = ge.create_node(input_node.graph, parameter_name, param_type,
+                                            {'shape': c_input_shape, 'data_type': input_node_data_type})
+                nodes_data.append((input_node, param_node))
+            inputs_data.append({
+                'param_name': parameter_name,
+                'param_shape': tuple(c_input_shape),
+                'input_name': input_node_name
+            })
+
+        for input_node, param_node in nodes_data:
             for _, port in input_node.out_ports().items():
                 for in_port in port.get_destinations():
                     in_port.disconnect()
                     in_port.connect(param_node.out_port(0))
-
-            inputs_data.append({
-                'param_name': param_node.name,
-                'param_shape': tuple(c_input_shape),
-                'input_name': input_node.name
-            })
 
         return inputs_data
 
@@ -281,6 +294,9 @@ class BiasCorrection(Algorithm):
             output_name = output_node.name
             result_name = output_name + '/result'
             result_node = ge.create_node(output_node.graph, result_name, 'Result', {})
+            for out_node in output_node.out_nodes().values():
+                if 'fw_tensor_debug_info' in out_node:
+                    del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
@@ -294,7 +310,7 @@ class BiasCorrection(Algorithm):
         return outputs_data
 
     def _update_split_subgraphs(self, model_copy):
-        for node_split in mu.get_nodes_by_type(model_copy, self._split_types):
+        for node_split in mu.get_nodes_by_type(model_copy, self._split_types, recursively=False):
             for port_id in node_split.out_ports():
                 split_result_name = '{}/result/{}'.format(node_split.name, port_id)
                 split_result = ge.create_node(node_split.graph, split_result_name, 'Result', {})
@@ -314,15 +330,15 @@ class BiasCorrection(Algorithm):
         return feed_dicts
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
-        current_inputs = self._launcher.model.input_info
-        current_shapes = {input_name: tuple(current_inputs[input_name].input_data.shape) for input_name in
+        current_inputs = self._launcher.model.inputs
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.partial_shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
             self._launcher.set_model(model_copy, md_shapes=feed_shapes)
 
     def _compute_bias_shift(self, model_copy, **params):
-        add_name = params['node_bias_add'].name
+        add_name = params['node_bias_add'].fullname
         fp32_output = agf.mean(self._fp32_statistics[add_name]['mean_per_channel'])
 
         if model_copy.is_cascade:
@@ -340,7 +356,7 @@ class BiasCorrection(Algorithm):
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
-        add_out_shape = nu.get_input_shape_for_bias(params['node_bias_add'])
+        add_out_shape = get_input_shape_for_bias(self._fp32_statistics, params['node_bias_add'].fullname)
         axis_channel = self.get_channel_axis(add_name)
         bias_shift_value = fp32_output - q_output
         bias_shape = np.ones(len(add_out_shape), dtype=np.int)
@@ -382,7 +398,7 @@ class BiasCorrection(Algorithm):
             if trigger:
                 for stat_node_name in self._subgraphs_data[node_name]['input_nodes']:
                     input_node = mu.get_node_by_name(graph, stat_node_name)
-                    stat_nodes_list.append(input_node.name)
+                    stat_nodes_list.append(input_node.fullname)
         return stat_nodes_list
 
     def register_statistics(self, model, stats_collector):
@@ -395,25 +411,28 @@ class BiasCorrection(Algorithm):
         fqut.insert_fake_quantize_nodes(self._config, quantized_model)
         topological_biased_ops = self._get_topological_biased_ops(quantized_model)
 
-        self._nodes_with_bias_names = [node.name for node in topological_biased_ops]
-        parameter_nodes = mu.get_nodes_by_type(model, ['Parameter'])
+        self._nodes_with_bias_names = [node.fullname for node in topological_biased_ops]
+        parameter_nodes = mu.get_nodes_by_type(model, ['Parameter'], recursively=False)
         biased_after_param_nodes = self._get_biased_after_params(parameter_nodes)
         for node in topological_biased_ops:
             add_node = self._get_add_node_for_bias(node)
-            add_node_name = add_node.name
+            add_node_name = add_node.fullname
             if 'orig_node_name' in add_node:
-                add_node_name = add_node['orig_node_name']
+                add_node_name = nu.reset_node_fullname(add_node_name, add_node['orig_node_name'])
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
-            if node.name in biased_after_param_nodes:
-                input_name = biased_after_param_nodes[node.name]
+            node_name = node.fullname
+            if node_name in biased_after_param_nodes:
+                input_name = biased_after_param_nodes[node_name]
                 statistics_layout[input_name] = {'batch_mean_param_in': agf.batch_mean}
                 self._collected_stat_inputs.append(input_name)
-            statistics_layout[add_node.name] =\
+            statistics_layout[add_node_name] =\
                 {'mean_per_channel': TensorStatisticAxis(granularity='perchannel',
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
                                                          channel=self._channel_axis)}
+            statistics_layout[add_node_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
+                                                                        shape_for_inference=True)
 
         layers_mapping = fqut.create_renamed_layers_mapping(quantized_model, statistics_layout)
         self._stats_collector.register(self.name, statistics_layout, self._sampler, layers_mapping)
@@ -447,13 +466,14 @@ class BiasCorrection(Algorithm):
             node_children = self.get_node_children(node)
             if node.type in self._types_with_bias:
                 node_input = nu.get_node_input(node, 0)
-                biased_after_param_nodes[node.name] = node_input.name
+                node_input_name = nu.create_node_name(node_input)
+                biased_after_param_nodes[node.fullname] = node_input_name
                 return
             for node_child in node_children:
                 walk_to_children(node_child, parameter_name)
 
         for param_node in parameter_nodes:
-            walk_to_children(param_node, param_node.name)
+            walk_to_children(param_node, param_node.fullname)
 
         return biased_after_param_nodes
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -17,10 +17,9 @@ import os
 import statistics
 import sys
 import tempfile
+import yaml
 from pathlib import Path
 from pprint import pprint
-
-import yaml
 
 UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
@@ -75,7 +74,7 @@ def run_memorytest(args: dict, log=None):
     stats = {}
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], timeout=60, log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))

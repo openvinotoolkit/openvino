@@ -4,7 +4,6 @@ LABEL version=2021.03.30.1
 
 # Build configuration arguments
 ARG BUILD_TYPE=Release
-ARG PROTOBUF_LITE=ON
 
 ARG http_proxy
 ARG https_proxy
@@ -29,6 +28,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         autoconf \
         automake \
         build-essential \
+        ninja-build \
         cmake \
         curl \
         git \
@@ -55,26 +55,29 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
+    -G Ninja \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-    -DENABLE_VPU=OFF \
-    -DENABLE_GNA=OFF \
+    -DENABLE_INTEL_MYRIAD_COMMON=OFF \
+    -DENABLE_INTEL_GNA=OFF \
     -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \
+    -DENABLE_NCC_STYLE=OFF \
     -DENABLE_TESTS=OFF \
-    -DENABLE_MKL_DNN=ON \
-    -DENABLE_CLDNN=OFF \
+    -DENABLE_INTEL_CPU=ON \
+    -DENABLE_INTEL_GPU=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-    -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
-    -DOPENVINO_DEBUG_ENABLE=OFF \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
-    -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
-RUN make -j $(nproc) install
+    -DENABLE_OV_ONNX_FRONTEND=ON \
+    -DENABLE_OV_PADDLE_FRONTEND=OFF \
+    -DENABLE_OV_TF_FRONTEND=OFF \
+    -DENABLE_OPENVINO_DEBUG=OFF \
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist
+RUN ninja install
 
 # Run tests via tox
-WORKDIR /openvino/runtime/bindings/python
+WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
 ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}

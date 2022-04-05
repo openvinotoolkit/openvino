@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-from mo.front.common.partial_infer.utils import int64_array
+from common.utils.tf_utils import permute_nchw_to_nhwc
+
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc, permute_nhwc_to_nchw
 
 
 class TestNormalizeL2(CommonTFLayerTest):
@@ -33,13 +33,14 @@ class TestNormalizeL2(CommonTFLayerTest):
             return tf_net
 
     @staticmethod
-    def create_normalize_l2_net_fusable(shape, axes, output_axes, ir_version):
+    def create_normalize_l2_net_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         nodes_attributes = {
             'input': {'kind': 'op', 'type': 'Parameter'},
             'input_data': {'shape': shape, 'kind': 'data'},
-            'axes_input_data': {'shape': int64_array([len(axes)]), 'kind': 'data', 'value': int64_array(output_axes)},
+            'axes_input_data': {'shape': int64_array([len(axes)]), 'kind': 'data',
+                                'value': int64_array(output_axes)},
             'axes': {'kind': 'op', 'type': 'Const'},
             'axes_data': {'shape': int64_array([len(axes)]), 'kind': 'data'},
             'normalize_l2': {'kind': 'op', 'type': 'NormalizeL2'},
@@ -57,23 +58,26 @@ class TestNormalizeL2(CommonTFLayerTest):
                                ('normalize_l2_data', 'result'),
                                ])
 
+        if use_new_frontend:
+            ref_net = None
         return tf_net, ref_net
 
     @staticmethod
-    def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version):
+    def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         reduced_shape = permute_nchw_to_nhwc(shape).copy()
         for axis in axes:
             reduced_shape[axis] = 1
-        reduced_shape = permute_nhwc_to_nchw(reduced_shape)
+        reduced_shape = permute_nchw_to_nhwc(reduced_shape)
 
         eltwise_shapes = int64_array(np.ones(len(shape)))
         nodes_attributes = {
             'input': {'kind': 'op', 'type': 'Parameter'},
             'input_data': {'shape': shape, 'kind': 'data'},
 
-            'power_const_input_data': {'shape': int64_array([1]), 'kind': 'data', 'value': np.array([2.0])},
+            'power_const_input_data': {'shape': int64_array([1]), 'kind': 'data',
+                                       'value': np.array([2.0])},
             'power_const': {'kind': 'op', 'type': 'Const'},
             'power_const_data': {'shape': eltwise_shapes, 'kind': 'data'},
             'power': {'kind': 'op', 'type': 'Power'},
@@ -86,13 +90,15 @@ class TestNormalizeL2(CommonTFLayerTest):
             'reduce_axes': {'kind': 'op', 'type': 'Const'},
             'reduce_axes_data': {'shape': int64_array([len(axes)]), 'kind': 'data'},
 
-            'maximum_const_input_data': {'shape': int64_array([1]), 'kind': 'data', 'value': np.array([1e-12])},
+            'maximum_const_input_data': {'shape': int64_array([1]), 'kind': 'data',
+                                         'value': np.array([1e-12])},
             'maximum_const': {'kind': 'op', 'type': 'Const'},
             'maximum_const_data': {'shape': eltwise_shapes, 'kind': 'data'},
             'maximum': {'kind': 'op', 'type': 'Maximum'},
             'maximum_data': {'shape': reduced_shape, 'kind': 'data'},
 
-            'power2_const_input_data': {'shape': int64_array([1]), 'kind': 'data', 'value': np.array([-0.5])},
+            'power2_const_input_data': {'shape': int64_array([1]), 'kind': 'data',
+                                        'value': np.array([-0.5])},
             'power2_const': {'kind': 'op', 'type': 'Const'},
             'power2_const_data': {'shape': eltwise_shapes, 'kind': 'data'},
             'power2': {'kind': 'op', 'type': 'Power'},
@@ -136,6 +142,8 @@ class TestNormalizeL2(CommonTFLayerTest):
                                ('multiply_data', 'result'),
                                ])
 
+        if use_new_frontend:
+            ref_net = None
         return tf_net, ref_net
 
     test_data_fusable_precommit = [
@@ -147,9 +155,12 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_fusable_precommit)
     @pytest.mark.precommit
-    def test_NormalizeL2_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_NormalizeL2_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                           use_new_frontend, api_2):
+        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version,
+                                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_non_fusable_precommit = [
         pytest.param(dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
@@ -162,10 +173,12 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
     @pytest.mark.precommit
-    def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version),
+    def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version,
+                                               temp_dir, use_new_frontend, api_2):
+        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version,
+                                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_fusable = [
         dict(shape=[5, 6], axes=[1], output_axes=[1]),
@@ -178,9 +191,12 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_fusable)
     @pytest.mark.nightly
-    def test_NormalizeL2_fusable(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_NormalizeL2_fusable(self, params, ie_device, precision, ir_version, temp_dir,
+                                 use_new_frontend, api_2):
+        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version,
+                                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_non_fusable = [
         dict(shape=[5], axes=[0], output_axes=[0]),
@@ -201,7 +217,9 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_non_fusable)
     @pytest.mark.nightly
-    def test_NormalizeL2_non_fusable(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version),
+    def test_NormalizeL2_non_fusable(self, params, ie_device, precision, ir_version, temp_dir,
+                                     use_new_frontend, api_2):
+        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version,
+                                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)

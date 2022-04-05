@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #include "../perf_precomp.hpp"
@@ -22,7 +22,8 @@ INSTANTIATE_TEST_CASE_P(AddPerfTestCPU, AddPerfTest,
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(AddCPerfTestCPU, AddCPerfTest,
-    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+    Combine(Values(AbsExact().to_compare_f()),
+        Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
         Values(-1, CV_8U, CV_16U, CV_32F),
         Values(cv::compile_args(CORE_CPU))));
@@ -34,7 +35,8 @@ INSTANTIATE_TEST_CASE_P(SubPerfTestCPU, SubPerfTest,
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(SubCPerfTestCPU, SubCPerfTest,
-    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+    Combine(Values(AbsExact().to_compare_f()),
+        Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
         Values(-1, CV_8U, CV_16U, CV_32F),
         Values(cv::compile_args(CORE_CPU))));
@@ -46,19 +48,23 @@ INSTANTIATE_TEST_CASE_P(SubRCPerfTestCPU, SubRCPerfTest,
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(MulPerfTestCPU, MulPerfTest,
-    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+    Combine(Values(AbsExact().to_compare_f()),
+        Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
         Values(-1, CV_8U, CV_16U, CV_32F),
+        Values(2.0),
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(MulDoublePerfTestCPU, MulDoublePerfTest,
-    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
-        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
-        Values(-1, CV_8U, CV_16U, CV_32F),
-        Values(cv::compile_args(CORE_CPU))));
+    Combine(Values(AbsExact().to_compare_f()),
+            Values(szSmall128, szVGA, sz720p, sz1080p),
+            Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
+            Values(-1, CV_8U, CV_16U, CV_32F),
+            Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(MulCPerfTestCPU, MulCPerfTest,
-    Combine(Values(szSmall128, szVGA, sz720p, sz1080p),
+    Combine(Values(AbsExact().to_compare_f()),
+        Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
         Values(-1, CV_8U, CV_16U, CV_32F),
         Values(cv::compile_args(CORE_CPU))));
@@ -67,7 +73,8 @@ INSTANTIATE_TEST_CASE_P(DivPerfTestCPU, DivPerfTest,
     Combine(Values(AbsExact().to_compare_f()),
         Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1, CV_32FC1),
-        Values(-1, CV_8U, CV_16U, CV_32F),
+        Values(-1, CV_8U, CV_16U, CV_16S, CV_32F),
+        Values(2.3),
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(DivCPerfTestCPU, DivCPerfTest,
@@ -282,18 +289,67 @@ INSTANTIATE_TEST_CASE_P(ConvertToPerfTestCPU, ConvertToPerfTest,
             Values(0.0),
             Values(cv::compile_args(CORE_CPU))));
 
+INSTANTIATE_TEST_CASE_P(KMeansNDPerfTestCPU, KMeansNDPerfTest,
+                        Combine(Values(cv::Size(1, 20),
+                                       cv::Size(16, 4096)),
+                                Values(AbsTolerance(0.01).to_compare_obj()),
+                                Values(5, 15),
+                                Values(cv::KMEANS_RANDOM_CENTERS,
+                                       cv::KMEANS_PP_CENTERS,
+                                       cv::KMEANS_RANDOM_CENTERS | cv::KMEANS_USE_INITIAL_LABELS,
+                                       cv::KMEANS_PP_CENTERS     | cv::KMEANS_USE_INITIAL_LABELS),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(KMeans2DPerfTestCPU, KMeans2DPerfTest,
+                        Combine(Values(20, 4096),
+                                Values(5, 15),
+                                Values(cv::KMEANS_RANDOM_CENTERS,
+                                       cv::KMEANS_PP_CENTERS,
+                                       cv::KMEANS_RANDOM_CENTERS | cv::KMEANS_USE_INITIAL_LABELS,
+                                       cv::KMEANS_PP_CENTERS     | cv::KMEANS_USE_INITIAL_LABELS),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(KMeans3DPerfTestCPU, KMeans3DPerfTest,
+                        Combine(Values(20, 4096),
+                                Values(5, 15),
+                                Values(cv::KMEANS_RANDOM_CENTERS,
+                                       cv::KMEANS_PP_CENTERS,
+                                       cv::KMEANS_RANDOM_CENTERS | cv::KMEANS_USE_INITIAL_LABELS,
+                                       cv::KMEANS_PP_CENTERS     | cv::KMEANS_USE_INITIAL_LABELS),
+                                Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(TransposePerfTestCPU, TransposePerfTest,
+                        Combine(Values(AbsExact().to_compare_f()),
+                                Values(szSmall128, szVGA, sz720p, sz1080p),
+                                Values(CV_8UC1, CV_16UC1, CV_16SC1, CV_32FC1,
+                                       CV_8UC2, CV_16UC2, CV_16SC2, CV_32FC2,
+                                       CV_8UC3, CV_16UC3, CV_16SC3, CV_32FC3),
+                                Values(cv::compile_args(CORE_CPU))));
+
 INSTANTIATE_TEST_CASE_P(ResizePerfTestCPU, ResizePerfTest,
     Combine(Values(AbsExact().to_compare_f()),
-        Values(CV_8UC1, CV_16UC1, CV_16SC1),
+        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1),
         Values(cv::INTER_NEAREST, cv::INTER_LINEAR, cv::INTER_AREA),
         Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(cv::Size(64, 64),
-            cv::Size(30, 30)),
+               cv::Size(32, 32)),
+        Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(BottleneckKernelsPerfTestCPU, BottleneckKernelsConstInputPerfTest,
+    Combine(Values(AbsExact().to_compare_f()),
+       Values("cv/optflow/frames/1080p_00.png", "cv/optflow/frames/720p_00.png",
+              "cv/optflow/frames/VGA_00.png", "cv/dnn_face/recognition/Aaron_Tippin_0001.jpg"),
+       Values(cv::compile_args(CORE_CPU))));
+
+INSTANTIATE_TEST_CASE_P(ResizeInSimpleGraphPerfTestCPU, ResizeInSimpleGraphPerfTest,
+    Combine(Values(AbsExact().to_compare_f()),
+        Values(CV_8UC3),
+        Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(cv::compile_args(CORE_CPU))));
 
 INSTANTIATE_TEST_CASE_P(ResizeFxFyPerfTestCPU, ResizeFxFyPerfTest,
     Combine(Values(AbsExact().to_compare_f()),
-        Values(CV_8UC1, CV_16UC1, CV_16SC1),
+        Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1),
         Values(cv::INTER_NEAREST, cv::INTER_LINEAR, cv::INTER_AREA),
         Values(szSmall128, szVGA, sz720p, sz1080p),
         Values(0.5, 0.1),

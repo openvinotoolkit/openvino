@@ -1,4 +1,4 @@
-## GatherND <a name="GatherND"></a> {#openvino_docs_ops_movement_GatherND_5}
+# GatherND {#openvino_docs_ops_movement_GatherND_5}
 
 **Versioned name**: *GatherND-5*
 
@@ -52,11 +52,15 @@ output  = [[[3, 4]],
 
 * *batch_dims*
 
-  * **Description**: *batch_dims* (denoted as `b`) is a leading number of dimensions of `data` tensor and `indices` representing the batches,
-and *GatherND* starts to gather from the `b+1` dimension.
-It requires the first `b` dimensions in `data` and `indices` tensors to be equal.
-In case non default value for *batch_dims* the output shape is calculated as
+  * **Description**: *batch_dims* (denoted as `b`) is a leading number of dimensions of `data` tensor 
+    and `indices` representing the batches, and *GatherND* starts to gather from the `b+1` dimension.
+    It requires the first `b` dimensions in `data` and `indices` tensors to be equal.
+    In case of non-default value for *batch_dims*, the output shape is calculated as
 `(multiplication of indices.shape[:b]) + indices.shape[b:-1] + data.shape[(indices.shape[-1] + b):]`.
+    
+    **NOTE:** The calculation of output shape is incorrect for non-default *batch_dims* value greater than one.
+    For correct calculations use [GatherND_8](GatherND_8.md) operation**
+
   * **Range of values**: integer number and belongs to `[0; min(data.rank, indices.rank))`
   * **Type**: int
   * **Default value**: 0

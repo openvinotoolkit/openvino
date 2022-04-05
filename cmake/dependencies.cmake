@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
+set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
@@ -23,17 +23,15 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-if(COMMAND get_linux_name)
-    get_linux_name(LINUX_OS_NAME)
-endif()
+get_linux_name(LINUX_OS_NAME)
 
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.9.2")
+    set(protoc_version "3.18.2")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
         ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
         TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "1d6da1d97d0cbfcd333558afe24533eb3cb48dc1e0ab5e971aa1e50ede8bcf45"
+        SHA256 "42fde2b6044c1f74c7e86d4e03b43aac87128ddf57ac6ed8c4eab7a1e21bbf21"
     )
     debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
@@ -51,8 +49,8 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_MYRIAD)
-    include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
+if(ENABLE_INTEL_MYRIAD)
+    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
 endif()
 
 ## Intel OMP package
@@ -84,30 +82,43 @@ if(THREADING STREQUAL "OMP")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
-    
+
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} 
+    install(FILES ${source_list}
             DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
 
 ## TBB package
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+unset(_ov_download_tbb_done CACHE)
+
+#
+# The function downloads prebuilt TBB package
+# NOTE: the function should be used if system TBB is not found
+# or ENABLE_SYSTEM_TBB is OFF
+#
+function(ov_download_tbb)
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+        return()
+    endif()
+    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+
     reset_deps_cache(TBBROOT TBB_DIR)
 
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    endif()
+
     if(WIN32 AND X86_64)
-        #TODO: add target_path to be platform specific as well, to avoid following if
+        # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_WIN "tbb2020_20200415_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -120,11 +131,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -142,11 +148,70 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+    if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
+        # oneTBB case
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
+        # 64-bits oneTBB case
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib64/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/cmake/TBBConfig.cmake")
+        # custom downloaded or user provided TBB
+        update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB cmake folder")
+    else()
+        message(WARNING "Failed to find TBBConfig.cmake in ${TBBROOT} tree. Custom TBBConfig.cmake will be used")
+    endif()
 
-    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
     debug_message(STATUS "tbb=" ${TBB})
-endif()
+    debug_message(STATUS "tbb_dir=" ${TBB_DIR})
+    debug_message(STATUS "tbbroot=" ${TBBROOT})
+
+    set(TBB "${TBB}" PARENT_SCOPE)
+endfunction()
+
+## TBBBind_2_5 package
+unset(_ov_download_tbbbind_2_5_done CACHE)
+
+#
+# The function downloads static prebuilt TBBBind_2_5 package
+# NOTE: the function should be called only we have TBB with version less 2021
+#
+function(ov_download_tbbbind_2_5)
+    if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
+        return()
+    endif()
+    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+
+    reset_deps_cache(TBBBIND_2_5_DIR)
+
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    endif()
+
+    if(WIN32 AND X86_64)
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+    elseif(ANDROID)
+        # don't have TBBBIND_2_5
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+    else()
+        message(WARNING "prebuilt TBBBIND_2_5 is not available.
+Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+    endif()
+
+    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
+
+    set(TBBBIND_2_5 "${TBBBIND_2_5}" PARENT_SCOPE)
+endfunction()
 
 ## OpenCV
 if(ENABLE_OPENCV)
@@ -240,31 +305,17 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake)
-
-if(ENABLE_GNA)
+if(ENABLE_INTEL_GNA)
     reset_deps_cache(
-            GNA
+            GNA_EXT_DIR
             GNA_PLATFORM_DIR
             GNA_KERNEL_LIB_NAME
             GNA_LIBS_LIST
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-    if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna"
-                SHA256 "b631d6cc5f6cca4a89a3f5dfa383066f3282fee25d633d9085c605bdd8090210")
-    else()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-            set(GNA_VERSION "01.00.00.1401")
-            set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
-        endif()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "03.00.00.1377")
-            set(GNA_HASH "d45fb48994d8c2803a16e88e29ae48851066325b97c1c6c4a5bf4f4573d55c65")
-        endif()
+        set(GNA_VERSION "03.00.00.1455.2")
+        set(GNA_HASH "e52785d3f730fefb4e794bb7ab40c8676537ef2f7c69c5b4bb89a5d3cc0bbe60")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -272,14 +323,27 @@ if(ENABLE_GNA)
         else()
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
-     
-        RESOLVE_DEPENDENCY(GNA
+
+        RESOLVE_DEPENDENCY(GNA_EXT_DIR
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
+    update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
+    debug_message(STATUS "gna=" ${GNA_EXT_DIR})
+
+    if (WIN32)
+        set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
+    elseif (UNIX)
+        set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
+    else ()
+        message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
+    endif ()
+    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
+    set(GNA_PATH ${GNA_EXT_DIR}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
+
+    if(NOT BUILD_SHARED_LIBS)
+        list(APPEND PATH_VARS "GNA_PATH")
     endif()
-    update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
-    debug_message(STATUS "gna=" ${GNA})
 endif()

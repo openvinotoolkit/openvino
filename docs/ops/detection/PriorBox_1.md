@@ -1,4 +1,4 @@
-## PriorBox<a name="PriorBox"></a> {#openvino_docs_ops_detection_PriorBox_1}
+# PriorBox {#openvino_docs_ops_detection_PriorBox_1}
 
 **Versioned name**: *PriorBox-1*
 

@@ -1,4 +1,4 @@
-## LogSoftMax <a name="LogSoftmax"></a> {#openvino_docs_ops_activation_LogSoftmax_5}
+# LogSoftMax {#openvino_docs_ops_activation_LogSoftmax_5}
 
 **Versioned name**: *LogSoftmax-5*
 

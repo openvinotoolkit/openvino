@@ -1,4 +1,4 @@
-# Convert ONNX* GPT-2 Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2}
+# Convert ONNX* GPT-2 Model {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2}
 
 [Public pre-trained GPT-2 model](https://github.com/onnx/models/tree/master/text/machine_comprehension/gpt-2)  is a large
 transformer-based language model with a simple objective: predict the next word, given all of the previous words within some text.
@@ -13,5 +13,5 @@ To download the model and sample test data, click **Download** on [https://githu
 
 To generate the Intermediate Representation (IR) of the model GPT-2, run the Model Optimizer with the following parameters:
 ```sh
-python3 mo.py --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
 ```

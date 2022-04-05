@@ -1,12 +1,21 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13)
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    # 'target_link_libraries' does not work correctly when called from
+    # different directory where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
+    cmake_minimum_required(VERSION 3.17)
+else()
+    cmake_minimum_required(VERSION 3.13)
+endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-set(IE_MAIN_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/inference-engine)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
+endif()
 
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -25,20 +34,27 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
+message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
+message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
+message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
+message (STATUS "CMAKE_CXX_COMPILER_ID ................. " ${CMAKE_CXX_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
+message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
+unset(openvino_export_components CACHE)
 
 #
 # Build
@@ -76,27 +92,22 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
-add_subdirectory(openvino)
-add_subdirectory(ngraph)
-add_subdirectory(runtime)
-add_subdirectory(inference-engine)
-
-# for Template plugin
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
-include(cmake/extra_modules.cmake)
-
+add_subdirectory(src)
 add_subdirectory(samples)
-add_subdirectory(model-optimizer)
+
+# Enable interpreter backend
+if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+    add_subdirectory(docs/template_plugin/backend)
+endif()
+include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(licensing)
 
 #
 # CPack

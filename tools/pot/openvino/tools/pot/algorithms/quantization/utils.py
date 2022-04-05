@@ -1,8 +1,10 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 from pathlib import Path
+
+from scipy.stats import mode
 
 from .range_estimator import get_range_estimator_config
 from ...api.engine import Engine
@@ -18,7 +20,8 @@ __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
                           'GPU': 'cpu.json',
-                          'VPU': 'vpu.json'}
+                          'VPU': 'vpu.json',
+                          'CPU_SPR': 'cpu.json'}
 
 
 def load_hardware_config(config):
@@ -292,7 +295,8 @@ def get_tensor_statistics(range_estimator_config, for_weights, **kwargs):
         stat_mod_name = get_stat_name_by_config(range_estimator_config, stats_name)
         if fn_type in ['quantile', 'abs_quantile']:
             q_value = range_estimator_config[stats_name]['outlier_prob']
-            ts_args['inplace_statistics'] = False
+            if not for_weights:
+                ts_args['inplace_statistics'] = False
             if stats_name == 'max':
                 q_value = 1 - q_value
             ts_args.update({'q': q_value})
@@ -336,9 +340,16 @@ def get_stat_name_by_config(config, stat_type):
     return '_'.join(name_list)
 
 
+def get_input_shape_for_bias(activations_statistics, input_node_name):
+    input_shape = mode(activations_statistics[input_node_name]['shape'])[0][0]
+    if len(input_shape) > 1:
+        input_shape[0] = 1
+    return input_shape
+
+
 def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
                                  {"type": "Squeeze"}, {"type": "Multiply"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
-                                 {"type": "SquaredDifference"}]}
+                                 {"type": "SquaredDifference"}, {"type": "MVN"}]}
     return operation[model]

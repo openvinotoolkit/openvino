@@ -1,7 +1,7 @@
-# Asynchronous Inference Request {#async_infer_request}
+# Asynchronous Inference Request {#openvino_docs_ie_plugin_dg_async_infer_request}
 
 Asynchronous Inference Request runs an inference pipeline asynchronously in one or several task executors depending on a device pipeline structure.
-Inference Engine Plugin API provides the base InferenceEngine::AsyncInferRequestThreadSafeDefault class:
+OpenVINO Runtime Plugin API provides the base InferenceEngine::AsyncInferRequestThreadSafeDefault class:
 
 - The class has the `_pipeline` field of `std::vector<std::pair<ITaskExecutor::Ptr, Task> >`, which contains pairs of an executor and executed task.
 - All executors are passed as arguments to a class constructor and they are in the running state and ready to run tasks.
@@ -10,13 +10,13 @@ Inference Engine Plugin API provides the base InferenceEngine::AsyncInferRequest
 `AsyncInferRequest` Class
 ------------------------
 
-Inference Engine Plugin API provides the base InferenceEngine::AsyncInferRequestThreadSafeDefault class for a custom asynchronous inference request implementation:
+OpenVINO Runtime Plugin API provides the base InferenceEngine::AsyncInferRequestThreadSafeDefault class for a custom asynchronous inference request implementation:
 
 @snippet src/template_async_infer_request.hpp async_infer_request:header
 
 #### Class Fields
 
-- `_inferRequest` - a reference to the [synchronous inference request](@ref infer_request) implementation. Its methods are reused in the `AsyncInferRequest` constructor to define a device pipeline.
+- `_inferRequest` - a reference to the [synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request) implementation. Its methods are reused in the `AsyncInferRequest` constructor to define a device pipeline.
 - `_waitExecutor` - a task executor that waits for a response from a device about device tasks completion
 
 > **NOTE**: If a plugin can work with several instances of a device, `_waitExecutor` must be device-specific. Otherwise, having a single task executor for several devices does not allow them to work in parallel.

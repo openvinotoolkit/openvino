@@ -1,2 +1,2 @@
-clang==9.0
+clang==11.0
 pyyaml

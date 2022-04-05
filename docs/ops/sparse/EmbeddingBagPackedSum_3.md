@@ -1,4 +1,4 @@
-## EmbeddingBagPackedSum <a name="EmbeddingBagPackedSum"></a> {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
+# EmbeddingBagPackedSum {#openvino_docs_ops_sparse_EmbeddingBagPackedSum_3}
 
 **Versioned name**: *EmbeddingBagPackedSum-3*
 
@@ -7,6 +7,8 @@
 **Short description**: Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 
 **Detailed description**: This is the first case of the PyTorch [EmbeddingBag](https://pytorch.org/docs/stable/nn.html#embeddingbag), it has indices in the tensor of format `[batch, indices_per_bag]`. If 3rd input is not provided, this operation is equivalent to *Gather* followed by *ReduceSum(axis=0)*. However, *EmbeddingBagPackedSum* is much more time and memory efficient than using a chain of these operations.
+
+**Attributes**: EmbeddingBagPackedSum operation has no attributes.
 
 **Inputs**:
 

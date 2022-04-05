@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,6 +7,7 @@ import re
 import tensorflow as tf
 import numpy as np
 
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -107,3 +108,23 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
                 result['inputs'][layer]['shape'] = scoring_res[layer].shape
 
     return result
+
+
+def permute_nhwc_to_nchw(shape, use_new_frontend=False):
+    if use_new_frontend:
+        return shape
+    perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(shape)).perm
+    new_shape = np.array(shape)[perm]
+    return new_shape
+
+
+def permute_nchw_to_nhwc(shape, use_new_frontend=False):
+    if use_new_frontend:
+        return shape
+    perm = PermuteAttrs.get_nchw_to_nhwc_permutation(len(shape)).perm
+    new_shape = np.array(shape)[perm]
+    return new_shape
+
+
+def permute_axis(axis, permutation_inv):
+    return permutation_inv[axis]

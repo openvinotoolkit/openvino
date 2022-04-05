@@ -1,4 +1,0 @@
-# ONNX - generate test models
-docopt~=0.6.2
-onnx~=1.10.0
-protobuf>=3.12

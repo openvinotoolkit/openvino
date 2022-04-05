@@ -1,10 +1,25 @@
-## GRUCell <a name="GRUCell"></a> {#openvino_docs_ops_sequence_GRUCell_3}
+# GRUCell  {#openvino_docs_ops_sequence_GRUCell_3}
 
 **Versioned name**: *GRUCell-3*
 
 **Category**: *Sequence processing*
 
 **Short description**: *GRUCell* represents a single GRU Cell that computes the output using the formula described in the [paper](https://arxiv.org/abs/1406.1078).
+
+**Detailed description**: *GRUCell* computes the output *Ht* for the current time step based on the followint formula:
+
+```
+Formula:
+  *  - matrix multiplication
+ (.) - Hadamard product(element-wise)
+ [,] - concatenation
+  f, g - are activation functions.
+   zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
+   rt = f(Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr)
+   ht = g(Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh) # default, when linear_before_reset = 0
+   ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh) # when linear_before_reset != 0
+   Ht = (1 - zt) (.) ht + zt (.) Ht-1
+```
 
 **Attributes**
 
@@ -20,7 +35,7 @@
   * **Description**: activation functions for gates
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh*
+  * **Default value**: *sigmoid* for f, *tanh* for g
   * **Required**: *no*
 
 * *activations_alpha, activations_beta*
@@ -57,7 +72,7 @@
 
 * **4**: `R` - 2D tensor of type *T* `[3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **5**: `B` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[3 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **5**: `B` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[3 * hidden_size]`, the sum of biases (weights and recurrence weights).  **Optional.**
 
 **Outputs**
 

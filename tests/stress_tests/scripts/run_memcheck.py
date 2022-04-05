@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -129,6 +129,9 @@ def main():
     parser.add_argument('--comparison_report',
                         required=args.compare,
                         help='create comparison report file name')
+    parser.add_argument('--gtest_filter',
+                        default='',
+                        help='gtest filter passed to gtest')
 
     args = parser.parse_args()
 
@@ -150,6 +153,7 @@ def main():
                           '--output_dir', f'{args.output_dir}',
                           '--workers', f'{args.workers}',
                           '--timeout', f'{args.timeout}',
+                          '--gtest_filter', f'{args.gtest_filter}',
                           args.binary, '--'] + binary_args)
 
     if args.upload or args.timeline_report or args.compare:

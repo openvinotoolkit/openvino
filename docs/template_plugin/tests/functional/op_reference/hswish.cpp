@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ struct HSwishParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceHSwishLayerTest : public testing::TestWithParam<HSwishParams>, public CommonReferenceTest {
@@ -46,11 +46,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& HSwishected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSwish = std::make_shared<op::v4::HSwish>(in);
-        return std::make_shared<ov::Function>(NodeVector {HSwish}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {HSwish}, ParameterVector {in});
     }
 };
 

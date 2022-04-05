@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,10 +112,12 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
+    size_t idx = 0;
     for (auto&& result : _function->get_results()) {
         const auto& input = result->input_value(0);
         auto name = ngraph::op::util::get_ie_output_name(input);
-        _outputIndex.emplace(name, _function->get_result_index(result));
+        if (_outputIndex.emplace(name, idx).second)
+            idx++;
     }
     for (auto&& parameter : _function->get_parameters()) {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
@@ -136,10 +138,10 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
-    // InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
@@ -151,11 +153,26 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
                                                   networkOutputs,
                                                   std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
+
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
+    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    return std::make_shared<TemplateInferRequest>(inputs,
+                                                  outputs,
+                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
+}
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    InferenceEngine::IInferRequestInternal::Ptr internalRequest;
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            internalRequest = CreateInferRequestImpl(_parameters, _results);
+    }
+    if (!internalRequest)
+        internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                        _taskExecutor,
                                                        _plugin->_waitExecutor,
@@ -206,8 +223,10 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
-    serializer.run_on_function(_function);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    serializer.run_on_model(_function);
 
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();

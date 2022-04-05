@@ -1,0 +1,51 @@
+<?xml version="1.0" ?>
+<!--This is syntetic model created by hand desined only for white-box unit testing-->
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="2,2,2,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="operation" id="1" type="Identity" version="extension">
+            <data  add="11"/>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+

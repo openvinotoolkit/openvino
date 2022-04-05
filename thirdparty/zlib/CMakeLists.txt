@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 project(zlib)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  /wd4996  /W3")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996 /W3")
+    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4995 /wd4996")
 else()
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -48,6 +49,7 @@ set(lib_hdrs
 
 set(lib_ext_hdrs "zlib/zlib.h" "zlib/zconf.h")
 add_library(${TARGET_NAME} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})
+add_library(${TARGET_NAME}::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
 

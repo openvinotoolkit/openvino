@@ -1,10 +1,11 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 from copy import deepcopy
 from addict import Dict
 import networkx as nx
+from openvino.tools.mo.graph.graph import rename_node
 
 from openvino.tools.pot.graph.graph_utils import load_graph, save_graph
 from openvino.tools.pot.graph import editor as ge
@@ -14,7 +15,7 @@ from openvino.tools.pot.utils.logger import get_logger, stdout_redirect
 logger = get_logger(__name__)
 
 
-class NXModel:
+class CompressedModel:
     """
     Class encapsulating the logic of graph operations handling
     for multiple NetworkX models (Model Optimizer representation).
@@ -42,9 +43,11 @@ class NXModel:
             raise TypeError('Unable to load models. Invalid keyword argument. '
                             'Either model config (config=) or NetworkX graph (graph=) is expected.')
 
+        for model in self._models:
+            ge.add_fullname_for_nodes(model['model'])
+
     def _from_config(self, model_config, target_device='ANY'):
-        if not isinstance(model_config, Dict):
-            model_config = Dict(model_config)
+        model_config = model_config if isinstance(model_config, Dict) else Dict(model_config)
         if model_config.cascade:
             for model_dict in model_config.cascade:
                 model_config_ = model_config.deepcopy()
@@ -52,6 +55,7 @@ class NXModel:
                 self._models.append({'model': load_graph(model_config_, target_device)})
                 if len(model_config.cascade) > 1:
                     self._models[-1]['name'] = model_dict.name
+                    self._models[-1]['model'].name = model_dict.name
         else:
             self._models.append({'model': load_graph(model_config, target_device)})
 
@@ -59,8 +63,17 @@ class NXModel:
         self._is_cascade = len(self._models) > 1
         if self._is_cascade:
             self._add_models_prefix()
+        for model in self._models:
+            ge.add_fullname_for_nodes(model['model'])
 
     def _from_graph(self, graph):
+        if graph.graph['ir_version'] == 10:
+            raise AssertionError(
+                'POT does not support version 10 of IR.'
+                'Please convert the model with the newer version of OpenVINO '
+                'or use the POT from OpenVINO 2021.4.2 to work with version 10 of IR.')
+
+        ge.add_fullname_for_nodes(graph)
         self._models.append({'model': graph})
         self._is_cascade = False
 
@@ -134,7 +147,7 @@ class NXModel:
     def get_final_output_nodes(self):
         """Returns list of Result nodes from the last model of cascade"""
         last_model = self._models[-1]['model']
-        return ge.get_nodes_by_type(last_model, ['Result'])
+        return ge.get_nodes_by_type(last_model, ['Result'], recursively=False)
 
     def clean_up(self):
         for model_dict in self._models:
@@ -178,8 +191,8 @@ class NXModel:
             self._prefix_is_applied = True
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
-                for node in ge.get_all_operation_nodes(model):
-                    node.name = '{}_{}'.format(model_name, node.name)
+                for node in ge.get_all_operation_nodes(model, recursively=False):
+                    node.name = f'{model_name}_{node.name}'
 
     def _remove_models_prefix(self):
         """Removes model name prefix from node names"""
@@ -188,9 +201,9 @@ class NXModel:
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
                 self._cache.node_names[model_name] = []
-                for node in ge.get_all_operation_nodes(model):
+                for node in ge.get_all_operation_nodes(model, recursively=False):
                     if node.name.startswith(model_name):
-                        node.name = node.name.replace(model_name + '_', '', 1)
+                        rename_node(node, node.name.replace(model_name + '_', '', 1))
                         self._cache.node_names[model_name].append(node.name)
 
     def _restore_models_prefix(self):
@@ -199,7 +212,7 @@ class NXModel:
             self._prefix_is_applied = True
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
-                for node in ge.get_all_operation_nodes(model):
+                for node in ge.get_all_operation_nodes(model, recursively=False):
                     if node.name in self._cache.node_names[model_name]:
-                        node.name = '{}_{}'.format(model_name, node.name)
+                        rename_node(node, f'{model_name}_{node.name}')
             self._cache.pop('node_names')

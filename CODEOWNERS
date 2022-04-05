@@ -6,75 +6,90 @@ CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintaine
 
 # CI:
 Jenkinsfile  @openvinotoolkit/openvino-admins
-azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /.github/  @openvinotoolkit/openvino-admins
 /.ci/  @openvinotoolkit/openvino-admins
+
+# OpenVINO Samples:
+/samples/  @openvinotoolkit/openvino-samples-maintainers
+
+# OpenVINO Scripts:
+/scripts/  @openvinotoolkit/openvino-scripts-maintainers
 
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 
-# OpenVINO Scripts
-/scripts/  @openvinotoolkit/openvino-scripts-maintainers
+# Tools:
+/tools/  @openvinotoolkit/openvino-tools-maintainers
+
+# Model Optimizer:
+/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
+
+# POT:
+/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
 
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
-/inference-engine/ie_bridges/python @openvinotoolkit/openvino-ie-python-api-maintainers
-/inference-engine/src/transformations/  @GlebKazantaev @ilyachur
-/inference-engine/src/legacy_api/  @openvinotoolkit/openvino-ngraph-maintainers
-/inference-engine/src/readers/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
+/src/common/transformations/  @GlebKazantaev @ilyachur
+/src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/common/  @openvinotoolkit/openvino-ie-maintainers
+/src/core/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/frontends/  @openvinotoolkit/openvino-ngraph-maintainers
+/src/tests_deprecated/readers/  @openvinotoolkit/openvino-ngraph-maintainers
 
 # IE CPU:
-/inference-engine/src/mkldnn_plugin/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/inference-engine/src/low_precision_transformations/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/inference-engine/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/thirdparty/onednn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+
+#IE LPT
+/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers
 
 # IE GPU:
-/inference-engine/src/cldnn_engine/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/src/inference_engine/include/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/src/inference_engine/include/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/ie/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/openvino/runtime/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/snippets/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/OV_Runtime_UG/supported_plugins/GPU.md  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/docs/OV_Runtime_UG/supported_plugins/GPU_RemoteTensor_API.md  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
-/inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/src/inference_engine/include/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/thirdparty/movidius/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests_deprecated/functional/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests_deprecated/behavior/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests/functional/plugin/myriad/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests/unit/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/inference/include/ie/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests_deprecated/functional/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests_deprecated/behavior/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/functional/plugin/myriad/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/unit/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/scripts/run_tests_myriad_multistick.sh  @openvinotoolkit/openvino-ie-vpu-maintainers
 
 # IE GNA:
-/inference-engine/src/gna_plugin/  @openvinotoolkit/openvino-ie-gna-maintainers
-/inference-engine/src/inference_engine/include/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
+/src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
+/src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
-# IE MULTI:
-/inference-engine/src/multi_device/  @openvinotoolkit/openvino-ie-multi-maintainers
-/inference-engine/src/inference_engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
+# IE ARM CPU:
+/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md  @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+
+# IE Auto (MULTI) plugin:
+/src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
+/src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
+
+# IE Paddle frontend:
+/src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 
 # IE Tests:
-/inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
-/inference-engine/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
+/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
+/src/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
-# MO:
-/model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
-
-# nGraph:
-/ngraph/  @openvinotoolkit/openvino-ngraph-maintainers
-
-# Tools
-/tools/  @openvinotoolkit/openvino-tools-maintainers
-
-# Documentation
+# Documentation:
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 /docs/template_plugin/  @openvinotoolkit/openvino-ie-template-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies
-**/*requirements*.*  @openvino-configuration-mgmt
-**/setup.py  @openvino-configuration-mgmt
-/scripts/install_dependencies/  @openvino-configuration-mgmt
+**/*requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/scripts/install_dependencies/  @openvinotoolkit/openvino-configuration-mgmt

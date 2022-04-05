@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <ngraph/runtime/host_tensor.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <string>
 #include <utility>
@@ -35,6 +36,18 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
                                            const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
     : IInferRequestInternal(networkInputs, networkOutputs),
       _executableNetwork(executableNetwork) {
+    createInferRequest();
+}
+
+TemplateInferRequest::TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+    : IInferRequestInternal(inputs, outputs),
+      _executableNetwork(executableNetwork) {
+    createInferRequest();
+}
+
+void TemplateInferRequest::createInferRequest() {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
     auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
@@ -105,18 +118,8 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          bool isInputBlob = true) {
     for (const auto& userData : userDataMap) {
-        IE_SUPPRESS_DEPRECATED_START
-        auto partialShape = userData.second->getPartialShape();
-        IE_SUPPRESS_DEPRECATED_END
-        SizeVector dims;
-        if (partialShape.is_static()) {
-            dims = userData.second->getTensorDesc().getDims();
-        } else if (partialShape.rank().is_static()) {
-            dims = SizeVector(partialShape.rank().get_length(), 0);
-        } else {
-            dims = SizeVector{0};
-        }
-        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims);
+        auto tensorDesc = userData.second->getTensorDesc();
+        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, tensorDesc.getDims());
     }
 }
 
@@ -257,6 +260,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 void TemplateInferRequest::inferPreprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
+    convertBatchedInputBlobs();
     // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
     IInferRequestInternal::execDataPreprocessing(_deviceInputs);
@@ -264,11 +268,57 @@ void TemplateInferRequest::inferPreprocess() {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _executableNetwork->_function->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
+        auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
         const auto& parameterType = parameter->get_element_type();
-        _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
-            parameterType,
-            parameterShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
+        auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second);
+        auto isNonRoiDesc = [](const BlockingDesc& desc) {
+            size_t exp_stride = 1;
+            for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
+                size_t rev_idx = desc.getBlockDims().size() - i - 1;
+                OPENVINO_ASSERT(desc.getOrder()[rev_idx] == rev_idx,
+                                "Template plugin: unsupported tensors with mixed axes order: ",
+                                ngraph::vector_to_string(desc.getOrder()));
+                if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
+                    return false;
+                }
+                exp_stride *= desc.getBlockDims()[rev_idx];
+            }
+            return true;
+        };
+        if (isNonRoiDesc(networkInput.second->getTensorDesc().getBlockingDesc())) {
+            // No ROI extraction is needed
+            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType,
+                                                                                        parameterShape,
+                                                                                        mem_blob->rmap().as<void*>());
+        } else {
+            OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
+                            "Template plugin: Unsupported ROI tensor with element type having ",
+                            std::to_string(parameterType.bitwidth()),
+                            " bits size");
+            // Perform manual extraction of ROI tensor
+            // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
+            // Performance of manual extraction is not optimal, but it is ok for template implementation
+            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape);
+            auto desc = mem_blob->getTensorDesc();
+            auto* src_data = mem_blob->rmap().as<uint8_t*>();
+            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
+            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
+            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+            std::vector<size_t> indexes(parameterShape.size());
+            for (size_t dst_idx = 0; dst_idx < ov::shape_size(parameterShape); dst_idx++) {
+                size_t val = dst_idx;
+                size_t src_idx = 0;
+                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+                    size_t j = indexes.size() - j1 - 1;
+                    indexes[j] = val % parameterShape[j] + desc.getBlockingDesc().getOffsetPaddingToData()[j];
+                    val /= parameterShape[j];
+                    src_idx += indexes[j] * desc.getBlockingDesc().getStrides()[j];
+                }
+                memcpy(dst_data + dst_idx * parameterType.size(),
+                       src_data + src_idx * parameterType.size(),
+                       parameterType.size());
+            }
+        }
     }
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
@@ -376,17 +426,20 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
     } else {
         data = _outputs[name];
         SizeVector dims;
-        IE_SUPPRESS_DEPRECATED_START
-        if (!foundOutput->isDynamic()) {
+        auto has_zeros = [](const SizeVector& vec) {
+            return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) {
+                return e == 0;
+            });
+        };
+        if (!has_zeros(foundOutput->getTensorDesc().getDims())) {
             dims = foundOutput->getTensorDesc().getDims();
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
                    _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
         } else {
-            auto rank = foundOutput->getPartialShape().rank();
-            dims = SizeVector(rank.is_dynamic() ? 1 : rank.get_length(), 0);
+            auto rank = foundOutput->getTensorDesc().getDims().size();
+            dims = SizeVector(rank == 0 ? 1 : rank, 0);
         }
-        IE_SUPPRESS_DEPRECATED_END
 
         if (data->getTensorDesc().getDims() != dims) {
             auto&& results = _executableNetwork->_function->get_results();
@@ -416,17 +469,21 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
+    auto has_zeros = [](const SizeVector& vec) {
+        return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) {
+            return e == 0;
+        });
+    };
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    IE_SUPPRESS_DEPRECATED_START
-    if (userBlob->size() == 0 &&
-        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
+    bool input_dynamic = foundInput && has_zeros(foundInput->getInputData()->getDims());
+    bool output_dynamic = foundOutput && has_zeros(foundOutput->getDims());
+    if (userBlob->size() == 0 && !(input_dynamic || output_dynamic)) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
-    IE_SUPPRESS_DEPRECATED_END
 
     size_t dataSize = userBlob->size();
     if (isInput) {
@@ -443,13 +500,11 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         auto devDims = devBlob->getTensorDesc().getDims();
         auto devLayout = devBlob->getTensorDesc().getLayout();
         auto devPrecision = devBlob->getTensorDesc().getPrecision();
-        IE_SUPPRESS_DEPRECATED_START
-        if (foundInput->getInputData()->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
+        if (input_dynamic && (devDims != usrDims || devLayout != usrLayout)) {
             devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
             devBlob->allocate();
             _deviceInputs[name] = devBlob;
         }
-        IE_SUPPRESS_DEPRECATED_END
         const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
         if (compoundBlobPassed && !preProcRequired) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -468,6 +523,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             _inputs[name] = userBlob;
             devBlob = userBlob;
         }
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -478,13 +534,11 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         auto devDims = devBlob->getTensorDesc().getDims();
         auto devLayout = devBlob->getTensorDesc().getLayout();
         auto devPrecision = devBlob->getTensorDesc().getPrecision();
-        IE_SUPPRESS_DEPRECATED_START
-        if (foundOutput->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
+        if (output_dynamic && (devDims != usrDims || devLayout != usrLayout)) {
             devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
             devBlob->allocate();
             _networkOutputBlobs[name] = devBlob;
         }
-        IE_SUPPRESS_DEPRECATED_END
         size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(devBlob->getTensorDesc().getDims())
                                 : 1;
@@ -500,6 +554,12 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     }
 }
 // ! [infer_request:set_blob]
+
+// ! [infer_request:set_blobs_impl]
+void TemplateInferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) {
+    _batched_inputs[name] = batchedBlob;
+}
+// ! [infer_request:set_blobs_impl]
 
 // ! [infer_request:get_performance_counts]
 std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {

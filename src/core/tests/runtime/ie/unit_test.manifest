@@ -1,0 +1,1557 @@
+#-------------------------------------------------------------------------------
+#
+#       Inference Engine all plugins excludes
+#
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+#
+#       nGraph ONNX C++ Importer unit tests
+#
+#-------------------------------------------------------------------------------
+
+# Quantize layer input 'Multiply_7' doesn't have blobs
+onnx_model_quantize_linear
+onnx_model_quantize_linear_zero_point
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
+onnx_expand_function
+
+# DequantizeLinear:
+# C++ exception with description "Unsupported precisions!
+IE_CPU.onnx_model_dequantize_linear_scalar_zero_scale_int8
+IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8
+# C++ exception with description "Input data precision not supported. Expected float.
+IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
+
+
+# Result mismatch
+onnx_model_shape
+onnx_model_split_equal_parts_default
+onnx_model_argmin_no_keepdims
+onnx_model_elu
+onnx_model_top_k
+onnx_model_erf
+onnx_model_addmul_abc
+IE_CPU.interpolate_down_scales_const_linear
+
+# data [<name>] doesn't exist
+broadcast_trivial
+aliased_output
+bool_init_raw
+bool_const_op
+onnx_model_tile
+onnx_model_tile_static
+onnx_model_logsoftmax_0D
+builder_opset1_collapse_none
+
+# nGraph function's output number 0 was not found in the CNNNetwork built from it.
+onnx_model_split_equal_parts_2d
+onnx_model_split_variable_parts_2d
+onnx_top_k_opset_10_const_k
+onnx_top_k_opset_11_const_k_smallest
+onnx_top_k_opset_11_const_k_smallest_negative_axis
+
+# [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
+bool_input_or
+onnx_constant_sparse_tensor_boolean_3x4
+
+# Layer <name> input port 1 is not connected to any data
+onnx_model_conv_transpose_w_groups
+
+# [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
+onnx_model_global_lp_pool_p0
+onnx_model_mod_sign_i64
+onnx_model_constant_of_shape_float_zeros
+onnx_model_constant_of_shape_int_ones
+ab_plus_c_inference
+dynamic_rank_input_inference
+expand_1_dyn_shape
+expand_2_dyn_shape
+expand_3_dyn_shape
+expand_4_dyn_shape
+expand_5_dyn_shape
+expand_6_dyn_shape
+expand_uint16_dyn_shape
+minimum_int64
+floor_int64
+ceiling_int64
+matmul_2x2x3_2x3x1_int64
+matmul_2x2x3_2x1x3_transpose_int64
+onnx_dyn_shapes_slice_10_3d_input_12_axes
+IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+onnx_dyn_shapes_ab_plus_c_inference
+onnx_dyn_shapes_dynamic_rank_input_inference
+onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_model_conv_with_dynamic_bias
+onnx_dyn_shapes_expand_1_dyn_shape
+onnx_dyn_shapes_expand_2_dyn_shape
+onnx_dyn_shapes_expand_3_dyn_shape
+onnx_dyn_shapes_expand_4_dyn_shape
+onnx_dyn_shapes_expand_5_dyn_shape
+onnx_dyn_shapes_expand_6_dyn_shape
+onnx_dyn_shapes_expand_uint16_dyn_shape
+onnx_dyn_shapes_model_global_lp_dynamic_hw
+onnx_dyn_shapes_slice_10_2d_input
+onnx_dyn_shapes_slice_10_default_steps
+onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
+onnx_dyn_shapes_slice_10_clamp_neg_ends
+onnx_dyn_shapes_slice_10_3d_input
+onnx_dyn_shapes_slice_10_3d_input_neg_axes
+onnx_dyn_shapes_slice_10_3d_input_20_axes
+onnx_dyn_shapes_slice_10_4d_input_23_axes
+onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
+onnx_dyn_shapes_slice_10_3d_input_12_axes
+onnx_top_k_opset_10
+onnx_model_scatterND_param_i64_indices
+IE_CPU.onnx_constant_sparse_tensor_int64_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
+
+# I64 ONNX Clip Failing on ubuntu18/20_release CI
+IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
+IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
+
+# Constant has zero dimension that is not allowable
+onnx_dyn_shapes_transpose
+
+# y Incorrect input precision. Only FP32 is supported!
+onnx_model_erf_int32
+
+# Could not eliminate all Dyn nodes
+onnx_model_conv_with_dynamic_batch
+
+# Segmentation fault
+bool_init_and
+onnx_model_fake_quantize_nonconst_inputs_infer
+onnx_model_quantize_linear_const_scale_const_zero_p
+
+# Incorrect number of 'indices_to_squeeze' input dimensions!
+arg_min_no_keep_dims_dyn_shape
+
+# OneHot operation has a form that is not supported
+onnx_model_one_hot_without_axis
+onnx_model_one_hot_with_axis
+
+# Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
+onnx_dyn_shapes_model_acosh_1_3
+onnx_dyn_shapes_model_acosh_3_2
+onnx_dyn_shapes_model_asinh_1_3
+onnx_dyn_shapes_model_asinh_3_2
+onnx_dyn_shapes_model_atanh_1_3
+onnx_dyn_shapes_model_atanh_3_2
+onnx_dyn_shapes_avg_pool_dyn_shape
+onnx_dyn_shapes_max_pool_dyn_shape
+onnx_dyn_shapes_global_avg_pool_dyn_shape
+onnx_dyn_shapes_global_max_pool_dyn_shape
+onnx_dyn_shapes_model_flatten
+onnx_model_instance_normalization_dyn_shape
+onnx_model_instance_normalization_dyn_shape2
+onnx_dyn_shapes_arg_max_dyn_shape
+onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
+onnx_dyn_shapes_model_tile
+onnx_dyn_shapes_model_convtranspose_dyn_data
+onnx_dyn_shapes_model_convtranspose_dyn_filters
+onnx_dyn_shapes_flatten_axis_0
+onnx_dyn_shapes_flatten_axis
+onnx_dyn_shapes_flatten_neg_axis
+onnx_model_range_positive_step
+onnx_model_range_negative_step
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
+onnx_model_lp_norm_default_dynamic
+onnx_instance_normalization_dynamic
+
+# (Constant W, R inputs are required) Ticket: 49207
+# Function references undeclared parameters
+# LSTMSequence
+IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
+IE_CPU.onnx_model_lstm_fwd_mixed_seq
+IE_CPU.onnx_model_lstm_mixed_seq_reverse
+# GRUSequence
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+# RNNSequence
+IE_CPU.onnx_model_rnn_defaults_fwd
+IE_CPU.onnx_model_rnn_fwd_activations
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_rev_clip
+IE_CPU.onnx_model_rnn_reverse
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h
+IE_CPU.onnx_model_rnn_bidirectional
+
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Peepholes input unsupported
+onnx_model_lstm_fwd_with_clip_peepholes
+onnx_model_lstm_bdir_short_input_seq_peepholes
+# Activation function hardsigmoid is not supported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
+
+# Const layer has incorrect dimensions in the output data
+IE_CPU.nothing_to_reverse
+
+# Unsupported dynamic ops
+onnx_size_dyn_op
+onnx_model_gru_defaults_fwd_const_dynamic
+onnx_model_rnn_defaults_fwd_const_dynamic
+onnx_model_depth_to_space_dynamic_input
+onnx_model_space_to_depth_dynamic_input
+squeeze_dynamic
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
+
+
+# Constant network
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
+onnx_size_op_single
+onnx_size_op_graph_end
+onnx_size_op_graph_middle
+
+# /openvino/src/plugins/intel_cpu/graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
+
+#-------------------------------------------------------------------------------
+#
+#       nGraph backend unit tests
+#
+#-------------------------------------------------------------------------------
+
+# Segmentation fault
+shape_of_vector
+shape_of_matrix
+shape_of_5d
+
+fake_quantize_pdpd
+IE_GPU.fake_quantize
+IE_GPU.fake_quantize_with_clip
+IE_GPU.fake_quantize_with_clip_across_channels
+
+# <op name> has zero dimension that is not allowable
+zero_sized_abs
+zero_sized_ceiling
+zero_sized_erf
+zero_sized_exp
+zero_sized_floor
+zero_sized_log
+zero_sized_negative
+zero_sized_not
+zero_sized_sign
+zero_sized_sqrt
+zero_sized_sin
+zero_sized_sinh
+zero_sized_cos
+zero_sized_cosh
+zero_sized_tan
+zero_sized_tanh
+zero_sized_asin
+zero_sized_acos
+zero_sized_atan
+zero_sized_add
+zero_sized_divide
+zero_sized_eq
+zero_sized_greater
+zero_sized_greatereq
+zero_sized_less
+zero_sized_lesseq
+zero_sized_maximum
+zero_sized_minimum
+zero_sized_multiply
+zero_sized_power
+zero_sized_subtract
+sum_trivial
+sum_trivial_5d
+sum_matrix_rows_zero
+sum_matrix_cols_zero
+sum_vector_zero
+sum_matrix_to_scalar_zero_by_zero
+sum_3d_eliminate_zero_dim
+sum_3d_eliminate_zero_dim_int32
+sum_dynamic
+slice_scalar
+slice_3d_start_just_oob
+shape_of_scalar
+reverse_0d
+reverse_1d
+reverse_2d_nochange
+reverse_3d_nochange
+product_trivial
+product_trivial_5d
+product_matrix_rows_zero
+product_matrix_cols_zero
+product_vector_zero
+product_matrix_to_scalar_zero_by_zero
+product_3d_eliminate_zero_dim
+pad_exterior_2d_0x0
+pad_exterior_2d_0x3
+pad_exterior_2d_3x0
+min_trivial
+min_trivial_5d
+min_trivial_5d_int32
+min_matrix_rows_zero
+min_matrix_cols_zero
+min_vector_zero
+min_matrix_to_scalar_zero_by_zero
+min_3d_eliminate_zero_dim
+max_trivial
+max_trivial_int8
+max_trivial_5d
+max_trivial_5d_int32
+max_matrix_rows_zero
+max_matrix_rows_zero_int32
+max_matrix_cols_zero
+max_vector_zero
+max_matrix_to_scalar_zero_by_zero
+max_3d_eliminate_zero_dim
+lrn_across_empty
+lrn_2d_across_empty
+
+squeeze_default_axes
+dynamic_abc
+broadcast_v1
+dot_0_0
+dot_matrix_2x0_0x2
+dot_matrix_0x2_2x0
+dot_matrix_3x2_2x0
+dot_scalar_0x2
+dot_2x0_0
+concat_zero_length_1d_last
+concat_zero_length_1d_middle
+concat_zero_zero
+concat_zero_length_4d_middle
+broadcast_scalar_vector
+broadcast_scalar_matrix
+broadcast_scalar_tensor
+broadcast_algo_scalar
+any_trivial
+any_2x0_to_scalar
+all_trivial
+all_2x0_to_scalar
+all_dynamic
+
+# Doesn't throw expected exception type.
+unhandled_op
+
+# Expected equality of these values:
+#  (vector<char>{42})
+#    Which is: { '*' (42, 0x2A) }
+#  read_vector<char>(result)
+#    Which is: { '\0' }
+reshape_s2t1
+dyn_group_convolution_backprop_data
+group_conv
+group_conv_striding
+group_conv_window_dilation
+group_conv_padding
+group_conv_padding_and_window_dilation
+group_conv_input_shape_variation
+group_conv_input_data_variation
+dynamic_to_vector
+dynamic_reverse_shape
+
+# Error of validate layer: Tile_1082 with type: Tile. Layer is not instance of TileLayer class
+tile_3d_small_data_rank
+tile_3d_few_repeats
+
+# Result mismatch
+sum_large_1d_to_scalar
+sum_stable_acc
+avg_pool_2d_2channel_2image_padded_only_above_include_in_computation
+avg_pool_3d_uneven_strided_padded
+multiple_result
+lrn_across_all_dims
+elu
+elu_negative_alpha
+grn_2d_with_bias
+erf
+divide_adjoint_stability
+notequal
+less
+sum_3d_to_scalar_int32
+sum_2d_to_scalar_int8
+avg_pool_uint8
+avg_pool_int8
+max_to_scalar_int8
+onnx_dyn_shapes_model_tile_static
+
+# Segfault
+gather_4d_indices_axis_0_uint8
+tensor_constant_with_op
+constant_equality_bool
+
+# Incorrect precision f64!
+sum_trivial_in_double
+sum_stable_acc_double
+sum_stable_simple_double
+softmax_axis_3d_double
+quantize_clamp_int32
+max_3d_to_scalar_double
+argmin_trivial_in_double
+
+# [nGraph upgrade pass] Unable to convert Softmax:0 to Softmax:1 with zero or more than one axis.
+softmax_dynamic_axes
+softmax_all
+
+# Unable to convert GroupConvolution:0 to GroupConvolution:1with data dilation strides other than `1`
+group_conv_data_dilation
+
+# [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
+slice_3d_strided_different_strides_int64
+maximum_int64
+gather_axis_0_int16
+gather_axis_0_int64
+gather_axis_0_uint16
+gather_axis_0_uint64
+concat_matrix_int64
+broadcast_vector_rowwise_int64
+broadcast_scalar_to_matrix_int64
+abc_int64
+
+# [NOT_IMPLEMENTED] Output format I64 is not supported yet...
+onnx_constant_integer_scalar
+onnx_constant_integer_array
+adaptive_max_pool_1d
+adaptive_max_pool_2d
+adaptive_max_pool_3d
+onnx_dyn_shapes_max_pool_with_indices_output
+onnx_model_max_pool_3d
+onnx_model_max_pool_4d_ceil_mode
+onnx_model_max_pool_4d_dilations
+onnx_model_max_pool_4d_strides
+onnx_model_max_pool_4d_ceil_strides
+
+# Unsupported primitive of type: SigmoidBackprop
+sigmoid_bprop_n1c1h4
+
+# Unsupported primitive of type: ROIAlign
+IE_CPU.onnx_roi_align_f32
+
+# [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
+not
+gather_axis_0_bool
+auto_bcast_binary_elementwise
+auto_bcast_binary_elementwise_pdpd
+any_2x2_to_scalar_true
+any_2x2_to_scalar_false
+any_2x3_eliminate_col_dim
+any_2x3_eliminate_row_dim
+any_2x2x3_eliminate_dim_0
+any_2x2x3_eliminate_dim_1
+any_2x2x3_eliminate_dim_2
+any_2x2x3_eliminate_dims_0_1
+any_2x2x3_eliminate_dims_0_2
+any_2x2x3_eliminate_dims_1_2
+any_2x2x3_eliminate_dims_0_1_2
+all_2x2_to_scalar_false
+all_2x2_to_scalar_true
+all_2x3_eliminate_col_dim
+all_2x3_eliminate_row_dim
+all_2x2x3_eliminate_dim_0
+all_2x2x3_eliminate_dim_1
+all_2x2x3_eliminate_dim_2
+all_2x2x3_eliminate_dims_0_1
+all_2x2x3_eliminate_dims_0_2
+all_2x2x3_eliminate_dims_1_2
+all_2x2x3_eliminate_dims_0_1_2
+all_dynamic_axis
+all_change_axis
+
+# Cannot cast ngraph node Reverse to CNNLayer!
+reverse_1d_0
+reverse_2d_0
+reverse_2d_1
+reverse_2d_1_mask
+reverse_2d_01
+reverse_2d_01_mask
+reverse_3d_0
+reverse_3d_1
+reverse_3d_2
+reverse_3d_01
+reverse_3d_02
+reverse_3d_12
+reverse_3d_012
+broadcast_vector_rowwise_reversed
+
+
+# Cannot cast ngraph node ReplaceSlice to CNNLayer!
+replace_slice_scalar
+replace_slice_matrix_inplace
+replace_slice_matrix
+replace_slice_vector
+replace_slice_3d
+replace_slice_3d_strided
+replace_slice_3d_strided_different_strides
+
+# Unsupported primitive of type: ReluBackprop
+relu_2Dbackprop
+relu_4Dbackprop
+
+# data [<name>] doesn't exist
+parameter_as_output
+
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
+range_v4_int32
+range_v4_float32
+
+# Cannot cast ngraph node QuantizedDot to CNNLayer!
+quantized_dot_u8u8
+quantized_dot_int32_output
+
+# [nGraph] Input scale and input zero point shape must be same and 1
+quantized_convolution
+
+# Cannot cast ngraph node QuantizedConvolution to CNNLayer!
+quantized_conv_int32_output
+
+# Cannot cast ngraph node Quantize to CNNLayer!
+quantize
+quantize_zero_offset
+quantize_axes
+quantize_int8
+quantize_int8_zero_offset
+quantize_int32
+quantize_int32_zero_offset
+quantize_clamp_uint8
+quantize_clamp_int8
+quantize_ROUND_NEAREST_TOWARD_ZERO
+quantize_ROUND_NEAREST_TOWARD_INFINITY
+quantize_ROUND_NEAREST_UPWARD
+quantize_ROUND_NEAREST_DOWNWARD
+quantize_ROUND_NEAREST_TOWARD_EVEN
+quantize_ROUND_TOWARD_INFINITY
+quantize_ROUND_TOWARD_ZERO
+quantize_ROUND_UP
+quantize_ROUND_DOWN
+quantize_dynamic_offset
+
+# Cannot cast ngraph node Dequantize to CNNLayer!
+dequantize
+dequantize_zero_offset
+dequantize_axes
+dequantize_int8
+dequantize_int8_zero_offset
+dequantize_int32
+dequantize_int32_zero_offset
+dequantize_dynamic_offset
+
+# <op_name> Incorrect input data tensor precision. Only FP32/I32/U8 are supported!
+product_to_scalar_int8
+min_to_scalar_int8
+
+# Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.
+avg_pool_1d_1channel_1image
+avg_pool_1d_1channel_2image
+avg_pool_1d_2channel_2image
+
+# Could not eliminate all Dyn nodes
+avg_pool_bprop_2d_2channel_2image_dyn_shape
+reshape_v1
+dyn_convolution_backprop_data
+dyn_convolution_backprop_filter
+
+# Pad Pad_524448 with not constant pad_value is not allowed
+pad_negative_exterior_1d
+pad_negative_exterior_1d_check_limits
+pad_edge_1d_top_neg
+pad_edge_1d_top_neg_bigger_than_tensor
+pad_edge_1d_bottom_neg
+pad_edge_1d_bottom_neg_bigger_than_tensor
+pad_edge_2d_with_neg
+pad_reflect_1d_top_neg
+pad_reflect_1d_top_neg_bigger_than_tensor
+pad_reflect_1d_bottom_neg
+pad_reflect_1d_bottom_neg_bigger_than_tensor
+pad_reflect_1d_multi_reflect
+pad_reflect_2d_with_neg
+pad_negative_exterior_2d
+pad_negative_exterior_2d_all_negative
+pad_exterior_4d_1x2x2x2
+pad_negative_exterior_4d
+pad_2channel_2image_asym
+
+# LRN operation should be converted to LRN_IE
+lrn_across_h
+lrn_across_nw
+lrn_6D_across_2_axes
+
+# std::exception
+lrn_2d_across_outermost_axis
+
+# Cannot cast ngraph node GroupConvolutionBackpropFilters_686350 to CNNLayer!
+dyn_group_convolution_backprop_filters
+
+# Layer <op_name> input port 1 is not connected to any data
+convolution_simple_padding
+
+# Cannot cast ngraph node Stack to CNNLayer!
+stack_matrix_rowise
+stack_matrix_colwise
+stack_negative_axis
+
+# Cannot cast ngraph node ConvolutionBias to CNNLayer!
+conv_bias_1d
+conv_bias_2d
+conv_bias_3d
+
+# Cannot cast ngraph node ConvolutionBiasBackpropFiltersBias to CNNLayer!
+conv_bias_bprop_2d
+
+# Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
+conv_bias_add_2d
+
+# Unsupported operator detected in the graph.
+gemm
+gemm_C
+gemm_broadcast_input_C
+gemm_broadcast_axes_0_input_C
+gemm_broadcast_axes_1_input_C
+scale_shift_no_broadcast
+scale_shift
+
+# Cannot cast ngraph node Dot to CNNLayer!
+dot_4d_5d_multi_axis
+dot_4d_5d_multi_axis_more
+dot1d
+dot2d
+dot2d_non_square
+dot3d_3d
+dot3d_2d
+dot_scalar_tensor_arg0
+dot_scalar_tensor_arg1
+dot_scalar_scalar
+dot_matrix_vector_4_3
+dot_matrix_vector
+dot_matrix_vector_int64
+dot_3d_multi_axis
+dot_3d_one_axis_arbitrary
+
+# Cannot cast ngraph node CumSum to CNNLayer!
+cum_sum_default
+cum_sum_2dim
+cum_sum_3d
+cum_sum_2dim_allmodes
+
+# Incorrect dimensions for broadcasting for Add
+auto_bcast_binary_elementwise_pdpd_dynamic
+
+# Unsupported primitive of type: ArgMin
+argmin_trivial
+argmin_2D_i32
+argmin_3D_i32
+argmin_3D_i64
+argmin_4D_i64
+argmin_4D_axis_3_i64
+argmin_4D_axis_3
+
+# Unsupported primitive of type: ArgMin
+argmin_trivial_in_i32
+
+# Error of validate layer: ArgMax with type: ArgMax. No such parameter name 'top_k' for layer ArgMax
+argmax_trivial
+argmax_2D_i32
+argmax_3D_i32
+argmax_3D_i64
+argmax_4D_i64
+argmax_3D_axis_0
+argmax_3D_axis_1
+argmax_3D_axis_2
+argmax_4D_axis_3
+argmax_4D_axis_3_i64_in_i32
+
+# Cannot find blob with name: Broadcast_1431690
+broadcast_algo_vector_middle
+broadcast_algo_vector_forward_3
+broadcast_algo_vector_forward_4
+broadcast_algo_vector_backward_3
+broadcast_algo_vector_backward_4
+broadcast_algo_matrix_backward_4
+broadcast_algo_matrix_stride_1
+broadcast_algo_matrix_stride_2
+broadcast_algo_matrix_stride_3
+
+# Cannot find blob with name: Parameter_1
+dyn_group_convolution_backprop_data
+
+# todo: check negative indices implementation
+gather_2d_negative_and_positive_indices_axis_0_2d_input
+# Failing from new reason after unblocking more Blob types
+gather_axis_0_int8
+gather_axis_0_uint8
+gather_axis_0_uint32
+split_3_equal_parts
+split_var_len_parts
+floor_int32
+strided_slice_0
+strided_slice_1
+strided_slice_stride_optional
+divide_int32
+divide_cpp_rounding_int32
+divide_python_rounding_int32
+
+# Constant and Low Precision
+constant_equality_u4_2x2x3
+constant_equality_u4_1x3
+constant_equality_u4_1x10
+constant_equality_i4_2x2x3
+constant_equality_i4_1x3
+
+
+# Uncategorized
+convolution_2d_1item
+convolution_2d_1item_padded_1_1x1_1
+convolution_2d_1item_padded_2_3x4_5
+convolution_2d_2items
+convolution_2d_2items_strided
+convolution_2d_2items_strided_padded
+convolution_2d_2items_strided_padded_same
+convolution_2d_2items_dilated
+convolution_2d_2items_dilated_padded
+convolution_3d_2items
+convolution_4d_2items
+convolution_4d_4items
+convolution_4d_4items_padded_neg
+convolution_4d_4items_strided
+convolution_4d_4items_dilated
+convolution_4d_4items_strided_dilated
+convolution_4d_4items_strided_dilated_padded
+convolution_4d_4items_strided_dilated_padded_neg
+convolution_4d_4items_strided_dilated_padded_same
+convolution_2d_1item_1o1i_data_dilated
+convolution_2d_1item_2o1i_data_dilated
+convolution_2d_1item_2o2i_data_dilated
+convolution_2d_1item_5o3i_data_dilated
+convolution_2d_2item_5o3i_data_dilated
+convolution_2d_8item_large_5o3i_data_dilated
+convolution_2d_8item_large_5o3i_uneven_filter_data_dilated
+convolution_2d_8item_large_5o3i_uneven_filter_uneven_data_dilation_data_dilated
+convolution_3d_2item_large_5o3i_uneven_filter_uneven_data_dilation_data_dilated
+convolution_3d_1item_large_5o3i_padded_uneven_filter_uneven_data_dilation_data_dilated
+convolution_3d_2item_large_5o3i_padded_strided_uneven_filter_uneven_data_dilation_data_dilated
+convolution_3d_2item_large_5o3i_padded_strided_uneven_filter_uneven_data_dilation_filter_dilated_data_dilated
+tensor_constant
+tensor_2constant
+constant_multi_use
+scalar_constant_float32
+scalar_constant_int64
+tensor_constant_float32
+tensor_constant_int64
+topk_resnet50
+topk_max_sort_none
+topk_min_sort_none
+topk_max_sort_value
+topk_min_sort_value
+topk_max_sort_index
+topk_min_sort_index
+topk_1d_i32_max_all
+topk_int64
+
+backwards_abs
+backwards_acos
+backwards_add
+backwards_add_nested
+backwards_asin
+backwards_atan
+backwards_broadcast0
+backwards_broadcast1
+backwards_concat_vector
+backwards_concat_axis_0
+backwards_concat_axis_1
+backwards_ceiling
+backwards_cosh
+backwards_divide
+backwards_dot_scalar_scalar
+backwards_dot_scalar_tensor
+backwards_dot_tensor_scalar
+backwards_dot_vector_vector
+backwards_dot_tensor_vector
+backwards_dot_tensor2_tensor2
+backwards_dot_tensor3_tensor3
+backwards_batchmatmul_tensor2_tensor2
+backwards_exp
+backwards_floor
+backwards_maximum
+backwards_minimum
+backwards_multiply
+backwards_negative
+backwards_parameter
+backwards_power
+backwards_relu
+backwards_replace_slice
+backwards_reshape
+backwards_sigmoid
+backwards_sign
+backwards_sin
+backwards_sinh
+backwards_slice
+backwards_softmax_all
+backwards_softmax_axis
+backwards_softmax_underflow
+backwards_softmax_3d
+backwards_subtract
+backwards_sum_v2s
+backwards_sum_m2s
+backwards_sum_m2v_0
+backwards_sum_m2v_1
+backwards_tan
+backwards_tanh
+backwards_abc
+backwards_reverse_3d_02
+backwards_maxpool_n4c1h4w4_kh2kw2_sh1sw1
+backwards_maxpool_n2c1h5w5_kh3kw3_sh2sw2
+backwards_reverse_sequence_n3_c2_h3
+backwards_reverse_sequence_n4d2c3h2w2
+backwards_gelu_f32
+backwards_gelu_f64
+
+round
+round_2D
+matmul_2x0_0x2
+matmul_0x2_2x0
+matmul_3x2_2x0
+matmul_2x3_3x3_int64
+
+shape_of_scalar_v0
+shape_of_scalar_v3
+shape_of_vector_v0
+shape_of_vector_v3
+shape_of_matrix_v0
+shape_of_matrix_v3
+shape_of_5d_v0
+shape_of_5d_v3
+
+# Need use evaluate, only applicable to INTERPRETER
+non_zero
+non_zero_all_1s
+non_zero_all_0s
+
+# NormalizeL2 - output mismatch,
+# dnnl_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Issue: 35627, 59791
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
+
+# (Constant W, R inputs are required) Ticket: 49207
+# W, R inputs as Parameter, default clip value
+# Operation has a form that is not supported.
+# LSTMCell_... should be converted to LSTMCellIE operation.
+lstm_cell_zero_bias_default_attrs
+lstm_cell_bias_default_attrs
+# RNNCell_.. should be converted to RNNCellIE operation.
+rnn_cell_zero_bias_default_attrs
+
+# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
+# Activation function hardsigmoid is not supported
+gru_cell_hardsigmoid_activation_function
+
+# Roll is not implemented yet for CPU, GPU
+roll_2d_input
+roll_2d_input_negative_shift
+roll_repeated_axes
+roll_3d_input
+roll_3d_input_negative_shift
+roll_negative_axes
+
+#-------------------------------------------------------------------------------
+#
+#       Inference Engine CPU plugin excludes
+#
+#-------------------------------------------------------------------------------
+
+# Clamp op:
+# Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
+IE_CPU.clamp_int32
+# Precision mismatch
+IE_CPU.clamp_uint32
+IE_CPU.clamp_uint16
+IE_CPU.clamp_int16
+IE_CPU.clamp_int64
+IE_CPU.clamp_float16
+# [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
+IE_CPU.clamp_uint64
+# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
+IE_CPU.clamp_bfloat16
+
+# Cannot cast ngraph node Reshape to CNNLayer!
+# Parameter has zero dimension that is not allowable
+IE_CPU/FlattenTest.flatten
+
+# Segfault
+IE_CPU.onnx_model_reverse_sequence_1_batch_0
+IE_CPU.onnx_model_reverse_sequence_0_batch_1
+IE_CPU.cum_sum_2dim_default_axis
+
+#Node <name> contains empty child edge for index 0
+IE_CPU.backwards_log
+
+# Unsupported op detected
+IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
+IE_CPU.round_int64
+
+# Operations were removed from opset
+IE_CPU.atanh
+IE_CPU.asinh
+
+# Unsupported collapse op with dynamic shape
+IE_CPU.builder_opset1_collapse_dyn_shape
+
+# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# Y because output with index 0 contains dynamic shapes: {?,?,?,?}
+IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
+
+# Input data precision not supported. Expected float.
+ctc_greedy_decoder_f16
+mish_f16
+
+# function with NMS-5 to get the nGraph function with NMSIE3 (internal
+# operation, similar with NMS-5, but with all static output shapes), before
+# the method compile() call, then tests for INTERPRETER backend for NMS-5 will
+# fail, because NMSIE3 has not the reference implementation, but NMS-5 has one.
+IE_CPU.nonmaxsuppression_center_point_box_format
+IE_CPU.nonmaxsuppression_flipped_coordinates
+IE_CPU.nonmaxsuppression_identical_boxes
+IE_CPU.nonmaxsuppression_limit_output_size
+IE_CPU.nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
+IE_CPU.nonmaxsuppression_two_batches
+IE_CPU.nonmaxsuppression_two_classes
+
+# Unsupported dynamic ops: v3::NonMaxSuppressionIE3
+IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
+IE_CPU.onnx_model_nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
+
+# Unsupported dynamic op
+IE_CPU.multiclass_nms_by_score
+IE_CPU.multiclass_nms_by_class_id
+IE_CPU.multiclass_nms_output_type_i32
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id_cross_batch
+IE_CPU.multiclass_nms_no_output
+IE_CPU.multiclass_nms_by_background
+IE_CPU.multiclass_nms_by_keep_top_k
+IE_CPU.multiclass_nms_by_nms_eta
+IE_CPU.multiclass_nms_flipped_coordinates
+IE_CPU.multiclass_nms_identical_boxes
+IE_CPU.multiclass_nms_limit_output_size
+IE_CPU.multiclass_nms_single_box
+IE_CPU.multiclass_nms_by_IOU
+IE_CPU.multiclass_nms_by_IOU_and_scores
+
+# Unsupported dynamic op
+IE_CPU.matrix_nms_output_type_i64
+IE_CPU.matrix_nms_output_type_i32
+IE_CPU.matrix_nms_gaussian
+IE_CPU.matrix_nms_two_batches_two_classes
+IE_CPU.matrix_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.matrix_nms_two_batches_two_classes_by_classid_cross_batch
+IE_CPU.matrix_nms_by_keep_top_k
+IE_CPU.matrix_nms_background
+IE_CPU.matrix_nms_flipped_coordinates
+IE_CPU.matrix_nms_post_threshold
+IE_CPU.matrix_nms_identical_boxes
+IE_CPU.matrix_nms_nms_top_k
+IE_CPU.matrix_nms_single_box
+IE_CPU.matrix_nms_no_output
+
+# Unsupported dynamic op
+IE_CPU.range_v4_trunc_inputs
+IE_CPU.onnx_model_reduce_sum_13_axes_as_input
+IE_CPU.onnx_model_reduce_sum_13_input_dynamic
+IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
+IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+IE_CPU.transpose_axes_parameter_static_shapes
+IE_CPU.transpose_axes_parameter_dynamic_shapes
+
+# Axes has zero dimension which is not allowed
+IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
+
+# output mismatch
+IE_CPU.gather_nd_batch_1d_from_3d_negative
+
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+IE_CPU.dft1d_eval_bfloat16
+IE_CPU.dft2d_eval_bfloat16
+IE_CPU.dft3d_eval_bfloat16
+IE_CPU.dft1d_eval_float16
+IE_CPU.dft2d_eval_float16
+IE_CPU.dft3d_eval_float16
+IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
+
+
+# nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
+IE_CPU.idft1d_eval_bfloat16
+IE_CPU.idft2d_eval_bfloat16
+IE_CPU.idft3d_eval_bfloat16
+IE_CPU.idft1d_eval_float16
+IE_CPU.idft2d_eval_float16
+IE_CPU.idft3d_eval_float16
+
+# The plugin does not support UNSPECIFIED
+IE_CPU.onnx_constant_sparse_tensor_uint32_3x4
+IE_CPU.onnx_constant_sparse_tensor_double_3x4
+
+# Sparse tensor with (u)i16 type tests
+IE_CPU.onnx_constant_sparse_tensor_int16_3x4
+IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
+
+# 48230
+# Some slight accuracy diviations after recent MatMul changes
+# (for CPU plugin gru_cell with clip decomposes into MatMuls)
+# Fix or increase threshold
+IE_CPU.gru_cell_bias_clip
+
+#-------------------------------------------------------------------------------
+#
+#       Inference Engine GPU plugin excludes
+#
+#-------------------------------------------------------------------------------
+
+IE_GPU.onnx_model_reshape_reduced_dims
+IE_GPU.onnx_model_reshape_reordered_dims
+IE_GPU.onnx_model_reshape_extended_dims
+IE_GPU.onnx_model_reshape_single_dim
+IE_GPU.onnx_model_reshape_negative_dim
+IE_GPU.onnx_model_reshape_negative_with_zero_dim
+IE_GPU.onnx_model_reshape_output_shape_as_input
+IE_GPU.onnx_model_depth_to_space
+IE_GPU.onnx_model_space_to_depth
+IE_GPU.onnx_model_squeeze
+IE_GPU.onnx_model_unsqueeze
+IE_GPU.onnx_model_unsqueeze_negative_axes
+IE_GPU.onnx_model_concat
+IE_GPU.onnx_model_concat_negative_axis
+IE_GPU.onnx_model_flatten
+IE_GPU.onnx_model_average_pool_2d
+IE_GPU.onnx_model_average_pool_2d_pads
+IE_GPU.onnx_model_max_pool_2d_pads
+IE_GPU.onnx_model_global_lp_pool_p1
+IE_GPU.onnx_test_test_case
+IE_GPU.onnx_test_test_case_mutliple_inputs
+IE_GPU.onnx_model_add_abc
+IE_GPU.onnx_model_binary_add_abc
+IE_GPU.onnx_model_add_abc_initializers
+IE_GPU.onnx_model_override_op
+IE_GPU.onnx_model_custom_op
+IE_GPU.onnx_model_custom_op_default_domain
+IE_GPU.onnx_model_missing_op_domain
+IE_GPU.onnx_model_missing_input
+IE_GPU.onnx_model_initializer_wo_input
+IE_GPU.onnx_model_addmul_abc
+IE_GPU.onnx_model_relu
+IE_GPU.onnx_model_sum_opset1
+IE_GPU.onnx_model_sum
+IE_GPU.onnx_model_min_two_inputs_opset1
+IE_GPU.onnx_model_min_two_inputs
+IE_GPU.onnx_model_max_opset1
+IE_GPU.onnx_model_max
+IE_GPU.onnx_model_gemm_abc
+IE_GPU.onnx_model_matmul
+IE_GPU.onnx_model_sub
+IE_GPU.onnx_model_div
+IE_GPU.onnx_model_add_bcast
+IE_GPU.onnx_model_reduce_log_sum
+IE_GPU.onnx_model_reduce_log_sum_exp
+IE_GPU.onnx_model_reduce_l1
+IE_GPU.onnx_model_reduce_max
+IE_GPU.onnx_model_reduce_mean
+IE_GPU.onnx_model_reduce_min
+IE_GPU.onnx_model_reduce_prod
+IE_GPU.onnx_model_reduce_sum
+IE_GPU.onnx_model_reduce_sum_square
+IE_GPU.onnx_model_leaky_relu
+IE_GPU.onnx_model_selu
+IE_GPU.onnx_model_sigmoid
+IE_GPU.onnx_model_tanh
+IE_GPU.onnx_model_thresholded_relu
+IE_GPU.onnx_model_matmul_vec_ten3d
+IE_GPU.onnx_model_softplus
+IE_GPU.onnx_model_softplus_infinity
+IE_GPU.onnx_model_sum_opset8
+IE_GPU.onnx_model_atanh
+IE_GPU.onnx_model_sinh
+IE_GPU.onnx_model_cosh
+IE_GPU.onnx_model_sign
+IE_GPU.onnx_model_shrink_float
+IE_GPU.onnx_model_shrink_int
+IE_GPU.onnx_model_lp_norm_p1
+IE_GPU.onnx_model_reverse_sequence_0_batch_1
+IE_GPU.onnx_model_reverse_sequence_1_batch_0
+IE_GPU.onnx_matmul_float_type
+IE_GPU.onnx_model_pad_constant
+IE_GPU.onnx_model_reciprocal
+IE_GPU.onnx_dyn_shapes_model_atanh_1_3
+IE_GPU.onnx_dyn_shapes_model_atanh_3_2
+IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
+IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
+IE_GPU.ctc_greedy_decoder
+IE_GPU.ctc_greedy_decoder_multiple_batches
+IE_GPU.ctc_greedy_decoder_single_batch_short_sequence
+IE_GPU.ctc_greedy_decoder_merge
+IE_GPU.ctc_greedy_decoder_single_no_merge
+IE_GPU.ctc_greedy_decoder_multiple_sequences
+IE_GPU.onnx_roi_align_f32
+IE_GPU.tanh
+IE_GPU.tan
+IE_GPU.sum_to_scalar
+IE_GPU.sum_matrix_columns
+IE_GPU.sum_matrix_rows
+IE_GPU.sum_3d_to_matrix_most_sig
+IE_GPU.sum_3d_to_matrix_least_sig
+IE_GPU.sum_3d_to_vector
+IE_GPU.sum_3d_to_scalar
+IE_GPU.sum_5d_to_scalar
+IE_GPU.sum_5d_to_scalar_int32
+IE_GPU.sum_stable_simple_float
+IE_GPU.sum_inf
+IE_GPU.subtract
+IE_GPU.subtract_overload
+IE_GPU.softmax_axis_3d
+IE_GPU.softmax_axis
+IE_GPU.softmax_axis_2
+IE_GPU.softmax_axis_3d_trivial
+IE_GPU.softmax_underflow
+IE_GPU.softmax_overflow
+IE_GPU.slice_matrix
+IE_GPU.slice_vector
+IE_GPU.slice_matrix_axis_0_overlap
+IE_GPU.slice_matrix_axis_0_in_place
+IE_GPU.slice_matrix_axis_0_in_place_twice
+IE_GPU.slice_matrix_axis_0_in_place_twice_overlap
+IE_GPU.slice_matrix_strided
+IE_GPU.slice_3d
+IE_GPU.slice_3d_strided
+IE_GPU.slice_3d_strided_different_strides
+IE_GPU.sinh
+IE_GPU.sin
+IE_GPU.sign
+IE_GPU.sigmoid_n1c1h2w2
+IE_GPU.sigmoid_n1c1h4
+IE_GPU.reverse_sequence_n2c3h4w2
+IE_GPU.reverse_sequence_n4c3h2w2
+IE_GPU.reverse_sequence_n4d2c3h2w2
+IE_GPU.reverse_sequence_negative_axes
+IE_GPU.relu_2Dfprop
+IE_GPU.relu_2Dfprop_i32
+IE_GPU.relu_4Dfprop
+IE_GPU.fuse_max_with_constant_zero_input_as_relu
+IE_GPU.product_to_scalar
+IE_GPU.product_matrix_columns
+IE_GPU.product_matrix_rows
+IE_GPU.product_3d_to_matrix_most_sig
+IE_GPU.product_3d_to_matrix_least_sig
+IE_GPU.product_3d_to_vector
+IE_GPU.product_3d_to_scalar
+IE_GPU.product_2d_to_scalar_int32
+IE_GPU.product_to_scalar_int32
+IE_GPU.power
+IE_GPU.max_pool_2d_2channel_2image
+IE_GPU.max_pool_2d_2channel_2image_asym_pad
+IE_GPU.max_pool_2d_1channel_1image_padded_negative_values
+IE_GPU.max_pool_2d_1channel_1image_strided
+IE_GPU.avg_pool_2d_2channel_2image
+IE_GPU.avg_pool_2d_1channel_1image_strided
+IE_GPU.avg_pool_2d_1channel_1image_padded_do_not_include_in_computation
+IE_GPU.avg_pool_2d_1channel_1image_padded_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_padded_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_padded_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_padded_only_below_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_padded_only_below_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_padded_only_above_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_padded_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_padded_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_strided_padded_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_strided_padded_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_strided_uneven_padded_do_not_include_in_computation
+IE_GPU.avg_pool_2d_2channel_2image_3x3_strided_uneven_padded_include_in_computation
+IE_GPU.node_name
+IE_GPU.negative
+IE_GPU.negative_i32
+IE_GPU.negative_f32
+IE_GPU.normalize_l2_all_mode_add
+IE_GPU.normalize_l2_none_mode_add
+IE_GPU.normalize_l2_zero_mode_add
+IE_GPU.normalize_l2_all_mode_max
+IE_GPU.normalize_l2_none_mode_max
+IE_GPU.normalize_l2_zero_mode_max
+IE_GPU.multiply
+IE_GPU.multiply_overload
+IE_GPU.multiple_backends
+IE_GPU.minimum
+IE_GPU.minimum_int32
+IE_GPU.min_to_scalar
+IE_GPU.min_matrix_columns
+IE_GPU.min_matrix_rows
+IE_GPU.min_matrix_rows_int32
+IE_GPU.min_3d_to_matrix_most_sig
+IE_GPU.min_3d_to_matrix_least_sig
+IE_GPU.min_3d_to_vector
+IE_GPU.min_3d_to_scalar
+IE_GPU.min_3d_to_scalar_int32
+IE_GPU.maximum
+IE_GPU.maximum_int32
+IE_GPU.max_to_scalar
+IE_GPU.max_matrix_columns
+IE_GPU.max_matrix_rows
+IE_GPU.max_matrix_rows_int32
+IE_GPU.max_3d_to_matrix_most_sig
+IE_GPU.max_3d_to_matrix_least_sig
+IE_GPU.max_3d_to_vector
+IE_GPU.max_3d_to_scalar
+IE_GPU.max_3d_to_scalar_int32
+IE_GPU.log
+IE_GPU.gather_4d_indices_no_axis_2d_input
+IE_GPU.gather_3d_indices_no_axis_2d_input
+IE_GPU.gather_2d_indices_no_axis_2d_input
+IE_GPU.gather_1d_indices_no_axis_1d_input
+IE_GPU.gather_2d_indices_axis_1_2d_input
+IE_GPU.gather_1d_indices_axis_2_4d_input
+IE_GPU.gather_axis_0_int32
+IE_GPU.hardsigmoid
+IE_GPU.space_to_depth_block_first
+IE_GPU.space_to_depth_depth_first
+IE_GPU.depth_to_space_block_first
+IE_GPU.depth_to_space_depth_first
+IE_GPU.normalize_across_chw_4d
+IE_GPU.normalize_across_h_4d
+IE_GPU.normalize_across_c_2x2_shape
+IE_GPU.normalize_across_c_2x4_shape
+IE_GPU.clamp
+IE_GPU.grn_4d
+IE_GPU.squeeze
+IE_GPU.squared_difference
+IE_GPU.function_name
+IE_GPU.floor
+IE_GPU.exp
+IE_GPU.dynamic_axpy
+IE_GPU.divide
+IE_GPU.divide_overload
+IE_GPU.divide_by_zero_float32
+IE_GPU.cosh
+IE_GPU.cos
+IE_GPU.concat_negative_axis
+IE_GPU.concat_matrix_colwise
+IE_GPU.concat_matrix_rowwise
+IE_GPU.concat_vector
+IE_GPU.concat_4d_tensor
+IE_GPU.concat_2d_tensor
+IE_GPU.concat_in_place_2d_tensor
+IE_GPU.concat_in_place_propagate_2d_tensor
+IE_GPU.concat_in_place_tree_1
+IE_GPU.concat_in_place_tree_2
+IE_GPU.concat_in_place_tree_3
+IE_GPU.concat_in_place_add_concat
+IE_GPU.concat_in_place_add_concat_2
+IE_GPU.concat_5d
+IE_GPU.broadcast_vector_colwise
+IE_GPU.broadcast_vector_rowwise
+IE_GPU.broadcast_scalar_to_matrix_int32
+IE_GPU.broadcast_algo_vector_forward_2
+IE_GPU.broadcast_algo_vector_backward_2
+IE_GPU.broadcast_algo_3d_backward
+IE_GPU.broadcast_algo_3d_stride_1
+IE_GPU.broadcast_algo_3d_stride_2
+IE_GPU.broadcast_matrix_0
+IE_GPU.broadcast_matrix_1
+IE_GPU.broadcast_matrix_2
+IE_GPU.atan
+IE_GPU.asin
+IE_GPU.add
+IE_GPU.add_overload
+IE_GPU.add_in_place
+IE_GPU.acos
+IE_GPU.abs
+IE_GPU.abc
+IE_GPU.max_pool_2d_1channel_1image_padded
+IE_GPU/concat_vector_params.concat_vector_large
+IE_GPU/FlattenTest.flatten
+IE_GPU.onnx_model_conv2d_strides_padding
+IE_GPU.onnx_model_conv2d_strides_no_padding
+IE_GPU.onnx_model_conv2d_strides_assymetric_padding
+IE_GPU.onnx_model_conv2d_dilation_assymetric_pads_strides
+IE_GPU.onnx_model_conv3d_bias
+IE_GPU.onnx_model_global_lp_pool_p2
+IE_GPU.onnx_model_global_lp_pool_p3
+IE_GPU.onnx_model_mean_opset1
+IE_GPU.onnx_model_mean
+IE_GPU.onnx_model_reduce_l2
+IE_GPU.onnx_model_acosh
+IE_GPU.onnx_model_asinh
+IE_GPU.onnx_model_hardmax
+IE_GPU.onnx_model_lp_norm_p2
+IE_GPU.onnx_model_lp_norm_default
+IE_GPU.onnx_model_instance_normalization
+IE_GPU.onnx_model_instance_normalization_dyn_shape
+IE_GPU.onnx_model_instance_normalization_dyn_shape2
+IE_GPU.onnx_dyn_shapes_model_acosh_1_3
+IE_GPU.onnx_dyn_shapes_model_acosh_3_2
+IE_GPU.onnx_dyn_shapes_model_asinh_1_3
+IE_GPU.onnx_dyn_shapes_model_asinh_3_2
+
+# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len
+IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+IE_GPU.sum_matrix_6d
+IE_GPU.sqrt
+IE_GPU.gather_scalar_indices_no_axis_2d_input
+IE_GPU.gather_scalar_indices_axis_1_2d_input
+IE_GPU.group_conv_groups_included_in_shape
+IE_GPU.squared_difference_broadcast
+IE_GPU.depth_to_space_space_to_depth_block_first
+IE_GPU.depth_to_space_space_to_depth_depth_first
+IE_GPU.convolution_outlining
+IE_GPU.convolution_simple
+IE_GPU.computation_reuse
+IE_GPU.backwards_cos
+IE_GPU.backwards_log
+IE_GPU.topk_1d_max_all
+IE_GPU.topk_1d_max_partial
+IE_GPU.topk_1d_max_one
+IE_GPU.topk_1d_min_all
+IE_GPU.topk_1d_min_partial
+IE_GPU.topk_1d_min_one
+IE_GPU.topk_3d_max_all
+IE_GPU.topk_5d_max_partial
+IE_GPU.topk_3d_max_partial
+IE_GPU.topk_3d_max_one
+IE_GPU.topk_3d_min_all
+IE_GPU.topk_3d_min_partial
+IE_GPU.topk_3d_min_one
+IE_GPU.topk_2d_max_all
+IE_GPU.topk_2d_max_partial
+IE_GPU.topk_2d_max_one
+IE_GPU.topk_2d_max_one_with_equal_values
+IE_GPU.topk_2d_min_all
+IE_GPU.topk_2d_min_partial
+IE_GPU.topk_2d_min_one
+IE_GPU.topk_3d_large_input_max
+IE_GPU.topk_3d_large_input_min
+IE_GPU.topk_3d_single_output
+IE_GPU.batch_norm_inference_0eps_f32
+IE_GPU.batch_norm_inference_f32
+IE_GPU.create_tensor_1
+IE_GPU.matmul_2x2_2x2
+IE_GPU.matmul_2x3_3x3
+IE_GPU.matmul_3x2_3x3_transpose
+IE_GPU.matmul_3x2_2x3_transpose
+IE_GPU.region_yolo_v2_caffe
+IE_GPU.region_yolo_v3_mxnet
+
+# Detected op not belonging to opset1!
+IE_GPU.round_int64
+
+# Unsupported ops with dynamic shape
+IE_GPU.builder_opset1_collapse_dyn_shape
+IE_GPU.convert_like_dyn_float16_to_int64
+
+IE_GPU.onnx_model_fake_quantize_const_inputs_infer
+IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
+
+# Not supported dynamic shapes cases for Loop
+onnx_controlflow_loop_2d_no_identity_termination_cond
+onnx_controlflow_loop_2d_no_identity_termination_cond_false
+onnx_controlflow_loop_2d_trip_count_max_int
+onnx_controlflow_loop_2d_const_no_identity_termination_cond
+onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
+
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
+
+# dynamic trip count
+onnx_controlflow_loop_2d_trip_count_dynamic
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# unsupported dynamic ops
+onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+IE_GPU.range_v4_trunc_inputs
+variadic_split_1d_dynamic
+variadic_split_2d_axis_0_dynamic
+variadic_split_2d_axis_1_dynamic
+variadic_split_4d_axis_0_dynamic
+variadic_split_4d_axis_1_dynamic
+variadic_split_4d_axis_2_dynamic
+variadic_split_4d_axis_3_dynamic
+
+# CPU plugin does not support bool type
+IE_CPU.evaluate_2D_gather_elements_3x2_data_bool
+
+# CPU plugin does not validate whether indices values are out of range
+IE_CPU.evaluate_1D_gather_elements_negative_test
+IE_CPU.evaluate_2D_gather_elements_negative_test
+
+# not implemented yet on GPU plugin
+IE_GPU.evaluate_1D_gather_elements_3_indices_int32
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_0
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_1
+IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1
+IE_GPU.evaluate_2D_gather_elements_2x3_indices_int32
+IE_GPU.evaluate_3D_gather_elements_3x2x2_indices_int32
+IE_GPU.evaluate_3D_gather_elements_3x2x2_indices_int64
+IE_GPU.evaluate_2D_gather_elements_3x2_data_bool
+IE_GPU.evaluate_2D_gather_elements_2x3_data_float32
+IE_GPU.evaluate_1D_gather_elements_negative_test
+IE_GPU.evaluate_2D_gather_elements_negative_test
+IE_GPU.evaluate_2D_gather_elements_2x2x1_data_float32
+IE_GPU.evaluate_4D_gather_elements_3x2x2x2_indices_int64
+IE_GPU.onnx_model_gather_elements_float_1D
+IE_GPU.onnx_model_gather_elements_float_negative_axis
+IE_GPU.onnx_model_gather_elements_int32_axis_0
+IE_GPU.onnx_model_gather_elements_int8_axis_1
+IE_GPU.onnx_model_gather_elements_float_3D_axis_2
+
+# not supported fp16 blob input
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
+
+IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
+
+# not yet implemented on CPU/GPU Gather 7
+gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims
+gather_v7_1d_int32
+gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
+gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
+gather_v7_3d_indices_axis_1_batch_dims_1
+gather_v7_4d_indices_axis_0_uint8
+gather_v7_4d_indices_axis_0_2d_input
+gather_v7_3d_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_0_2d_input
+gather_v7_2d_negative_and_positive_indices_axis_0_2d_input
+gather_v7_1d_indices_axis_0_1d_input
+gather_v7_scalar_indices_axis_0_2d_input
+gather_v7_2d_indices_axis_1_2d_input
+gather_v7_1d_indices_axis_2_4d_input
+gather_v7_scalar_indices_axis_1_2d_input
+gather_v7_axis_0_int8
+gather_v7_axis_0_int16
+gather_v7_axis_0_int32
+gather_v7_axis_0_int64
+gather_v7_axis_0_uint8
+gather_v7_axis_0_uint16
+gather_v7_axis_0_uint32
+gather_v7_axis_0_uint64
+gather_v7_axis_0_bool
+gather_v7_3d_indices_axis_1_batch_dims_1_int32
+gather_v7_4d_data_axis_2_batch_dims_1_int32
+
+# Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
+bin_convolution_2D_1batch_1channel
+bin_convolution_2D_1batch_1channel_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_padding_pad_val_1
+bin_convolution_2D_1batch_1channel_stride
+bin_convolution_2D_1batch_1channel_dilation
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_0
+bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_1
+bin_convolution_2D_1batch_2channel
+bin_convolution_2D_2batch_1channel
+
+# RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
+onnx_upsample6_dynamic
+
+# random values returned from the plugin: ticket 51762
+onnx_model_deformable_conv_2d
+
+# DeformableConvolution groups attribute: ticket 53312 (fixed, but reproduced after v8->v1 conversion was enabled)
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups
+
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
+# No plugin support for DeformableConvolution v8
+IE_GPU.deformable_convolution_opset8_2D_v8_zeroed_offsets_default_mask
+IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask
+IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask_2
+IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
+# results missmatch, ticket: 59600
+IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
+IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+
+# Not yet implemented - refer PR#6601
+IE_CPU.onnx_model_gather_float_2D_neg_indices
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_skip_layer_normalization_dynamic_shapes
+# Doesn't support op with dynamic shapes
+onnx_model_embed_layer_normalization_dynamic_shapes
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_attention_dynamic_shapes
+
+# z node not found in graph cache ticket: 81976
+IE_CPU.onnx_expand_context_dependent_function
+IE_CPU.onnx_softmax_crossentropy_loss_mean

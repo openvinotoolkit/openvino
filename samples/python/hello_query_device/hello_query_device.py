@@ -1,52 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 import sys
 
-from openvino.inference_engine import IECore
+from openvino.runtime import Core
 
 
-def param_to_string(metric) -> str:
-    """Convert a list / tuple of parameters returned from IE to a string"""
-    if isinstance(metric, (list, tuple)):
-        return ', '.join([str(x) for x in metric])
+def param_to_string(parameters) -> str:
+    """Convert a list / tuple of parameters returned from IE to a string."""
+    if isinstance(parameters, (list, tuple)):
+        return ', '.join([str(x) for x in parameters])
     else:
-        return str(metric)
+        return str(parameters)
 
 
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
 
-    # ---------------------------Initialize inference engine core----------------------------------------------------------
-    log.info('Creating Inference Engine')
-    ie = IECore()
+    # --------------------------- Step 1. Initialize OpenVINO Runtime Core --------------------------------------------
+    core = Core()
 
-    # ---------------------------Get metrics of available devices----------------------------------------------------------
+    # --------------------------- Step 2. Get metrics of available devices --------------------------------------------
     log.info('Available devices:')
-    for device in ie.available_devices:
+    for device in core.available_devices:
         log.info(f'{device} :')
-        log.info('\tSUPPORTED_METRICS:')
-        for metric in ie.get_metric(device, 'SUPPORTED_METRICS'):
-            if metric not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS'):
+        log.info('\tSUPPORTED_PROPERTIES:')
+        for property_key in core.get_property(device, 'SUPPORTED_PROPERTIES'):
+            if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
                 try:
-                    metric_val = ie.get_metric(device, metric)
+                    property_val = core.get_property(device, property_key)
                 except TypeError:
-                    metric_val = 'UNSUPPORTED TYPE'
-                log.info(f'\t\t{metric}: {param_to_string(metric_val)}')
+                    property_val = 'UNSUPPORTED TYPE'
+                log.info(f'\t\t{property_key}: {param_to_string(property_val)}')
         log.info('')
 
-        log.info('\tSUPPORTED_CONFIG_KEYS (default values):')
-        for config_key in ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS'):
-            try:
-                config_val = ie.get_config(device, config_key)
-            except TypeError:
-                config_val = 'UNSUPPORTED TYPE'
-            log.info(f'\t\t{config_key}: {param_to_string(config_val)}')
-        log.info('')
-
-    # ----------------------------------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------------------------
     return 0
 
 

@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GKERNEL_HPP
@@ -30,6 +30,7 @@ struct GTypeInfo
 {
     GShape                 shape;
     cv::detail::OpaqueKind kind;
+    detail::HostCtor       ctor;
 };
 
 using GShapes    = std::vector<GShape>;
@@ -371,6 +372,7 @@ namespace gapi
 {
     // Prework: model "Device" API before it gets to G-API headers.
     // FIXME: Don't mix with internal Backends class!
+    /// @private
     class GAPI_EXPORTS GBackend
     {
     public:
@@ -411,6 +413,7 @@ namespace std
 
 namespace cv {
 namespace gapi {
+    /// @private
     class GFunctor
     {
     public:
@@ -517,6 +520,13 @@ namespace gapi {
         const std::vector<GTransform>& get_transformations() const;
 
         /**
+         * @brief Returns vector of kernel ids included in the package
+         *
+         * @return vector of kernel ids included in the package
+         */
+        std::vector<std::string> get_kernel_ids() const;
+
+        /**
          * @brief Test if a particular kernel _implementation_ KImpl is
          * included in this kernel package.
          *
@@ -606,6 +616,18 @@ namespace gapi {
         }
 
         /**
+         * @brief Adds a new kernel based on it's backend and id into the kernel package
+         *
+         * @param backend backend associated with the kernel
+         * @param kernel_id a name/id of the kernel
+         */
+        void include(const cv::gapi::GBackend& backend, const std::string& kernel_id)
+        {
+            removeAPI(kernel_id);
+            m_id_kernels[kernel_id] = std::make_pair(backend, GKernelImpl{{}, {}});
+        }
+
+        /**
          * @brief Lists all backends which are included into package
          *
          * @return vector of backends
@@ -637,7 +659,7 @@ namespace gapi {
      * Use this function to pass kernel implementations (defined in
      * either way) and transformations to the system. Example:
      *
-     * @snippet modules/gapi/samples/api_ref_snippets.cpp kernels_snippet
+     * @snippet samples/cpp/tutorial_code/gapi/doc_snippets/api_ref_snippets.cpp kernels_snippet
      *
      * Note that kernels() itself is a function returning object, not
      * a type, so having `()` at the end is important -- it must be a
@@ -697,7 +719,7 @@ namespace gapi {
      * @{
      */
     /**
-     * @brief cv::use_only() is a special combinator which hints G-API to use only
+     * @brief cv::gapi::use_only() is a special combinator which hints G-API to use only
      * kernels specified in cv::GComputation::compile() (and not to extend kernels available by
      * default with that package).
      */

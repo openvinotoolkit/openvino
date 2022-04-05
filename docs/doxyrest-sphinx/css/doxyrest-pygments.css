@@ -1,0 +1,21 @@
+.highlight .k  { color: #902000 !important; font-weight: bold !important } /* Keyword */
+.highlight .kc { color: #902000 !important; font-weight: bold !important } /* Keyword.Constant */
+.highlight .kd { color: #902000 !important; font-weight: bold !important } /* Keyword.Declaration */
+.highlight .kn { color: #902000 !important; font-weight: bold !important } /* Keyword.Namespace */
+.highlight .kp { color: #902000 !important; font-weight: bold !important } /* Keyword.Pseudo */
+.highlight .kr { color: #902000 !important; font-weight: bold !important } /* Keyword.Reserved */
+.highlight .kt { color: #902000 !important; font-weight: bold !important } /* Keyword.Type */
+
+.highlight .nb { color: #902000 !important; font-weight: bold !important } /* Name.Builtin */
+
+.highlight .na { color: #000000 !important; font-weight: normal !important } /* Name.Attribute */
+.highlight .nc { color: #000000 !important; font-weight: normal !important } /* Name.Class */
+.highlight .no { color: #000000 !important; font-weight: normal !important } /* Name.Constant */
+.highlight .nd { color: #000000 !important; font-weight: normal !important } /* Name.Decorator */
+.highlight .ni { color: #000000 !important; font-weight: normal !important } /* Name.Entity */
+.highlight .ne { color: #000000 !important; font-weight: normal !important } /* Name.Exception */
+.highlight .nf { color: #000000 !important; font-weight: normal !important } /* Name.Function */
+.highlight .nl { color: #000000 !important; font-weight: normal !important } /* Name.Label */
+.highlight .nn { color: #000000 !important; font-weight: normal !important } /* Name.Namespace */
+.highlight .nt { color: #000000 !important; font-weight: normal !important } /* Name.Tag */
+.highlight .nv { color: #000000 !important; font-weight: normal !important } /* Name.Variable */

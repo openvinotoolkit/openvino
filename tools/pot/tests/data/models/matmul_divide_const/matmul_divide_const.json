@@ -1,8 +1,3 @@
-{
-  "name": "matmul_divide_const",
-  "framework": "dldt",
-  "mo_args": {
-    "model": "$model_dir/matmul_divide_const/matmul_divide_const.xml",
-    "weights": "$model_dir/matmul_divide_const/matmul_divide_const.bin"
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:aa2be3155a781cdd99871f8c677f429d37df4921385a2bd7568116cec0634291
+size 152

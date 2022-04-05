@@ -1,4 +1,4 @@
-## SpaceToDepth <a name="SpaceToDepth"></a> {#openvino_docs_ops_movement_SpaceToDepth_1}
+# SpaceToDepth {#openvino_docs_ops_movement_SpaceToDepth_1}
 
 **Versioned name**: *SpaceToDepth-1*
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,7 +9,7 @@ from sys import maxsize
 import numpy as np
 
 from .utils import create_metric_config, is_preset_performance, \
-    get_mixed_preset_config, evaluate_model, get_num_of_quantized_ops
+    get_mixed_preset_config, evaluate_model, get_num_of_quantized_ops, prepare_nodes_for_logger
 from ..utils import load_hardware_config
 from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
@@ -356,7 +356,7 @@ class AccuracyAwareCommon(Algorithm):
             logger.debug('Changed FakeQuantize nodes:\n %s', '\n'.join(all_changed_nodes_names))
             logger.info(' %d out of %d layers have been reverted back to the %s precision: %s',
                         len(all_ops_in_targeted_prec), self._quantized_layers_num, self._precision_change_to,
-                        ', '.join(all_ops_in_targeted_prec))
+                        ', '.join(prepare_nodes_for_logger(all_ops_in_targeted_prec)))
             send_event("result_aa", self._get_result_aa(metrics_accuracy_drop, len(all_ops_in_targeted_prec)))
 
         logger.update_progress(self.total_exec_steps)
@@ -418,10 +418,10 @@ class AccuracyAwareCommon(Algorithm):
 
         fake_quantize_nodes = get_nodes_by_type(model, ['FakeQuantize'])
         for node in fake_quantize_nodes:
-            if excluded_nodes and node.name in excluded_nodes:
+            if excluded_nodes and node.fullname in excluded_nodes:
                 continue
-            if node.name not in change_fqs:
-                modified_model, modified_fq_layers, _ = self._modify_model_in_scope(deepcopy(model), [node.name])
+            if node.fullname not in change_fqs:
+                modified_model, modified_fq_layers, _ = self._modify_model_in_scope(deepcopy(model), [node.fullname])
                 if not modified_fq_layers:
                     continue
                 logger.debug('Changed\\Removed a block of %d FQ layers: %s', len(modified_fq_layers),
@@ -434,7 +434,7 @@ class AccuracyAwareCommon(Algorithm):
                 self._engine.allow_pairwise_subset = False
                 logger.update_progress(self._config.ranking_subset_size)
                 ranking_metric = self._metrics_config[metric_name].ranking
-                node_importance_score[node.name] = ranking_metric.comparator(metrics[ranking_metric.name])
+                node_importance_score[node.fullname] = ranking_metric.comparator(metrics[ranking_metric.name])
 
         eu.reset_dataset_to_default(self._engine)
 

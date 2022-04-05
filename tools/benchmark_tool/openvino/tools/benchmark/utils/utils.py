@@ -1,7 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IENetwork,IECore
+from collections import defaultdict
+import datetime
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
+from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -24,14 +27,14 @@ def static_vars(**kwargs):
 def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
-        2: "Loading Inference Engine",
+        2: "Loading OpenVINO",
         3: "Setting device configuration",
         4: "Reading network files",
         5: "Resizing network to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Querying optimal runtime parameters",
-        9: "Creating infer requests and filling input blobs with images",
+        9: "Creating infer requests and preparing input data",
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
@@ -48,86 +51,126 @@ def next_step(additional_info='', step_id=0):
     step_info_template = step_info_template.format(next_step.step_id, len(step_names), step_name)
     print(step_info_template)
 
-def process_precision(ie_network: IENetwork, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+
+def get_element_type(precision):
+    format_map = {
+      'FP32' : Type.f32,
+      'I32'  : Type.i32,
+      'I64'  : Type.i64,
+      'FP16' : Type.f16,
+      'I16'  : Type.i16,
+      'U16'  : Type.u16,
+      'I8'   : Type.i8,
+      'U8'   : Type.u8,
+      'BOOL' : Type.boolean,
+    }
+    if precision in format_map.keys():
+        return format_map[precision]
+    for element_type in format_map.values():
+        if element_type.get_type_name() == precision:
+            return element_type
+    raise Exception(f"Undefined precision: '{precision}' !")
+
+
+def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    pre_post_processor = PrePostProcessor(model)
     if input_precision:
-        _configure_network_inputs(ie_network, app_inputs_info, input_precision)
+        element_type = get_element_type(input_precision)
+        for i in range(len(model.inputs)):
+            pre_post_processor.input(i).tensor().set_element_type(element_type)
+            app_inputs_info[i].element_type = element_type
     if output_precision:
-        _configure_network_outputs(ie_network, output_precision)
+        element_type = get_element_type(output_precision)
+        for i in range(len(model.outputs)):
+            pre_post_processor.output(i).tensor().set_element_type(element_type)
+    user_precision_map = {}
     if input_output_precision:
-        _configure_network_inputs_and_outputs(ie_network, input_output_precision)
-    input_info = ie_network.input_info
-    for key in app_inputs_info.keys():
-        ## if precision for input set by user, then set it to app_inputs
-        ## if it an image, set U8
-        if input_precision or (input_output_precision and key in input_output_precision.keys()):
-            app_inputs_info[key].precision = input_info[key].precision
-        elif app_inputs_info[key].is_image:
-            app_inputs_info[key].precision = 'U8'
-            input_info[key].precision = 'U8'
+        user_precision_map = parse_input_output_precision(input_output_precision)
+        input_names = get_input_output_names(model.inputs)
+        input_node_names = get_node_names(model.inputs)
+        output_names = get_input_output_names(model.outputs)
+        output_node_names = get_node_names(model.outputs)
+        for node_name, precision in user_precision_map.items():
+            user_precision_map[node_name] = get_element_type(precision)
+        for name, element_type in user_precision_map.items():
+            if name in input_names or name in input_node_names:
+                input_index = input_names.index(name) if name in input_names else input_node_names.index(name)
+                app_inputs_info[input_index].element_type = element_type
+                pre_post_processor.input(input_index).tensor().set_element_type(element_type)
+            elif name in output_names or name in output_node_names:
+                if name in output_names:
+                    pre_post_processor.output(name).tensor().set_element_type(element_type)
+                else:
+                    pre_post_processor.output(output_node_names.index(name)).tensor().set_element_type(element_type)
+            else:
+                raise Exception(f"Node '{name}' does not exist in model")
 
-def _configure_network_inputs(ie_network: IENetwork, app_inputs_info, input_precision: str):
-    input_info = ie_network.input_info
+    # update app_inputs_info
+    if not input_precision:
+        inputs = model.inputs
+        input_node_names = get_node_names(model.inputs)
+        for i in range(len(inputs)):
+            if app_inputs_info[i].name in user_precision_map:
+                app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
+            elif input_node_names[i] in user_precision_map:
+                app_inputs_info[i].element_type = user_precision_map[input_node_names[i]]
+            elif app_inputs_info[i].is_image:
+                app_inputs_info[i].element_type = Type.u8
+                pre_post_processor.input(i).tensor().set_element_type(Type.u8)
 
-    for key in input_info.keys():
-        app_inputs_info[key].precision = input_precision
-        input_info[key].precision = input_precision
+    # set layout for model input
+    for info in app_inputs_info:
+        pre_post_processor.input(info.name).model().set_layout(info.layout)
 
-def _configure_network_outputs(ie_network: IENetwork, output_precision: str):
-    output_info = ie_network.outputs
+    model = pre_post_processor.build()
 
-    for key in output_info.keys():
-        output_info[key].precision = output_precision
 
-def _configure_network_inputs_and_outputs(ie_network: IENetwork, input_output_precision: str):
-    if not input_output_precision:
-        raise Exception("Input/output precision is empty")
-
-    user_precision_map = _parse_arg_map(input_output_precision)
-
-    input_info = ie_network.input_info
-    output_info = ie_network.outputs
-
-    for key, value in user_precision_map.items():
-        if key in input_info:
-            input_info[key].precision = value
-        elif key in output_info:
-            output_info[key].precision = value
-        else:
-            raise Exception(f"Element '{key}' does not exist in network")
-
-def _parse_arg_map(arg_map: str):
+def parse_input_output_precision(arg_map: str):
     arg_map = arg_map.replace(" ", "")
     pairs = [x.strip() for x in arg_map.split(',')]
 
     parsed_map = {}
     for pair in pairs:
         key_value = [x.strip() for x in pair.split(':')]
-        parsed_map.update({key_value[0]:key_value[1]})
+        name, precision = key_value[0], key_value[1]
+        # input's name can contain ':'
+        if len(key_value) == 3:
+            name = key_value[0] + ':' + key_value[1]
+            precision = key_value[2]
+        parsed_map.update({name:precision})
 
     return parsed_map
 
-def print_inputs_and_outputs_info(ie_network: IENetwork):
-    input_info = ie_network.input_info
-    for key in input_info.keys():
-        tensor_desc = input_info[key].tensor_desc
-        logger.info(f"Network input '{key}' precision {tensor_desc.precision}, "
-                                                    f"dimensions ({tensor_desc.layout}): "
-                                                    f"{' '.join(str(x) for x in tensor_desc.dims)}")
-    output_info = ie_network.outputs
-    for key in output_info.keys():
-        info = output_info[key]
-        logger.info(f"Network output '{key}' precision {info.precision}, "
-                                        f"dimensions ({info.layout}): "
-                                        f"{' '.join(str(x) for x in info.shape)}")
 
-def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
+def print_inputs_and_outputs_info(model: Model):
+    inputs = model.inputs
+    input_names = get_input_output_names(inputs)
+    for i in range(len(inputs)):
+        logger.info(f"Model input '{input_names[i]}' precision {inputs[i].element_type.get_type_name()}, "
+                                                    f"dimensions ({str(inputs[i].node.layout)}): "
+                                                    f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
+    outputs = model.outputs
+    output_names = get_input_output_names(outputs)
+    for i in range(len(outputs)):
+        logger.info(f"Model output '{output_names[i]}' precision {outputs[i].element_type.get_type_name()}, "
+                                        f"dimensions ({str(outputs[i].node.layout)}): "
+                                        f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
+
+
+def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
     niter = number_iterations
 
     if api_type == 'async' and niter:
-        niter = int((niter + nireq - 1) / nireq) * nireq
-        if number_iterations != niter:
-            logger.warning('Number of iterations was aligned by request number '
-                           f'from {number_iterations} to {niter} using number of requests {nireq}')
+        if num_shapes > nireq:
+            niter = int(((niter + num_shapes -1) / num_shapes) * num_shapes)
+            if number_iterations != niter:
+                logger.warning('Number of iterations was aligned by number of input shapes '
+                            f'from {number_iterations} to {niter} using number of possible input shapes {num_shapes}')
+        else:
+            niter = int((niter + nireq - 1) / nireq) * nireq
+            if number_iterations != niter:
+                logger.warning('Number of iterations was aligned by request number '
+                            f'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
 
@@ -140,6 +183,32 @@ def get_duration_seconds(time, number_iterations, device):
     if not number_iterations:
         return get_duration_in_secs(device)
     return 0
+
+
+class LatencyGroup:
+    def __init__(self, input_names, input_shapes):
+        self.input_names = input_names
+        self.input_shapes = input_shapes
+        self.times = list()
+        self.avg = 0.
+        self.min = 0.
+        self.max = 0.
+
+    def __str__(self):
+        return str().join(f"{name}: {str(shape)} " for name, shape in zip(self.input_names, self.input_shapes))
+
+
+def get_latency_groups(app_input_info):
+    num_groups = max(len(info.shapes) for info in app_input_info)
+    latency_groups = []
+    for i in range(num_groups):
+        names = list()
+        shapes = list()
+        for info in app_input_info:
+            names.append(info.name)
+            shapes.append(info.shapes[i % len(info.shapes)])
+        latency_groups.append(LatencyGroup(names, shapes))
+    return latency_groups
 
 
 def get_duration_in_milliseconds(duration):
@@ -159,17 +228,32 @@ def get_duration_in_secs(target_device):
     return duration
 
 
+def check_for_static(app_input_info):
+    for info in app_input_info:
+        if info.is_dynamic:
+            return False
+    return True
+
+
+def can_measure_as_static(app_input_info):
+    for info in app_input_info:
+        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+            return False
+    return True
+
+
 def parse_devices(device_string):
     if device_string in ['MULTI', 'HETERO']:
         return list()
+    if device_string.find("AUTO") != -1:
+        return ['AUTO']
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
-    return [d[:d.index('(')] if '(' in d else
-            d[:d.index('.')] if '.' in d else d for d in devices.split(',')]
+    return [d for d in devices.split(',')]
 
 
-def parse_nstreams_value_per_device(devices, values_string):
+def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
@@ -179,37 +263,35 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = device_value_vec[1]
+            value = device_value_vec[1]
             if device_name in devices:
-                result[device_name] = nstreams
+                result[device_name] = value
             else:
-                raise Exception("Can't set nstreams value " + str(nstreams) +
-                                " for device '" + device_name + "'! Incorrect device name!");
+                raise Exception(f"Can't set {value_type} for {device_name}!" \
+                                 " Incorrect device name!")
         elif len(device_value_vec) == 1:
-            nstreams = device_value_vec[0]
+            value = device_value_vec[0]
             for device in devices:
-                result[device] = nstreams
+                result[device] = value
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
 
 
-def process_help_inference_string(benchmark_app, exe_network):
+def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
         output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
-        if CPU_DEVICE_NAME in benchmark_app.device:
-            device_ss += str(exe_network.get_config('CPU_THROUGHPUT_STREAMS'))
-            device_ss += f' streams for {CPU_DEVICE_NAME}'
-        if GPU_DEVICE_NAME in benchmark_app.device:
+        for device, streams in device_number_streams.items():
             device_ss += ', ' if device_ss else ''
-            device_ss += str(exe_network.get_config('GPU_THROUGHPUT_STREAMS'))
-            device_ss += f' streams for {GPU_DEVICE_NAME}'
+            device_ss += f'{streams} streams for {device}'
 
         if device_ss:
             output_string += ' using ' + device_ss
+
+    output_string += f', inference only: {benchmark_app.inference_only}'
 
     limits = ''
 
@@ -224,34 +306,29 @@ def process_help_inference_string(benchmark_app, exe_network):
     return output_string
 
 
-def dump_exec_graph(exe_network, exec_graph_path):
-    try:
-        exec_graph_info = exe_network.get_exec_graph_info()
-        exec_graph_info.serialize(exec_graph_path)
-        logger.info(f'Executable graph is stored to {exec_graph_path}')
-        del exec_graph_info
-    except Exception as e:
-        logger.exception(e)
+def dump_exec_graph(compiled_model, model_path):
+    serialize(compiled_model.get_runtime_model(), model_path)
 
 
 def print_perf_counters(perf_counts_list):
+    max_layer_name = 30
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
-        total_time = 0
-        total_time_cpu = 0
+        total_time = datetime.timedelta()
+        total_time_cpu = datetime.timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
-        for layer, stats in sorted(perf_counts.items(), key=lambda x: x[1]['execution_index']):
-            max_layer_name = 30
-            print(f"{layer[:max_layer_name - 4] + '...' if (len(layer) >= max_layer_name) else layer:<30}"
-                                                                f"{stats['status']:<15}"
-                                                                f"{'layerType: ' + str(stats['layer_type']):<30}"
-                                                                f"{'realTime: ' + str(stats['real_time']):<20}"
-                                                                f"{'cpu: ' + str(stats['cpu_time']):<20}"
-                                                                f"{'execType: ' + str(stats['exec_type']):<20}")
-            total_time += stats['real_time']
-            total_time_cpu += stats['cpu_time']
+        for pi in perf_counts:
+            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
+                                                                f"{str(pi.status):<15}"
+                                                                f"{'layerType: ' + pi.node_type:<30}"
+                                                                f"{'realTime: ' + str(pi.real_time):<20}"
+                                                                f"{'cpu: ' +  str(pi.cpu_time):<20}"
+                                                                f"{'execType: ' + pi.exec_type:<20}")
+            total_time += pi.real_time
+            total_time_cpu += pi.cpu_time
         print(f'Total time:     {total_time} microseconds')
         print(f'Total CPU time: {total_time_cpu} microseconds\n')
+
 
 def get_command_line_arguments(argv):
     parameters = []
@@ -265,17 +342,51 @@ def get_command_line_arguments(argv):
             arg_value = ''
         else:
           if arg[0] == '-':
-              if arg_name is not '':
+              if arg_name != '':
                 parameters.append((arg_name, arg_value))
                 arg_value = ''
               arg_name = arg
           else:
               arg_value = arg
-    if arg_name is not '':
+    if arg_name != '':
         parameters.append((arg_name, arg_value))
     return parameters
 
-def parse_input_parameters(parameter_string, input_info):
+
+def get_input_output_names(ports):
+    return [port.any_name for port in ports]
+
+def get_node_names(ports):
+    return [port.node.friendly_name for port in ports]
+
+def get_data_shapes_map(data_shape_string, input_names):
+    # Parse parameter string like "input0[shape1][shape2],input1[shape1]" or "[shape1][shape2]" (applied to all inputs)
+    return_value = {}
+    if data_shape_string:
+        data_shape_string += ','
+        matches = re.findall(r'(.*?\[.*?\]),', data_shape_string)
+        if matches:
+            for match in matches:
+                input_name = match[:match.find('[')]
+                shapes = re.findall(r'\[(.*?)\]', match[len(input_name):])
+                if input_name:
+                    return_value[input_name] = list(PartialShape(shape_str) for shape_str in shapes)
+                else:
+                    data_shapes = list(PartialShape(shape_str) for shape_str in shapes)
+                    num_inputs, num_shapes = len(input_names), len(data_shapes)
+                    if num_shapes != 1 and num_shapes % num_inputs != 0:
+                        raise Exception(f"Number of provided data_shapes is not a multiple of the number of model inputs!")
+                    return_value = defaultdict(list)
+                    for i in range(max(num_shapes, num_inputs)):
+                        return_value[input_names[i % num_inputs]].append(data_shapes[i % num_shapes])
+                    return return_value
+        else:
+            raise Exception(f"Can't parse input parameter: {data_shape_string}")
+    return return_value
+
+
+
+def parse_input_parameters(parameter_string, input_names):
     # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
     return_value = {}
     if parameter_string:
@@ -286,11 +397,12 @@ def parse_input_parameters(parameter_string, input_info):
                 if input_name != '':
                     return_value[input_name] = value
                 else:
-                    return_value  = { k:value for k in input_info.keys() }
+                    return_value  = { k:value for k in input_names }
                     break
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
+
 
 def parse_scale_or_mean(parameter_string, input_info):
     # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
@@ -304,121 +416,219 @@ def parse_scale_or_mean(parameter_string, input_info):
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:
-                    print("input_info: ", input_info)
-                    for name, description in input_info.items():
-                        if description.is_image:
-                            return_value[name] = f_value
+                    for input in input_info:
+                        if input.is_image:
+                            return_value[input.name] = f_value
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
-class InputInfo:
+
+class AppInputInfo:
     def __init__(self):
-        self.precision = None
-        self.layout = ""
-        self.shape = []
-        self.scale = []
-        self.mean = []
+        self.element_type = None
+        self.layout = Layout()
+        self.original_shape = None
+        self.partial_shape = None
+        self.data_shapes = []
+        self.scale = np.empty([0])
+        self.mean = np.empty([0])
+        self.name = None
+        self.node_name = None
 
     @property
     def is_image(self):
-        if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
+        if str(self.layout) not in [ "[N,C,H,W]", "[N,H,W,C]", "[C,H,W]", "[H,W,C]" ]:
             return False
         return self.channels == 3
 
     @property
     def is_image_info(self):
-        if self.layout != "NC":
+        if str(self.layout) != "[N,C]":
             return False
-        return self.channels >= 2
+        return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
     def getDimentionByLayout(self, character):
-        if character not in self.layout:
-            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return self.shape[self.layout.index(character)]
+        if self.layout.has_name(character):
+            return self.partial_shape[self.layout.get_index_by_name(character)]
+        else:
+            return Dimension(0)
+
+    def getDimentionsByLayout(self, character):
+        if self.layout.has_name(character):
+            d_index = self.layout.get_index_by_name(character)
+            dims = []
+            for shape in self.data_shapes:
+                dims.append(shape[d_index])
+            return dims
+        else:
+            return [0] * len(self.data_shapes)
+
+    @property
+    def shapes(self):
+        if self.is_static:
+            return [self.partial_shape.to_shape()]
+        else:
+            return self.data_shapes
 
     @property
     def width(self):
-        return self.getDimentionByLayout("W")
+        return len(self.getDimentionByLayout("W"))
+
+    @property
+    def widthes(self):
+        return self.getDimentionsByLayout("W")
 
     @property
     def height(self):
-        return self.getDimentionByLayout("H")
+        return len(self.getDimentionByLayout("H"))
+
+    @property
+    def heights(self):
+        return self.getDimentionsByLayout("H")
 
     @property
     def channels(self):
         return self.getDimentionByLayout("C")
 
     @property
-    def batch(self):
-        return self.getDimentionByLayout("N")
+    def is_static(self):
+        return self.partial_shape.is_static
 
     @property
-    def depth(self):
-        return self.getDimentionByLayout("D")
+    def is_dynamic(self):
+        return self.partial_shape.is_dynamic
 
-def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, input_info):
-    shape_map = parse_input_parameters(shape_string, input_info)
-    layout_map = parse_input_parameters(layout_string, input_info)
+
+def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, inputs):
+    input_names = get_input_output_names(inputs)
+    input_node_names = get_node_names(inputs)
+    shape_map = parse_input_parameters(shape_string, input_names)
+    data_shape_map = get_data_shapes_map(data_shape_string, input_names)
+    layout_map = parse_input_parameters(layout_string, input_names)
+    batch_size = Dimension(batch_size)
     reshape = False
-    info_map = {}
-    for name, descriptor in input_info.items():
-        info = InputInfo()
-        # Precision
-        info.precision = descriptor.precision
+    batch_found = False
+    input_info = []
+    for i in range(len(inputs)):
+        info = AppInputInfo()
+        # Input name
+        info.name = input_names[i]
+        # Input node name
+        info.node_name = input_node_names[i]
+        # Input precision
+        info.element_type = inputs[i].element_type
         # Shape
-        if name in shape_map.keys():
-            parsed_shape = [int(dim) for dim in shape_map[name].split(',')]
-            info.shape = parsed_shape
+        info.original_shape = inputs[i].partial_shape
+        if info.name in shape_map:
+            info.partial_shape = PartialShape(shape_map[info.name])
+            reshape = True
+        elif info.node_name in shape_map:
+            info.partial_shape = PartialShape(shape_map[info.node_name])
             reshape = True
         else:
-            info.shape = descriptor.input_data.shape
+            info.partial_shape = inputs[i].partial_shape
+
         # Layout
-        info.layout = layout_map[name].upper() if name in layout_map.keys() else descriptor.tensor_desc.layout
+        if info.name in layout_map:
+            info.layout = Layout(layout_map[info.name])
+        elif info.node_name in layout_map:
+            info.layout = Layout(layout_map[info.node_name])
+        elif inputs[i].node.layout != Layout():
+            info.layout = inputs[i].node.layout
+        else:
+            image_colors_dim = Dimension(3)
+            shape = info.partial_shape
+            num_dims = len(shape)
+            if num_dims == 4:
+                if(shape[1]) == image_colors_dim:
+                    info.layout = Layout("NCHW")
+                elif(shape[3] == image_colors_dim):
+                    info.layout = Layout("NHWC")
+            elif num_dims == 3:
+                if(shape[0]) == image_colors_dim:
+                    info.layout = Layout("CHW")
+                elif(shape[2] == image_colors_dim):
+                    info.layout = Layout("HWC")
+
         # Update shape with batch if needed
         if batch_size != 0:
-            batch_index = info.layout.index('N') if 'N' in info.layout else -1
-            if batch_index != -1 and info.shape[batch_index] != batch_size:
-                info.shape[batch_index] = batch_size
-                reshape = True
-        info_map[name] = info
+            if batch_size.is_static and data_shape_map:
+                 logger.warning(f"Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
+            else:
+                batch_index = -1
+                if info.layout.has_name('N'):
+                    batch_index = info.layout.get_index_by_name('N')
+                elif info.layout == Layout():
+                    supposed_batch = info.partial_shape[0]
+                    if supposed_batch.is_dynamic or supposed_batch in [0, 1]:
+                        logger.warning(f"Batch dimension is not specified for input '{info.name}'. "
+                                        "The first dimension will be interpreted as batch size.")
+                        batch_index = 0
+                        info.layout = Layout("N...")
+                if batch_index != -1 and info.partial_shape[batch_index] != batch_size:
+                    info.partial_shape[batch_index] = batch_size
+                    reshape = True
+                    batch_found = True
+                elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
+                    raise Exception(f"Batch dimension is not specified for this model!")
+
+        # Data shape
+        if (info.name in data_shape_map or info.node_name in data_shape_map) and info.is_dynamic:
+            used_name = info.name if info.name in data_shape_map else info.node_name
+            for p_shape in data_shape_map[used_name]:
+                if p_shape.is_dynamic:
+                    raise Exception(f"Data shape always should be static, {str(p_shape)} is dynamic.")
+                elif info.partial_shape.compatible(p_shape):
+                    info.data_shapes.append(p_shape.to_shape())
+                else:
+                    raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
+                                    f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
+        elif info.name in data_shape_map or input_node_names[i] in data_shape_map:
+            logger.warning(f"Input '{info.name}' has static shape. Provided data shapes for this input will be ignored.")
+
+        input_info.append(info)
 
     # Update scale, mean
-    scale_map = parse_scale_or_mean(scale_string, info_map)
-    mean_map = parse_scale_or_mean(mean_string, info_map)
+    scale_map = parse_scale_or_mean(scale_string, input_info)
+    mean_map = parse_scale_or_mean(mean_string, input_info)
 
-    for name, descriptor in info_map.items():
-        if descriptor.is_image:
-            descriptor.scale = np.ones(3)
-            descriptor.mean = np.zeros(3)
+    for input in input_info:
+        if input.name in scale_map:
+            input.scale = scale_map[input.name]
+        elif input.node_name in scale_map:
+            input.scale = scale_map[input.node_name]
+        if input.name in mean_map:
+            input.mean = mean_map[input.name]
+        elif input.node_name in mean_map:
+            input.mean = mean_map[input.node_name]
 
-            if name in scale_map:
-                descriptor.scale = scale_map[name]
-            if name in mean_map:
-                descriptor.mean = mean_map[name]
+    return input_info, reshape
 
-    return info_map, reshape
 
-def get_batch_size(inputs_info):
-    batch_size = 0
-    for _, info in inputs_info.items():
-        batch_index = info.layout.index('N') if 'N' in info.layout else -1
+def get_network_batch_size(inputs_info):
+    null_dimension = Dimension(0)
+    batch_size = null_dimension
+    for info in inputs_info:
+        batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
         if batch_index != -1:
-            if batch_size == 0:
-                batch_size = info.shape[batch_index]
-            elif batch_size != info.shape[batch_index]:
+            if batch_size == null_dimension:
+                batch_size = info.partial_shape[batch_index]
+            elif batch_size != info.partial_shape[batch_index]:
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
-    if batch_size == 0:
-        batch_size = 1
+    if batch_size == null_dimension:
+        batch_size = Dimension(1)
     return batch_size
 
+
 def show_available_devices():
-    ie = IECore()
-    print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))
+    print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
+
 
 def dump_config(filename, config):
     with open(filename, 'w') as f:
         json.dump(config, f, indent=4)
+
 
 def load_config(filename, config):
     with open(filename) as f:

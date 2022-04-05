@@ -1,11 +1,11 @@
-# End-to-end Command-line Interface example {#pot_configs_examples_README}
+# End-to-end Command-line Interface Example {#pot_configs_examples_README}
 
 This tutorial describes an example of running post-training quantization for **MobileNet v2 model from PyTorch** framework, 
 particularly by the DefaultQuantization algorithm.
 The example covers the following steps:
 - Environment setup
 - Model preparation and converting it to the OpenVINO™ Intermediate Representation (IR) format 
-- Performance benchmarking of the original full-precision model and the converted one to the IR
+- Performance benchmarking of the original full-precision model
 - Dataset preparation
 - Accuracy validation of the full-precision model in the IR format
 - Model quantization by the DefaultQuantization algorithm and accuracy validation of the quantized model
@@ -18,31 +18,19 @@ The example has been verified in Ubuntu 18.04 Operating System with Python 3.6 i
 
 In case of issues while running the example, refer to [POT Frequently Asked Questions](@ref pot_docs_FrequentlyAskedQuestions) for help.
 
-## Environment Setup
-
-1. Install OpenVINO&trade; toolkit and Model Optimizer, Accuracy Checker and Post-training Optimization Tool components following the [Installation Guide](@ref pot_InstallationGuide).
-2. Activate the Python* environment and OpenVINO environment as described in the [Installation Guide](@ref pot_InstallationGuide).
-3. Create a separate working directory and navigate to it. 
-
-In the instructions below, the Post-Training Optimization Tool directory `<POT_DIR>` is referred to:
- - `<ENV>/lib/python<version>/site-packages/` in the case of PyPI installation, where `<ENV>` is a Python* 
- environment where OpenVINO is installed and `<version>` is a Python* version, e.g. `3.6`.
- - `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit` in the case of OpenVINO distribution package. 
-`<INSTALL_DIR>` is the directory where Intel&reg; Distribution of OpenVINO&trade; toolkit is installed.
-
 ## Model Preparation
 
 1. Navigate to `<EXAMPLE_DIR>`.
 
 2. Download the MobileNet v2 PyTorch model using [Model Downloader](@ref omz_tools_downloader) tool from the Open Model Zoo repository:
    ```sh
-   python3 ./downloader.py --name mobilenet-v2-pytorch
+   omz_downloader --name mobilenet-v2-pytorch
    ```
    After that the original full-precision model is located in `<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/`.
 
 3. Convert the model to the OpenVINO™ Intermediate Representation (IR) format using [Model Converter](@ref omz_tools_downloader) tool:
    ```sh
-   python3 ./converter.py --name mobilenet-v2-pytorch
+   omz_converter --name mobilenet-v2-pytorch
    ```
    After that the full-precision model in the IR format is located in `<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/`.
    
@@ -50,19 +38,9 @@ For more information about the Model Optimizer, refer to its [documentation](@re
 
 ## Performance Benchmarking of Full-Precision Models
 
-1. Check the performance of the original model using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
+Check the performance of the full-precision model in the IR format using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
    ```sh
-   python3 ./benchmark_app.py -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/mobilenet-v2.onnx
-   ```
-   Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:
-   ```sh
-   Latency:    4.09 ms
-   Throughput: 1456.84 FPS
-   ```
-
-2. Check the performance of the full-precision model in the IR format using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
-   ```sh
-   python3 ./benchmark_app.py -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
+   benchmark_app -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
    ```
    Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:
    ```sh
@@ -137,7 +115,7 @@ models:
 
 ```
 where `data_source: ./ImageNet` is the dataset and `annotation_file: ./ImageNet/val.txt` is the annotation file prepared on the previous step. 
-For more information about the Accuracy Checker configuration file refer to [Accuracy Checker Tool documentation](@ref omz_tools_accuracy_checker_README).
+For more information about the Accuracy Checker configuration file refer to [Accuracy Checker Tool documentation](@ref omz_tools_accuracy_checker).
 
 3. Evaluate the accuracy of the full-precision model in the IR format by executing the following command in `<EXAMPLE_DIR>`:
    ```sh
@@ -190,7 +168,7 @@ specify the full-precision model in the IR format, `"config": "./mobilenet_v2_py
 
 Check the performance of the quantized model using [Deep Learning Benchmark](@ref openvino_inference_engine_tools_benchmark_tool_README) tool:
 ```sh
-python3 ./benchmark_app.py -m <INT8_MODEL>
+benchmark_app -m <INT8_MODEL>
 ```
 where `<INT8_MODEL>` is the path to the quantized model.  
 Note that the results might be different dependently on characteristics of your machine. On a machine with Intel&reg; Core&trade; i9-10920X CPU @ 3.50GHz it is like:

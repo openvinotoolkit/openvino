@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -43,7 +43,7 @@ class INT4MixedQuantization(AccuracyAwareCommon):
     # pylint: disable=W0221, W0212
     def _quantize_model(self, model, quantize_with_low_bitwidth=True):
         convolution_fq_nodes = [
-            node.name
+            node.fullname
             for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
             if self._can_set_fq_to_low_bitwidth(node)
         ]
@@ -67,9 +67,9 @@ class INT4MixedQuantization(AccuracyAwareCommon):
         cut_fqs = []
         cut_model = deepcopy(model)
         for node in mu.get_nodes_by_type(model, ['FakeQuantize']):
-            if node.name not in cut_fqs:
+            if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._graph_transformer.remove_fq_nodes(
-                    cut_model, [node.name]
+                    cut_model, [node.fullname]
                 )
                 cut_fqs += cut_fq_layers
         return cut_model
@@ -136,9 +136,9 @@ class INT4MixedQuantization(AccuracyAwareCommon):
         ]
 
         for node in convolution_fq_nodes:
-            if node.name not in cut_fqs:
+            if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._modify_model_in_scope(
-                    model, [node.name]
+                    model, [node.fullname]
                 )
                 logger.info(
                     'Removed a block of %d FQ layers: %s',
@@ -155,7 +155,7 @@ class INT4MixedQuantization(AccuracyAwareCommon):
                 self._engine.allow_pairwise_subset = False
                 logger.update_progress(self._config.ranking_subset_size)
                 ranking_metric = self._metrics_config[metric_name].ranking
-                node_importance_score[node.name] = ranking_metric.comparator(
+                node_importance_score[node.fullname] = ranking_metric.comparator(
                     metrics[ranking_metric.name]
                 )
 

@@ -1,0 +1,18 @@
+#...............................................................................
+#
+#  This file is part of the Doxyrest toolkit.
+#
+#  Doxyrest is distributed under the MIT license.
+#  For details see accompanying license.txt file,
+#  the public copy of which is also available at:
+#  http://tibbo.com/downloads/archive/doxyrest/license.txt
+#
+#...............................................................................
+
+crefdb = {
+%{
+	includeFile("crefdb_groups.py.in", g_groupArray)
+	includeFile("crefdb_members.py.in", g_globalNamespace)
+	includeFile("crefdb_external.py.in")
+}
+}

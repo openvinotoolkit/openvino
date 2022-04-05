@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Sample usage:
-#   ./scripts/init_corpus.py ./pdpd_layer_models/**/*.pdmodel --join pdiparams
-#   mkdir -p corpus && find ./pdpd_layer_models/ -name "*.fuzz" -exec cp \{\} .//import_pdpd-corpus \;
+#   ./scripts/init_corpus.py ./paddle_layer_models/**/*.pdmodel --join pdiparams
+#   mkdir -p corpus && find ./paddle_layer_models/ -name "*.fuzz" -exec cp \{\} .//import_paddle-corpus \;
 
 import argparse
 import glob

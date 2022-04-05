@@ -1,4 +1,4 @@
-## EmbeddingSegmentsSum <a name="EmbeddingSegmentsSum"></a> {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
+# EmbeddingSegmentsSum {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
 
 **Versioned name**: *EmbeddingSegmentsSum-3*
 
@@ -7,6 +7,8 @@
 **Short description**: Computes sums of segments of embeddings, without instantiating the intermediate embeddings.
 
 **Detailed description**: This is [sparse.segment_sum](https://www.tensorflow.org/api_docs/python/tf/sparse/segment_sum) operation from Tensorflow. For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each segment. Values in `segment_ids` define which segment index in `indices` tensor belong to, e.g. `segments_ids` with value `[0,0,0,1,1,3,5,5]` define 4 non empty segments other segments are empty, the number of segments is defined by `num_segments` input.
+
+**Attributes**: EmbeddingSegmentsSum operation has no attributes.
 
 **Inputs**:
 

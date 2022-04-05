@@ -1,0 +1,38 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/core/axis_vector.hpp"  // ov::AxisVector
+
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+#include "pyopenvino/graph/axis_vector.hpp"
+
+namespace py = pybind11;
+
+void regclass_graph_AxisVector(py::module m) {
+    py::class_<ov::AxisVector, std::shared_ptr<ov::AxisVector>> axis_vector(m, "AxisVector");
+    axis_vector.doc() = "openvino.runtime.AxisVector wraps ov::AxisVector";
+    axis_vector.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));
+    axis_vector.def(py::init<const std::vector<size_t>&>(), py::arg("axes"));
+    axis_vector.def(py::init<const ov::AxisVector&>(), py::arg("axes"));
+    axis_vector.def("__setitem__", [](ov::AxisVector& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
+    axis_vector.def("__getitem__", [](const ov::AxisVector& self, size_t key) {
+        return self[key];
+    });
+
+    axis_vector.def("__len__", [](const ov::AxisVector& self) {
+        return self.size();
+    });
+
+    axis_vector.def(
+        "__iter__",
+        [](const ov::AxisVector& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
+}

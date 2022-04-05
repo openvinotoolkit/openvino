@@ -1,0 +1,104 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local variableSectionName = string.lower(argArray[2])
+local functionSectionName = string.lower(argArray[3])
+local destructorRefTargetString = ""
+}
+
+.. ref-code-block:: $LANGUAGE
+	:class: doxyrest-overview-code-block
+
+	$(getItemImportString(compound))
+%{
+if compound.compoundKind == "group" then
+	-- no open scope snippet
+	includeFile("overview_members.rst.in", compound, variableSectionName, functionSectionName, "")
+elseif compound.compoundKind == "namespace" then
+	if not compound.name then
+		-- no open scope snippet
+		includeFile("overview_members.rst.in", compound, variableSectionName, functionSectionName, "")
+	else
+		includeFile("scope_namespace.rst.in", compound, true)
+		includeFile("overview_members.rst.in", compound, variableSectionName, functionSectionName, "")
+		trimOutput()
+		emit("\n")
+		includeFile("scope_namespace.rst.in", compound, false)
+	end
+else
+	includeFile("scope_class.rst.in", compound, true)
+
+	local hasProtectionLabel = false
+	local defaultProtectionKind = getDefaultProtectionKind(compound)
+
+	for i = g_minProtectionValue, g_maxProtectionValue do
+		if compound.protectionCompoundArray[i] then
+			if hasProtectionLabel or i ~= defaultProtectionKind then
+}
+	$(g_protectionNameMap[i]):
+%{
+				hasProtectionLabel = true
+			end
+
+			includeFile(
+				"overview_members.rst.in",
+				compound.protectionCompoundArray[i],
+				variableSectionName,
+				functionSectionName,
+				"\t"
+				)
+		end -- if
+	end -- for
+
+	trimOutput()
+	emit("\n")
+	includeFile("scope_class.rst.in", compound, false)
+
+	if compound.baseCompound and compound.baseCompound.hasItems then
+		compound = compound.baseCompound
+}
+
+Inherited Members
+-----------------
+
+.. ref-code-block:: $LANGUAGE
+	:class: doxyrest-overview-inherited-code-block
+
+%{
+		-- always link inherited members (even when no documentation)
+
+		local prevHasItemDocumentation = hasItemDocumentation
+		hasItemDocumentation = function(item)
+			return true
+		end
+
+		for i = g_minProtectionValue, g_maxProtectionValue do
+			if compound.protectionCompoundArray[i] then
+}
+	$(g_protectionNameMap[i]):
+%{
+				includeFile(
+					"overview_members.rst.in",
+					compound.protectionCompoundArray[i],
+					variableSectionName,
+					functionSectionName,
+					"\t"
+					)
+			end -- if
+		end -- for
+
+		hasItemDocumentation = prevHasItemDocumentation
+	end -- if
+end -- if
+}

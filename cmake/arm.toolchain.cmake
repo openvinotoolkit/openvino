@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,7 @@ set(CMAKE_SYSTEM_PROCESSOR armv7l)
 
 set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
 set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
+set(PKG_CONFIG_EXECUTABLE arm-linux-gnueabihf-pkg-config CACHE PATH "Path to ARM pkg-config")
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)

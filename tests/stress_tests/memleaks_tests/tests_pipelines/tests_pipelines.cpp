@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,9 @@ using namespace InferenceEngine;
 #define THRESHOLD 0.1
 
 // Measure values
-enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+enum MeasureValue {
+    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax
+};
 
 namespace util {
     template<typename In, typename Out, typename Func>
@@ -42,7 +44,7 @@ namespace util {
     }
 }// namespace util
 
-TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline, const int &n) {
+TestResult common_test_pipeline(const std::vector<std::function<void()>> &test_pipeline, const int &n) {
     if (AVERAGE_NUM > n)
         return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
 
@@ -65,7 +67,7 @@ TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline
 
     for (size_t iteration = 1, measure_count = n / AVERAGE_NUM;; iteration++) {
         // run test pipeline and collect metrics
-        for (auto step : test_pipeline) step();
+        for (const auto &step: test_pipeline) step();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
         cur[THREADS] = getThreadsNum();
 
@@ -103,8 +105,8 @@ TestResult common_test_pipeline(std::vector<std::function<void()>> test_pipeline
                     // threshold = THRESHOLD * ref
                     util::transform(ref, threshold, [](long ref_val) -> float { return THRESHOLD * ref_val; });
                     log_info("Setting thresholds:"
-                             << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
-                             << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
+                                     << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
+                                     << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
                 } else if (measure_count <= 0) {
                     // exit from main loop
                     break;

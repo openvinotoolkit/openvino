@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -184,119 +184,126 @@ class TestFlatten(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_3D(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_3D(self, params, opset, ie_device, precision, ir_version, temp_dir, api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_3D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_3D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                              api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net_const(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_4D(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_4D(self, params, opset, ie_device, precision, ir_version, temp_dir, api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.precommit
-    def test_flatten_4D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_4D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                                  api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_4D_const_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_4D_const_precommit(self, params, opset, ie_device, precision, ir_version,
+                                        temp_dir, api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net_const(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_4D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_4D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                              api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net_const(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_5D_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                                  api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_5D(self, params, opset, ie_device, precision, ir_version, temp_dir, api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D_const_precommit(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_5D_const_precommit(self, params, opset, ie_device, precision, ir_version,
+                                        temp_dir, api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net_const(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.parametrize("opset", [6, 9])
     @pytest.mark.nightly
-    def test_flatten_5D_const(self, params, opset, ie_device, precision, ir_version, temp_dir):
+    def test_flatten_5D_const(self, params, opset, ie_device, precision, ir_version, temp_dir,
+                              api_2):
         # negative axis not allowed by onnx spec for flatten-1 and flatten-9
         if params['axis'] < 0:
             self.skip_framework = True
         else:
             self.skip_framework = False
         self._test(*self.create_flatten_net_const(**params, ir_version=ir_version, opset=opset),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

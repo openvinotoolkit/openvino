@@ -1,3 +1,12 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 jobs:
 - job: WinCC
   # About 150% of total time
@@ -15,7 +24,7 @@ jobs:
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
-    BUILD_DIR: D:\build
+    BUILD_DIR: $(WORK_DIR)\build
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
@@ -50,7 +59,7 @@ jobs:
 
   - script: |
       rem Speed up build
-      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
+      powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
@@ -61,7 +70,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: dir $(REPO_DIR)\inference-engine\temp\ /s
+  - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\ninja-win\ninja

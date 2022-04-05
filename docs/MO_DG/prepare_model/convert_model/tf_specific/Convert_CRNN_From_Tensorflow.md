@@ -1,4 +1,4 @@
-# Convert CRNN* Models to the Intermediate Representation (IR) {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow}
+# Convert TensorFlow CRNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow}
 
 This tutorial explains how to convert a CRNN model to Intermediate Representation (IR).
 
@@ -33,8 +33,9 @@ export PYTHONPATH="${PYTHONPATH}:/path/to/CRNN_Tensorflow/"
        * For  Windows\* OS add `/path/to/CRNN_Tensorflow/` to the `PYTHONPATH` environment variable in settings.
     3. Open the `tools/test_shadownet.py` script. After `saver.restore(sess=sess, save_path=weights_path)` line, add the following code:
 ```python
+import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])
 graph_io.write_graph(frozen, '.', 'frozen_graph.pb', as_text=False)
 ```
     4. Run the demo with the following command:
@@ -47,7 +48,7 @@ python tools/test_shadownet.py --image_path data/test_images/test_01.jpg --weigh
 
 **Step 4.** Convert the model into IR:
 ```sh
-python3 path/to/model_optimizer/mo_tf.py --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
+mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
 ```
 
 

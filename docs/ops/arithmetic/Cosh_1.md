@@ -1,4 +1,4 @@
-## Cosh <a name="Cosh"></a> {#openvino_docs_ops_arithmetic_Cosh_1}
+# Cosh  {#openvino_docs_ops_arithmetic_Cosh_1}
 
 **Versioned name**: *Cosh-1*
 

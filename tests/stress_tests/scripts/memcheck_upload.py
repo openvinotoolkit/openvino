@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -26,10 +26,10 @@ import yaml
 from pymongo import MongoClient
 
 # Database arguments
-DATABASE = 'memcheck'   # database name for memcheck results
+DATABASE = 'memcheck'  # database name for memcheck results
 DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
-PRODUCT_NAME = 'dldt'   # product name from build manifest
+PRODUCT_NAME = 'dldt'  # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
@@ -109,18 +109,18 @@ def parse_memcheck_log(log_path):
     log_lines = log.splitlines()
     for index, line in enumerate(log_lines):
         if RE_GTEST_REF_MEASURE.search(line):
-            heading = [name.lower() for name in log_lines[index+1]
-                       [len(GTEST_INFO):].split()]
-            values = [int(val) for val in log_lines[index+2]
-                      [len(GTEST_INFO):].split()]
+            heading = [name.lower() for name in log_lines[index + 1]
+            [len(GTEST_INFO):].split()]
+            values = [int(val) for val in log_lines[index + 2]
+            [len(GTEST_INFO):].split()]
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
             test_name = log_lines[index].split()[-1]
-            heading = [name.lower() for name in log_lines[index+1]
-                       [len(GTEST_INFO):].split()]
-            values = [int(val) for val in log_lines[index+2]
-                      [len(GTEST_INFO):].split()]
+            heading = [name.lower() for name in log_lines[index + 1]
+            [len(GTEST_INFO):].split()]
+            values = [int(val) for val in log_lines[index + 2]
+            [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
@@ -191,16 +191,17 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+
     def timeline_key(item):
         """ Defines order for timeline report entries
         """
         if len(item['metrics']['vmhwm']) <= 1:
             return 1
         order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
-            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+                item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
         if not item['status']:
             # ensure failed cases are always on top
-            order += sys.maxsize/2
+            order += sys.maxsize / 2
         return order
 
     client = MongoClient(db_url)

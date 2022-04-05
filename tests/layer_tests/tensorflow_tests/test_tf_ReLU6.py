@@ -1,15 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
+
 from unit_tests.utils.graph import build_graph
 
 
 class TestReLU6(CommonTFLayerTest):
-    def create_relu6_net(self, shape, ir_version):
+    def create_relu6_net(self, shape, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -27,11 +28,10 @@ class TestReLU6(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) >= 3:
-                shapes.append(shapes.pop(1))
-            input = tf.compat.v1.placeholder(tf.float32, shapes, 'Input')
+            tf_x_shape = shape.copy()
+
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.nn.relu6(input, name='Operation')
 
@@ -46,7 +46,7 @@ class TestReLU6(CommonTFLayerTest):
 
         ref_net = None
 
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
@@ -68,9 +68,12 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_relu6_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                             use_new_frontend, api_2):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data = [dict(shape=[1]),
                  dict(shape=[1, 224]),
@@ -80,6 +83,9 @@ class TestReLU6(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_relu6_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_relu6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                   api_2):
+        self._test(*self.create_relu6_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

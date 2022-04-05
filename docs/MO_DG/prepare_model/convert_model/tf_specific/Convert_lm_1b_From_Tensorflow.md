@@ -1,4 +1,4 @@
-# Converting TensorFlow* Language Model on One Billion Word Benchmark to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
+# Convert TensorFlow Language Model on One Billion Word Benchmark {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
 
 ## Download the Pre-trained Language Model on One Billion Word Benchmark
 
@@ -51,14 +51,14 @@ lm_1b/
         ckpt-char-embedding
         ckpt-lstm
         ckpt-softmax0
-        ckpt-softmax1        
-        ckpt-softmax2        
-        ckpt-softmax3        
-        ckpt-softmax4        
-        ckpt-softmax5        
-        ckpt-softmax6        
-        ckpt-softmax7        
-        ckpt-softmax8        
+        ckpt-softmax1
+        ckpt-softmax2
+        ckpt-softmax3
+        ckpt-softmax4
+        ckpt-softmax5
+        ckpt-softmax6
+        ckpt-softmax7
+        ckpt-softmax8
 ```
 
 
@@ -86,7 +86,7 @@ There is a certain limitations for the model conversion:
 To generate the `lm_1b` Intermediate Representation (IR), provide TensorFlow `lm_1b` model to the
 Model Optimizer with parameters:
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model lm_1b/graph-2016-09-10.pbtxt  \
 --input_checkpoint lm_1b/ckpt               \
 --input_model_is_text                       \

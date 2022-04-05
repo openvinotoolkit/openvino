@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class OutlierChannelSplitting(Algorithm):
             if self.add_input_channels_for_conv_node(conv_node, ocs_channels_idxs):
                 nu.set_node_value(weights_node, ocs_weights)
                 logger.debug('Node {}: Channels {} were splitted'.
-                             format(conv_node.name, ','.join(str(idx) for idx in ocs_channels_idxs)))
+                             format(conv_node.fullname, ','.join(str(idx) for idx in ocs_channels_idxs)))
 
         model.clean_up()
         return model
@@ -85,7 +85,7 @@ class OutlierChannelSplitting(Algorithm):
 
     def get_conv_nodes(self, model):
         conv_nodes_list = []
-        nodes = sorted([(n.name, n) for n in mu.get_nodes_by_type(model, ['Convolution'])])
+        nodes = sorted([(n.fullname, n) for n in mu.get_nodes_by_type(model, ['Convolution'])])
         for _, node in nodes:
             if not self.check_conv_node(node):
                 continue

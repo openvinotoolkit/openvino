@@ -67,9 +67,11 @@
 
 #POT attributes
 tools/pot/tests/data/test_cases_refs/* filter=lfs diff=lfs merge=lfs -text
+tools/pot/tests/data/models/*/* filter=lfs diff=lfs merge=lfs -text
+tools/pot/tests/data/reference_models/* filter=lfs diff=lfs merge=lfs -text
+tools/pot/tests/data/video/* filter=lfs diff=lfs merge=lfs -text
+tools/pot/tests/data/reference_fake_quantize_conf/* filter=lfs diff=lfs merge=lfs -text
 /tools/pot/tests/** -pot_package
-/configs/accuracy_checker/** -pot_package
-/configs/quantization/** -pot_package
 /tools/pot/tools/auxilary/** -pot_package
 /tools/pot/tools/run_series_experiments.py -pot_package
 /tools/pot/.pylintrc -pot_package

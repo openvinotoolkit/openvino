@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,5 +30,9 @@ if (LINUX)
         else ()
             set(${res_var} NOTFOUND PARENT_SCOPE)
         endif ()
+    endfunction()
+else()
+    function(get_linux_name res_var)
+        set(${res_var} NOTFOUND PARENT_SCOPE)
     endfunction()
 endif ()

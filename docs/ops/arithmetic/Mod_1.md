@@ -1,4 +1,4 @@
-## Mod <a name="Mod"></a> {#openvino_docs_ops_arithmetic_Mod_1}
+# Mod  {#openvino_docs_ops_arithmetic_Mod_1}
 
 **Versioned name**: *Mod-1*
 

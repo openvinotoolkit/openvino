@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 VPU_DEVICE_NAME = 'VPU'
@@ -15,8 +15,8 @@ XML_EXTENSION = '.xml'
 BIN_EXTENSION = '.bin'
 BLOB_EXTENSION = '.blob'
 
-IMAGE_EXTENSIONS = ['JPEG', 'JPG', 'PNG', 'BMP']
-BINARY_EXTENSIONS = ['BIN']
+IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
+BINARY_EXTENSIONS = ['.bin']
 
 DEVICE_DURATION_IN_SECS = {
     CPU_DEVICE_NAME: 60,

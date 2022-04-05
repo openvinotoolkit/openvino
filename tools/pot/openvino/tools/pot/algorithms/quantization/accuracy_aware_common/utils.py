@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -17,7 +17,8 @@ from ....samplers.creator import create_sampler
 
 SPECIAL_METRICS = ['cmc', 'reid_map', 'pairwise_accuracy_subsets', 'pairwise_accuracy', 'normalized_embedding_accuracy',
                    'face_recognition_tafa_pair_metric', 'localization_recall',
-                   'coco_orig_keypoints_precision', 'coco_orig_segm_precision', 'coco_orig_keypoints_precision']
+                   'coco_orig_keypoints_precision', 'coco_orig_segm_precision', 'coco_orig_keypoints_precision',
+                   'spearman_correlation_coef', 'pearson_correlation_coef']
 
 METRICS_CONFIGS = {'sigmoid_recom_loss': {'metrics': 'log_loss',
                                           'postprocessing': 'sigmoid_normalize_recommendation'},
@@ -338,3 +339,14 @@ def process_per_sample_metrics(metrics_per_sample, metrics_config,
             processed_metrics_per_sample[name] = [values[i] for i in indices]
 
     return processed_metrics_per_sample
+
+
+def prepare_nodes_for_logger(nodes_names):
+    postprocessed_nodes_names = []
+    for name in nodes_names:
+        subgraphs = name.split('|')
+        if len(subgraphs) > 1:
+            postprocessed_nodes_names.append(str(subgraphs))
+        else:
+            postprocessed_nodes_names.append(subgraphs[0])
+    return postprocessed_nodes_names
