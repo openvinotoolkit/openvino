@@ -145,6 +145,11 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     FRONTEND_CALL_STATEMENT("set_tensor_value", m_actual->set_tensor_value(place, value))
 }
 
+void InputModel::serialize(const std::string& path) const {
+    FRONT_END_CHECK_IMPLEMENTED(m_actual, serialize);
+    m_actual->serialize(path);
+}
+
 void InputModel::set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value) {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, set_tensor_partial_value);
     FRONTEND_CALL_STATEMENT("set_tensor_partial_value", m_actual->set_tensor_partial_value(place, min_value, max_value))
