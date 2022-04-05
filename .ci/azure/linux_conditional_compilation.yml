@@ -106,7 +106,7 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      python3 thirdparty/itt_collector/runtool/sea_runtool.py --bindir $(REPO_DIR)/bin/intel64/Release/lib -o $(BUILD_DIR) ! $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml
+      python3 thirdparty/itt_collector/runtool/sea_runtool.py --bindir $(REPO_DIR)/bin/intel64/Release/lib -o $(BUILD_DIR)/itt_stat ! $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
