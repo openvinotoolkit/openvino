@@ -150,9 +150,11 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             regs.push_back(f->get_parameter_index(param));
             rt["reginfo"] = regs;
             continue;
-        } else if (auto result = ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
-            regs.push_back(f->get_result_index(result) + num_parameters);
+        } else if (auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
+            regs.push_back(f->get_result_index(store) + num_parameters);
             rt["reginfo"] = regs;
+            continue;
+        } else if (auto result = ov::as_type_ptr<ov::op::v0::Result>(n)) {
             continue;
         }
 

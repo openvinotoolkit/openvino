@@ -52,9 +52,32 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<EmitterCode> lowered;
+    std::set<size_t> gp_regs;
+    std::set<size_t> vec_regs;
     for (auto n : m->get_ordered_ops()) {
-        lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
+        std::vector<size_t> in_reg, out_reg;
+        std::tie(in_reg, out_reg) = ngraph::snippets::getRegisters(n);
+        if (ov::is_type<ov::op::v0::Parameter>(n) || ov::is_type<snippets::op::Store>(n)) {
+            for (auto reg : out_reg)
+                gp_regs.insert(reg);
+        } else {
+            std::cerr << n->get_type_name() << " : ";
+            for (auto reg : out_reg) {
+                std::cerr << reg << " ";
+                vec_regs.insert(reg);
+            }
+            std::cerr << "\n";
+        }
+        lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), std::make_pair(in_reg, out_reg)));
     }
+    std::cerr << "Allocated gp reg: ";
+    for (auto r : gp_regs)
+        std::cerr << r << " ";
+    std::cerr << "\n";
+    std::cerr << "Allocated vec regs: ";
+    for (auto r : vec_regs)
+        std::cerr << r << " ";
+    std::cerr << "\n";
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
     // scalar tile
