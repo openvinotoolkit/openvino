@@ -68,14 +68,14 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
         return {n: inpt.get_element_type() for n in inpt.get_names()}
 
     input_types: dict = {}
-    for idx, inpt in enumerate(get_inputs(obj)):
+    for idx, input_value in enumerate(get_inputs(obj)):
         # Add all possible "accessing aliases" to dictionary
         # Key as a ConstOutput port
-        input_types[inpt] = inpt.get_element_type()
+        input_types[input_value] = input_value.get_element_type()
         # Key as an integer
-        input_types[idx] = inpt.get_element_type()
+        input_types[idx] = input_value.get_element_type()
         # Multiple possible keys as Tensor names
-        input_types.update(map_tensor_names_to_types(inpt))
+        input_types.update(map_tensor_names_to_types(input_value))
     return input_types
 
 
