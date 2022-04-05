@@ -8,7 +8,7 @@
 #include <blob_factory.hpp>
 #include "nodes/input.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 

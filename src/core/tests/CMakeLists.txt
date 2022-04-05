@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
