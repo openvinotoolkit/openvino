@@ -58,10 +58,22 @@ ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FO
 ov_check_pip_packages(REQUIREMENTS_FILE ${CMAKE_SOURCE_DIR}/src/bindings/python/wheel/requirements-dev.txt
                      RESULT_VAR WHEEL_REQS
                      FAIL_FAST)
+                     
+set (WHEEL_CONDITION "PYTHONINTERP_FOUND;ENABLE_PYTHON;WHEEL_REQS;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR")
+
+if(LINUX)
+    find_host_program(patchelf_program
+                      NAMES patchelf
+                      DOC "Path to patchelf tool")
+    if(NOT patchelf_program)
+        message(WARNING "patchelf is not found. It is required to build OpenVINO Runtime wheel")
+        list(APPEND WHEEL_CONDITION patchelf_program)
+    endif()
+endif()
+
 # this option should not be a part of InferenceEngineDeveloperPackage
 # since wheels can be built only together with main OV build
-cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPI" ON
-    "PYTHONINTERP_FOUND;ENABLE_PYTHON;WHEEL_REQS;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR" OFF)
+cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL_CONDITION}" OFF)
 
 #
 # Inference Engine specific options

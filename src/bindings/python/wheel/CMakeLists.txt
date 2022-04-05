@@ -13,15 +13,6 @@ if(WIN32)
     set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
 endif()
 
-if(LINUX)
-    find_host_program(patchelf_program
-                      NAMES patchelf
-                      DOC "Path to patchelf tool")
-    if(NOT patchelf_program)
-        message(FATAL_ERROR "patchelf is not found. It is required to build OpenVINO Runtime wheel")
-    endif()
-endif()
-
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api)
