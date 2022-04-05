@@ -72,9 +72,11 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input) const {
-        if (get_axis() >= input.get_partial_shape().size()) throw std::runtime_error("Axis not in range");
+        if (get_axis() >= input.get_partial_shape().size())
+            throw std::runtime_error("Axis not in range");
         const auto& axis_dim = input.get_partial_shape()[get_axis()];
-        if (axis_dim.is_dynamic()) throw std::runtime_error("Axis dimension is dynamic");
+        if (axis_dim.is_dynamic())
+            throw std::runtime_error("Axis dimension is dynamic");
         auto output = input.get_source_output();
         // Handle case when the RIC order is default
         auto order = get_order();
@@ -674,7 +676,8 @@ public:
             for (const auto& input : root->inputs()) {
                 auto const_output = input.get_source_output();
                 const auto& shape = const_output.get_partial_shape();
-                if (shape.rank().is_dynamic()) return false;
+                if (shape.rank().is_dynamic())
+                    return false;
                 const int64_t& shape_rank = shape.rank().get_length();
                 if (shape_rank > data_rank) {
                     // TODO: handle case when constant input broadcast another one
@@ -688,7 +691,8 @@ public:
 
                 const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
                 const auto& axis_dim = shape[new_axis];
-                if (axis_dim.is_dynamic()) return false;
+                if (axis_dim.is_dynamic())
+                    return false;
                 if (axis_dim == 1) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     continue;
@@ -743,7 +747,8 @@ public:
             auto input = root->input(0);
             auto const_output = input.get_source_output();
             const auto& shape = const_output.get_partial_shape();
-            if (shape.rank().is_dynamic()) return false;
+            if (shape.rank().is_dynamic())
+                return false;
             const int64_t& shape_rank = shape.rank().get_length();
 
             const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
