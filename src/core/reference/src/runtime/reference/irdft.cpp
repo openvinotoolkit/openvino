@@ -146,6 +146,103 @@ int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths) {
     return buffer_size;
 }
 
+std::vector<int64_t> lengths_except_given_axis(const std::vector<int64_t>& v, int64_t axis) {
+    auto result = v;
+    if (axis >= 0 && axis < static_cast<int64_t>(v.size()))
+        result.erase(result.begin() + axis);
+    return result;
+}
+
+enum class FFTKind { Forward, Inverse };
+
+// Non-recursive implementation of the Cooley-Tukey radix-2 decimation in
+// time. Performs 1D FFT transform for the lengths, which are powers of 2.
+// Runs in O(length * log(length)) time. Uses the same parameters as the naive
+// implementation above, except that the preallocated buffer must be at least
+// twice as big as the length of the transform, because the buffer is used to
+// hold both input and output values for each stage of the transform.
+void optimized_fft1d(int64_t length,
+                     int64_t fft_offset,
+                     int64_t stride,
+                     complex_type* data,
+                     complex_type* buffer,
+                     FFTKind fft_kind,
+                     bool expand_input) {
+//     gather_to_buffer(data, length, fft_offset, stride, buffer);
+//     if (blob_is_zero(buffer, length)) {
+//         return;
+//     }
+//
+//     int64_t in_base = length;
+//     int64_t out_base = 0;
+//     for (int64_t num_blocks = 1; num_blocks < length; num_blocks *= 2) {
+//         std::swap(in_base, out_base);
+//
+//         auto twiddles = generate_twiddles(num_blocks * 2, fft_kind);
+//         const int64_t block_size = length / num_blocks;
+//         const int64_t next_iteration_block_size = block_size / 2;
+//         for (int64_t block = 0; block < num_blocks; block++) {
+//             const int64_t in_offset = in_base + block * block_size;
+//             const int64_t out_offset = out_base + block * next_iteration_block_size;
+//
+//             for (int64_t pair = 0; pair < block_size / 2; pair++) {
+//                 const complex_type even = buffer[in_offset + pair];
+//                 const complex_type odd = buffer[in_offset + block_size / 2 + pair];
+//                 const complex_type twiddled_odd = twiddles[block] * odd;
+//                 buffer[out_offset + pair] = even + twiddled_odd;
+//                 buffer[out_offset + length / 2 + pair] = even - twiddled_odd;
+//             }
+//         }
+//     }
+//
+//     for (int64_t k = 0; k < length; k++) {
+//         complex_type value = buffer[out_base + k];
+//         if (fft_kind == FFTKind::Inverse) {
+//             value /= complex_type(length, 0.0f);
+//         }
+//         data[fft_offset + k * stride] = value;
+//     }
+}
+
+// Naive implementation of 1D FFT
+void naive_fft1d(int64_t length,
+                 int64_t fft_offset,
+                 int64_t stride,
+                 complex_type* data,
+                 complex_type* buffer,
+                 FFTKind fft_kind,
+                 bool expand_input) {
+//     gather_to_buffer(data, length, fft_offset, stride, buffer);
+//     if (blob_is_zero(buffer, length)) {
+//         return;
+//     }
+//
+//     for (int64_t k = 0; k < length; ++k) {
+//         complex_type value = complex_type(0.0f, 0.0f);
+//         for (int64_t n = 0; n < length; ++n) {
+//             value += buffer[n] * twiddle(n * k, length, fft_kind);
+//         }
+//         if (fft_kind == FFTKind::Inverse) {
+//             value /= complex_type(length, 0.0f);
+//         }
+//         data[fft_offset + k * stride] = value;
+//     }
+}
+
+void fft1d(int64_t length,
+           int64_t fft_offset,
+           int64_t stride,
+           complex_type* data,
+           complex_type* buffer,
+           FFTKind fft_kind,
+           bool expand_input) {
+    if (is_power_of_two(length)) {
+        optimized_fft1d(length, fft_offset, stride, data, buffer, fft_kind, expand_input);
+    } else {
+        naive_fft1d(length, fft_offset, stride, data, buffer, fft_kind, expand_input);
+    }
+}
+
 // Calculation of IRDFT
 void irdft_calculation(const float* input_data,
                        const Shape& input_data_shape,
@@ -231,10 +328,11 @@ void irdft_calculation(const float* input_data,
     // Loop along with 'outer' dimensions, that is along with
     // not transformed dimensions.
     for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx) {
+        std::cout << "************************************************************\n";
         const auto outer_coords = fft_common::coords_from_index(outer_idx, outer_strides);
         int64_t outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, input_outer_strides);
-        print_vector(outer_coords, "outer_coords: ");
-        std::cout << "outer_input_offset: " << outer_input_offset << "\n";
+        print_vector(outer_coords, "    outer_coords: ");
+        std::cout << "    outer_input_offset: " << outer_input_offset << "\n";
 
         // Copying current data to transform
         bool blob_is_zero = copy_data_from_input_and_check_is_blob_zero(data.data(),
@@ -245,7 +343,49 @@ void irdft_calculation(const float* input_data,
                                                                         input_fft_lengths,
                                                                         input_fft_strides,
                                                                         last_axis_upper_bound);
+        std::cout << (blob_is_zero ? "    current blob is zero\n" : "    current blob is not zero\n");
         if (!blob_is_zero) {
+            // The loop along with all transformed axes.
+            for (int64_t axis_idx = 0; axis_idx < fft_rank; ++axis_idx) {
+                std::cout << "        axis_idx:           " << axis_idx << "\n";
+                int64_t current_fft_stride = fft_strides[axis_idx];
+                int64_t current_fft_length = fft_lengths[axis_idx];
+                std::cout << "        current_fft_stride: " << current_fft_stride << "\n";
+                std::cout << "        current_fft_length: " << current_fft_length << "\n";
+
+                auto outer_fft_lengths = lengths_except_given_axis(fft_lengths, axis_idx);
+                auto outer_fft_axes = lengths_except_given_axis(fft_axes, axis_idx);
+                int64_t outer_fft_size = fft_size / current_fft_length;
+                if (axis_idx != fft_rank - 1) {
+                    outer_fft_size = (outer_fft_size / fft_lengths.back()) * (fft_lengths.back() / 2 + 1);
+                }
+                print_vector(outer_fft_lengths, "        outer_fft_lengths: ");
+                print_vector(outer_fft_axes, "        outer_fft_axes: ");
+                std::cout << "        outer_fft_size:     " << outer_fft_size << "\n";
+
+                auto outer_fft_strides = fft_common::compute_strides(outer_fft_lengths);
+                auto fft_strides_for_outer_fft_axes = lengths_except_given_axis(fft_strides, axis_idx);
+                print_vector(outer_fft_strides, "        outer_fft_strides: ");
+                print_vector(fft_strides_for_outer_fft_axes, "        fft_strides_for_outer_fft_axes: ");
+
+                // Loop along with all FFT axes, except the current one.
+                for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++outer_fft_idx) {
+                    std::cout << "            outer_fft_idx: " << outer_fft_idx << "\n";
+                    const auto outer_fft_coords = fft_common::coords_from_index(outer_fft_idx, outer_fft_strides);
+                    print_vector(outer_fft_coords, "            outer_fft_coords: ");
+                    int64_t outer_fft_offset =
+                        fft_common::offset_from_coords_and_strides(outer_fft_coords, fft_strides_for_outer_fft_axes);
+                    std::cout << "            outer_fft_offset: " << outer_fft_offset << "\n";
+                    // Calculation of 1D FFT
+                    fft1d(current_fft_length,
+                          outer_fft_offset,
+                          current_fft_stride,
+                          data.data(),
+                          buffer.data(),
+                          FFTKind::Inverse,
+                          axis_idx == fft_rank - 1);
+                }
+            }
         }
     }
 }
