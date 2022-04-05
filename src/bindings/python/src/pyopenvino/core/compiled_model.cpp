@@ -147,11 +147,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, ov::Any> properties_to_cpp;
-            for (const auto& property : properties) {
-                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
-            }
-            self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
+            self.set_property(Common::utils::properties_to_any_map(properties));
         },
         py::arg("properties"),
         R"(
@@ -162,12 +158,27 @@ void regclass_CompiledModel(py::module m) {
             :rtype: None
         )");
 
+    // Overload for single tuple
+    cls.def(
+        "set_property",
+        [](ov::CompiledModel& self, const std::pair<std::string, py::object>& property) {
+            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            self.set_property(_properties);
+        },
+        py::arg("property"),
+        R"(
+            Sets properties for current compiled model.
+
+            :param property: Tuple of (property name, matching property value).
+            :type property: tuple
+        )");
+
     cls.def(
         "get_property",
-        [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::utils::from_ov_any(self.get_property(name));
+        [](ov::CompiledModel& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
         },
-        py::arg("name"),
+        py::arg("property"),
         R"(
             Gets properties for current compiled model.
 
