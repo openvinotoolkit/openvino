@@ -72,15 +72,17 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input) const {
-        const auto& axis_dim = input.get_shape()[this->get_axis()];
+        if (get_axis() >= input.get_partial_shape().size()) throw std::runtime_error("Axis not in range");
+        const auto& axis_dim = input.get_partial_shape()[get_axis()];
+        if (axis_dim.is_dynamic()) throw std::runtime_error("Axis dimension is dynamic");
         auto output = input.get_source_output();
         // Handle case when the RIC order is default
-        auto order = this->get_order();
+        auto order = get_order();
         if (order.empty()) {
-            order.resize(axis_dim);
+            order.resize(axis_dim.get_length());
             std::iota(order.rbegin(), order.rend(), 0);
         }
-        auto gather = std::make_shared<opset8::Gather>(output, create_const(order), create_const({this->get_axis()}));
+        auto gather = std::make_shared<opset8::Gather>(output, create_const(order), create_const({get_axis()}));
         input.replace_source_output(gather);
         // TODO: copy runtime info from RIC sub-graph
     }
@@ -654,6 +656,7 @@ public:
             }
 
             // Check that all RIC attrs can be merged and then merge them
+
             auto ric = attrs[0];
             auto rank = root->get_output_partial_shape(0).rank();
             if (rank.is_dynamic())
@@ -670,8 +673,9 @@ public:
 
             for (const auto& input : root->inputs()) {
                 auto const_output = input.get_source_output();
-                const auto& shape = const_output.get_shape();
-                const int64_t& shape_rank = static_cast<int64_t>(shape.size());
+                const auto& shape = const_output.get_partial_shape();
+                if (shape.rank().is_dynamic()) return false;
+                const int64_t& shape_rank = shape.rank().get_length();
                 if (shape_rank > data_rank) {
                     // TODO: handle case when constant input broadcast another one
                     return false;
@@ -684,6 +688,7 @@ public:
 
                 const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
                 const auto& axis_dim = shape[new_axis];
+                if (axis_dim.is_dynamic()) return false;
                 if (axis_dim == 1) {
                     // we don't have to insert RIC for constant, so we keep propagating
                     continue;
@@ -737,15 +742,16 @@ public:
             }
             auto input = root->input(0);
             auto const_output = input.get_source_output();
-            const auto& shape = const_output.get_shape();
-            const int64_t& shape_rank = static_cast<int64_t>(shape.size());
+            const auto& shape = const_output.get_partial_shape();
+            if (shape.rank().is_dynamic()) return false;
+            const int64_t& shape_rank = shape.rank().get_length();
 
             const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
 
             // finally, insert RIC
-            auto ric_const = ric;
-            ric_const.set_axis(new_axis);
-            ric_attr::set(input, ric_const);
+
+            ric.set_axis(new_axis);
+            ric_attr::set(input, ric);
             return true;
         };
 

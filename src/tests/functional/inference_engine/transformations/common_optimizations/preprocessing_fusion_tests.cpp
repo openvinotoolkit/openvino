@@ -1038,7 +1038,6 @@ TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
-        function_ref = ov::clone_model(*function);
         manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
 }
