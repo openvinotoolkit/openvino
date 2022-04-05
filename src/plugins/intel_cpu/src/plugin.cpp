@@ -652,7 +652,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
-        const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
             ngraphFunc,
             L2_cache_size, memThresholdAssumeLimitedForISA);
@@ -984,7 +984,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
-                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
             } catch (const InferenceEngine::Exception&) {
                 return false;
             }

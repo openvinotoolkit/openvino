@@ -6,10 +6,9 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
@@ -30,12 +29,12 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 
@@ -49,7 +48,7 @@ template <cpu_isa_t isa>
 struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
-    explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const mkldnn_primitive_attr &attr)
+    explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_interpolate_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -1621,7 +1620,7 @@ struct InterpolateKey {
     VectorDims srcDims;
     VectorDims dstDims;
     std::vector<float> dataScales;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const InterpolateKey& rhs) const;
@@ -1796,7 +1795,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -2064,7 +2063,7 @@ std::vector<VectorDims> Interpolate::shapeInfer() const {
     return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
-void Interpolate::executeDynamicImpl(mkldnn::stream strm) {
+void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
@@ -2122,7 +2121,7 @@ void Interpolate::prepareParams() {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
 
-    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::primitive_attr()};
+    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
     setPostOps(key.attr, dstDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
@@ -2187,8 +2186,8 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0f, 1 - std::abs(x));
 }
 
-void Interpolate::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
-    mkldnn::post_ops ops;
+void Interpolate::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
@@ -2237,7 +2236,7 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
     return fullScales;
 }
 
-void Interpolate::execute(mkldnn::stream strm) {
+void Interpolate::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
     }
@@ -3352,7 +3351,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
                                                                       const VectorDims &srcDims,
                                                                       const VectorDims &dstDims,
                                                                       const std::vector<float> &dataScales,
-                                                                      const mkldnn::primitive_attr &attr) :
+                                                                      const dnnl::primitive_attr &attr) :
         InterpolateExecutor(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;

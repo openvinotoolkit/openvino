@@ -26,7 +26,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Range::Range(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+Range::Range(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -90,11 +90,11 @@ std::vector<VectorDims> Range::shapeInfer() const {
     return Node::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
 }
 
-void Range::executeDynamicImpl(mkldnn::stream strm) {
+void Range::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Range::execute(mkldnn::stream strm) {
+void Range::execute(dnnl::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:
