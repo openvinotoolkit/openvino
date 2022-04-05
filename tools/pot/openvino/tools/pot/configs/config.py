@@ -275,7 +275,12 @@ class Config(Dict):
 
         # check algorithm parameters
         for algo in self['compression']['algorithms']:
+
             algo_name = algo['name']
+            unsupported_params = [key for key in algo if key not in ['name', 'params']]
+            if unsupported_params:
+                raise RuntimeError(f'Unsupported params for {algo_name} algorithm section: ' + ', '.join(unsupported_params))
+
             if algo_name in supported_params:
                 if algo_name == 'AccuracyAwareQuantization':
                     backup = deepcopy(supported_params['AccuracyAwareQuantization'])

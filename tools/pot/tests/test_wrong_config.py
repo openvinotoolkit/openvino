@@ -141,6 +141,14 @@ ALGORITHM_SETTINGS = {
             }
         },
         'Algorithm AccuracyAwareQuantization. Unknown parameter: max_drop'
+    ),
+    'wrong_algo_keys': (
+        {
+            "name": "FastBiasCorrection",
+            "stat_subset_size": 10,
+            "target_device": "ANY",
+        },
+        'Unsupported params for FastBiasCorrection algorithm section: stat_subset_size, target_device'
     )
 }
 
