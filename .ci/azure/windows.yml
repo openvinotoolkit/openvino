@@ -161,7 +161,7 @@ jobs:
 
   - script: call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)"  $(REPO_DIR)\tests\samples_tests
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'CMake'
+    displayName: 'CMake Samples Tests'
 
   - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
