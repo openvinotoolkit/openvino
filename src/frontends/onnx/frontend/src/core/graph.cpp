@@ -317,6 +317,8 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         // Other optional outputs should have name set to an empty string.
         if (i >= onnx_node.get_outputs_size()) {
             break;
+        } else if (common::friendly_name_already_set(ng_subgraph_outputs[i].get_node_shared_ptr())) {
+            continue;
         }
 
         const auto& onnx_node_name = onnx_node.get_name();

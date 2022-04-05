@@ -12,6 +12,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -87,13 +88,15 @@ OutputVector gemm(const Node& node) {
     std::shared_ptr<ngraph::Node> matmul_node =
         std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
 
-    if (alpha != 1) {
+    if (alpha != 1.0f) {
         matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
     }
 
-    auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
+    const auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
+    const auto gemm = std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c);
+    common::set_friendly_names(gemm, matmul_node, node);
 
-    return OutputVector{std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c)};
+    return {gemm};
 }
 
 }  // namespace set_6

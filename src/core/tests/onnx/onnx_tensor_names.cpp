@@ -138,3 +138,16 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
     EXPECT_NE(result2, nullptr);
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node_z");
 }
+
+NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_with_strides_padding_bias.onnx"));
+
+    const auto ops = function->get_ordered_ops();
+
+    const auto result1 = find_by_friendly_name<op::Result>(ops, "D/sink_port_0");
+    EXPECT_NE(result1, nullptr);
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "D");
+
+    EXPECT_NE(nullptr, find_by_friendly_name<op::v1::Convolution>(ops, "D/WithoutBiases"));
+}
