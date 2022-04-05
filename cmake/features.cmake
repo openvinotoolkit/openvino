@@ -79,7 +79,7 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL
 # Inference Engine specific options
 #
 
-# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
