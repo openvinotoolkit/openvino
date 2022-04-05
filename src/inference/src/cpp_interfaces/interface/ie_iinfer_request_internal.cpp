@@ -4,6 +4,7 @@
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
+#include <ie_parallel.hpp>
 #include <map>
 #include <memory>
 #include <openvino/core/partial_shape.hpp>
@@ -324,7 +325,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
     auto ptr = mem_blob->wmap();
 
     // Perform memory copy
-    for (size_t i = 0; i < batched_blob->size(); i++) {
+    InferenceEngine::parallel_for(batched_blob->size(), [&](size_t i) {
         const auto& blob = as<MemoryBlob>(batched_blob->getBlob(i));
         OPENVINO_ASSERT(mem_blob, "Internal error - can't cast blob ", i, " to MemoryBlob");
         const auto& blob_desc = blob->getTensorDesc().getBlockingDesc();
@@ -346,7 +347,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
                blob->rmap().as<uint8_t*>() +
                    blob->getTensorDesc().getBlockingDesc().getOffsetPadding() * blob->element_size(),
                blob->byteSize());
-    }
+    });
     SetBlob(name, mem_blob);
 }
 
