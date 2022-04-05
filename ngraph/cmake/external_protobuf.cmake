@@ -34,8 +34,8 @@ if(CMAKE_CROSSCOMPILING)
         message("Detected system protoc version: ${PROTOC_VERSION}")
 
         if(${PROTOC_VERSION} VERSION_EQUAL "3.0.0")
-            message(WARNING "Protobuf 3.0.0 detected switching to 3.0.2 due to bug in gmock url")
-            set(PROTOC_VERSION "3.0.2")
+            message(WARNING "Protobuf 3.0.0 detected switching to 3.18.2 due to bug in gmock url")
+            set(PROTOC_VERSION "3.18.2")
         endif()
     else()
         message(FATAL_ERROR "System Protobuf is needed while cross-compiling")
@@ -43,12 +43,12 @@ if(CMAKE_CROSSCOMPILING)
 
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 elseif(NGRAPH_USE_PROTOBUF_LITE)
-    set(PROTOC_VERSION "3.9.2")
+    set(PROTOC_VERSION "3.18.2")
     if(ENABLE_LTO)
         message(WARNING "Protobuf in version 3.8.0+ can throw runtime exceptions if LTO is enabled.")
     endif()
 else()
-    set(PROTOC_VERSION "3.7.1")
+    set(PROTOC_VERSION "3.18.2")
 endif()
 
 set(NGRAPH_PROTOBUF_GIT_TAG "v${PROTOC_VERSION}")
@@ -60,10 +60,10 @@ else()
     set(MAKE_UTIL $(MAKE))
 endif()
 
-if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
-    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
+if(PROTOC_VERSION VERSION_LESS "3.18.2" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.18.2")
 else()
-    if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
+    if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.18.2")
         FetchContent_Declare(
             ext_protobuf
             GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
@@ -79,7 +79,7 @@ else()
             add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
         endif()
     else()
-        message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
+        message(FATAL_ERROR "Minimum supported version of protobuf library is 3.18.2")
     endif()
 
     set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
@@ -102,6 +102,11 @@ else()
             VISIBILITY_INLINES_HIDDEN OFF)
         set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
             COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override")
+    endif()
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
+        add_definitions("/wd4703")
     endif()
 
     if(NGRAPH_USE_PROTOBUF_LITE)
