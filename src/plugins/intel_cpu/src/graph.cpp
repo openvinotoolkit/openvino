@@ -110,8 +110,6 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     InitGraph();
 
     status = Ready;
-
-    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,

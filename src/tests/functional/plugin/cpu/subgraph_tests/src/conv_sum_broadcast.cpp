@@ -15,11 +15,12 @@ using namespace ov::test;
 
 namespace SubgraphTestsDefinitions {
 typedef std::tuple<
-        InputShape, //convShape
-        InputShape,  //second term shape
-        bool,       // bias flag
+        InputShape,                         //convShape
+        InputShape,                         //second term shape
+        bool,                               // bias flag
         fusingSpecificParams,
-        std::map<std::string, std::string> // config
+        std::map<std::string, std::string>, // config
+        size_t                              // number of output edges
 > convSumBroadcastParamSet;
 
 
@@ -32,7 +33,8 @@ public:
         bool bias;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = obj.param;
+        size_t numOutEdges;
+        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig, numOutEdges) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -56,6 +58,8 @@ public:
                 result << "_" << item.first << "=" << item.second;
             }
         }
+
+        result << "_NumOutEdges=" << numOutEdges;
 
         return result.str();
     }
@@ -86,12 +90,16 @@ public:
         InputShape convShape;
         InputShape secondShape;
         bool bias;
-        CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = this->GetParam();
+        size_t numOutEdges;
+        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig, numOutEdges) = this->GetParam();
 
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+        if (numOutEdges > 1 && postOpMgrPtr != nullptr) {
+            throw std::runtime_error("Can't create function with " + std::to_string(numOutEdges) + " output edges and non empty fused ops");
+        }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -120,8 +128,19 @@ public:
 
         selectedType = makeSelectedTypeStr(getPrimitiveType(), runtimeType);
 
-        function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
-
+        const std::string funcName = "ConvolutionSumBroadcast";
+        if (numOutEdges > 1) {
+            ngraph::ResultVector results;
+            for (size_t i = 0; i < numOutEdges; i++) {
+                // results.push_back(std::make_shared<ngraph::opset5::Result>(sum->output(0)));
+                // WA because of reference pipeline failed when output edges more than 1. Issue:
+                auto fakeEltwise = std::make_shared<ngraph::opset5::Relu>(sum->output(0));
+                results.push_back(std::make_shared<ngraph::opset5::Result>(fakeEltwise));
+            }
+            function = std::make_shared<ov::Model>(results, inputParams, funcName);
+        } else {
+            function = makeNgraphFunction(getNetType(), inputParams, sum, funcName);
+        }
         targetDevice = CommonTestUtils::DEVICE_CPU;
     }
 
@@ -322,31 +341,66 @@ InputShape secondInp = {
         }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
+// single output edge
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32_single, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::Values(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(cpuEmptyPluginConfig)),
+                                 ::testing::Values(cpuEmptyPluginConfig),
+                                 ::testing::Values(1)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16_single, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::Values(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
-                                 ::testing::Values(cpuBF16PluginConfig)),
+                                 ::testing::Values(cpuBF16PluginConfig),
+                                 ::testing::Values(1)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConcatConvSumInPlaceTestInt8,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8_single, ConcatConvSumInPlaceTestInt8,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::Values(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(cpuEmptyPluginConfig)),
+                                 ::testing::Values(cpuEmptyPluginConfig),
+                                 ::testing::Values(1)),
+                         ConcatConvSumInPlaceTest::getTestCaseName);
+
+// several output edges
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32_several, ConcatConvSumInPlaceTest,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::Values(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig),
+                                 ::testing::Values(2)),
+                         ConcatConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16_several, ConcatConvSumInPlaceTest,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::Values(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuBF16PluginConfig),
+                                 ::testing::Values(3)),
+                         ConcatConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8_several, ConcatConvSumInPlaceTestInt8,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::Values(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig),
+                                 ::testing::Values(4)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 
 } // namespace

@@ -1313,9 +1313,13 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
 
         auto out = subgraph->getOutput(0);
         const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
-        auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
-        convOutMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(outMem.getStaticDims()));
-        convOutMem->SetData(outMem);
+
+        const auto edges = getChildEdgesAtPort(0);
+        const auto memDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(outMem.getStaticDims());
+        for (size_t i = 0; i < edges.size(); i++) {
+            edges[i]->getMemoryPtr()->redefineDesc(memDesc);
+        }
+        edges[0]->getMemoryPtr()->SetData(outMem);
     }
 }
 
