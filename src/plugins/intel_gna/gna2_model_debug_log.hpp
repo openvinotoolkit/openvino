@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <ios>
 #include <string>
+#include <sstream>
 
 #include "gna2-model-api.h"
 #include "gna_device.hpp"
@@ -13,3 +15,10 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
 
 void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData, const GnaAllAllocations& allAllocations,
     std::string modeOfOperation);
+
+template <class T>
+std::string toHexString(T t) {
+    std::ostringstream o;
+    o << std::hex << t;
+    return o.str();
+}

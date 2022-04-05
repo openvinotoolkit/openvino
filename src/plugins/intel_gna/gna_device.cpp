@@ -160,13 +160,6 @@ void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
     }
 }
 
-template <class T>
-std::string toHexString(T t) {
-    std::ostringstream o;
-    o << std::hex << t;
-    return o.str();
-}
-
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId = 0;
