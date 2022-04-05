@@ -155,6 +155,7 @@ def test_gemm_transpositions(data, kwargs, description):
 
 
 def test_gemm_flatten():
+    # input_a has a shape of (4, 1)
     data = ([[1], [2], [3], [4]], [1, 3, 5, 7], [1, 4])
     kwargs = {"alpha": 7.0, "beta": 9.0, "trans_a": True}
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))

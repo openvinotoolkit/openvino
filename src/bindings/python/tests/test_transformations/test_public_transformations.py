@@ -54,14 +54,16 @@ def test_constant_folding():
 
 def test_convert_precision():
     model = get_model()
-    assert model.get_parameters()[0].get_element_type().to_dtype() == np.float32
+    param_dtype = model.get_parameters()[0].get_element_type().to_dtype()
+    assert param_dtype == np.float32
 
     manager = Manager()
     manager.register_pass(ConvertFP32ToFP16())
     manager.run_passes(model)
 
     assert model is not None
-    assert model.get_parameters()[0].get_element_type().to_dtype() == np.float16
+    param_dtype = model.get_parameters()[0].get_element_type().to_dtype()
+    assert param_dtype == np.float16
 
 
 def test_low_latency2():
@@ -122,7 +124,7 @@ def test_serialize_pass():
     os.remove(bin_path)
 
 
-@pytest.mark.parametrize("dtype_string, dtype, ovtype", [
+@pytest.mark.parametrize(("dtype_string", "dtype", "ovtype"), [
     ("float16", np.float16, ov.Type.f16),
     ("float32", np.float32, ov.Type.f32),
     ("float64", np.float64, ov.Type.f64),
