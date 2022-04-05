@@ -12,14 +12,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-/**
- * @ingroup ie_transformation_common_api
- * @brief TileTransformation propagates dequantization operations through Tile operation.
- *
- * For more details about the transformation, refer to
- * [TileTransformation](@ref openvino_docs_IE_DG_lpt_TileTransformation) page
- * in the Inference Engine Developer Guide.
- */
 class LP_TRANSFORMATIONS_API TileTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
