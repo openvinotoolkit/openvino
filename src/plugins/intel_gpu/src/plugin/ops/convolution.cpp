@@ -127,7 +127,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
         std::swap(permute_order[1], permute_order[0]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          permute_order,
                                           op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
@@ -191,7 +191,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
         std::swap(permute_order[2], permute_order[1]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          permute_order,
                                           op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);

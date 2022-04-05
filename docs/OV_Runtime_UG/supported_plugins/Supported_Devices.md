@@ -1,4 +1,4 @@
-Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
+Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 ==================
 
 The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
@@ -19,20 +19,6 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
-
-The table below shows the plugin libraries and additional dependencies for Linux, Windows and macOS platforms.
-
-| Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
-|--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
-| CPU    | `libopenvino_intel_cpu_plugin.so`        | | `openvino_intel_cpu_plugin.dll`       | | `libopenvino_intel_cpu_plugin.so`      | |
-| GPU    | `libopenvino_intel_gpu_plugin.so`         | `libOpenCL.so` | `openvino_intel_gpu_plugin.dll`        | `OpenCL.dll` |  Is not supported            |  -                                          |
-| MYRIAD | `libopenvino_intel_myriad_plugin.so` | `libusb.so`                                                 | `openvino_intel_myriad_plugin.dll`| `usb.dll`                                                                                              | `libopenvino_intel_myriad_plugin.so`   | `libusb.dylib`                              |
-| HDDL   | `libintel_hddl_plugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `intel_hddl_plugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
-| GNA    | `libopenvino_intel_gna_plugin.so`           | `libgna.so`,                                                | `openvino_intel_gna_plugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
-| HETERO | `libopenvino_hetero_plugin.so`        | Same as for selected plugins                                | `openvino_hetero_plugin.dll`       | Same as for selected plugins                                                                           | `libopenvino_hetero_plugin.so`      |  Same as for selected plugins               |
-| MULTI  | `libopenvino_auto_plugin.so`   | Same as for selected plugins                                | `openvino_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libopenvino_auto_plugin.so` |  Same as for selected plugins               |
-| AUTO | `libopenvino_auto_plugin.so`   | Same as for selected plugins                                | `openvino_auto_plugin.dll`  | Same as for selected plugins                                                                           | `libopenvino_auto_plugin.so` |  Same as for selected plugins               |
-| BATCH | `libopenvino_auto_batch_plugin.so`   | Same as for selected plugins                                | `openvino_auto_batch_plugin.dll`  | Same as for selected plugins                                                                           | `libopenvino_auto_batch_plugin.so` |  Same as for selected plugins               |
 
 ## Supported Configurations
 

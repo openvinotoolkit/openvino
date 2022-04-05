@@ -1,4 +1,4 @@
-# OpenVINO Extensibility Mechanism {#openvino_docs_Extensibility_UG_Intro}
+﻿# OpenVINO Extensibility Mechanism {#openvino_docs_Extensibility_UG_Intro}
 
 @sphinxdirective
 
@@ -7,41 +7,68 @@
    :hidden:
 
    openvino_docs_Extensibility_UG_add_openvino_ops
+   openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
+   openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 @endsphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of supported operations (layers) is different for
+TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of supported operations is different for
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
-Custom operations, that is those not included in the list, are not recognized by OpenVINO™ out-of-the-box. Therefore, creating Intermediate Representation (IR) for a model using them requires additional steps. This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to plug in your own implementation for existing or completely new operations.
+Custom operations, that is those not included in the list, are not recognized by OpenVINO™ out-of-the-box. The need in custom operation may appear in two main cases:
 
-If your model contains operations not normally supported by OpenVINO™, the OpenVINO™ Extensibility API lets you add support for those custom operations and use one implementation for Model Optimizer and OpenVINO™ Runtime.
+1. A regular framework operation that is new or rarely used and that’s why hasn’t been supported in OpenVINO yet.
 
-There are two steps to support inference of a model with custom operation(s):
-1. Add support for a [custom operation in the Model Optimizer](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) so
-the Model Optimizer can generate the IR with the operation.
-2. Create a custom operation in it as described in the [Custom Operation](add_openvino_ops.md).
+2. A new user operation that was created for some specific model topology by a model author using framework extension capabilities.
 
-## OpenVINO™ Extensions
+Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations, allowing you to plug in your own implementation for them. OpenVINO™ Extensibility API lets you add support for those custom operations and use one implementation for Model Optimizer and OpenVINO™ Runtime.
 
-OpenVINO™ provides extensions for:
+Defining a new custom operation basically consist of two parts:
 
- * [Custom OpenVINO™ Operation](add_openvino_ops.md):
-    - Enables the creation of unsupported operations
-    - Enables the use of `ov::Core::read_model` to read models with unsupported operations
-    - Provides a shape inference mechanism for custom operations
-    - Provides an evaluate method that allows you to support the operation on CPU or perform constant folding
- * [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md):
-    - Enables support of new operations to generate IR
-    - Enables support of custom transformations to replace sub-graphs for performance optimization
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). How to implement execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) is described in separate guides.
 
-> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details. You can review the complete code, which is fully compilable and up-to-date, to see how it works.
+2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 
-## Load extensions to OpenVINO™ Runtime
+The first part is required for inference, the second part is required for successful import of a model containing such operations from the original framework model format. There are several options to implement each part, the next sections will describe them in detail.
+
+## Definition of Operation Semantics
+
+
+If the custom operation can be mathematically represented as a combination of exiting OpenVINO operations and such decomposition gives desired performance, then low-level operation implementation is not required. When deciding feasibility of such decomposition refer to the latest OpenVINO operation set. You can use any valid combination of exiting operations. How to map a custom operation is described in the next section of this document.
+
+If such decomposition is not possible or appears too bulky with lots of consisting operations that are not performing well, then a new class for the custom operation should be implemented as described in the [Custom Operation Guide](add_openvino_ops.md). 
+
+Prefer implementing a custom operation class if you already have a generic C++ implementation of operation kernel. Otherwise try to decompose the operation first as described above and then after verifying correctness of inference and resulting performance, optionally invest to implementing bare metal C++ implementation.
+
+## Mapping from Framework Operation
+
+Depending on model format used for import, mapping of custom operation is implemented differently, choose one of:
+
+1. If model is represented in ONNX (including models exported from Pytorch in ONNX) or PaddlePaddle formats, then one of the classes from [Frontend Extension API](frontend_extensions.md) should be used. It consists of several classes available in C++ which can be used with Model Optimizer `--extensions` option or when model is imported directly to OpenVINO run-time using read_model method. Python API is also available for run-time model importing.
+
+2. If model is represented in TensorFlow, Caffe, Kaldi or MXNet formats, then [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) should be used. This approach is available for model conversion in Model Optimizer only.
+
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+
+If you are implementing extensions for ONNX or PaddlePaddle new frontends and plan to use Model Optimizer `--extension` option for model conversion, then the extensions should be
+
+1. Implemented in C++ only
+
+2. Compiled as a separate shared library (see details how to do that later in this guide).
+
+You cannot write new frontend extensions using Python API if you plan to use them with Model Optimizer.
+
+Remaining part of this guide uses Frontend Extension API applicable for new frontends.
+
+## Registering Extensions
+
+A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
+
+> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
 To load the extensions to the `ov::Core` object, use the `ov::Core::add_extension` method, this method allows to load library with extensions or extensions from the code.
 
@@ -49,27 +76,50 @@ To load the extensions to the `ov::Core` object, use the `ov::Core::add_extensio
 
 Extensions can be loaded from code with `ov::Core::add_extension` method:
 
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_extensions.cpp add_extension
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_extensions.py add_extension
+
+@endsphinxtab
+
+@endsphinxtabset
+
+`Identity` is custom operation class defined in [Custom Operation Guide](add_openvino_ops.md). This is enough to enable reading IR which uses `Identity` extension operation emitted by Model Optimizer. To be able to load original model directly to the runtime, you need to add also a mapping extension:
+
 @sphinxdirective
 
 .. tab:: C++
 
     .. doxygensnippet:: docs/snippets/ov_extensions.cpp
        :language: cpp
-       :fragment: add_extension
+       :fragment: add_frontend_extension
 
 .. tab:: Python
 
     .. doxygensnippet:: docs/snippets/ov_extensions.py
        :language: python
-       :fragment: add_extension
+       :fragment: add_frontend_extension
 
 @endsphinxdirective
+ 
+When Python API is used there is no way to implement a custom OpenVINO operation. Also, even if custom OpenVINO operation is implemented in C++ and loaded to the runtime through a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. Use C++ shared library approach to implement both operations semantics and framework mapping in this case.
+
+You still can use Python for operation mapping and decomposition in case if operations from the standard OpenVINO operation set is used only.
 
 ### Create library with extensions
 
-You need to create extension library in following cases:
- - Load extensions to Model Optimizer
- - Load extensions to Python application
+You need to create extension library in the following cases:
+ - Convert model with custom operations in Model Optimizer
+ - Load model with custom operations in Python application. It is applicable for both framework model and IR.
+ - Loading models with custom operations in tools that support loading extensions from a library, for example `benchmark_app`.
 
 If you want to create an extension library, for example in order to load these extensions to the Model Optimizer, you need to do next steps:
 Create an entry point for extension library. OpenVINO™ provides an `OPENVINO_CREATE_EXTENSIONS()` macro, which allows to define an entry point to a library with OpenVINO™ Extensions.
@@ -97,24 +147,25 @@ $ cmake --build .
 
 After the build you can use path to your extension library to load your extensions to OpenVINO™ Runtime:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-       :language: cpp
-       :fragment: add_extension_lib
+@snippet docs/snippets/ov_extensions.cpp add_extension_lib
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_extensions.py
-       :language: python
-       :fragment: add_extension_lib
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_extensions.py add_extension_lib
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## See Also
 
 * [OpenVINO Transformations](./ov_transformations.md)
-* [Using Inference Engine Samples](../OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Runtime Samples](../OV_Runtime_UG/Samples_Overview.md)
 * [Hello Shape Infer SSD sample](../../samples/cpp/hello_reshape_ssd/README.md)
+

@@ -32,15 +32,13 @@ from openvino.pyopenvino import Coordinate
 from openvino.pyopenvino import Layout
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import layout_helpers
+from openvino.pyopenvino import OVAny
 from openvino.pyopenvino import RTMap
-
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
-from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
-from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import Extension
 from openvino.pyopenvino import ProfilingInfo
@@ -58,6 +56,9 @@ from openvino.runtime import opset5
 from openvino.runtime import opset6
 from openvino.runtime import opset7
 from openvino.runtime import opset8
+
+# Import properties API
+from openvino.pyopenvino import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file

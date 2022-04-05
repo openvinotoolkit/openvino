@@ -25,7 +25,7 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                               "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -34,13 +34,11 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
-# LTO
-
-set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
+
+# INTERFACE library for BW compatibility
 
 add_library(${TARGET_NAME} INTERFACE)
 
@@ -49,6 +47,10 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+
+# LTO
+
+set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 

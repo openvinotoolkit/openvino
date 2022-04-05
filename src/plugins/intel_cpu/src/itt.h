@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include <openvino/cc/factory.h>
+#include <openvino/cc/selective_build.h>
+
 #include <openvino/itt.hpp>
 
 namespace ov {
@@ -21,3 +24,13 @@ namespace domains {
 }
 }
 }
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#    define CPU_LPT_SCOPE(region) OV_SCOPE(intel_cpu, region)
+#elif defined(SELECTIVE_BUILD)
+#    define CPU_LPT_SCOPE(region)                                        \
+        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
+        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ngraph_op, _, region))) + " is disabled!")
+#else
+#    define CPU_LPT_SCOPE(region) OV_ITT_SCOPED_TASK(ov::intel_cpu::itt::domains::intel_cpu, OV_PP_TOSTRING(region))
+#endif

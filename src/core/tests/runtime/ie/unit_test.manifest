@@ -833,7 +833,7 @@ non_zero_all_1s
 non_zero_all_0s
 
 # NormalizeL2 - output mismatch,
-# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# dnnl_normalize_nchw applies eps after sqrt for across_spatial
 # Issue: 59586
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add

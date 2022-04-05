@@ -29,7 +29,7 @@ OpenVINO™ Documentation
          alt="OpenVINO allows to process models built with Caffe, Keras, mxnet, TensorFlow, ONNX, and PyTorch. They can be easily optimized and deployed on devices running Windows, Linux, or MacOS." />
       <div style="clear:both;"> </div>
       <p>Check the full range of supported hardware in the 
-         <a href="openvino_docs_IE_DG_supported_plugins_Supported_Devices.html"> Supported Devices page</a> and see how it stacks up in our
+         <a href="openvino_docs_OV_UG_Working_with_devices.html"> Supported Devices page</a> and see how it stacks up in our
          <a href="openvino_docs_performance_benchmarks.html"> Performance Benchmarks page.</a> <br />
 	 Supports deployment on Windows, Linux, and macOS.
       </p>      
@@ -64,7 +64,7 @@ OpenVINO™ Documentation
 	    <h3>Tutorials </h3>
 	    <p> Learn how to use OpenVINO based on our training material. </p>  
 	 </a>
-	 <a href="openvino_docs_IE_DG_Samples_Overview.html" >
+	 <a href="openvino_docs_OV_UG_Samples_Overview.html" >
 	    <h3>Samples </h3>
 	    <p> Try OpenVINO using ready-made applications explaining various use cases. </p>  
 	 </a>
@@ -72,7 +72,7 @@ OpenVINO™ Documentation
 	    <h3>DL Workbench </h3>
 	    <p> Learn about the alternative, web-based version of OpenVINO. DL Workbench container installation Required. </p>
 	 </a>
-	 <a href="openvino_docs_OV_Runtime_User_Guide.html" >
+	 <a href="openvino_docs_OV_UG_OV_Runtime_User_Guide.html" >
 	    <h3>OpenVINO™ Runtime </h3>
 	    <p> Learn about OpenVINO's inference mechanism which executes the IR, ONNX, Paddle models on target devices. </p>  
 	 </a>

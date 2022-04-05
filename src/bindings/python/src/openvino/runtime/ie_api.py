@@ -11,7 +11,6 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import OVAny as OVAnyBase
 
 from openvino.runtime.utils.types import get_dtype
 
@@ -256,7 +255,27 @@ class Core(CoreBase):
     def compile_model(
         self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
-        """Compile a model from given Model."""
+        """Creates a compiled model.
+
+        Creates a compiled model from a source Model object or
+        reads model and creates a compiled model from IR / ONNX / PDPD file.
+        This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
+        especially for cases when caching is enabled and cached model is available.
+        If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
+        Users can create as many compiled models as they need, and use them simultaneously
+        (up to the limitation of the hardware resources).
+
+        :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD format.
+        :type model: Union[openvino.runtime.Model, str]
+        :param device_name: Optional. Name of the device to load the model to. If not specified,
+                            the default OpenVINO device will be selected by AUTO plugin.
+        :type device_name: str
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
+        :return: A compiled model.
+        :rtype: openvino.runtime.CompiledModel
+        """
         if device_name is None:
             return CompiledModel(
                 super().compile_model(model, {} if config is None else config)
@@ -267,9 +286,46 @@ class Core(CoreBase):
         )
 
     def import_model(
-        self, model_stream: str, device_name: str, config: dict = None
+        self, model_stream: bytes, device_name: str, config: dict = None
     ) -> CompiledModel:
-        """Compile a model from given model file path."""
+        """Imports a compiled model from a previously exported one.
+
+        :param model_stream: Input stream, containing a model previously exported, using export_model method.
+        :type model_stream: bytes
+        :param device_name: Name of device to which compiled model is imported.
+                            Note: if device_name is not used to compile the original model,
+                            an exception is thrown.
+        :type device_name: str
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
+        :return: A compiled model.
+        :rtype: openvino.runtime.CompiledModel
+
+        :Example:
+        .. code-block:: python
+
+            user_stream = compiled.export_model()
+
+            with open('./my_model', 'wb') as f:
+                f.write(user_stream)
+
+            # ...
+
+            new_compiled = core.import_model(user_stream, "CPU")
+
+        .. code-block:: python
+
+            user_stream = io.BytesIO()
+            compiled.export_model(user_stream)
+
+            with open('./my_model', 'wb') as f:
+                f.write(user_stream.getvalue()) # or read() if seek(0) was applied before
+
+            # ...
+
+            new_compiled = core.import_model(user_stream, "CPU")
+        """
         return CompiledModel(
             super().import_model(
                 model_stream, device_name, {} if config is None else config
@@ -277,65 +333,14 @@ class Core(CoreBase):
         )
 
 
-class ExtendedModel(CompiledModel):
-    """CompiledModel that additionally holds Core object."""
-
-    def __init__(self, core: Core, net: CompiledModel):
-        super().__init__(net)
-        self.core = core  # needs to store Core object for CPU plugin
-
-
 def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model_path: Path to file with model.
     :type model_path: str
-    :return: Extended version of `CompiledModel` that holds and keeps alive `Core` object.
+    :return: A compiled model.
+    :rtype: openvino.runtime.CompiledModel
+
     """
     core = Core()
-    return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
-
-
-class OVAny(OVAnyBase):
-    """OVAny wrapper.
-
-    Wrapper provides some useful overloads for simple built-in Python types.
-
-    Access to the `OVAny` value is direct if it is a built-in Python data type.
-
-    :Example:
-    .. code-block:: ipython
-
-        any = OVAny([1, 2])
-        print(any[0])
-
-        Output: 2
-
-    Otherwise if `OVAny` value is a custom data type (for example user class),
-    access to the value is possible by `get()` method or property 'value'.
-
-    :Example:
-    .. code-block:: python
-
-        class Test:
-            def __init__(self):
-                self.data = "test"
-
-        any = OVAny(Test())
-        print(any.value.data)
-    """
-
-    def __getitem__(self, key: Union[str, int]) -> Any:
-        return self.value[key]
-
-    def __get__(self) -> Any:
-        return self.value
-
-    def __setitem__(self, key: Union[str, int], val: Any) -> None:
-        self.value[key] = val
-
-    def __set__(self, val: Any) -> None:
-        self.value = val
-
-    def __len__(self) -> int:
-        return len(self.value)
+    return core.compile_model(model_path, "AUTO")

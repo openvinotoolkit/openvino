@@ -1,19 +1,23 @@
 # Compile Tool {#openvino_inference_engine_tools_compile_tool_README}
 
-Compile tool is a C++ application that enables you to compile a network for inference on a specific device and export it to a binary file.
-With the Compile Tool, you can compile a network using supported Inference Engine plugins on a machine that doesn't have the physical device connected and then transfer a generated file to any machine with the target inference device available.
+Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
+With the Compile Tool, you can compile a model using supported OpenVINO Runtime devices on a machine that doesn't have the physical device connected and then transfer a generated file to any machine with the target inference device available. See the [Features support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md) to understand which device support import / export functionality.
 
-The tool compiles networks for the following target devices using corresponding Inference Engine plugins:
+The tool compiles networks for the following target devices using corresponding OpenVINO Runtime plugins:
 * Intel® Neural Compute Stick 2 (MYRIAD plugin)
-
 
 The tool is delivered as an executable file that can be run on both Linux* and Windows*.
 The tool is located in the `<INSTALLROOT>/tools/compile_tool` directory.
 
-The workflow of the Compile tool is as follows:
+## Workflow of the Compile tool
 
-1. First, the application reads command-line parameters and loads a network to the Inference Engine device.
-2. The application exports a blob with the compiled network and writes it to the output file.
+1. First, the application reads command-line parameters and loads a model to the OpenVINO Runtime device.
+2. Then the application exports a blob with the compiled model and writes it to the output file.
+
+Also, the compile_tool supports the following capabilities:
+- Embedding [layout](../../docs/OV_Runtime_UG/layout_overview.md) and precision conversions (see [Optimize Preprocessing](../../docs/OV_Runtime_UG/preprocessing_overview.md)). To compile the model with advanced preprocessing capabilities, refer to [Use Case - Integrate and Save Preprocessing Steps Into IR](../../docs/OV_Runtime_UG/preprocessing_usecase_save.md) which shows how to have all the preprocessing in the compiled blob.
+- Compile blobs for OpenVINO Runtime API 2.0 by default or for Inference Engine API with explicit option `-ov_api_1_0`
+- Accepts device specific options for customizing the compilation process
 
 ## Run the Compile Tool
 
@@ -85,5 +89,5 @@ To import a blob with the network from a generated file into your application, u
 ```cpp
 ov::Core ie;
 std::ifstream file{"model_name.blob"};
-ov::CompiledModel compiled_model = ie.import_model(file, "MYRIAD", {});
+ov::CompiledModel compiled_model = ie.import_model(file, "MYRIAD");
 ```

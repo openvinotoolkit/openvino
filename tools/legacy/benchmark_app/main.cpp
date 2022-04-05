@@ -171,11 +171,11 @@ int main(int argc, char* argv[]) {
 
         Core ie;
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
+            // CPU plugin extensions are loaded as a shared library and passed as a
             // pointer to base extension
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+            slog::info << "CPU plugin extensions are loaded " << FLAGS_l << slog::endl;
         }
 
         // Load clDNN Extensions

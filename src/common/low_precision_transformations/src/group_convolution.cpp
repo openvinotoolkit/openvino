@@ -10,12 +10,14 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
+    MATCHER_SCOPE(GroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -26,7 +28,7 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "GroupConvolutionTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
