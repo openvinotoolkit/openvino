@@ -1,5 +1,6 @@
 FROM ubuntu:20.04
 
+
 LABEL version=2021.03.30.1
 
 # Build configuration arguments
