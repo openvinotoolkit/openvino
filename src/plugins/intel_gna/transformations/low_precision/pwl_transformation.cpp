@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 #include <ops/pwl.hpp>
 #include "low_precision/network_helper.hpp"
 
@@ -16,6 +17,7 @@ namespace pass {
 namespace low_precision {
 
 PWLTransformation::PWLTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(PWLTransformation);
     auto matcher = pattern::wrap_type<ov::intel_gna::op::Pwl>({
         pattern::wrap_type<opset1::Multiply>(),
         pattern::wrap_type<opset1::Constant>(),
