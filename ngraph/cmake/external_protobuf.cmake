@@ -96,12 +96,17 @@ else()
             set_target_properties(libprotoc PROPERTIES
                 COMPILE_FLAGS "-Wno-all -Wno-unused-variable")
         endif()
+
+        if (CMAKE_COMPILER_IS_GNUCXX)
+            set(Protobuf_GNUCXX_Compile_Flags "-Wno-stringop-overflow -Wno-inconsistent-missing-override")
+        endif()
+
         set_target_properties(${_proto_libs} PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
         set_target_properties(libprotobuf libprotobuf-lite PROPERTIES
-            COMPILE_FLAGS "-Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override")
+            COMPILE_FLAGS "-Wno-all -Wno-unused-variable ${Protobuf_GNUCXX_Compile_Flags}")
     endif()
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
