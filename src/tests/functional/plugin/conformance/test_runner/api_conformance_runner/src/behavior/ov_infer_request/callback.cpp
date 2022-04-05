@@ -11,27 +11,11 @@
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,
+
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCallbackTests,
         ::testing::Combine(
-            ::testing::Values(ov::test::conformance::targetDevice),
+            ::testing::ValuesIn(return_all_possible_device_combination()),
             ::testing::ValuesIn(empty_ov_config)),
         OVInferRequestCallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCallbackTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_MULTI))),
-        OVInferRequestCallbackTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCallbackTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_AUTO))),
-        OVInferRequestCallbackTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestCallbackTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_HETERO))),
-                         OVInferRequestCallbackTests::getTestCaseName);
 }  // namespace

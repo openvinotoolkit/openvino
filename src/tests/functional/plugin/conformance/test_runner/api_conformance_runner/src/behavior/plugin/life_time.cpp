@@ -6,6 +6,8 @@
 #include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
+
 namespace {
     const std::vector<std::vector<int >> orders = {
             // 0 - plugin
@@ -22,9 +24,9 @@ namespace {
             {0, 1, 3, 2}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, HoldersTest,
             ::testing::Combine(
-            ::testing::Values(ov::test::conformance::targetDevice),
+            ::testing::ValuesIn(return_all_possible_device_combination()),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 
