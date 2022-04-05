@@ -3,13 +3,11 @@
 //
 
 #include <gtest/gtest.h>
-// #include <gmock/gmock.h>
 #include <vector>
 #include <map>
 #include <ie_core.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -23,7 +21,6 @@ class GNAExportImportTest : public ::testing::Test {
 public:
     void ExportModel(std::string exportedModelFileName) {
         auto function = getFunction();
-        // size_t weightsSize = 10;//656384;
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {1, 10}, Layout::NC });
         weights->allocate();
         fillWeights(weights);
@@ -49,44 +46,18 @@ public:
             THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelPath;
         }
 
-        std::map<std::string, Blob::Ptr> input;
-        std::map<std::string, TBlob<float>::Ptr> output;
-        // size_t in_N = 1;
-        // size_t out_N = in_N;
-        // size_t in_C;
-        // size_t out_C;
-
         auto sp = plugin.ImportNetwork(inputStream);
         auto inputsInfo = plugin.GetNetworkInputs();
         auto outputsInfo = plugin.GetNetworkOutputs();
 
+        BlobMap input, output;
         AllocateInput(input, &plugin);
         AllocateOutput(output, &plugin);
-
-        if (!inputsInfo.empty()) {
-            BlobMap  input_blob_map;
-            BlobMap  output_blob_map;
-            for (auto info : inputsInfo) {
-                // auto dims = info.second->getTensorDesc().getDims();
-                // size_t current_size = details::product(std::begin(dims), std::end(dims));
-                input_blob_map[info.first] = input[info.first];
-            }
-            size_t offset = 0;
-            for (auto info : outputsInfo) {
-                auto dims = info.second->getTensorDesc().getDims();
-                size_t current_size = details::product(std::begin(dims), std::end(dims));
-                output_blob_map[info.first] = make_shared_blob<float>(
-                    { info.second->getPrecision(),
-                    {1, details::product(std::begin(dims), std::end(dims))}, Layout::NC },
-                    output[info.first]->data(), current_size * sizeof(float));
-                offset += current_size;
-            }
-            plugin.Infer(input_blob_map, output_blob_map);
-        }
+        plugin.Infer(input, output);
     }
 
 protected:
-    void AllocateInput(std::map<std::string, Blob::Ptr>& input, GNAPlugin *plugin) {
+    void AllocateInput(BlobMap& input, GNAPlugin *plugin) {
         auto inputsInfo = plugin->GetNetworkInputs();
         for (auto&& info : inputsInfo) {
             std::map<std::string, std::vector<float>>::iterator it;
@@ -94,6 +65,17 @@ protected:
             inputBlob = make_blob_with_precision({ Precision::FP32, info.second->getTensorDesc().getDims(),
                 info.second->getLayout() });
             inputBlob->allocate();
+        }
+    }
+
+    void AllocateOutput(BlobMap& output, GNAPlugin *plugin) {
+        auto outputsInfo = plugin->GetNetworkOutputs();
+        for (auto&& out : outputsInfo) {
+            auto& outputBlob = output[out.first];
+            auto dims = out.second->getDims();
+            auto outsize = details::product(std::begin(dims), std::end(dims));
+            outputBlob.reset(new TBlob<float>({ Precision::FP32, {1, outsize}, Layout::NC }));
+            outputBlob->allocate();
         }
     }
 
@@ -164,25 +146,27 @@ protected:
 
         EXPECT_CALL(*mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_, _)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
     }
-
-    void AllocateOutput(std::map<std::string, TBlob<float>::Ptr>& output, GNAPlugin *plugin) {
-        auto outputsInfo = plugin->GetNetworkOutputs();
-        for (auto&& out : outputsInfo) {
-            auto& outputBlob = output[out.first];
-            auto dims = out.second->getDims();
-            auto outsize = details::product(std::begin(dims), std::end(dims));
-            outputBlob.reset(new TBlob<float>({ Precision::FP32, {1, outsize}, Layout::NC }));
-            outputBlob->allocate();
-        }
+    void TearDown() override {
+        std::remove(exported_file_name.c_str());
     }
     std::map<std::string, std::string> gna_config;
+    std::string exported_file_name;
 };
 
 TEST_F(GNAExportImportTest, ExportImportI16) {
     gna_config = { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
                    {"GNA_PRECISION", "I16"}
     };
-    std::string exported_file_name = "export_test.bin";
+    exported_file_name = "export_test.bin";
+    ExportModel(exported_file_name);
+    ImportModel(exported_file_name);
+}
+
+TEST_F(GNAExportImportTest, ExportImportI8) {
+    gna_config = { {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                   {"GNA_PRECISION", "I8"}
+    };
+    exported_file_name = "export_test.bin";
     ExportModel(exported_file_name);
     ImportModel(exported_file_name);
 }
