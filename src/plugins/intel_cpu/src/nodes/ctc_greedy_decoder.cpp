@@ -28,7 +28,7 @@ bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -69,7 +69,7 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoder::execute(mkldnn::stream strm) {
+void CTCGreedyDecoder::execute(dnnl::stream strm) {
     const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
     const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
     float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
@@ -168,7 +168,7 @@ bool CTCGreedyDecoder::created() const {
     return getType() == Type::CTCGreedyDecoder;
 }
 
-void CTCGreedyDecoder::executeDynamicImpl(mkldnn::stream strm) {
+void CTCGreedyDecoder::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
