@@ -4,6 +4,7 @@
 #    type: github
 #    endpoint: openvinotoolkit
 #    name: openvinotoolkit/testdata
+#    ref: master
 
 jobs:
 - job: Lin_lohika
