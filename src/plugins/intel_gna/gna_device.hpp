@@ -150,11 +150,6 @@ public:
     std::string getEffectiveGnaCompileTarget() const;
     std::string GetCompileTarget() const;
 
-    // used for MODEL_DUMP filename
-    void AppendOperationMode(std::string in) {
-        modeOfOperation += in;
-    }
-
     const GnaAllAllocations& getAllAllocations() const {
         return allAllocations;
     }
@@ -176,7 +171,7 @@ public:
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
-    void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose = "");
+    void createVirtualDevice(Gna2DeviceVersion devVersion);
     void updateGnaDeviceVersion();
 
     void initGnaPerfCounters() {

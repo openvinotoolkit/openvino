@@ -483,7 +483,7 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             if (operand.Type == Gna2DataTypePwlSegment) {
                 DumpPwl(dumpFile, operand);
             } else if (operand.Type == Gna2DataTypeCompoundBias) {
-                // DumpCompoundBias(dumpFile, operand);
+                DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
                 std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);

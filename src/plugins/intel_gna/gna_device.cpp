@@ -178,7 +178,9 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 #else
         "./";
 #endif
-    DumpGna2Model(gnaModel, path, false, allAllocations, modeOfOperation + "_devVersion_" + toHexString(detectedGnaDevVersion));
+    const std::string mode = useDeviceEmbeddedExport ? "_ee" : "";
+    const auto fileSuffix = mode + "_devVersion_" + toHexString(detectedGnaDevVersion);
+    DumpGna2Model(gnaModel, path, false, allAllocations, fileSuffix);
 #endif
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
@@ -489,10 +491,9 @@ void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId, std::ostre
     ExportTlvModel(modelId, nGnaDeviceIndex, outStream, exportGeneration, input_size, output_size, inSF, outSF);
 }
 
-void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
+void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion) {
     const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
-    GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")" + purpose);
-    modeOfOperation += "_cvd_" + purpose;
+    GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")");
 }
 
 void GNADeviceHelper::updateGnaDeviceVersion() {
@@ -505,10 +506,10 @@ void GNADeviceHelper::open() {
     updateGnaDeviceVersion();
     const auto gnaExecTarget = parseTarget(executionTarget);
     if (useDeviceEmbeddedExport) {
-        createVirtualDevice(exportGeneration, "export");
+        createVirtualDevice(exportGeneration);
         updateGnaDeviceVersion();
     } else if (!executionTarget.empty() && gnaExecTarget != detectedGnaDevVersion) {
-        createVirtualDevice(gnaExecTarget, "execution");
+        createVirtualDevice(gnaExecTarget);
         updateGnaDeviceVersion();
         if (detectedGnaDevVersion != gnaExecTarget) {
             THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion << " instead of: " << gnaExecTarget;
