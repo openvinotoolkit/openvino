@@ -47,7 +47,7 @@ CPU plugin supports the following data types as inference precision of internal 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 Data types, namely u1/u8/i8 are used for quantized operations only. They are not selected automatically for non-quantized operations.
 
-See [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
+See the [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
 
 > **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" which in some cases leads to reduced computational accuracy for u8/i8 precision calculations.
 > See [saturation (overflow) issue section](@ref pot_saturation_issue) to get more information on how to detect such issues and possible workarounds.
