@@ -1,4 +1,4 @@
-# Post-training Optimization Tool Frequently Asked Questions {#pot_docs_FrequentlyAskedQuestions}
+# Post-training Optimization FAQ {#pot_docs_FrequentlyAskedQuestions}
 
 If your question is not covered below, use the [OpenVINO™ Community Forum page](https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit),
 where you can participate freely.
@@ -36,7 +36,7 @@ The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) f
 
 ### <a name="noac">I'd like to quantize a model and I've converted it to IR but I don't have the Accuracy Checker config. What can I do?</a>
 
-1. Try quantization using Python* API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage.
+1. Try quantization using Python* API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage).
 2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file,  and
 try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
 3. An alternative way is to quantize the model
@@ -79,7 +79,7 @@ It can happen due to the following reasons:
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
-the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [ [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
+the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time

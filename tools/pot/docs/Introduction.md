@@ -19,15 +19,16 @@
 ## Introduction
 
 Post-training model optimization is the process of applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. Therefore, this process does not require a training dataset or a training pipeline in the source DL framework. To apply post-training methods in OpenVINO&trade;, you need:
-* A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format
-and run on CPU with the OpenVINO&trade;.
+* A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format that can be run on CPU.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-For the needs of post-training optimization, OpenVINO&trade; provides a Post-training Optimization Tool (POT) which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reducing the model size.
+For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reducing the model size.
 
 Figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)
+
+POT is distributed as a part of OpenVINO&trade; [Development Tools](@ref openvino_docs_install_guides_install_dev_tools) package and also available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot).
 
 
 ## Quantizing models with POT

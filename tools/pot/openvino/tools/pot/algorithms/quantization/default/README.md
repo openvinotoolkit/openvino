@@ -1,10 +1,10 @@
-# DefaultQuantization Algorithm {#pot_compression_algorithms_quantization_default_README}
+# Default Quantization Parameters {#pot_compression_algorithms_quantization_default_README}
 
 ## Introduction
-DefaultQuantization algorithm is designed to do a fast and, in many cases, accurate quantization. It does not have any control of accuracy metric but provides a lot of knobs that can be used to improve it.
+Default Quantization algorithm is designed to do a fast and, in many cases, accurate quantization. It does not have any control of accuracy metric but provides a lot of knobs that can be used to improve it.
 
 ## Parameters
-DefaultQuantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the definition of DefualtQuantization method and its parameters:
+Default Quantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the definition of Defualt Quantization method and its parameters:
 ```python
 {
     "name": "DefaultQuantization", # the name of optimization algorithm 
@@ -28,8 +28,8 @@ is used if no parameter specified. We recommend using not less than 300 samples.
 ### Optional parameters
 All other options can be considered as an advanced mode and require deep knowledge of the quantization process. Below
 is an overall description of all possible parameters:
-- `"model type"` - An optional parameter, needed for additional patterns in the model, default value is None (supported only "Transformer" now)
-- `"inplace_statistic"` - An optional parameter, needed for change method collect statistics, reduces the amount of memory consumed, but increases the calibration time
+- `"model type"` - required for accurate optimization of some model architectures. Now, only `"transformer"` type is supported for Transformer-based models (BERT, etc.). Default value is `None`. 
+- `"inplace_statistic"` - used to change a method of statistics collection from in-place (in-graph operations) to external collectors that require more memory but can increase optimization time. Default value is `True`.
 - `"ignored"` - NN subgraphs which should be excluded from the optimization process 
     - `"scope"` - list of particular nodes to exclude
     - `"operations"` - list of operation types to exclude (expressed in OpenVINO IR notation). This list consists of
@@ -113,7 +113,7 @@ Command-line example:
 * [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
 
 A template and full specification for DefaultQuantization algorithm for POT command-line inferface:
-* [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
+* [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/openvino/tools/pot/configs/templates/default_quantization_template.json)
 * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
 
 
