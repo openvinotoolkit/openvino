@@ -186,6 +186,8 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
