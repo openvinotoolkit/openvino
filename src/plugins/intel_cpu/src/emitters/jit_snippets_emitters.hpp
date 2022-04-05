@@ -16,7 +16,7 @@ namespace intel_cpu {
 
 using EmitterCode = std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>;
 
-#define SNIPPETS_MAX_SNIPPETS_DIMS 7
+#define SNIPPETS_MAX_SNIPPETS_DIMS 12
 #define SNIPPETS_MAX_HARNESS_DIMS 5
 #define SNIPPETS_MAX_TILE_RANK 2
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)

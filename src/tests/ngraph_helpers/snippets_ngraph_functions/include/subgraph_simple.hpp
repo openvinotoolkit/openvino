@@ -100,6 +100,23 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
+/// Eltwise graph with 10 inputs and 2 outputs to Concat.
+/// Needed to test for a max number of inputs+outputs allowed.
+// in1   in2   in3 ... in10
+// Sinh  Sinh  Sinh ...Sinh
+// ........................
+//    Subtract    Power
+//      Concatenation
+//          Result
+class EltwiseMaxNumParamsSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<Shape>& inputShapes) :
+            SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 10, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 /// MatMul with two eltwise branches joined with Add just before the Result.
 /// Tokenized by attaching eltwises to separate subgraphs, and then joining them together.
 //                   in1   in2

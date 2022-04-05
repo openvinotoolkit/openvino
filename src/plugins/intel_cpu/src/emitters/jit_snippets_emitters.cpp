@@ -43,7 +43,7 @@ EmitterCode map_regs(const EmitterCode& code, const std::vector<size_t> &vec,  c
                                                           const std::vector<size_t>& regs_pool) {
         std::vector<size_t> physical_regs(abstract_regs.size());
         for (size_t i = 0; i < abstract_regs.size(); i++)
-            physical_regs[i] = (regs_pool[abstract_regs[i]]);
+            physical_regs[i] = regs_pool[abstract_regs[i]];
         return physical_regs;
     };
     switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
@@ -105,10 +105,9 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
             IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 1, got " << in.size();
         if (out.size() != 0)
             IE_THROW() << "KernelEmitter got unexpected output arguments.";
-//        const size_t num_params = in[0] + in[1];
-//        if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-//            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
-//                       " parameters, got " << num_params;
+        if (in[0] > SNIPPETS_MAX_SNIPPETS_DIMS)
+            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+                       " parameters, got " << in[0];
 //        const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 //        if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
 //            IE_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
@@ -203,21 +202,18 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
     // first two runtime arguments, since they are used to calculating offsets
     Reg64 reg_outer_amount = Reg64(static_cast<int>(in[3]));
     Reg64 reg_inner_amount = Reg64(static_cast<int>(in[4]));
-
     std::vector<size_t> gp_regs_pool(gpr_pool);
-    Reg64 reg_tmp_64 = Reg64(static_cast<int>(gp_regs_pool.back()));
-    gp_regs_pool.pop_back();
 
     Label for_body;
 
     Reg64 reg_indexes = reg_outer_amount;
     Reg64 reg_const_params = reg_inner_amount;
-    auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
+    auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets, Reg64 reg_tmp) {
         for (int j = 0; j < harness_num_dims; j++) {
             if (jcp.output_dims[j] != 1 && offsets[j] != 0) {
-                h->mov(reg_tmp_64, offsets[j]);
-                h->imul(reg_tmp_64, h->ptr[reg_indexes + j * sizeof(size_t)]);
-                h->add(pointer, reg_tmp_64);
+                h->mov(reg_tmp, offsets[j]);
+                h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
+                h->add(pointer, reg_tmp);
             }
         }
     };
@@ -228,10 +224,10 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
             h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         else
             h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-        init_ptrs_with_offsets(data_ptr_regs[i], &jcp.data_offsets[i * harness_num_dims]);
+        // we can use the last data_ptr_reg as tmp_reg until the last iteration, and reg_const_params then
+        Reg64 reg_tmp = i < num_params-1 ? Reg64(static_cast<int>(out.back())) : reg_const_params;
+        init_ptrs_with_offsets(data_ptr_regs[i], &jcp.data_offsets[i * harness_num_dims], reg_tmp);
     }
-    // We don't need tmp_reg anymore
-    gp_regs_pool.push_back(static_cast<size_t>(reg_tmp_64.getIdx()));
     auto emit_tiles = [&]() {
         bool inner_work_amount_is_set = false;
         auto process_tile =
