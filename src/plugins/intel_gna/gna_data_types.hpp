@@ -21,6 +21,13 @@ struct TranspositionInfo {
     size_t num_transpose_columns;
 };
 
+struct Gna2RequestConf {
+    uint32_t id = 0;
+    uint32_t conf_id = 0;
+    GnaWaitStatus status = GNA_REQUEST_UNKNOWN;
+    InferenceEngine::BlobMap blob_map = InferenceEngine::BlobMap();
+};
+
 using TranspositionInfoMap = std::map<std::string, std::vector<TranspositionInfo>>;
 
 static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo> &transpositionInfo) {
