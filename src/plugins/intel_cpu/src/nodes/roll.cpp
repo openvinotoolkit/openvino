@@ -10,12 +10,12 @@
 #include "roll.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -39,7 +39,7 @@ bool Roll::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
                 Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -107,7 +107,7 @@ void Roll::initSupportedPrimitiveDescriptors() {
 }
 
 
-void Roll::execute(mkldnn::stream strm) {
+void Roll::execute(dnnl::stream strm) {
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {

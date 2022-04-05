@@ -6,20 +6,19 @@
 #include <numeric>
 #include <unordered_set>
 
-#include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include <common/memory_desc_wrapper.hpp>
 #include "cpu_memory.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include "mkldnn/ie_mkldnn.h"
+#include "onednn/dnnl.h"
 #include "cpu_shape.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/reorder.h"
 #include "memory_desc/cpu_memory_desc.h"
 
 using namespace InferenceEngine;
-using namespace mkldnn;
+using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
@@ -34,9 +33,9 @@ namespace {
     }
 }   // namespace
 
-Memory::Memory(const mkldnn::engine& eng) :
+Memory::Memory(const dnnl::engine& eng) :
     eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this) {}
-Memory::Memory(const mkldnn::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
+Memory::Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
     eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this) {}
 
 size_t Memory::GetSize() const {
@@ -47,7 +46,7 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
+void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) {
     // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
     // ========================
@@ -117,8 +116,8 @@ void Memory::FillZero() {
 
 void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const mkldnn_memory_desc_t md = prim->get_desc().data;
-    mkldnn::impl::memory_desc_wrapper wrapper(md);
+    const dnnl_memory_desc_t md = prim->get_desc().data;
+    dnnl::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
 }
@@ -139,7 +138,7 @@ DnnlMemoryDescPtr Memory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
 void Memory::setDataHandle(void *data) {
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
-    prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve mkldnn::memory::set_data_handle behaviour
+    prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
 }
 
 void Memory::update() {

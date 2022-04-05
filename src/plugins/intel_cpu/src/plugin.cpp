@@ -96,7 +96,8 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
-#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
+#include <low_precision/common/quantization_granularity_restriction.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
@@ -439,45 +440,45 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
 
-        auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
-            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+            PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+            PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+            PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+            PrecisionsRestriction::create<ngraph::opset1::Multiply>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
             }),
-            OperationPrecisionRestriction::create<ngraph::opset1::MatMul>({
+            PrecisionsRestriction::create<ngraph::opset1::MatMul>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
             }),
         });
 
-        auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
-            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
-            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+        auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
+            QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
+            QuantizationGranularityRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
         });
 
         // for GNA networks reference execution
         bool updatePrecision = true;
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
+            supportedPrecisions = std::vector<PrecisionsRestriction>({});
         }
 
         ngraph::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(
             supportedPrecisions,
-            perTensorQuantization,
+            quantizationRestrictions,
             LayerTransformation::Params(updatePrecision, ngraph::element::f32, defaultPrecisions));
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
@@ -605,7 +606,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
-        const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
             ngraphFunc,
             L2_cache_size, memThresholdAssumeLimitedForISA);
@@ -711,7 +712,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -936,7 +937,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
-                ptr.reset(Node::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
             } catch (const InferenceEngine::Exception&) {
                 return false;
             }
@@ -1029,7 +1030,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
     }
 
-    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing, shared_from_this());
+    auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());

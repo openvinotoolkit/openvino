@@ -5,8 +5,8 @@
 #include "permute_kernel.h"
 
 #include <vector>
-#include <mkldnn_types.h>
 #include <ie_parallel.hpp>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
@@ -15,10 +15,10 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)

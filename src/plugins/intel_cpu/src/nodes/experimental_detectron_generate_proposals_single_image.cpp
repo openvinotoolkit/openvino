@@ -286,7 +286,7 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
 }
 
 ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                 WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -319,7 +319,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImage::execute(mkldnn::stream strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             IE_THROW() << "Incorrect number of input or output edges!";

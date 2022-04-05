@@ -20,10 +20,10 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_nms_args, field)
@@ -46,7 +46,7 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     void generate() override {
         load_emitter.reset(new jit_load_emitter(this, isa));
         store_emitter.reset(new jit_store_emitter(this, isa));
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();
 
@@ -394,7 +394,7 @@ private:
         } else {
             // pure sse path, make sure don't spoil vmm_temp3, which may used in after soft-suppression
             uni_vmovups(vmm_temp4, vmm_temp3);
-            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for unorders
+            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
 
             uni_vmovups(vmm_temp2, vmm_temp3);
             cmpps(vmm_temp2, vmm_iou_threshold, 0x05);   // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
@@ -572,7 +572,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(true) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
@@ -713,7 +713,7 @@ void NonMaxSuppression::createJitKernel() {
         nms_kernel->create_ker();
 }
 
-void NonMaxSuppression::executeDynamicImpl(mkldnn::stream strm) {
+void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
@@ -723,7 +723,7 @@ void NonMaxSuppression::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(mkldnn::stream strm) {
+void NonMaxSuppression::execute(dnnl::stream strm) {
     const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 

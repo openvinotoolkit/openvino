@@ -26,7 +26,7 @@
 | LPR               | License-Plate Recognition |
 | LRN               | Local Response Normalization |
 | mAP               | Mean Average Precision |
-| Intel(R) MKL-DNN  | Intel(R) Math Kernel Library Deep Neural Networks |
+| Intel(R) OneDNN   | Intel(R) OneAPI Deep Neural Network Library |
 | MO                | Model Optimizer |
 | MVN               | Mean Variance Normalization |
 | NCDHW             | Number of images, Channels, Depth, Height, Width |
