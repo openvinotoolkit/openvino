@@ -293,14 +293,13 @@ Below is a list of such operations:
 
 The behavior depends on specific parameters of the operations and hardware configuration.
 
-
 ## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
 Since OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation, many general OpenCL tips apply:
-- Prefer `FP16` inference precision over `FP32`, as Model Optimizer can generate both variants and the `FP32` is the default. Also, consider [int8 inference](../Int8Inference.md).
+-	Prefer `FP16` inference precision over `FP32`, as Model Optimizer can generate both variants and the `FP32` is the default. Also, consider using the [Post-training Optimization Tool](https://docs.openvino.ai/latest/pot_introduction.html).
 - Try to group individual infer jobs by using [automatic batching](../automatic_batching.md).
-- Consider [caching](../Model_caching_overview.md) to minimize model load time.
-- If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit the number of inference threads for the CPU plugin.
-- Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Notice that this option may increase inference latency, so consider combining with multiple GPU streams or [throughput performance hints](../performance_hints.md).
+-	Consider [caching](../Model_caching_overview.md) to minimize model load time.
+-	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit the number of inference threads for the CPU plugin.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Notice that this option may increase inference latency, so consider combining with multiple GPU streams or [throughput performance hints](../performance_hints.md).
 - When operating media inputs consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
 
 
