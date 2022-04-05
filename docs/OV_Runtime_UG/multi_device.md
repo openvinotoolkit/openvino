@@ -22,7 +22,7 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 +---------------------------+---------------------------------+-----------------------------------------------------------+
 | Property                  | Property values                 | Description                                               |
 +===========================+=================================+===========================================================+
-| <device candidate list>   | | AUTO: <device names>          || Specifies the devices available for selection.           |
+| <device candidate list>   | | MULTI: <device names>         || Specifies the devices available for selection.           |
 |                           | | comma-separated, no spaces    || The device sequence will be taken as priority            |
 +---------------------------+---------------------------------+| from high to low.                                        |
 | ov::device::priorities    | | device names                  || Priorities can be set directly as a string.              |
