@@ -431,6 +431,7 @@ public:
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
         opsetNames.insert("opset8");
+        opsetNames.insert("opset9");
     }
 
     ~CoreImpl() override = default;
