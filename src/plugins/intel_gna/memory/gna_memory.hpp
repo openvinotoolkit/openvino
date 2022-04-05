@@ -40,7 +40,7 @@ public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
     virtual void commit(bool isCompact = false) = 0;
     virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
-    virtual size_t getRWBytes() = 0;
+    virtual size_t getRegionBytes(rRegion region) = 0;
     virtual size_t getTotalBytes() = 0;
     virtual ~GNAMemoryInterface() = default;
 };
@@ -127,11 +127,11 @@ protected:
 
     std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
         std::list<rRegion> orderOfQueue{
-            rRegion::REGION_RO,
             rRegion::REGION_INPUTS,
             rRegion::REGION_OUTPUTS,
-            rRegion::REGION_STATES,
             rRegion::REGION_SCRATCH,
+            rRegion::REGION_STATES,
+            rRegion::REGION_RO,
         };
 
         uint32_t curOffset = 0;
@@ -148,8 +148,8 @@ protected:
         return {false, 0};
     }
 
-    size_t getRWBytes() override {
-        return ALIGN(getQueue(REGION_SCRATCH)->calcSize(), _page_alignment);
+    size_t getRegionBytes(rRegion region) override {
+        return ALIGN(getQueue(region)->calcSize(), _page_alignment);
     }
 
     size_t getTotalBytes() override {

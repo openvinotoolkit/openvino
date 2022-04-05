@@ -63,7 +63,7 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushValue) {
     scratch->push_value(layer2, pFuture2, 2.f, 3);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 5 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 5 * sizeof(float));
     ASSERT_EQ(mem.getTotalBytes(), 5 * sizeof(float));
 }
 
@@ -256,7 +256,7 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     scratchQueue->bind_ptr(layer3, pFuture3, pFuture2, 2 * sizeof(float), 2 * sizeof(float));
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 4 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 4 * sizeof(float));
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
 }
 

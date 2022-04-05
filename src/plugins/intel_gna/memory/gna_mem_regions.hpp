@@ -13,12 +13,12 @@ namespace memory {
  * @brief region of firmware data
  */
 enum rRegion {
+    REGION_AUTO = 0,
     REGION_INPUTS,
     REGION_OUTPUTS,
     REGION_SCRATCH,
-    REGION_RO,
     REGION_STATES,
-    REGION_AUTO
+    REGION_RO,
 };
 
 inline const char* rRegionToStr(uint8_t region) {

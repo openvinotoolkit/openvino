@@ -285,7 +285,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), 0);
-    ASSERT_EQ(mem.getRWBytes(), 0);
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 0);
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
@@ -302,7 +302,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 2 * sizeof(float));
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
@@ -313,7 +313,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 2 * sizeof(float));
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
@@ -326,7 +326,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     memAligned.commit();
 
     ASSERT_EQ(memAligned.getTotalBytes(), 128);
-    ASSERT_EQ(memAligned.getRWBytes(), 64);
+    ASSERT_EQ(memAligned.getRegionBytes(rRegion::REGION_SCRATCH), 64);
 }
 
 TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
@@ -340,7 +340,7 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), (2+3+4) * sizeof(float));
-    ASSERT_EQ(mem.getRWBytes(), 3 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 3 * sizeof(float));
 
     ASSERT_NE(&pFuture2[0], &pFuture1[0]);
     ASSERT_LT(&pFuture1[0], &pFuture3[0]);

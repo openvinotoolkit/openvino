@@ -991,7 +991,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     void *pParallelExecutionData  = nullptr;
 
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
-    rwSegmentSize = gnamem->getRWBytes();
+    rwSegmentSize = gnamem->getRegionBytes(REGION_SCRATCH);
+    rwSegmentSize += gnamem->getRegionBytes(REGION_INPUTS);
+    rwSegmentSize += gnamem->getRegionBytes(REGION_OUTPUTS);
     if (gnaFlags->num_requests > 1) {
         gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, rwSegmentSize * (gnaFlags->num_requests - 1), 64);
     }
@@ -1168,7 +1170,7 @@ void GNAPlugin::DumpXNNToFile() const {
 
     if (InferenceEngine::GNAConfigParams::GNA_TARGET_2_0 == gnadevice->getEffectiveGnaCompileTarget()) {
         auto dump = gnadevice->dumpXnn(modelId);
-        dump.header.RwRegionSize = gnamem->getRWBytes();
+        dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
         dump.header.OutputScalingFactor = outputsDesc.begin()->scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
