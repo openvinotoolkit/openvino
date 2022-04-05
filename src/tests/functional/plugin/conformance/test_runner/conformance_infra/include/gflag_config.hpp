@@ -21,7 +21,7 @@ static const char target_device_message[] = "Required. Specify the target device
                                             "(the list of available devices is shown below). Default value is CPU. "
                                             "Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. "
                                             "The application looks for a suitable plugin for the specified device.";
-static const char input_folders_message[] = "Required. Paths to the input folders with IRs. Delimiter is `,` symbol.";
+static const char input_folders_message[] = "Required. Paths to the input folders with IRs or '.lst' file contains IRs path. Delimiter is `,` symbol.";
 static const char target_plugin_message[] =
     "Optional. Name of plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices";
 static const char output_folder_message[] = "Optional. Paths to the output folder to save report.  Default value is \".\"";
