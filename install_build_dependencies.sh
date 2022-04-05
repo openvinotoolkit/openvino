@@ -38,6 +38,7 @@ if [ -f /etc/lsb-release ]; then
             curl \
             wget \
             ca-certificates \
+            libssl-dev \
             git \
             git-lfs \
             $x86_64_specific_packages \
@@ -158,6 +159,7 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     sudo -E apt-get install -y \
             build-essential \
             wget \
+            libssl-dev \
             ca-certificates \
             git \
             pkg-config \
@@ -176,13 +178,6 @@ required_cmake_ver=3.17
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
     tar xf cmake-3.18.4.tar.gz
-
-    if [ -f /etc/lsb-release ] || [ -f /etc/os-release ] ; then
-        sudo -E apt-get install -y libssl-dev
-    elif [ -f /etc/redhat-release ] ; then
-        sudo -E yum install -y libssl-dev
-    fi
-
     (cd cmake-3.18.4 && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
     rm -rf cmake-3.18.4 cmake-3.18.4.tar.gz
 fi
