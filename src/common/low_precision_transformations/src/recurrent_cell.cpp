@@ -33,14 +33,11 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
     const auto fq_W = wrap_fake_quantize(W);
     const auto fq_R = wrap_fake_quantize(R);
 
-    const auto quantization_X = wrap_quantization(X);
-    const auto quantization_H = wrap_quantization(H);
+    const auto dequantization_X = wrap_dequantization(ngraph::pattern::any_input(), true);
+    const auto dequantization_H = wrap_dequantization(ngraph::pattern::any_input(), true);
 
-    const auto dequantization_X = wrap_dequantization(quantization_X, true);
-    const auto dequantization_H = wrap_dequantization(quantization_H, true);
-
-    const auto dequantization_without_subtract_X = wrap_dequantization(quantization_X, false);
-    const auto dequantization_without_subtract_H = wrap_dequantization(quantization_H, false);
+    const auto dequantization_without_subtract_X = wrap_dequantization(ngraph::pattern::any_input(), false);
+    const auto dequantization_without_subtract_H = wrap_dequantization(ngraph::pattern::any_input(), false);
 
     const auto lstm_cell = ngraph::pattern::wrap_type<ngraph::opset5::LSTMCell>(
         {fq_X, fq_H, C, fq_W, fq_R, B});
