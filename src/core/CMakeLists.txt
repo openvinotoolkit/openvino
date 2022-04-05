@@ -49,8 +49,8 @@ target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SO
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
 
-# Install static libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(ov_core_dev core)
+# Install interface libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
 
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
@@ -66,7 +66,8 @@ ie_faster_build(ngraph_obj
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference openvino::core::dev)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
+                                         pugixml::static ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 

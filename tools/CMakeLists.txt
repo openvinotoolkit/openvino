@@ -17,14 +17,12 @@ endif()
 
 # install deployment_manager
 
-if(NOT CPACK_GENERATOR STREQUAL "DEB")
-    ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} REQUIRED)
+ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} REQUIRED)
 
-    install(DIRECTORY deployment_manager
-            DESTINATION ${OV_CPACK_TOOLSDIR}
-            COMPONENT ${OV_CPACK_COMP_DEPLOYMENT_MANAGER}
-            USE_SOURCE_PERMISSIONS)
-endif()
+install(DIRECTORY deployment_manager
+        DESTINATION ${OV_CPACK_TOOLSDIR}
+        COMPONENT ${OV_CPACK_COMP_DEPLOYMENT_MANAGER}
+        USE_SOURCE_PERMISSIONS)
 
 # outbound requirements.txt files for openvino-dev package
 if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")

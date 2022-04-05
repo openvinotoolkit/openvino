@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required (VERSION 3.13)
+
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
@@ -63,6 +65,8 @@ if(OpenVINO_SOURCE_DIR)
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
     )
 endif()
+
+# Install
 
 if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})

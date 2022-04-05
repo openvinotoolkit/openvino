@@ -211,13 +211,13 @@ macro(ov_add_frontend)
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
             if(NOT protobuf_lite_installed)
-                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} core)
+                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ${OV_CPACK_COMP_CORE})
                 set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
             endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
         else()
             if(NOT protobuf_installed)
-                ov_install_static_lib(${Protobuf_LIBRARIES} core)
+                ov_install_static_lib(${Protobuf_LIBRARIES} ${OV_CPACK_COMP_CORE})
                 set(protobuf_installed ON CACHE INTERNAL "" FORCE)
             endif()
             link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
@@ -238,25 +238,26 @@ macro(ov_add_frontend)
         if(BUILD_SHARED_LIBS)
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
-                set(namelink NAMELINK_COMPONENT core_dev)
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                                 COMPONENT ${OV_CPACK_COMP_CORE})
+                set(namelink NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_DEV})
             else()
                 set(namelink NAMELINK_SKIP)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT core
+                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
                     ${archive_dest}
-                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT core
+                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE}
                     ${namelink})
         else()
-            ov_install_static_lib(${TARGET_NAME} core)
+            ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
-                    COMPONENT core_dev
+                    COMPONENT ${OV_CPACK_COMP_CORE_DEV}
                     FILES_MATCHING PATTERN "*.hpp")
 
             set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
@@ -265,6 +266,6 @@ macro(ov_add_frontend)
         endif()
     else()
         # skipped frontend has to be installed in static libraries case
-        ov_install_static_lib(${TARGET_NAME} core)
+        ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
     endif()
 endmacro()

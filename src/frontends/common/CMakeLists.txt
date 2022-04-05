@@ -72,7 +72,7 @@ openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT core_dev)
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 # Shutdown protobuf library
 if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)

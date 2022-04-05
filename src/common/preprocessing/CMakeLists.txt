@@ -202,7 +202,7 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}/ COMPONENT core)
+            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}/ COMPONENT ${OV_CPACK_COMP_CORE})
 else()
-    ov_install_static_lib(${TARGET_NAME} core)
+    ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 endif()

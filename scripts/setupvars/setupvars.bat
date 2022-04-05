@@ -33,9 +33,9 @@ goto :opencv_done
 :opencv_done
 
 :: OpenVINO runtime
-set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
-set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
-set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake\inferenceengine2022.2.0"
+set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake\ngraph2022.2.0"
+set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake\openvino2022.2.0"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
 

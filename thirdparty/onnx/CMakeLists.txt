@@ -43,16 +43,16 @@ ov_disable_all_warnings(onnx onnx_proto)
 
 # install
 
-ov_install_static_lib(onnx core)
-ov_install_static_lib(onnx_proto core)
+ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
 if(NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
         install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
     else()
         install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
     endif()
 endif()

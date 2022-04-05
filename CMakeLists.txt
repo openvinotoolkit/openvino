@@ -113,4 +113,7 @@ add_subdirectory(licensing)
 # CPack
 #
 
+# provides a callback function to describe each component in repo
+include(cmake/debian.cmake)
+
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

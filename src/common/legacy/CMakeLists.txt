@@ -69,4 +69,4 @@ openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # install
 
-ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE} OPTIONAL)

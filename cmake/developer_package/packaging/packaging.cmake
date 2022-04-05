@@ -51,14 +51,16 @@ ov_cpack_set_dirs()
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
-macro(ie_cpack_add_component NAME)
-    list(APPEND IE_CPACK_COMPONENTS_ALL ${NAME})
-    set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
+function(ie_cpack_add_component name)
+    if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
+        cpack_add_component(${name} ${args})
 
-    cpack_add_component(${NAME} ${args})
-endmacro()
+        list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
+        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
+    endif()
+endfunction()
 
-# create test component
+# create `tests` component
 if(ENABLE_TESTS)
     cpack_add_component(tests DISABLED)
 endif()
@@ -87,7 +89,7 @@ set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
 set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
 set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
 
-# Include debian specific configuration file:
+# Include Debian specific configuration file:
 # - overrides directories set by ov_cpack_set_dirs()
 # - merges some components
 if(CPACK_GENERATOR STREQUAL "DEB")

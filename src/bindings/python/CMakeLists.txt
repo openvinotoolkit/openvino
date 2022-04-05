@@ -47,4 +47,6 @@ if(ENABLE_OV_CORE_UNIT_TESTS)
     add_dependencies(pyopenvino pybind_mock_frontend)
 endif()
 
-ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+if(InferenceEngineDeveloperPackage_FOUND)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()

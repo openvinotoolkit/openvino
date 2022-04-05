@@ -12,10 +12,6 @@ set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.cpp)
 
-if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
-
 # create target
 
 pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
