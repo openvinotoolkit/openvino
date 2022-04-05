@@ -1,4 +1,4 @@
-# OpenVINO Samples {#openvino_docs_IE_DG_Samples_Overview}
+# OpenVINO Samples {#openvino_docs_OV_UG_Samples_Overview}
 
 @sphinxdirective
 

@@ -38,7 +38,7 @@ The table below shows which distribution type can be used depending on target op
 | Debian packages | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit |
 | RMP packages | Red Hat Enterprise Linux 8, 64-bit |
 | Docker images | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
-| PyPi (pip package manager) | All operation systems |
+| PyPi (pip package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operation systems |
 | [Local distribution](local-distribution.md) | All operation systems |
 | [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operation systems |
@@ -63,6 +63,6 @@ The _optional_ means that if the application does not use the capability enabled
 
 The information above covers granularity aspects of majority distribution types, more detailed information is only needed and provided in [Local Distribution](local-distribution.md).
 
-> **NOTE**: Depending on target OpenVINO devices, you also have to use [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or [Configurations for HDDL](../../install_guides/installing-openvino-config-ivad-vpu.md) for proper configuration of deployed machines.
+> **NOTE**: Depending on target OpenVINO devices, you also have to use [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or [Configurations for VPU](../../install_guides/installing-openvino-config-ivad-vpu.md) for proper configuration of deployed machines.
 
 [deployment_simplified]: ../../img/deployment_simplified.png

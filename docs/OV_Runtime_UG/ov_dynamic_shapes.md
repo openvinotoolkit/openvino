@@ -36,6 +36,7 @@ Apply those methods only if native dynamic shape API described in the following 
 
 The decision about using dynamic shapes should be based on proper benchmarking of real application with real data.
 That's because unlike statically shaped models, inference of dynamically shaped ones takes different inference time depending on input data shape or input tensor content.
+Also using the dynamic shapes can bring more overheads in memory and running time per each inference call depending on hardware plugin and model used.
 
 ## Dynamic Shapes without Tricks
 
@@ -77,10 +78,10 @@ If such a model is converted with Model Optimizer or read directly by Core::read
 Such dimensions automatically treated as dynamic ones.
 So you don't need to call reshape if undefined dimensions are already configured in the original model or in the IR file.
 
-If the input model has undefined dimensions that you are not going to change during the inference, you can set them to static values, using the same `reshape` method of the model.
+If the input model has undefined dimensions that you are not going to change during the inference, it is recommended to set them to static values, using the same `reshape` method of the model.
 From the API perspective any combination of dynamic and static dimensions can be configured.
 
-Model Optimizer provides capability to reshape the model during the conversion, including specifying dynamic dimensions.
+Model Optimizer provides identical capability to reshape the model during the conversion, including specifying dynamic dimensions.
 Use this capability to save time on calling `reshape` method in the end application.
 To get information about setting input shapes using Model Optimizer, refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md)
 

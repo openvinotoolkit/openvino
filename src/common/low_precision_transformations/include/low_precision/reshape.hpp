@@ -16,7 +16,7 @@ namespace low_precision {
  * @brief ReshapeTransformation propagates dequantization operations through Reshape operation.
  *
  * For more details about the transformation, refer to
- * [ReshapeTransformation](@ref openvino_docs_IE_DG_lpt_ReshapeTransformation) page
+ * [ReshapeTransformation](@ref openvino_docs_OV_UG_lpt_ReshapeTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReshapeTransformation : public LayerTransformation {
