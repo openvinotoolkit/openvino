@@ -226,7 +226,8 @@ void irdft_calculation(const float* input_data,
     print_vector(input_fft_strides, "input_fft_strides: ");
     print_vector(input_outer_strides, "input_outer_strides: ");
 
-    const int64_t last_axis_upper_bound = fft_lengths.back();
+    const int64_t last_axis_upper_bound = fft_lengths.back() / 2 + 1;
+    std::cout << "last_axis_upper_bound: " << last_axis_upper_bound << "\n";
     // Loop along with 'outer' dimensions, that is along with
     // not transformed dimensions.
     for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx) {
@@ -234,6 +235,18 @@ void irdft_calculation(const float* input_data,
         int64_t outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, input_outer_strides);
         print_vector(outer_coords, "outer_coords: ");
         std::cout << "outer_input_offset: " << outer_input_offset << "\n";
+
+        // Copying current data to transform
+        bool blob_is_zero = copy_data_from_input_and_check_is_blob_zero(data.data(),
+                                                                        complex_input_data_ptr,
+                                                                        outer_input_offset,
+                                                                        fft_size,
+                                                                        fft_strides,
+                                                                        input_fft_lengths,
+                                                                        input_fft_strides,
+                                                                        last_axis_upper_bound);
+        if (!blob_is_zero) {
+        }
     }
 }
 
