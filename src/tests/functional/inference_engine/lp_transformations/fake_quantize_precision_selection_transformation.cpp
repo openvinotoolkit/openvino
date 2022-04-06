@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,8 +89,8 @@ public:
                 testValues.actual.fakeQuantizeOnWeights
             });
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                {0, testValues.precisionsOnActivationForLimitedOperation},
                {1, { element::i8 }}
            })
@@ -133,7 +133,7 @@ public:
 
 TEST_P(FakeQuantizePrecisionSelectionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

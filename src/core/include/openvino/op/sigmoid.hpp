@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief Sigmoid operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Sigmoid : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sigmoid", "opset1", util::UnaryElementwiseArithmetic);

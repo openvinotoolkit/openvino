@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>
         return;
     if (auto a = as_type<AttributeAdapter<std::set<std::string>>>(&adapter)) {
         std::set<std::string> ss;
-        str_to_container(val, ss);
+        str_to_set_of_strings(val, ss);
         a->set(ss);
     } else {
         IE_THROW() << "Not implemented";

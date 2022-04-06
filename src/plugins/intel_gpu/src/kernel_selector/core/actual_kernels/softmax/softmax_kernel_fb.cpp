@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,5 +94,26 @@ KernelsData SoftmaxKernel_fb::GetKernelsData(const Params& params, const optiona
         return {};
     }
     return GetCommonKernelsData(params, optParams);
+}
+
+JitConstants SoftmaxKernel_fb::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
+
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_main = {"_MAIN",
+                                           {"global_id", "LWS * i", "0", "0"},
+                                           "dequantized",
+                                           input_dt};
+        FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",
+                                                {"global_id", "LWS * ITEMS_NUM", "0", "0"},
+                                                "dequantized",
+                                                input_dt};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_main, conf_leftovers}));
+    }
+
+    return jit;
 }
 }  // namespace kernel_selector

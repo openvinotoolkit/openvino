@@ -34,8 +34,7 @@ class attribute value should be set to the `module + "." + layer` value so the e
 operation.
 
 Here is a simplified example of the extractor for the custom operation Proposal from Faster-R-CNN model mentioned above.
-The full code with additional checks is provided in the
-`<INSTALL_DIR>/tools/model_optimizer/extensions/front/caffe/proposal_python_ext.py`. The sample code uses
+The full code with additional checks is provided in the [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py) file. The sample code uses
 operation `ProposalOp` which corresponds to `Proposal` operation described in the [Available Operations Sets](../../../ops/opset.md)
 document. Refer to the source code below for a detailed explanation of the extractor.
 
@@ -84,5 +83,5 @@ class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
 ```
 
 ## See Also
+
 * [Customize_Model_Optimizer](Customize_Model_Optimizer.md)
-* [Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md)

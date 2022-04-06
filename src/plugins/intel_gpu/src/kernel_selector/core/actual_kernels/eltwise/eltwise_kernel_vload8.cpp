@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,18 +45,18 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
                 (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
                 return false;
         }
-        if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.output.Feature().v % 32 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.output.Feature().v % 8 != 0) ||
-            ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.output.Feature().v % 16 != 0 || ewParams.output.Batch().v % 32 != 0)) ||
-            (ewParams.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.output.Feature().v % 32 != 0 || ewParams.output.Batch().v % 32 != 0)))
+        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
             return false;
 
-    const auto& output = ewParams.output;
+    const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
 
     const bool bSupportedCount = (count % 8) == 0;
@@ -65,7 +65,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
         if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.output) &&
+            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) &&
              ewParams.inputs[i].PhysicalSize() != 1))
             bCheckSizes = false;
     }

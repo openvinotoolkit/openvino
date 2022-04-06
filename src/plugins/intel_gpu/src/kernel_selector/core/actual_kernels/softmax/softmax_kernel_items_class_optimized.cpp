@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
 
     auto& input = params.inputs[0];
 
-    const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.output);
+    const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.outputs[0]);
 
     assert(global.size() == 3);
 

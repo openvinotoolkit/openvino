@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,17 +24,17 @@ namespace low_precision {
  * @brief ConcatTransformation propagates dequantization operations through Concat operation.
  *
  * For more details about the transformation, refer to
- * [ConcatTransformation](@ref openvino_docs_IE_DG_lpt_ConcatTransformation) page
+ * [ConcatTransformation](@ref openvino_docs_OV_UG_lpt_ConcatTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConcatTransformation", "0");
     ConcatTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
 
 protected:
     static bool isHandled(

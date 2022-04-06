@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,14 +33,14 @@ ParamsKey ReduceKernelRef::GetSupportedKey() const {
 CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
                                                                      { Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
                                                                      { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws = { params.output.X().v * params.output.Y().v,
-                         params.output.Z().v * params.output.W().v,
-                         params.output.Batch().v * params.output.Feature().v };
+    dispatchData.gws = { params.outputs[0].X().v * params.outputs[0].Y().v,
+                         params.outputs[0].Z().v * params.outputs[0].W().v,
+                         params.outputs[0].Batch().v * params.outputs[0].Feature().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefaul
     const lstm_dynamic_input_params& params) {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::FEATURE }};
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     // 4 * hidden, batch * dir, seq_len
     dispatchData.gws = { out.X().v, out.Batch().v * out.Y().v, out.Feature().v };

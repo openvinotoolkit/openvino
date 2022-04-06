@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -194,144 +194,160 @@ class TestOperations(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_add(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_add(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Add', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_add_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Add', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_add_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Add', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sub(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_sub(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Sub', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sub_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Sub', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sub_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Sub', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_mul(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_mul(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Mul', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_mul_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Mul', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_mul_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Mul', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_div(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_div(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Div', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_div_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Div', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_div_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Div', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_add_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_add_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Add', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_add_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Add', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_add_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Add', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_sub_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_sub_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Sub', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_sub_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Sub', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sub_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Sub', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_mul_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_mul_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Mul', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_mul_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Mul', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_mul_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Mul', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_div_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_div_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, op='Div', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_div_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Div', precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_div_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(
+            *self.create_net_const(**params, op='Div', precision=precision, ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_add_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, op='Add', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_add_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, op='Add', precision=precision, opset=6,
+                                    ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_add_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Add', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_add_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, op='Add', precision=precision, opset=6,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sub_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, op='Sub', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sub_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, op='Sub', precision=precision, opset=6,
+                                    ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sub_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Sub', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_sub_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, op='Sub', precision=precision, opset=6,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_mul_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, op='Mul', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_mul_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, op='Mul', precision=precision, opset=6,
+                                    ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_mul_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Mul', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_mul_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, op='Mul', precision=precision, opset=6,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_div_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, op='Div', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_div_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, op='Div', precision=precision, opset=6,
+                                    ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_div_const_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, op='Div', precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_div_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net_const(**params, op='Div', precision=precision, opset=6,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

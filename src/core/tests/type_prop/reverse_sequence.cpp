@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ TEST(type_prop, reverse_sequence_data_et) {
             auto data = std::make_shared<op::Parameter>(et, PartialShape{4, 4});
             auto seq_lengths = std::make_shared<op::Parameter>(element::i32, PartialShape{4});
 
-            EXPECT_NO_THROW(std::make_shared<op::ReverseSequence>(data, seq_lengths));
+            EXPECT_NO_THROW(const auto unused = std::make_shared<op::ReverseSequence>(data, seq_lengths));
         } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -234,35 +234,16 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         return;
     } while (false);
 
-    auto end_mask_ = op->get_end_mask();
-    auto begin_mask_ = op->get_begin_mask();
-    auto new_axis_mask_ = op->get_new_axis_mask();
-    auto shrink_axis_mask_ = op->get_shrink_axis_mask();
-    std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
-    std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
-    std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
-    std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-
-    // Plugin requires inverted mask values. Consider changing primitive impl to be aligned with the spec.
-    for (auto& b : begin_mask) {
-        b = 1 - b;
-    }
-    for (auto& e : end_mask) {
-        e = 1 - e;
-    }
-
-    auto out_size = tensor_from_dims(op->get_output_shape(0));
-
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
                                                  inputPrimitives[0],
                                                  inputPrimitives[1],
                                                  inputPrimitives[2],
                                                  inputPrimitives[3],
-                                                 begin_mask,
-                                                 end_mask,
-                                                 new_axis_mask,
-                                                 shrink_axis_mask,
-                                                 out_size,
+                                                 op->get_begin_mask(),
+                                                 op->get_end_mask(),
+                                                 op->get_new_axis_mask(),
+                                                 op->get_shrink_axis_mask(),
+                                                 op->get_output_partial_shape(0).to_shape(),
                                                  op->get_friendly_name());
 
     p.AddPrimitive(stridedSlicePrim);

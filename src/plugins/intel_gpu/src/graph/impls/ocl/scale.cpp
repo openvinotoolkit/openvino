@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         args.inputs = {instance.input_memory_ptr(), instance.scale_memory()};
-        args.output = instance.output_memory_ptr();
+        args.outputs = {instance.output_memory_ptr()};
 
         if (_outer.bias_term()) {
             args.inputs.push_back(instance.bias_memory());

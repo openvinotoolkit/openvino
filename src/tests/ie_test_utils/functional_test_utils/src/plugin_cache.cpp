@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ PluginCache &PluginCache::get() {
 }
 
 std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
+    // TODO: Remove it after fixing issue 69529
     // w/a for myriad (cann't store 2 caches simultaneously)
     ov::test::utils::PluginCache::get().reset();
 
@@ -55,7 +56,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
 
     // register template plugin if it is needed
     try {
-        std::string pluginName = "ov_template_plugin";
+        std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ie_core->RegisterPlugin(pluginName, "TEMPLATE");
     } catch (...) {}

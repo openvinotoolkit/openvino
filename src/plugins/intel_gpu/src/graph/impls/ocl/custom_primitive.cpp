@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep->output_memory_ptr());
         }
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
     }
 
@@ -70,7 +70,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep->output_memory_ptr());
         }
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
     }
 };

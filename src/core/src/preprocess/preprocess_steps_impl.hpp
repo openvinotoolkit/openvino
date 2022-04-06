@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,7 @@ public:
     void add_scale_impl(const std::vector<float>& values);
     void add_mean_impl(const std::vector<float>& values);
     void add_convert_impl(const element::Type& type);
+    void add_crop_impl(const std::vector<int>& begin, const std::vector<int>& end);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);

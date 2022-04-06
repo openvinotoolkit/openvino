@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"

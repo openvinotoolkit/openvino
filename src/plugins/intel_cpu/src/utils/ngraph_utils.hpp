@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,8 @@
 #include <ngraph/variant.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
     auto it = rtInfo.find(paramName);
@@ -47,4 +48,5 @@ inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
     return ret;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

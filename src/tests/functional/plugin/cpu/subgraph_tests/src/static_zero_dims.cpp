@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace ov::test;
@@ -40,7 +40,7 @@ protected:
         function = std::make_shared<ngraph::Function>(results, inputParams, "StaticZeroDims");
     }
 
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         ASSERT_EQ(expected.size(), actual.size());
         for (size_t i = 0; i < expected.size(); i++) {
             // skip second output tensor because it's output ExperimentalDetectronTopKROIs: input dims [0, 4]

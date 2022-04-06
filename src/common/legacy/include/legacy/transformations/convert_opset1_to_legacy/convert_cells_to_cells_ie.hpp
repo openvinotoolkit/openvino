@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,18 +24,18 @@ class ConvertRNNCellMatcher;
 
 class ngraph::pass::ConvertLSTMCellMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertLSTMCellMatcher", "0");
     ConvertLSTMCellMatcher();
 };
 
 class ngraph::pass::ConvertGRUCellMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGRUCellMatcher", "0");
     ConvertGRUCellMatcher();
 };
 
 class ngraph::pass::ConvertRNNCellMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertRNNCellMatcher", "0");
     ConvertRNNCellMatcher();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2020-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,11 @@
 #include <ngraph/variant.hpp>
 
 #include "jit_emitter.hpp"
+
 using namespace Xbyak;
-namespace MKLDNNPlugin {
+
+namespace ov {
+namespace intel_cpu {
 
 #define SNIPPETS_MAX_SNIPPETS_DIMS 7
 #define SNIPPETS_MAX_HARNESS_DIMS 5
@@ -24,7 +27,7 @@ struct jit_snippets_compile_args {
     int64_t scheduler_dims[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    std::vector<int64_t> output_dims = {};
+    std::vector<size_t> output_dims = {};
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel calculates appropriate data offsets,
@@ -46,14 +49,14 @@ struct jit_snippets_compile_args {
 /// \param      in[0]       The number of the node inputs
 /// \param      in[1]      The number of the node outputs
 ///
-// Todo: Scheduler dims and offsets are currently calculated in MKLDNN Subgraph node and passed to the KernelEmitter.
+// Todo: Scheduler dims and offsets are currently calculated in Subgraph node and passed to the KernelEmitter.
 //  However, it seems more natural to calculate all the offsets right in the Kernel op, because the calculation is
 //  not device-specific. It is based only on input/output dims (which we already know) and harness num dims
 //  (which we should pass from the plugin). It seems also better to wrap the enclosed emitters in tiles in the Kernel op
 //  and avoid creating empty tiles.
 class KernelEmitter : public jit_emitter {
 public:
-    KernelEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
+    KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
@@ -94,7 +97,7 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
         const size_t num_inputs = in[0];
         const size_t num_outputs = in[1];
         const size_t num_params = num_inputs + num_outputs;
@@ -154,7 +157,7 @@ private:
 //  if the same data needs to be read twice. Better to move all the pointer increments to TileEmitter and avoid the increments if necessary.
 class TileEmitter : public jit_emitter {
 public:
-    TileEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
+    TileEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
@@ -195,7 +198,7 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
         const size_t inc = in[0];
         const size_t previous_inc = in[1]; // increment of a previous tile in the same dim (0 if the first tile in the dim)
         const size_t num_params = in[2];
@@ -293,7 +296,7 @@ private:
 
 class NopEmitter : public jit_emitter {
 public:
-    NopEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    NopEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
     }
 
@@ -304,13 +307,13 @@ private:
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
-                   const MKLDNNPlugin::emitter_context *emit_context) const override {
+                   const ov::intel_cpu::emitter_context *emit_context) const override {
     }
 };
 
 class FakeBroadcastEmitter : public jit_emitter {
 public:
-    FakeBroadcastEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    FakeBroadcastEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         if (n->get_input_shape(0).empty())
             use_broadcast = true;
@@ -326,7 +329,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -359,15 +362,9 @@ private:
 
 class ScalarEmitter : public jit_emitter {
 public:
-    ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        auto out_pshape = n->output(0).get_tensor().get_partial_shape();
-        if (out_pshape.is_dynamic())
-            IE_THROW() << "ScalarEmitter supports only static input shapes";
-        if ( out_pshape.get_shape() != ov::Shape() && ov::shape_size(out_pshape.get_shape()) != 1)
-            IE_THROW() << "ScalarEmitter got invalid shape";
-        value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
-
+        value = dnnl::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
         push_arg_entry_of("scalar", value, true);
         prepare_table();
     }
@@ -382,7 +379,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -418,7 +415,7 @@ private:
 /// Blocked parameter to tell if input is actually blocked. Broadcast means broadcast by W in other cases no need to substitute load.
 class MemoryEmitter : public jit_emitter  {
 public:
-    MemoryEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n), ea(getEA(n)) {
     }
 
@@ -442,7 +439,7 @@ protected:
 
 class StoreEmitter : public MemoryEmitter  {
 public:
-    StoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -453,7 +450,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -473,13 +470,13 @@ private:
         Reg64 out_reg(ea);
         Vmm vmm_src0 = Vmm(in[0]);
         h->uni_vmovups(h->ptr[out_reg], vmm_src0);
-        h->add(out_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+        h->add(out_reg, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
     }
 };
 
 class ScalarStoreEmitter : public MemoryEmitter {
 public:
-    ScalarStoreEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarStoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
 
@@ -490,7 +487,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -516,7 +513,7 @@ private:
 
 class LoadEmitter : public MemoryEmitter {
 public:
-    LoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
 
@@ -527,7 +524,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -549,7 +546,7 @@ private:
         h->uni_vmovups(vmm_src0, h->ptr[in_reg]);
 
         if (shouldPostIncrement) {
-            h->add(in_reg, mkldnn::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
+            h->add(in_reg, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen);
         }
     }
 
@@ -559,7 +556,7 @@ private:
 
 class BroadcastLoadEmitter : public MemoryEmitter {
 public:
-    BroadcastLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     }
     size_t get_inputs_num() const override {return 0;}
@@ -569,7 +566,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -597,7 +594,7 @@ private:
 
 class ScalarLoadEmitter : public MemoryEmitter {
 public:
-    ScalarLoadEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+    ScalarLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n), shouldPostIncrement(*n->get_input_shape(0).rbegin() != 1) {
     }
     size_t get_inputs_num() const override {return 0;}
@@ -607,7 +604,7 @@ private:
               const std::vector<size_t>& out,
               const std::vector<size_t>& pool,
               const std::vector<size_t>& gpr,
-              const MKLDNNPlugin::emitter_context *emit_context) const override {
+              const ov::intel_cpu::emitter_context *emit_context) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -638,4 +635,5 @@ private:
     bool shouldPostIncrement;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

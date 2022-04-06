@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,15 @@
 #include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /// LOAD ///
 jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa,
@@ -35,7 +36,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
-    const auto* load_emitter_context = dynamic_cast<const MKLDNNPlugin::load_emitter_context*>(emit_context);
+    const auto* load_emitter_context = dynamic_cast<const ov::intel_cpu::load_emitter_context*>(emit_context);
     if (load_emitter_context == nullptr) {
         IE_THROW() << "Load emitter in " << name << " does not get load emmiter context.";
     }
@@ -54,7 +55,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, InferenceEngine::Precision src_prc,
     const int out_vec_idx, InferenceEngine::Precision dst_prc, int load_num, bool is_fill, std::string fill_value) const {
     bool matched_prc = (dst_prc == src_prc) || (dst_prc == Precision::FP32) || (dst_prc == Precision::I32);
@@ -515,7 +516,7 @@ void jit_store_emitter::emit_data() const {
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
-    const auto* store_emitter_context = dynamic_cast<const MKLDNNPlugin::store_emitter_context*>(emit_context);
+    const auto* store_emitter_context = dynamic_cast<const ov::intel_cpu::store_emitter_context*>(emit_context);
     if (store_emitter_context == nullptr) {
         IE_THROW() << "Store emitter in " << name << " does not get store emmiter context.";
     }
@@ -533,7 +534,7 @@ void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std:
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void jit_store_emitter::emit_isa(const int in_vec_idx, InferenceEngine::Precision src_prc,
         const Xbyak::Reg64 &reg_dst, int offset_byte, InferenceEngine::Precision dst_prc, int store_num) const {
         bool matched_prc = (src_prc == dst_prc) || (src_prc == Precision::FP32) || (src_prc == Precision::I32);
@@ -886,4 +887,5 @@ template <typename Vmm>
         }
     }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

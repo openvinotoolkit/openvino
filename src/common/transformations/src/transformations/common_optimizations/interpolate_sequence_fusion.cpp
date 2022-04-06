@@ -1,21 +1,21 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/common_optimizations/interpolate_sequence_fusion.hpp"
 
 #include <algorithm>
 #include <memory>
+#include <ngraph/opsets/opset8.hpp>
 #include <numeric>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include <ngraph/opsets/opset8.hpp>
+#include "itt.hpp"
 // #include <ngraph/op/interpolate.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 namespace {
 using namespace ngraph;
@@ -23,7 +23,8 @@ using namespace ngraph;
 bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vector<int64_t>& snd_axes_vector) {
     std::set<int64_t> fst_axes_set(fst_axes_vector.begin(), fst_axes_vector.end());
     for (const auto& a : snd_axes_vector) {
-        if (fst_axes_set.count(a) != 0) return false;
+        if (fst_axes_set.count(a) != 0)
+            return false;
     }
     return true;
 }
@@ -31,14 +32,16 @@ bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vec
 bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<opset8::Interpolate>& interpolate) {
     const auto& attrs = interpolate->get_attrs();
     if (attrs.shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
-        return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1).get_node_shared_ptr()) != nullptr;
+        return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1).get_node_shared_ptr()) !=
+               nullptr;
     }
     return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(2).get_node_shared_ptr()) != nullptr;
 }
 
 bool is_candidate_for_fusion(const std::shared_ptr<opset8::Interpolate>& interpolate) {
     return (interpolate->get_input_partial_shape(0).rank().is_static()) &&
-           (interpolate->inputs().size() != 4 || std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())) &&
+           (interpolate->inputs().size() != 4 ||
+            std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())) &&
            shape_calculation_mode_can_use_constant_inputs(interpolate);
 }
 
@@ -51,31 +54,36 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<opset8::Interpo
 
         return default_value;
     }
-    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
+    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())
+        ->cast_vector<int64_t>();
 }
 
 bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
     // The first Interpolate (fst) must have only one consumer.
     for (const auto& output : fst->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
-            if (consumer.get_node() != snd.get()) return false;
+            if (consumer.get_node() != snd.get())
+                return false;
         }
     }
 
-    if (fst->get_attrs() != snd->get_attrs() || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd)) return false;
+    if (fst->get_attrs() != snd->get_attrs() || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd))
+        return false;
 
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     return compatible_axes(fst_axes, snd_axes);
 }
 
-ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd,
+ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst,
+                                                       const std::shared_ptr<opset8::Interpolate>& snd,
                                                        pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_sizes_node = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1).get_node_shared_ptr());
     const auto snd_sizes_node = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1).get_node_shared_ptr());
-    if (!fst_sizes_node || !snd_sizes_node) return {};
+    if (!fst_sizes_node || !snd_sizes_node)
+        return {};
 
     const auto fst_sizes = fst_sizes_node->cast_vector<int64_t>();
     const auto snd_sizes = snd_sizes_node->cast_vector<int64_t>();
@@ -109,20 +117,30 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ops
 
     auto div_node = std::make_shared<opset8::Divide>(new_sizes_cast, cast_shape_to_float);
 
-    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(fst->clone_with_new_inputs({fst->input_value(0), new_sizes_node, div_node,
-                                                                      new_axes_node}));
+    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(
+        fst->clone_with_new_inputs({fst->input_value(0), new_sizes_node, div_node, new_axes_node}));
     matcherPass->register_new_node(new_interpolate);
 
-    return {new_sizes_node, new_axes_node, new_sizes_cast, shape_node, gather_axis_node, gather_node, cast_shape_to_float, div_node, new_interpolate};
+    return {new_sizes_node,
+            new_axes_node,
+            new_sizes_cast,
+            shape_node,
+            gather_axis_node,
+            gather_node,
+            cast_shape_to_float,
+            div_node,
+            new_interpolate};
 }
 
-ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd,
+ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst,
+                                                        const std::shared_ptr<opset8::Interpolate>& snd,
                                                         pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_scales_node = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2).get_node_shared_ptr());
     const auto snd_scales_node = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2).get_node_shared_ptr());
-    if (!fst_scales_node || !snd_scales_node) return {};
+    if (!fst_scales_node || !snd_scales_node)
+        return {};
 
     const auto fst_scales = fst_scales_node->cast_vector<float>();
     const auto snd_scales = snd_scales_node->cast_vector<float>();
@@ -159,28 +177,40 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
     auto floor_node = std::make_shared<opset8::Floor>(add_node);
     auto cast_mul_result_to_int = std::make_shared<opset8::Convert>(floor_node, element::i64);
 
-    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int,
-                                                                                                  new_scales_node, new_axes_node}));
+    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(
+        fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int, new_scales_node, new_axes_node}));
     matcherPass->register_new_node(new_interpolate);
 
-    return {new_scales_node, new_axes_node, shape_node, gather_axis_node, gather_node, cast_shape_to_float, mul_node, eps_node,
-            add_node, floor_node, cast_mul_result_to_int, new_interpolate};
+    return {new_scales_node,
+            new_axes_node,
+            shape_node,
+            gather_axis_node,
+            gather_node,
+            cast_shape_to_float,
+            mul_node,
+            eps_node,
+            add_node,
+            floor_node,
+            cast_mul_result_to_int,
+            new_interpolate};
 }
-} // namespace
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InterpolateSequenceFusion, "InterpolateSequenceFusion", 0);
+}  // namespace
 
 ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
-        if (!snd_interpolate) return false;
+        if (!snd_interpolate)
+            return false;
 
-        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
-        if (!fst_interpolate) return false;
+        auto fst_interpolate =
+            std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
+        if (!fst_interpolate)
+            return false;
 
-        if (!can_be_fused(fst_interpolate, snd_interpolate)) return false;
+        if (!can_be_fused(fst_interpolate, snd_interpolate))
+            return false;
 
         NodeVector new_subgraph;
         if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
@@ -188,7 +218,8 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         } else {
             new_subgraph = subgraph_for_scales_calculation_mode(fst_interpolate, snd_interpolate, this);
         }
-        if (new_subgraph.empty()) return false;
+        if (new_subgraph.empty())
+            return false;
 
         auto& new_interpolate = new_subgraph.back();
         new_interpolate->set_friendly_name(snd_interpolate->get_friendly_name());

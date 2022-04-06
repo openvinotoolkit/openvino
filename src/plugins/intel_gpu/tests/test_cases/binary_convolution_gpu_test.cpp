@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,9 +189,9 @@ TEST_P(binary_convolution_test, conv) {
 
     TestParams p = GetParam();
 
-    cldnn::tensor stride = cldnn::tensor{cldnn::batch(1), cldnn::feature(1), cldnn::spatial(p.sw, p.sh)};
-    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(p.pw, p.ph)};
-    cldnn::tensor dilation = {1,1,1,1};
+    ov::Strides stride = {static_cast<uint64_t>(p.sh), static_cast<uint64_t>(p.sw)};
+    ov::CoordinateDiff pad = {p.ph, p.pw};
+    ov::Strides dilation = {1,1};
 
     cldnn::tensor is_size{ cldnn::batch(p.b),
                            cldnn::feature(p.ic),
@@ -358,9 +358,9 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
             input_layout("input", input->get_layout()),
             data("weights", weights),
             binary_convolution("binary_conv", "input", { "weights" },
-                               { 1,1,1,1 },
-                               { 0,0,0,0 },
-                               { 1,1,1,1 },
+                               { 1,1 },
+                               { 0,0 },
+                               { 1,1 },
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f32,
@@ -384,10 +384,10 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f32);
-    EXPECT_EQ(output_layout.size.batch[0], 1);
-    EXPECT_EQ(output_layout.size.feature[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 2);
+    EXPECT_EQ(output_layout.batch(), 1);
+    EXPECT_EQ(output_layout.feature(), 4);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++)
     {
@@ -442,9 +442,9 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
             input_layout("input", input->get_layout()),
             data("weights", weights),
             binary_convolution("binary_conv", "input", { "weights" },
-                               { 1,1,1,1 },
-                               { 0,0,0,0 },
-                               { 1,1,1,1 },
+                               { 1,1 },
+                               { 0,0 },
+                               { 1,1 },
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f16,
@@ -468,10 +468,10 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f16);
-    EXPECT_EQ(output_layout.size.batch[0], 1);
-    EXPECT_EQ(output_layout.size.feature[0], 4);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 2);
+    EXPECT_EQ(output_layout.batch(), 1);
+    EXPECT_EQ(output_layout.feature(), 4);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++) {
         EXPECT_EQ(float16_to_float32(output_ptr[i]), output_vec[i]) << "index="<< i;

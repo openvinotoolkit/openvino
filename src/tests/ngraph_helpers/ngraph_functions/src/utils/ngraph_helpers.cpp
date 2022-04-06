@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,15 +137,15 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         auto& output = outputs[resultIndex];
         output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
+        output.second.resize((shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() + 7) >> 3);
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
 
     return outputs;
 }
 
-std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
-                                                   const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs) {
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
+                                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     auto backend = runtime::Backend::create();
 
     const auto &funcInputs = function->inputs();
@@ -163,7 +163,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
         const auto &inputSize = shape_size(inputShape) * inputType.size();
 
         auto inputIt = std::find_if(inputs.begin(), inputs.end(),
-                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> elem) {
+                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::Tensor> elem) {
             return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
         });
         if (inputIt == inputs.end()) {
@@ -190,9 +190,9 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-    std::vector<ov::runtime::Tensor> outputs;
+    std::vector<ov::Tensor> outputs;
     for (const auto& outTensor : outputTensors) {
-        ov::runtime::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
+        ov::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
         outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
         outputs.push_back(tmpBuffer);
     }
@@ -278,7 +278,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
 namespace {
 
 std::string toString(const NodeTypeInfo& typeInfo) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
@@ -339,7 +341,9 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
             ngraphNode->validate_and_infer_types();
             return ngraphNode;
         }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_UNREACHABLE("supported opsets does not contain op with name: ", type_info.name, " version: ", type_info.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {

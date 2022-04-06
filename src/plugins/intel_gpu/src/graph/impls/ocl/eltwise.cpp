@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ public:
         }
 
         for (size_t i = 0; i < ew_params.inputs.size(); i++) {
-            if (!ew_params.inputs[i].SameDims(ew_params.output)) {
+            if (!ew_params.inputs[i].SameDims(ew_params.outputs[0])) {
                 std::vector<int32_t> input_size = arg.input(i).get_output_layout().size.raw.vector();
                 std::vector<int32_t> output_size = arg.get_output_layout().size.raw.vector();
                 bool broadcast = false;

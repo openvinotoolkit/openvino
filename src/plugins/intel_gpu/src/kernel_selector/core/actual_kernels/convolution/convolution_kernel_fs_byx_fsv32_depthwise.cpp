@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
 
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
-        if (cp.output.X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
             return {w, AGE_BASED};
     }
 
@@ -79,8 +79,8 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
     size_t minLeftover = static_cast<size_t>(-1);
     size_t foundWidth = 0;
     for (auto w : optBlockWidths) {
-        if (getMinRegisterUsage(cp, w) < regThreshold && Pad(cp.output.X().v, w) < minLeftover) {
-            minLeftover = Pad(cp.output.X().v, w);
+        if (getMinRegisterUsage(cp, w) < regThreshold && Pad(cp.outputs[0].X().v, w) < minLeftover) {
+            minLeftover = Pad(cp.outputs[0].X().v, w);
             foundWidth = w;
         }
     }
@@ -90,7 +90,7 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
-        if (cp.output.X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
             return {w, AGE_BASED};
     }
 
@@ -112,9 +112,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_depthwise::Se
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 16;
 
-    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
-    dispatchData.gws[1] = arg.output.Y().v;
-    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.outputs[0].X().v, option.blockWidth);
+    dispatchData.gws[1] = arg.outputs[0].Y().v;
+    dispatchData.gws[2] = CeilDiv(arg.outputs[0].Feature().v, 32) * 16 * arg.outputs[0].Batch().v;
 
     return dispatchData;
 }
@@ -131,11 +131,11 @@ bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p, const o
     if (cp.groups < 16)
         return false;
 
-    if (cp.inputs[0].Feature().v != cp.groups || cp.output.Feature().v != cp.groups)
+    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
         return false;
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.output.Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0)
         return false;
 
     // Input feature padding must be multiple of fsv to keep block alignment

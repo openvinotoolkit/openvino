@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(cons
     DispatchData dispatchData;
 
     // Determine global work sizes.
-    dispatchData.gws = { params.output.LogicalSize(), 1, 1 };
+    dispatchData.gws = { params.outputs[0].LogicalSize(), 1, 1 };
 
     // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
@@ -155,9 +155,43 @@ bool FullyConnectedKernelBase::Validate(const Params& p, const optional_params&)
     return true;
 }
 
-Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {
+Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_params& params) const {
     if (params.quantization != QuantizationType::NONE)
+        return Datatype::INT32;
+
+    auto in_dt = params.inputs[0].GetDType();
+    auto wei_dt = params.weights.GetDType();
+
+    auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
+    auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
+
+    // This case should be always false, because quantization type is not NONE
+    if (quantized_inputs && quantized_weights)
+        return Datatype::INT32;
+
+    // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
+    if (quantized_inputs || quantized_weights)
         return Datatype::F32;
+
+    return params.inputs[0].GetDType();
+}
+
+Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {
+    auto in_dt = params.inputs[0].GetDType();
+    auto wei_dt = params.weights.GetDType();
+    auto out_dt = params.outputs[0].GetDType();
+
+    auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
+    auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
+
+    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
+        return Datatype::F32;
+
+    auto output_is_int8 = out_dt == Datatype::UINT8 || out_dt == Datatype::INT8;
+    auto input_is_fp = in_dt == Datatype::F32 || in_dt == Datatype::F16;
+
+    if (output_is_int8 && input_is_fp)
+        return in_dt;
 
     return GetUnitType(params);
 }

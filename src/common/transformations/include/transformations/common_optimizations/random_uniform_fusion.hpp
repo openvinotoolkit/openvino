@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API RandomUniformFusion;
  */
 class ngraph::pass::RandomUniformFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RandomUniformFusion", "0");
     RandomUniformFusion();
 };

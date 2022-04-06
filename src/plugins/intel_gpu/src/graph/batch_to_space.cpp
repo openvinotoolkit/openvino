@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,12 +53,12 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node) 
     for (size_t i = 0; i < spatial_num; ++i)
         block_sizes_multiplied *= block_shape.spatial[i];
 
-    if (input_layout.size.batch[0] % block_sizes_multiplied != 0)
+    if (input_layout.batch() % block_sizes_multiplied != 0)
         CLDNN_ERROR_MESSAGE(node.id(),
             "The batch of the input tensor must be divisible by multiplied block sizes = " +
             std::to_string(block_sizes_multiplied));
 
-    if (crops_begin.feature[0] + crops_end.feature[0] >= block_shape.feature[0] * input_layout.size.feature[0])
+    if (crops_begin.feature[0] + crops_end.feature[0] >= block_shape.feature[0] * input_layout.feature())
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Output dimensions must be positive");
 

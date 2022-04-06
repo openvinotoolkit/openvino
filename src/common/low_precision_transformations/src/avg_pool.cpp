@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,14 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AvgPoolTransformation, "AvgPoolTransformation", 0);
-
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(AvgPoolTransformation);
     auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -29,7 +29,7 @@ AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "AvgPoolTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -38,9 +38,9 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const bool updatePrecision = isPrecisionPreserved(pooling);
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), updatePrecision);
     return true;
 }
 
@@ -49,7 +49,7 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    auto dequantization = NetworkHelper::getDequantization(operation);
+    auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
 
     return !dequantization.empty();
 }

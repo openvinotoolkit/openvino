@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
     auto newParams = orgParams;
     newParams.inputs.resize(1);
     newParams.inputs[0] = input;
-    auto out = newParams.output;
+    auto out = newParams.outputs[0];
     // TODO: reorder weights if needed
     auto& kernel = kd.kernels[0];
     auto cldnnJit = GetJitConstants(newParams);

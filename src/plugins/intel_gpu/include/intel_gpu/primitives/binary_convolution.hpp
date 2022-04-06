@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -36,9 +38,9 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     binary_convolution(const primitive_id& id,
                        const primitive_id& input,
                        const std::vector<primitive_id>& weights,
-                       tensor stride = {1, 1, 1, 1},
-                       tensor pad = {0, 0, 0, 0},
-                       tensor dilation = {1, 1, 1, 1},
+                       ov::Strides stride = {1, 1},
+                       ov::CoordinateDiff pad = {0, 0},
+                       ov::Strides dilation = {1, 1},
                        tensor output_size = {0, 0, 0, 0},
                        int groups = 1,
                        float pad_value = 0.0f,
@@ -55,13 +57,13 @@ struct binary_convolution : public primitive_base<binary_convolution> {
           weights(weights) {}
 
     /// @brief Defines logical pad value added to input tensor
-    tensor pad;
+    ov::CoordinateDiff pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
-    tensor stride;
+    ov::Strides stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal binary_convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
     /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
-    tensor dilation;
+    ov::Strides dilation;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.

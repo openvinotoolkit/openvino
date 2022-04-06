@@ -1,9 +1,8 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-from addict import Dict
 from cv2 import imread, resize as cv2_resize
 
 from openvino.tools.pot import Metric, DataLoader, IEEngine, \
@@ -20,10 +19,8 @@ init_logger(level='INFO')
 class ImageNetDataLoader(DataLoader):
 
     def __init__(self, config):
-        if not isinstance(config, Dict):
-            config = Dict(config)
         super().__init__(config)
-        self._annotations, self._img_ids = self._read_img_ids_annotations(config)
+        self._annotations, self._img_ids = self._read_img_ids_annotations(self.config)
 
     def __len__(self):
         return len(self._img_ids)
@@ -32,9 +29,8 @@ class ImageNetDataLoader(DataLoader):
         if index >= len(self):
             raise IndexError
 
-        annotation = (index, self._annotations[self._img_ids[index]])\
-            if self._annotations else (index, None)
-        return annotation, self._read_image(self._img_ids[index])
+        annotation = self._annotations[self._img_ids[index]] if self._annotations else None
+        return self._read_image(self._img_ids[index]), annotation
 
     # Methods specific to the current implementation
     @staticmethod
@@ -65,7 +61,7 @@ class ImageNetDataLoader(DataLoader):
         """
         image = imread(os.path.join(self.config.data_source, index))
         image = self._preprocess(image)
-        return image.transpose(2, 0, 1)
+        return image
 
     def _preprocess(self, image):
         """ Does preprocessing of an image according to the preprocessing config.
@@ -86,11 +82,6 @@ class Accuracy(Metric):
         self._top_k = top_k
         self._name = 'accuracy@top{}'.format(self._top_k)
         self._matches = []
-
-    @property
-    def value(self):
-        """ Returns accuracy metric value for the last model output. """
-        return {self._name: self._matches[-1]}
 
     @property
     def avg_value(self):
@@ -158,16 +149,16 @@ def get_configs(args):
     if not args.weights:
         args.weights = '{}.bin'.format(os.path.splitext(args.model)[0])
 
-    model_config = Dict({
+    model_config = {
         'model_name': 'sample_model',
         'model': os.path.expanduser(args.model),
         'weights': os.path.expanduser(args.weights)
-    })
-    engine_config = Dict({
+    }
+    engine_config = {
         'device': 'CPU',
         'stat_requests_number': 4,
         'eval_requests_number': 4
-    })
+    }
     dataset_config = {
         'data_source': os.path.expanduser(args.dataset),
         'annotation_file': os.path.expanduser(args.annotation_file),

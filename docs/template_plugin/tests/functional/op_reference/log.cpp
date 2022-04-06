@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,8 @@ struct LogParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceLogLayerTest : public testing::TestWithParam<LogParams>, public CommonReferenceTest {

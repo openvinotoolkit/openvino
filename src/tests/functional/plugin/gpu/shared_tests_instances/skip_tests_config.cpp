@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,8 +77,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
             // Issue connected with OV2.0
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
-            // TODO: Issue 67910
-            R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
             // TODO: Issue: 67486
             R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
@@ -95,5 +93,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
             R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            // need dynamic shapes
+            R"(.*RangeLayerTest.*)",
+            // Issue: 76197
+            R"(.*registerPluginsXMLUnicodePath.*)",
+            // Not supported yet
+            R"(.*CompileModelCacheTestBase.*)",
     };
 }

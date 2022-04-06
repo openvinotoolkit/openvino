@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -60,6 +60,13 @@ class LSTMSequence(Op):
     def backend_attrs(self):
         return [
             'hidden_size',
+            ('activations', lambda node: ','.join(node['activations']) if node.has_and_set('activations') else None),
+            ('activations_alpha', lambda node: ','.join(map(str, node['activations_alpha']))
+                if node.has_and_set('activations_alpha') else None),
+            ('activations_beta', lambda node: ','.join(map(str, node['activations_beta']))
+                if node.has_and_set('activations_beta') else None),
+            'clip',
+            'direction',
         ]
 
     @staticmethod

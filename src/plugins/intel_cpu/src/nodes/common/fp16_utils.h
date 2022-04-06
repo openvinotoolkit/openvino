@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+namespace ov {
+namespace intel_cpu {
 
 typedef short ie_fp16;
 
@@ -80,3 +83,5 @@ inline float f16tof32(ie_fp16 x) {
     return asfloat(u);
 }
 
+}   // namespace intel_cpu
+}   // namespace ov

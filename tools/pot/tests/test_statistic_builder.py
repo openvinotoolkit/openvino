@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -32,11 +32,11 @@ TEST_MODELS = [
      'quantile', 'abs_quantile'),
     ('mobilenetv2_example', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
      'perchannel', 1, None, None),
-    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 42,
      None, None),
-    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 117,
      None, None),
-    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 1,
+    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 53,
      None, None)
 ]
 
@@ -88,7 +88,7 @@ def create_(tmp_path, models, model_name, model_framework, quantization_mode,
 @pytest.mark.parametrize(
     'model_name, model_framework, quantization_mode, inplace_statistics, \
      algorithm,  preset, granularity, add_output_nodes, type_max, type_min', TEST_MODELS,
-    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4],
+    ids=['{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(m[0], m[1], m[2], m[3], m[4].name,
                                              m[5], m[6], m[7], m[8], m[9]) for m in TEST_MODELS])
 def test_statistics_collector_subsets(tmp_path, models, model_name, model_framework,
                                       quantization_mode, inplace_statistics, algorithm,
@@ -105,4 +105,4 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     ir_name = f'{model_name}_stat_{type_max}_{type_min}' if type_min is not None \
         else f'{model_name}_stat_mean'
     check_model(tmp_path, model_with_nodes, ir_name, model_framework)
-    assert len(set(nodes_names[model.name])) == add_output_nodes
+    assert len(set(nodes_names[model.models[0]['model'].name])) == add_output_nodes

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,16 @@ TEST(type_prop, select_deduce) {
     auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 4}));
+}
+
+TEST(type_prop, select_dynamic) {
+    auto param_0 =
+        make_shared<op::Parameter>(element::boolean, PartialShape({{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}}));
+    auto param_1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto param_2 = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+    auto bc = make_shared<op::v1::Select>(param_0, param_1, param_2);
+    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
 }
 
 TEST(type_prop, select_shape_mismatch_a) {

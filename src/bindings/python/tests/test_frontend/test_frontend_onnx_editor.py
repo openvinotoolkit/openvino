@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -1367,12 +1367,14 @@ def test_set_tensor_value():
 
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
+    from openvino.frontend import GeneralFailure
+
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(GeneralFailure) as e:
         model.free_name_for_tensor("add_out")
-    assert "not applicable for ONNX model" in str(e)
+    assert "not applicable for ONNX model" in str(e.value)
 
 
 def test_set_name_for_tensor():
@@ -1389,18 +1391,18 @@ def test_set_name_for_tensor():
 
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="")
-    assert "name must not be empty" in str(e)
+    assert "name must not be empty" in str(e.value)
 
     # ONNX model stores tensor info separately for inputs, outputs and between nodes tensors
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="in1")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="out1")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="sub_out")
-    assert "already used by another tensor" in str(e)
+    assert "already used by another tensor" in str(e.value)
 
     # actual rename
     model.set_name_for_tensor(tensor=tensor, new_name=new_name)
@@ -1497,12 +1499,12 @@ def test_set_name_for_dimension():
 
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(input1, 0, "")
-    assert "name must not be empty" in str(e)
+    assert "name must not be empty" in str(e.value)
 
     one_const = model.get_place_by_tensor_name(tensor_name="one_const")
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
-    assert "ONNX initializer shape dimension cannot be dynamic." in str(e)
+    assert "ONNX initializer shape dimension cannot be dynamic." in str(e.value)
 
 
 def test_set_input_partial_shape_using_input_edge():

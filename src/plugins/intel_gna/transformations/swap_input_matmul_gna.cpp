@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,6 @@
 #include "gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
-
-NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithBias, "SwapInputMatMulWithBias", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithFq, "SwapInputMatMulWithFq", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithAct, "SwapInputMatMulWithAct", 0);
-NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithTrailingTranspose, "SwapInputMatMulWithTrailingTranspose", 0);
 
 static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
@@ -66,17 +60,25 @@ static void SwapAndTransposeInputs(
     gnalog() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
 
     bool first_input_const = false;
+    bool second_input_const = false;
     auto first_input = matmul_node->input_value(0).get_node_shared_ptr();
+    auto second_input = matmul_node->input_value(1).get_node_shared_ptr();
     if (std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(first_input)) {
         first_input = first_input->input_value(0).get_node_shared_ptr();
+    }
+    if (std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(second_input)) {
+        second_input = second_input->input_value(1).get_node_shared_ptr();
     }
     if (std::dynamic_pointer_cast<ngraph::opset8::Constant>(first_input)) {
         first_input_const = true;
     }
+    if (std::dynamic_pointer_cast<ngraph::opset8::Constant>(second_input)) {
+        second_input_const = true;
+    }
 
-    auto input1 = first_input_const ? transpose_matmul_input(1) : matmul_node->input_value(1);
+    auto input1 = (!first_input_const && second_input_const) ? matmul_node->input_value(1) : transpose_matmul_input(1);
     auto input2 = first_input_const ? matmul_node->input_value(0) : transpose_matmul_input(0);
-    bool transpose_1 = first_input_const ? matmul_node->get_transpose_b() : !matmul_node->get_transpose_b();
+    bool transpose_1 = (!first_input_const && second_input_const) ? !matmul_node->get_transpose_b() : matmul_node->get_transpose_b();
     bool transpose_2 = first_input_const ? !matmul_node->get_transpose_a() : matmul_node->get_transpose_a();
     std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset8::MatMul>(input1, input2, transpose_1, transpose_2);
     new_node->set_friendly_name(matmul_node->get_friendly_name() + "/swap_inputs");

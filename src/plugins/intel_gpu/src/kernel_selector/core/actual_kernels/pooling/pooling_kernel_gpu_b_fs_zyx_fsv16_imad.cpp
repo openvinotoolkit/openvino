@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,10 +37,10 @@ ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     auto x = out.X().v;
     auto y = out.Y().v;
     auto z = out.Z().v;
@@ -122,7 +122,7 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "(f+i)", "y", "x"}, "pool_result[i]", input_dt, 1};
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             conf = {"", {"b", "(f+i)", "z", "y", "x"}, "pool_result[i]", input_dt, 1 };
         }
         conf.SetLoopAxes({ Tensor::DataChannelName::FEATURE }, true);
@@ -133,7 +133,7 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
 }
 
 bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::IsGlobalPooling(const pooling_params& params) const {
-    return params.output.X().v == 1 && params.output.Y().v == 1 && params.output.Z().v == 1;
+    return params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && params.outputs[0].Z().v == 1;
 }
 
 KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& options) const {

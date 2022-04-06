@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,9 @@
 
 namespace InferenceEngine {
 
-#define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType) catch (const ExceptionType& ex) {       \
-    return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what();                                         \
+#define CATCH_IE_EXCEPTION_TO_STATUS_NO_RESP(StatusCode, ExceptionType)     \
+catch (const InferenceEngine::ExceptionType& ex) {                          \
+    return InferenceEngine::DescriptionBuffer(StatusCode) << ex.what();     \
 }
 
 #define CATCH_IE_EXCEPTIONS_TO_STATUS_NO_RESP                                         \
@@ -50,8 +51,9 @@ namespace InferenceEngine {
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                      \
     }
 
-#define CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(StatusCode, ExceptionType) catch (const ExceptionType& ex) {   \
-    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();                       \
+#define CATCH_IE_EXCEPTION_CALL_RETURN_STATUS(StatusCode, ExceptionType)        \
+catch (const InferenceEngine::ExceptionType& ex) {                              \
+    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();   \
 }
 
 #define CATCH_IE_EXCEPTIONS_CALL_RETURN_STATUS                                         \

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,8 +113,8 @@ template <typename T>
 vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool center_point) {
     vector2D<bounding_box> result;
     auto lay = mem->get_layout();
-    auto batch_size = lay.size.batch[0];
-    auto boxes_num = lay.size.feature[0];
+    auto batch_size = lay.batch();
+    auto boxes_num = lay.feature();
     result.resize(batch_size);
 
     mem_lock<T, mem_lock_type::read> boxes_lock(mem, stream);
@@ -160,9 +160,9 @@ vector2D<bounding_box> load_boxes(stream& stream, memory::ptr mem, bool center_p
 template <typename T>
 vector3D<float> load_scores_impl(stream& stream, memory::ptr mem) {
     auto lay = mem->get_layout();
-    auto batch_size = lay.size.batch[0];
-    auto classes_num = lay.size.feature[0];
-    auto boxes_num = lay.size.spatial[1];
+    auto batch_size = lay.batch();
+    auto classes_num = lay.feature();
+    auto boxes_num = lay.spatial(1);
 
     vector3D<float> result(batch_size, vector2D<float>(classes_num));
 
@@ -222,7 +222,7 @@ void store_result_impl(stream& stream, memory::ptr mem, const std::vector<result
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
 
-    auto output_size = static_cast<size_t>(mem->get_layout().size.batch[0]);
+    auto output_size = static_cast<size_t>(mem->get_layout().batch());
     auto results_size = result.size();
 
     size_t si = 0;
@@ -276,7 +276,7 @@ void store_second_output_impl(stream& stream, memory::ptr mem, const std::vector
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
 
-    auto output_size = static_cast<size_t>(mem->get_layout().size.batch[0]);
+    auto output_size = static_cast<size_t>(mem->get_layout().batch());
     auto results_size = result.size();
 
     size_t si = 0;

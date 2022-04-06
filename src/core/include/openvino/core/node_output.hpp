@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ template <typename NodeType>
 class Output {};
 
 /// \brief A handle for one of a node's outputs.
+/// \ingroup ov_model_cpp_api
 template <>
 class OPENVINO_API Output<Node> {
 public:
@@ -108,6 +109,8 @@ private:
     size_t m_index{0};
 };
 
+/// \brief A handle for one of a node's outputs.
+/// \ingroup ov_model_cpp_api
 template <>
 class OPENVINO_API Output<const Node> {
 public:

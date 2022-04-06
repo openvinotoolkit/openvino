@@ -1,4 +1,4 @@
- // Copyright (C) 2018-2021 Intel Corporation
+ // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@
 using namespace SubgraphsDumper;
 
 template<typename dType>
-bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
-                            const std::shared_ptr<ngraph::op::Constant> &ref) {
-    size_t elements_count = ngraph::shape_size(op->get_shape());
-    if (elements_count != ngraph::shape_size(ref->get_shape())) {
+bool compare_constants_data(const std::shared_ptr<ov::op::v0::Constant> &op,
+                            const std::shared_ptr<ov::op::v0::Constant> &ref) {
+    size_t elements_count = ov::shape_size(op->get_shape());
+    if (elements_count != ov::shape_size(ref->get_shape())) {
         return false;
     }
     const auto &op_data = op->cast_vector<dType>();
@@ -29,37 +29,37 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
 }
 
 // TODO: Move to some utils?
-bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
-                            const std::shared_ptr<ngraph::op::Constant> &ref) {
+bool compare_constants_data(const std::shared_ptr<ov::op::v0::Constant> &op,
+                            const std::shared_ptr<ov::op::v0::Constant> &ref) {
     switch (op->get_element_type()) {
-        case ngraph::element::Type_t::boolean:
+        case ov::element::Type_t::boolean:
             return compare_constants_data<bool>(op, ref);
-        case ngraph::element::Type_t::bf16:
-            return compare_constants_data<ngraph::bfloat16>(op, ref);
-        case ngraph::element::Type_t::f16:
-            return compare_constants_data<ngraph::float16>(op, ref);
-        case ngraph::element::Type_t::f32:
+        case ov::element::Type_t::bf16:
+            return compare_constants_data<ov::bfloat16>(op, ref);
+        case ov::element::Type_t::f16:
+            return compare_constants_data<ov::float16>(op, ref);
+        case ov::element::Type_t::f32:
             return compare_constants_data<float>(op, ref);
-        case ngraph::element::Type_t::f64:
+        case ov::element::Type_t::f64:
             return compare_constants_data<double>(op, ref);
-        case ngraph::element::Type_t::i8:
+        case ov::element::Type_t::i8:
             return compare_constants_data<int8_t>(op, ref);
-        case ngraph::element::Type_t::i16:
+        case ov::element::Type_t::i16:
             return compare_constants_data<int16_t>(op, ref);
-        case ngraph::element::Type_t::i32:
+        case ov::element::Type_t::i32:
             return compare_constants_data<int32_t>(op, ref);
-        case ngraph::element::Type_t::i64:
+        case ov::element::Type_t::i64:
             return compare_constants_data<int64_t>(op, ref);
             // TODO cast_vector doesn't support u1 now
-//        case ngraph::element::Type_t::u1:
+//        case ov::element::Type_t::u1:
 //            return compare_constants_data<char>(op, ref);
-        case ngraph::element::Type_t::u8:
+        case ov::element::Type_t::u8:
             return compare_constants_data<uint8_t>(op, ref);
-        case ngraph::element::Type_t::u16:
+        case ov::element::Type_t::u16:
             return compare_constants_data<uint16_t>(op, ref);
-        case ngraph::element::Type_t::u32:
+        case ov::element::Type_t::u32:
             return compare_constants_data<uint32_t>(op, ref);
-        case ngraph::element::Type_t::u64:
+        case ov::element::Type_t::u64:
             return compare_constants_data<uint64_t>(op, ref);
         default:
             std::cout << "Can't compare constants" << op << " with " << ref << "\n" << "Unsupported data type";
@@ -67,15 +67,14 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
     }
 }
 
-bool SingleOpMatcher::same_op_type(const std::shared_ptr<ngraph::Node> &node,
-                                   const std::shared_ptr<ngraph::Node> &ref,
+bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
+                                   const std::shared_ptr<ov::Node> &ref,
                                    const LayerTestsUtils::OPInfo &op_info) const {
-    return node->get_type_info().name == ref->get_type_info().name &&
-           node->get_type_info().version == ref->get_type_info().version;
+    return node->get_type_info() == ref->get_type_info();
 }
 
-bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
-                                   const std::shared_ptr<ngraph::Node> &ref,
+bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
+                                   const std::shared_ptr<ov::Node> &ref,
                                    const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
@@ -85,9 +84,9 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                            ref->get_input_tensor(i).get_partial_shape().rank();
         bool elemTypeIsEqual = node->get_input_tensor(i).get_element_type() ==
                                ref->get_input_tensor(i).get_element_type();
-        bool is_dynamic = node->get_input_node_ptr(i)->is_dynamic() ==
-                          ref->get_input_node_ptr(i)->is_dynamic();
-        if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
+        bool dynamismIsEqual = node->get_input_partial_shape(i).is_dynamic() ==
+                               ref->get_input_partial_shape(i).is_dynamic();
+        if (!rankIsEqual || !elemTypeIsEqual || !dynamismIsEqual) {
             return false;
         }
     }
@@ -96,16 +95,24 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
 }
 
 bool
-SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
-                               const std::shared_ptr<ngraph::Node> &ref,
+SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
+                               const std::shared_ptr<ov::Node> &ref,
                                const LayerTestsUtils::OPInfo &op_info) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
-    // Match output element type
+    // Match output element type, shape rank & dynamism
     for (size_t i = 0; i < node->get_output_size(); ++i) {
         if (node->get_output_tensor(i).get_element_type() !=
             ref->get_output_tensor(i).get_element_type()) {
+            return false;
+        }
+        if (node->get_output_tensor(i).get_partial_shape().is_dynamic() !=
+            ref->get_output_tensor(i).get_partial_shape().is_dynamic()) {
+            return false;
+        }
+        if (node->get_output_tensor(i).get_partial_shape().rank()!=
+            ref->get_output_tensor(i).get_partial_shape().rank()) {
             return false;
         }
     }
@@ -113,14 +120,14 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
     return true;
 }
 
-bool SingleOpMatcher::same_attrs(const std::shared_ptr<ngraph::Node> &node,
-                                 const std::shared_ptr<ngraph::Node> &ref,
+bool SingleOpMatcher::same_attrs(const std::shared_ptr<ov::Node> &node,
+                                 const std::shared_ptr<ov::Node> &ref,
                                  const LayerTestsUtils::OPInfo &op_info) const {
     return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
 }
 
-bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
-                                  const std::shared_ptr<ngraph::Node> &ref,
+bool SingleOpMatcher::match_ports(const std::shared_ptr<ov::Node> &node,
+                                  const std::shared_ptr<ov::Node> &ref,
                                   const LayerTestsUtils::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     const std::vector<size_t> &ignored_ports = cfg->ignored_ports;
@@ -132,8 +139,8 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
         const auto &cur_node_input = node->input_value(port_id);
         const auto &ref_node_input = ref->input_value(port_id);
 
-        const auto &cur_const_input = ngraph::get_constant_from_source(cur_node_input);
-        const auto &ref_const_input = ngraph::get_constant_from_source(ref_node_input);
+        const auto &cur_const_input = ov::get_constant_from_source(cur_node_input);
+        const auto &ref_const_input = ov::get_constant_from_source(ref_node_input);
 
         // Check that both OP an reference port inputs are constant and have same data
         if (cur_const_input && ref_const_input &&
@@ -147,9 +154,14 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node,
     return true;
 }
 
-bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
-                            const std::shared_ptr<ngraph::Node> &ref,
+bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
+                            const std::shared_ptr<ov::Node> &ref,
                             const LayerTestsUtils::OPInfo &op_info) const {
+    for (const auto& input_node : node->inputs()) {
+        if (input_node.get_partial_shape().is_dynamic()) {
+            break;
+        }
+    }
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
@@ -167,19 +179,19 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
 SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
             std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
-            std::make_shared<MatcherConfig<ngraph::opset6::FakeQuantize>>(std::vector<std::string>{},
-                                                                          std::vector<size_t>{0, 1, 2, 3, 4}),
+            std::make_shared<MatcherConfig<ov::opset8::FakeQuantize>>(std::vector<std::string>{},
+                                                                      std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
-                    ngraph::op::v0::MatMul,
-                    ngraph::op::v1::Add,
-                    ngraph::op::v1::Multiply,
-                    ngraph::op::v1::Subtract,
-                    ngraph::op::v1::Power>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
+                    ov::op::v0::MatMul,
+                    ov::op::v1::Add,
+                    ov::op::v1::Multiply,
+                    ov::op::v1::Subtract,
+                    ov::op::v1::Power>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
 
             std::make_shared<MatcherConfig<
-                    ngraph::op::v1::Convolution,
-                    ngraph::op::v1::ConvolutionBackpropData,
-                    ngraph::op::v1::GroupConvolution,
-                    ngraph::op::v1::GroupConvolutionBackpropData>>(true)
+                    ov::op::v1::Convolution,
+                    ov::op::v1::ConvolutionBackpropData,
+                    ov::op::v1::GroupConvolution,
+                    ov::op::v1::GroupConvolutionBackpropData>>(true)
     };
 }

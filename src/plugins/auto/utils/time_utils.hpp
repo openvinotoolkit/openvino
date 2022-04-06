@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,6 @@ bool localtimeSafe(const time_t* time, struct tm* result);
 
 std::string getCurrentTime();
 std::string putTime(std::chrono::system_clock::time_point tp, const char* format);
-std::string formatTimeMilli(std::chrono::system_clock::time_point tp); // format tp to HH:MM:SS.mmm
 } // namespace TimeUtils
 } // namespace MultiDevicePlugin
 

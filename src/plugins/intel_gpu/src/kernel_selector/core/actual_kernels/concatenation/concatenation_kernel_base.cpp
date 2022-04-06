@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concaten
 }
 
 int32_t ConcatenationKernelBase::GetConcatChannelIndex(const concatenation_params& params) const {
-    return DataTensor::Channelndex(params.output.GetLayout(), GetConcatChannel(params));
+    return DataTensor::Channelndex(params.outputs[0].GetLayout(), GetConcatChannel(params));
 }
 
 bool ConcatenationKernelBase::Validate(const Params& p, const optional_params&) const {

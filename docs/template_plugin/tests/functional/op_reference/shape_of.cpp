@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,8 @@ struct ShapeOfParamsV1 {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
 };
 
 struct ShapeOfParamsV3 {
@@ -60,9 +60,9 @@ struct ShapeOfParamsV3 {
     element::Type m_input_type;
     element::Type m_expected_type1;
     element::Type m_expected_type2;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value1;
-    runtime::Tensor m_expected_value2;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value1;
+    ov::Tensor m_expected_value2;
 };
 
 class ReferenceShapeOfV1LayerTest : public testing::TestWithParam<ShapeOfParamsV1>, public CommonReferenceTest {

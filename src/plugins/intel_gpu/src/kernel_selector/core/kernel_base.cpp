@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,8 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
 }
 
 static bool IsTypeUsedIn(Datatype type, const base_params& params) {
-    return params.output.GetDType() == type ||
+    // TODO: multiple output support
+    return params.outputs[0].GetDType() == type ||
            std::any_of(params.inputs.begin(), params.inputs.end(), [=](const DataTensor& input) -> bool {
                return input.GetDType() == type;
            });
@@ -74,7 +75,6 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     auto unitType = GetUnitType(params);
 
     JitConstants jit{
-        MakeJitConstant("OUTPUT", params.output),
         MakeJitConstant("FP64_SUPPORTED", params.engineInfo.bFP64Support),
         MakeJitConstant("FP16_SUPPORTED", params.engineInfo.bFP16Support),
         MakeJitConstant("FP16_UNIT_USED", IsTypeUsedIn(Datatype::F16, params)),
@@ -91,6 +91,12 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
         jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
+    }
+
+    // NOTE : until all cl kernels legacy is resolved, the outputs are to be OUTPUT, OUTPUT1, OUTPUT2, ...
+    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0]));
+    for (size_t i = 1; i < params.outputs.size(); i++) {
+        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i]));
     }
 
 #ifndef NDEBUG
@@ -113,6 +119,7 @@ bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) c
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
                                                   const std::vector<FusedOpsConfiguration> &conf) const {
     JitConstants jit = {};
+    // TODO: multiple output support
 
     if (conf.empty())
         return jit;
@@ -136,7 +143,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                     continue;
 
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
-                jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
+                jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.outputs[0]));
                 jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
 
                 bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
@@ -211,6 +218,5 @@ bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op)
 std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
     return {};
 }
-
 
 }  // namespace kernel_selector

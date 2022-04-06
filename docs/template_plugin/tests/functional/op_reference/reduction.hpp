@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,14 @@ namespace ReductionOpsRefTestDefinitions {
 
 struct ReductionParams {
     ReductionParams(const ngraph::helpers::ReductionType& reductType, const bool keepDims, const std::vector<int64_t>& axes,
-        const Tensor& dataTensor, const Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
         data(dataTensor), output(outputTensor) {}
 
     ngraph::helpers::ReductionType reductionType;
     bool keepDimensions;
     std::vector<int64_t> reductionAxes;
-    Tensor data;
-    Tensor output;
+    reference_tests::Tensor data;
+    reference_tests::Tensor output;
 };
 
 class ReferenceReductionLayerTest : public  testing::TestWithParam<ReductionParams>, public CommonReferenceTest {

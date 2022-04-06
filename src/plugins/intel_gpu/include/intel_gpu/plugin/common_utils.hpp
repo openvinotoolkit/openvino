@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::U16:
     case InferenceEngine::Precision::FP32:
+    case InferenceEngine::Precision::FP64:
         return cldnn::data_types::f32;
     case InferenceEngine::Precision::FP16:
         return cldnn::data_types::f16;
@@ -42,6 +43,8 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     case InferenceEngine::Precision::I8:
         return cldnn::data_types::i8;
     case InferenceEngine::Precision::I32:
+    case InferenceEngine::Precision::U32:
+    case InferenceEngine::Precision::U64:
         return cldnn::data_types::i32;
     case InferenceEngine::Precision::I64:
         return cldnn::data_types::i64;
@@ -60,6 +63,7 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::i16:
     case ngraph::element::Type_t::u16:
     case ngraph::element::Type_t::f32:
+    case ngraph::element::Type_t::f64:
         return cldnn::data_types::f32;
     case ngraph::element::Type_t::f16:
         return cldnn::data_types::f16;
@@ -68,6 +72,8 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     case ngraph::element::Type_t::i8:
         return cldnn::data_types::i8;
     case ngraph::element::Type_t::i32:
+    case ngraph::element::Type_t::u32:
+    case ngraph::element::Type_t::u64:
         return cldnn::data_types::i32;
     case ngraph::element::Type_t::i64:
         return cldnn::data_types::i64;
@@ -161,31 +167,6 @@ inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     }
 
     return cldnn::format::bfyx;  // Should not get here
-}
-
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
-inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
-    std::vector<uint16_t> ie_order_aligned = ie_order;
-    // if order size is less than 4 - fill the rest with just copy
-    rank = std::max(rank, (size_t)4);
-    for (auto o = ie_order_aligned.size(); o < rank; o++)
-        ie_order_aligned.push_back((uint16_t)o);
-
-    std::vector<uint16_t> cldnn_order;
-    // 1. Switch permute order values for spatial dims
-    for (auto const& o : ie_order_aligned) {
-        if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
-        else
-            cldnn_order.push_back(o);
-    }
-
-    // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
-        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
-    }
-
-    return cldnn_order;
 }
 
 inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <shared_test_classes/single_layer/ctc_greedy_decoder.hpp>
 #include <string>
@@ -94,7 +94,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 0) {
                 if (funcInput.get_element_type().is_real()) {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
@@ -119,7 +119,7 @@ protected:
                         sequenceMaskData[t * B + b] = 1;
                     }
                 }
-                tensor = ov::runtime::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i]};
+                tensor = ov::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i]};
                 float* begin = tensor.data<float>();
                 std::copy(sequenceMaskData.begin(), sequenceMaskData.end(), begin);
             }
@@ -132,7 +132,7 @@ protected:
 TEST_P(CTCGreedyDecoderLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoder");
+    CheckPluginRelatedResults(compiledModel, "CTCGreedyDecoder");
 }
 
 namespace {

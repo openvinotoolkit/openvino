@@ -4,6 +4,7 @@
 #    type: github
 #    endpoint: openvinotoolkit
 #    name: openvinotoolkit/testdata
+#    ref: master
 
 jobs:
 - job: Lin_lohika
@@ -69,9 +70,9 @@ jobs:
   - script: >
       env -C ~/work
       ./buildreleasenolto.sh
-      libinference_engine_preproc.so
-      ov_intel_cpu_plugin
-      ov_intel_gpu_plugin
+      libopenvino_gapi_preproc.so
+      openvino_intel_cpu_plugin
+      openvino_intel_gpu_plugin
       clDNN_unit_tests64
       gpuFuncTests
     displayName: Build Lin

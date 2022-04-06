@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,7 +31,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
                                 -Wno-unused-parameter
-                                -Wunused-local-typedefs)
+                                -Wno-unused-local-typedefs)
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")
@@ -49,5 +49,5 @@ endif()
 ov_install_static_lib(${TARGET_NAME} core)
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${hdrs})
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::conditional_compilation)
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::conditional_compilation)

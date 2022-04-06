@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <string>
 #include <tuple>
@@ -125,7 +125,7 @@ protected:
         const auto& dataShape = targetInputStaticShapes[0];
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 0) {
                 if (funcInput.get_element_type().is_real()) {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
@@ -148,7 +148,7 @@ protected:
                     const int len = dist(gen);
                     sequenceLenData[b] = len;
                 }
-                tensor = ov::runtime::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i]};
+                tensor = ov::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i]};
                 if (funcInput.get_element_type() == ElementType::i32) {
                     auto begin = tensor.data<int32_t>();
                     std::copy(sequenceLenData.begin(), sequenceLenData.end(), begin);
@@ -172,7 +172,7 @@ protected:
 TEST_P(CTCGreedyDecoderSeqLenLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoderSeqLen");
+    CheckPluginRelatedResults(compiledModel, "CTCGreedyDecoderSeqLen");
 }
 
 namespace {

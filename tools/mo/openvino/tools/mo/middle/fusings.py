@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.div import Div
@@ -16,7 +16,7 @@ from openvino.tools.mo.middle.passes.fusing.decomposition import convert_scale_s
 from openvino.tools.mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
 from openvino.tools.mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from openvino.tools.mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
-from openvino.tools.mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
+from openvino.tools.mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes, mark_shape_of_sugraph_as_unfusable
 from openvino.tools.mo.middle.passes.fusing.resnet_optimization import stride_optimization
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -42,6 +42,7 @@ class Fusing(MiddleReplacementPattern):
         argv = graph.graph['cmd_params']
         layout = graph.graph['layout']
 
+        mark_shape_of_sugraph_as_unfusable(graph)
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
@@ -77,12 +78,11 @@ class Fusing(MiddleReplacementPattern):
             for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        if not argv.disable_gfusing:
-            for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
+        for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        if not argv.disable_fusing:
+            for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
-            if not argv.disable_fusing:
-                for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
-                for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         for_graph_and_each_sub_graph_recursively(graph, normalize_eltwise_inputs)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
@@ -94,6 +94,7 @@ class Fusing(MiddleReplacementPattern):
             MulFakeQuantizeFuse().find_and_replace_pattern(graph)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
+        mark_shape_of_sugraph_as_unfusable(graph)
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 

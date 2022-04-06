@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ OP_CONVERTER(translate_const_op);
 OP_CONVERTER(translate_conv_2d_op);
 OP_CONVERTER(translate_conv_2d_backprop_input_op);
 OP_CONVERTER(translate_conv_3d_op);
+OP_CONVERTER(translate_conv_3d_backprop_input_v2_op);
 OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
@@ -73,6 +74,7 @@ OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
+OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
@@ -93,7 +95,7 @@ OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
-const std::map<const std::string, const CreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
         {"Abs", translate_unary_op<opset8::Abs>},
@@ -157,6 +159,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
         {"AvgPool", translate_avg_pool_op},
+        {"AvgPool3D", translate_avg_pool_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
@@ -166,6 +169,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Conv2D", translate_conv_2d_op},
         {"Conv2DBackpropInput", translate_conv_2d_backprop_input_op},
         {"Conv3D", translate_conv_3d_op},
+        {"Conv3DBackpropInputV2", translate_conv_3d_backprop_input_v2_op},
         {"CropAndResize", translate_crop_and_resize_op},
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
@@ -219,6 +223,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Roll", translate_roll_op},
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
+        {"ScatterNd", translate_scatter_nd_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
         {"Shape", translate_shape_op},

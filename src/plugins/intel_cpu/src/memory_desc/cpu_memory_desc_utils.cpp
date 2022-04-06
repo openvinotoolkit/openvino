@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
@@ -14,11 +14,11 @@
 #include <blob_factory.hpp>
 #include <dnnl_types.h>
 
-using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
@@ -26,7 +26,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Mkldnn & desc->getType()) {
+    } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
@@ -89,7 +89,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
@@ -150,4 +150,5 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
     return Shape(dummyDims);
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

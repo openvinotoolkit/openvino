@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,12 +30,14 @@ public:
     public:
         ngraph::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     class Expected {
     public:
         ngraph::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     bool constInput;
@@ -58,6 +60,7 @@ public:
                 inputShape,
                 testValues.actual.inputPrecision,
                 testValues.actual.dequantization,
+                testValues.actual.fakeQuantize,
                 testValues.constInput);
 
         SimpleLowPrecisionTransformer transformer;
@@ -68,6 +71,7 @@ public:
                 inputShape,
                 testValues.expected.inputPrecision,
                 testValues.expected.dequantization,
+                testValues.expected.fakeQuantize,
                 testValues.constInput);
     }
 
@@ -77,9 +81,13 @@ public:
 
         std::ostringstream result;
         result <<
-               inputShape << "_" <<
-               testValues.actual.inputPrecision << "_" <<
-               testValues.actual.dequantization << "_" <<
+               "IS_" << inputShape << "_" <<
+               "AIP_" << testValues.actual.inputPrecision << "_" <<
+               "ADEQ_" << testValues.actual.dequantization << "_" <<
+               "AFQ_" << testValues.actual.fakeQuantize << "_" <<
+               "EIP_" << testValues.expected.inputPrecision << "_" <<
+               "EDEQ_" << testValues.expected.dequantization << "_" <<
+               "EFQ_" << testValues.expected.fakeQuantize << "_" <<
                testValues.constInput;
         return result.str();
     }
@@ -87,7 +95,7 @@ public:
 
 TEST_P(FuseConvertTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -111,7 +119,8 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
                 { ngraph::element::f32 },
                 {1.f},
                 {0.45f}
-            }
+            },
+            {}
         },
         {
             ngraph::element::u8,
@@ -119,7 +128,8 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
                 {},
                 DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
                 {0.45f}
-            }
+            },
+            {}
         }
     },
     // fuse to multiply
@@ -132,7 +142,8 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
                 { ngraph::element::f32 },
                 {},
                 {0.45f}
-            }
+            },
+            {}
         },
         {
             ngraph::element::u8,
@@ -140,7 +151,8 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
                 {},
                 {},
                 DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
-            }
+            },
+            {}
         }
     },
     // Convert with unexpected precision
@@ -149,11 +161,13 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}}
+            {{ ngraph::element::i32 }, {}, {3.f}},
+            {}
         },
         {
             ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}}
+            {{ ngraph::element::i32 }, {}, {3.f}},
+            {}
         }
     },
 };
@@ -173,6 +187,27 @@ const std::vector<ngraph::PartialShape> inputShapes = {
 };
 
 const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = {
+    //  Constant
+    //      |
+    //  Convert Const Const Const Const
+    //        \  \     |     /  /
+    //         \  \    |    /  /
+    //            FakeQuantize
+    //
+    {
+        true,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {}},
+            { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
+        },
+        {
+            ngraph::element::f32,
+            {},
+            { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
+        }
+    },
     // fuse to const
     {
         true,
@@ -183,7 +218,8 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
                 { ngraph::element::f32 },
                 {1.f},
                 {0.45f}
-            }
+            },
+            {}
         },
         {
             ngraph::element::f32,
@@ -191,7 +227,8 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
                 {},
                 {1.f},
                 {0.45f}
-            }
+            },
+            {}
         }
     },
 };

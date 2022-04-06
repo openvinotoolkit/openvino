@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <tests_common.hpp>
 #include <inference_engine.hpp>
 #include <ie_plugin_config.hpp>
-#include <vpu/vpu_plugin_config.hpp>
 #include <gna/gna_config.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <memory>
@@ -22,7 +21,6 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::VPUConfigParams;
 using namespace InferenceEngine::GNAConfigParams;
 
 class BehTestParams {

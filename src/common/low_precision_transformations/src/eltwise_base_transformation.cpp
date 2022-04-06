@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
+bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     const auto rank = shape.rank();
     if (rank.is_dynamic()) {
         return false;
@@ -41,8 +41,8 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(operation, 0ul);
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(operation, 1ul);
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(operation, defaultPrecisions, 0ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(operation, defaultPrecisions, 1ul);
     if ((dequantization1.empty() || ((dequantization1.multiply != nullptr) && !FakeQuantizeDequantization::checkElementwise(dequantization1.multiply))) &&
         (dequantization2.empty() || ((dequantization2.multiply != nullptr) && !FakeQuantizeDequantization::checkElementwise(dequantization2.multiply)))) {
         return false;
@@ -89,12 +89,12 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
 
 // return branch index with FP32 precision after eltwise transformation
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
-    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
+    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, defaultPrecisions, 0ul);
     if (ov::as_type<opset1::Constant>(dequantization1.data.get_node())) {
         return -1;
     }
 
-    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
+    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, defaultPrecisions, 1ul);
     if (ov::as_type<opset1::Constant>(dequantization2.data.get_node())) {
         return -1;
     }
@@ -188,9 +188,9 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
 
 std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const {
     const std::shared_ptr<Node> parent1 = eltwise->get_input_node_shared_ptr(0);
-    const auto dequantization1 = NetworkHelper::getDequantization(eltwise, 0);
+    const auto dequantization1 = NetworkHelper::getDequantization(eltwise, defaultPrecisions, 0);
     const std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
-    const auto dequantization2 = NetworkHelper::getDequantization(eltwise, 1);
+    const auto dequantization2 = NetworkHelper::getDequantization(eltwise, defaultPrecisions, 1);
 
     std::shared_ptr<opset1::Constant> constParent = dequantization1.empty() ?
         ov::as_type_ptr<opset1::Constant>(parent1) :

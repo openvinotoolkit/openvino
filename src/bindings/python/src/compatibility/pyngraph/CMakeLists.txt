@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -52,7 +52,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
-target_include_directories(_${PROJECT_NAME} PRIVATE "../")
+target_include_directories(_${PROJECT_NAME} PRIVATE "../" "${OpenVINO_SOURCE_DIR}/src/common/transformations/include")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::runtime)
 
@@ -79,7 +79,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../tests
+    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests_compatibility
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 endif()

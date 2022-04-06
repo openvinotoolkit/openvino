@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,6 @@
 #include "backend/gna_limitations.hpp"
 
 namespace GNAPluginNS {
-
-NGRAPH_RTTI_DEFINITION(HandleTransposesAroundMatMul, "HandleTransposesAroundMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeBeforeMatMul, "HandleTransposeBeforeMatMul", 0);
-NGRAPH_RTTI_DEFINITION(HandleTransposeAfterMatMul, "HandleTransposeAfterMatMul", 0);
 
 namespace {
 
@@ -88,21 +84,36 @@ bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
     return in_shape[0] != out_shape[0];
 }
 
+bool VerifyConcat(const ngraph::Output<ngraph::Node>& node) {
+    auto concat_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(node.get_node_shared_ptr());
+    return concat_node && (concat_node->get_axis() == 0);
+}
+
 } // namespace
 
 HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
+    auto concat1 = ngraph::pattern::wrap_type<ngraph::opset8::Concat>(VerifyConcat);
+    auto reshape1 = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>(VerifyReshape);
+    auto transpose_input1 = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{concat1, reshape1});
+    auto transpose1 = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({transpose_input1, ngraph::pattern::any_input()});
+
+    auto concat2 = ngraph::pattern::wrap_type<ngraph::opset8::Concat>(VerifyConcat);
+    auto reshape2 = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>(VerifyReshape);
+    auto transpose_input2 = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{concat2, reshape2});
+    auto transpose2 = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({transpose_input2, ngraph::pattern::any_input()});
+
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto fq = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant, ngraph::pattern::any_input(),
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
-    auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({}, VerifyReshape);
-    auto transpose = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({reshape,
-        ngraph::pattern::any_input()});
+
     auto matmul1 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, transpose}),
-        ngraph::pattern::any_input()});
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape1, concat1, transpose1, constant, fq, ngraph::pattern::any_input()}),
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape2, concat2, transpose2})});
+
     auto matmul2 = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fq}),
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, transpose, ngraph::pattern::any_input()})});
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape1, concat1, transpose1, constant, fq}),
+        ngraph::pattern::any_input()});
+
     auto matmul = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul1, matmul2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &matcher) {
@@ -114,23 +125,49 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         }
 
         auto matmul_node = matmul_iter->second.get_node_shared_ptr();
-        auto transpose_reshape_it = pattern_map.find(transpose);
+        auto transpose_reshape_it = pattern_map.find(transpose1);
         if (transpose_reshape_it != std::end(pattern_map)) {
             ReplaceTransposeWithReshape(transpose_reshape_it->second.get_node_shared_ptr());
-        } else if ((transpose_reshape_it = pattern_map.find(reshape)) != std::end(pattern_map)) {
-            auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-            if (GNALimitations::IsTransposeSupported(reshape_node->get_output_shape(0))) {
-                InsertTranspose(reshape_node, matmul_node->get_friendly_name(), true);
+        } else {
+            std::shared_ptr<ngraph::Node> prev_node = nullptr;
+            if ((transpose_reshape_it = pattern_map.find(reshape1)) != std::end(pattern_map)) {
+                prev_node = pattern_map.at(reshape1).get_node_shared_ptr();
+            } else if ((transpose_reshape_it = pattern_map.find(concat1)) != std::end(pattern_map)) {
+                prev_node = pattern_map.at(concat1).get_node_shared_ptr();
+            }
+
+            if (prev_node) {
+                if (GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                    InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
+                }
             }
         }
 
-        // Transpose the constant input if it's the first input
+        // Transpose the first input if it's a constant
         auto iter = pattern_map.find(fq);
         if (iter != pattern_map.end() ||
             (iter = pattern_map.find(constant)) != pattern_map.end()) {
             auto prev_node = iter->second.get_node_shared_ptr();
             if (GNALimitations::IsTranspose2d(prev_node->get_output_shape(0))) {
                 InsertTranspose(prev_node, prev_node->get_friendly_name(), true);
+            }
+        }
+
+        transpose_reshape_it = pattern_map.find(transpose2);
+        if (transpose_reshape_it != std::end(pattern_map)) {
+            ReplaceTransposeWithReshape(transpose_reshape_it->second.get_node_shared_ptr());
+        } else {
+            std::shared_ptr<ngraph::Node> prev_node = nullptr;
+            if ((transpose_reshape_it = pattern_map.find(reshape2)) != std::end(pattern_map)) {
+                prev_node = pattern_map.at(reshape2).get_node_shared_ptr();
+            } else if ((transpose_reshape_it = pattern_map.find(concat2)) != std::end(pattern_map)) {
+                prev_node = pattern_map.at(concat2).get_node_shared_ptr();
+            }
+
+            if (prev_node) {
+                if (GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                    InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
+                }
             }
         }
         return true;

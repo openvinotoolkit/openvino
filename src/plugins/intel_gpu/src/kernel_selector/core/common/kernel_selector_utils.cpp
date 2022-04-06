@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -319,7 +319,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
         // Revert basic priority if something is wrong
         if (priority_order[0] == priority_order[1] || priority_order[0] == priority_order[2] || priority_order[1] == priority_order[2] ||
             priority_order[0] > 2 || priority_order[1] > 2 || priority_order[2] > 2) {
-            priority_order = { 0, 1, 2 };
+            priority_order[0] = 0;
+            priority_order[1] = 1;
+            priority_order[2] = 2;
         }
     }
 
@@ -479,8 +481,8 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
                     return false;
             }
         }
-
-        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
+        // TODO : check for multiple outputs
+        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.outputs[0]);
     }
 
     return no_pitch_same_dims;

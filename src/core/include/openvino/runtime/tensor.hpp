@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class Core;
 class InferRequest;
@@ -31,8 +30,8 @@ class VariableState;
 
 /**
  * @brief Tensor API holding host memory
- *
  * It can throw exceptions safely for the application, where it is properly handled.
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Tensor {
 protected:
@@ -47,10 +46,10 @@ protected:
      */
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::Core;
-    friend class ov::runtime::InferRequest;
-    friend class ov::runtime::RemoteContext;
-    friend class ov::runtime::VariableState;
+    friend class ov::Core;
+    friend class ov::InferRequest;
+    friend class ov::RemoteContext;
+    friend class ov::VariableState;
 
 public:
     /// @brief Default constructor
@@ -209,6 +208,14 @@ public:
     }
 };
 
+/**
+ * @brief A vector of Tensor's
+ */
 using TensorVector = std::vector<Tensor>;
+
+namespace runtime {
+using ov::Tensor;
+using ov::TensorVector;
 }  // namespace runtime
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -309,15 +309,15 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithLayout) {
-    auto net1 = createNetworkWithLayout("NCHW");
-    auto net2 = createNetworkWithLayout("nchw");
-    auto net3 = createNetworkWithLayout("?CHW");
-    auto net3_1 = createNetworkWithLayout("?CH?");
+    auto net1 = createNetworkWithLayout("NCH");
+    auto net2 = createNetworkWithLayout("nch");
+    auto net3 = createNetworkWithLayout("?CH");
+    auto net3_1 = createNetworkWithLayout("?C?");
     auto net4 = createNetworkWithLayout("");
     auto fun5 = create_simple_function();
-    fun5->get_parameters()[0]->set_layout("NCHW");
+    fun5->get_parameters()[0]->set_layout("NCH");
     fun5->get_parameters()[0]->set_layout("");
-    fun5->get_results()[0]->set_layout("NHCW");
+    fun5->get_results()[0]->set_layout("NHC");
     fun5->get_results()[0]->set_layout(ov::Layout());
     auto net5 = CNNNetwork(fun5);
 

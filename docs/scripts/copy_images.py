@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -11,7 +11,7 @@ def copy_images(input_dir: Path, output_dir: Path):
     Copy images from doxygen xml folder to sphinx folder
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    extensions = ('*.png', '*.jpg', '*.svg', '*.gif', '*.PNG', '*.JPG', '*.SVG', '*.GIF')
+    extensions = ('*.png', '*.jpg', '*.jpeg', '*.svg', '*.gif', '*.PNG', '*.JPG', '*.JPEG', '*.SVG', '*.GIF')
     for extension in extensions:
         for file in input_dir.glob(extension):
             shutil.copy(file, output_dir)

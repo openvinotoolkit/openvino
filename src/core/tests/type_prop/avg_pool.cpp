@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,7 +138,8 @@ TEST(type_prop, avg_pool_1d_deduce) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3});
     const Shape kernel{10};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -147,7 +148,8 @@ TEST(type_prop, avg_pool_1d_deduce_strided) {
     const Shape kernel{10};
     const auto move_strides = Strides{2};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -156,7 +158,8 @@ TEST(type_prop, avg_pool_1d_deduce_strided_small_uneven) {
     const Shape kernel{2};
     const auto move_strides = Strides{2};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -165,7 +168,8 @@ TEST(type_prop, avg_pool_1d_deduce_strided_small_even) {
     const Shape kernel{2};
     const auto move_strides = Strides{2};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -253,7 +257,8 @@ TEST(type_prop, avg_pool_invalid_0d_input) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{});
     const Shape kernel{};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -261,7 +266,8 @@ TEST(type_prop, avg_pool_invalid_1d_input) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{2});
     const Shape kernel{};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -269,7 +275,8 @@ TEST(type_prop, avg_pool_invalid_2d_input) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{2, 6});
     const Shape kernel{};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -277,7 +284,8 @@ TEST(type_prop, avg_pool_invalid_0_batch_size) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{0, 6});
     const Shape kernel{1};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -285,7 +293,8 @@ TEST(type_prop, avg_pool_invalid_0_channels) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 0});
     const Shape kernel{1};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -293,7 +302,8 @@ TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_many) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
     const Shape kernel{3, 3, 3};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -301,7 +311,8 @@ TEST(type_prop, avg_pool_invalid_wrong_number_of_window_dimensions_too_few) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
     const Shape kernel{3};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -310,7 +321,8 @@ TEST(type_prop, avg_pool_invalid_movement_stride_rank) {
     const Shape kernel{3, 3};
     const auto move_strides = Strides{2, 3, 8};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -320,9 +332,14 @@ TEST(type_prop, avg_pool_invalid_padding_below_rank) {
     const auto move_strides = Strides{2, 3};
     const Shape pads_begin{1, 2, 3};
     const Shape pads_end{1, 2};
-    EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, pads_begin, pads_end, kernel, true, op::RoundingType::FLOOR),
-        NodeValidationFailure);
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  move_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  true,
+                                                                  op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_invalid_padding_above_rank) {
@@ -331,16 +348,22 @@ TEST(type_prop, avg_pool_invalid_padding_above_rank) {
     const auto move_strides = Strides{2, 3};
     const Shape pads_begin{1, 2};
     const Shape pads_end{1, 2, 3};
-    EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, pads_begin, pads_end, kernel, true, op::RoundingType::FLOOR),
-        NodeValidationFailure);
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  move_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  true,
+                                                                  op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_invalid_input_item_size_0) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 0, 10});
     const Shape kernel{3, 3};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -348,7 +371,8 @@ TEST(type_prop, avg_pool_invalid_window_size_0) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 10, 10});
     const Shape kernel{3, 0};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -356,7 +380,8 @@ TEST(type_prop, avg_pool_invalid_dilated_too_large) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 2, 8, 8});
     const Shape kernel{9, 9};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -383,7 +408,8 @@ TEST(type_prop, avg_pool_invalid_movement_stride_0) {
     const Shape kernel{3, 3};
     const auto move_strides = Strides{0, 1};
     EXPECT_THROW(
-        make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+        const auto unused =
+            make_shared<op::v1::AvgPool>(param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
         NodeValidationFailure);
 }
 
@@ -416,13 +442,13 @@ TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch) {
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
-                                              window_movement_strides,
-                                              pads_begin,
-                                              pads_end,
-                                              kernel,
-                                              false,
-                                              op::RoundingType::FLOOR),
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  window_movement_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  false,
+                                                                  op::RoundingType::FLOOR),
                  NodeValidationFailure);
 }
 
@@ -476,13 +502,13 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch) {
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
-                                              window_movement_strides,
-                                              pads_begin,
-                                              pads_end,
-                                              kernel,
-                                              true,
-                                              op::RoundingType::FLOOR),
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  window_movement_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  true,
+                                                                  op::RoundingType::FLOOR),
                  NodeValidationFailure);
 }
 
@@ -495,13 +521,13 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_not_too_big) {
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
-                                              window_movement_strides,
-                                              pads_begin,
-                                              pads_end,
-                                              kernel,
-                                              true,
-                                              op::RoundingType::FLOOR),
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  window_movement_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  true,
+                                                                  op::RoundingType::FLOOR),
                  NodeValidationFailure);
 }
 
@@ -535,12 +561,12 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding) {
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
-    EXPECT_THROW(make_shared<op::v1::AvgPool>(param,
-                                              window_movement_strides,
-                                              pads_begin,
-                                              pads_end,
-                                              kernel,
-                                              true,
-                                              op::RoundingType::FLOOR),
+    EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                  window_movement_strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  kernel,
+                                                                  true,
+                                                                  op::RoundingType::FLOOR),
                  NodeValidationFailure);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/cc/ngraph/itt.hpp>
@@ -16,10 +16,6 @@
 #include "layers/gna_convolution_layer.hpp"
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(SplitConvolution, "SplitConvolution", 0);
-NGRAPH_RTTI_DEFINITION(SplitConvolutionWithBias, "SplitConvolutionWithBias", 0);
-NGRAPH_RTTI_DEFINITION(SplitConvolutionWithFq, "SplitConvolutionWithFq", 0);
 
 // Don't split when convolution is 2D and is not mappable to 1D
 static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {

@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
-#include <vector>
 #include <algorithm>
-#include <string>
+#include <memory>
 #include <mutex>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/op/convert.hpp>
+#include <string>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/op/op.hpp"
 #include "ngraph/variant.hpp"
 
@@ -24,12 +23,10 @@ class NGRAPH_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase();
 
-    explicit TypeRelaxedBase(
-            const element::TypeVector& _input_data_types = {},
-            const element::TypeVector& _output_data_types = {}) :
-            m_input_data_types(_input_data_types),
-            m_output_data_types(_output_data_types) {
-    }
+    explicit TypeRelaxedBase(const element::TypeVector& _input_data_types = {},
+                             const element::TypeVector& _output_data_types = {})
+        : m_input_data_types(_input_data_types),
+          m_output_data_types(_output_data_types) {}
 
     /// \return Data type that will be set for output with a given index outputIndex.
     /// If output with a specified index outputIndex hasn't been set before, element::undefined will returned.
@@ -83,7 +80,7 @@ public:
     }
 
 protected:
-    void remember_input_data_types(Node &node, element::TypeVector &old_input_types) {
+    void remember_input_data_types(Node& node, element::TypeVector& old_input_types) {
         // Remember all input data types
         for (size_t i = 0; i < node.get_input_size(); ++i) {
             old_input_types.push_back(node.get_input_element_type(i));
@@ -100,7 +97,7 @@ protected:
         }
     }
 
-    void restore_input_data_types(Node &node, const element::TypeVector &old_input_types) {
+    void restore_input_data_types(Node& node, const element::TypeVector& old_input_types) {
         // Restore original input data types
         for (size_t i = 0; i < node.get_input_size(); ++i) {
             OPENVINO_SUPPRESS_DEPRECATED_START
@@ -133,9 +130,10 @@ protected:
         visitor.on_attribute("output_data_types", m_output_data_types);
     }
 
-    typedef struct {} init_rt_result;
+    typedef struct {
+    } init_rt_result;
 
-    init_rt_result init_rt_info(Node &node) const {
+    init_rt_result init_rt_info(Node& node) const {
         node.get_rt_info()["opset"] = "type_relaxed_opset";
         return {};
     }
@@ -200,29 +198,26 @@ public:
 
     TypeRelaxed() = default;
 
-    TypeRelaxed(
-            const BaseOp& base_op,
-            element::Type overridden_type) :
-            TypeRelaxed(base_op,
-                    element::TypeVector(base_op.get_input_size(), overridden_type),
-                    element::TypeVector(base_op.get_output_size(), overridden_type)) {
-    }
+    TypeRelaxed(const BaseOp& base_op, element::Type overridden_type)
+        : TypeRelaxed(base_op,
+                      element::TypeVector(base_op.get_input_size(), overridden_type),
+                      element::TypeVector(base_op.get_output_size(), overridden_type)) {}
 
-    explicit TypeRelaxed(
-            const BaseOp& base_op,
-            const element::TypeVector& _input_data_types = {},
-            const element::TypeVector& _output_data_types = {}) :
-            BaseOp(base_op), TypeRelaxedBase(_input_data_types, _output_data_types) {
+    explicit TypeRelaxed(const BaseOp& base_op,
+                         const element::TypeVector& _input_data_types = {},
+                         const element::TypeVector& _output_data_types = {})
+        : BaseOp(base_op),
+          TypeRelaxedBase(_input_data_types, _output_data_types) {
         init();
     }
 
     /// Creating a new TypeRelaxed operation by calling one of the original op ctors forwarding arguments directly.
-    template <typename ... Args>
-    TypeRelaxed(
-            const element::TypeVector& _input_data_types,
-            const element::TypeVector& _output_data_types,
-            Args&& ... args) :
-            BaseOp(std::forward<Args>(args)...), TypeRelaxedBase(_input_data_types, _output_data_types) {
+    template <typename... Args>
+    TypeRelaxed(const element::TypeVector& _input_data_types,
+                const element::TypeVector& _output_data_types,
+                Args&&... args)
+        : BaseOp(std::forward<Args>(args)...),
+          TypeRelaxedBase(_input_data_types, _output_data_types) {
         init();
     }
 
@@ -261,7 +256,7 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
             convert->set_destination_type(expected_input_type);
             casted_inputs[i] = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
-            if (!convert->evaluate({ casted_inputs[i] }, { inputs[i] })) {
+            if (!convert->evaluate({casted_inputs[i]}, {inputs[i]})) {
                 return false;
             }
         }
@@ -273,7 +268,8 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
         if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
-            original_outputs[i] = std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+            original_outputs[i] =
+                std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
         }
     }
 
@@ -284,14 +280,16 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
 
-        if (expected_output_type != element::undefined && original_outputs[i]->get_element_type() != expected_output_type) {
+        if (expected_output_type != element::undefined &&
+            original_outputs[i]->get_element_type() != expected_output_type) {
             if (convert == nullptr) {
                 convert = std::make_shared<ngraph::op::v0::Convert>();
             }
 
             convert->set_destination_type(expected_output_type);
-            const auto casted_output = std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
-            if (!convert->evaluate({ outputs[i] }, { original_outputs[i] })) {
+            const auto casted_output =
+                std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
+            if (!convert->evaluate({outputs[i]}, {original_outputs[i]})) {
                 return false;
             }
         }
@@ -314,12 +312,12 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
     restore_input_data_types(*this, old_input_types);
 }
 
-
 template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
     std::lock_guard<std::mutex> lock(type_relax_mutex);
     // copy then modify inputs
-    std::shared_ptr<Node> new_node = std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
+    std::shared_ptr<Node> new_node =
+        std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         new_node->input(i).replace_source_output(new_args[i]);
     }
@@ -336,13 +334,17 @@ bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
 }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
+const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const {
+    return get_type_info_static();
+}
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
-    static const ::ngraph::Node::type_info_t type_info_static{
-        baseOpTypeInfoPtr->name, baseOpTypeInfoPtr->version, baseOpTypeInfoPtr->version_id, baseOpTypeInfoPtr};
+    static const ::ngraph::Node::type_info_t type_info_static{baseOpTypeInfoPtr->name,
+                                                              baseOpTypeInfoPtr->version,
+                                                              baseOpTypeInfoPtr->version_id,
+                                                              baseOpTypeInfoPtr};
     return type_info_static;
 }
 

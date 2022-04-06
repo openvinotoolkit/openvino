@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <dimension_tracker.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -158,4 +160,31 @@ TEST(type_prop, squeeze_scalar_axes) {
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
     ASSERT_EQ(squeeze->get_shape(), (Shape{4, 1, 4, 1, 8}));
+}
+
+TEST(type_prop, squeeze_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
+
+    const auto axis_1 = std::make_shared<op::v0::Constant>(et, Shape{2}, std::vector<int64_t>{0, 1});
+    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis_1);
+
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(unsqueeze, axis);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, squeeze);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }

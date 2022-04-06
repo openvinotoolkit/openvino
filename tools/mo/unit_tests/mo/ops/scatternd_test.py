@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -66,6 +66,17 @@ inputs8 = {'input': {'shape': int64_array([3]), 'value': int64_array([1, 2, 3])}
           'indices': {'shape': int64_array([1]), 'value': int64_array([2])},
           'updates': {'shape': int64_array([1]), 'value': int64_array([9])}}
 output8 = int64_array([1, 2, 9])
+
+inputs9 = {'input': {'shape': int64_array([1, 5, 5, 1]), 'value': np.zeros([1, 5, 5, 1],dtype=np.int32)},
+          'indices': {'shape': int64_array([1, 2, 2, 1, 4]),
+                      'value': np.array([[[[[0, 0, 0, 0]], [[0, 0, 1, 0]]], [[[0, 2, 1, 0]], [[0, 3, 4, 0]]]]])},
+          'updates': {'shape': int64_array([1, 2, 2, 1]), 'value': np.ones([1, 2, 2, 1])}}
+
+output9 = np.array([[[[1], [1], [0], [0], [0]],     # shape [1, 5, 5, 1]
+                     [[0], [0], [0], [0], [0]],
+                     [[0], [1], [0], [0], [0]],
+                     [[0], [0], [0], [0], [1]],
+                     [[0], [0], [0], [0], [0]]]])
 
 class TestScatterNDUpdate(unittest.TestCase):
     def test_partial_infer1(self):
@@ -166,4 +177,15 @@ class TestScatterNDUpdate(unittest.TestCase):
         res_output_value = graph.node['output']['value']
 
         self.assertTrue(np.array_equal(output8, res_output_value),
+                        'values do not match expected: {} and given: {}'.format(output8, res_output_value))
+
+    def test_infer9(self):
+        graph = build_graph(nodes_attributes, edges, inputs9)
+        scatternd_node = Node(graph, 'scatternd_node')
+        ScatterNDUpdate.infer(scatternd_node)
+
+        # get the result
+        res_output_value = graph.node['output']['value']
+
+        self.assertTrue(np.array_equal(output9, res_output_value),
                         'values do not match expected: {} and given: {}'.format(output8, res_output_value))

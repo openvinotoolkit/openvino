@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,18 +28,18 @@ const char unsupported_batched_blob[] = "Batched input blob is expected to conta
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
 
-template <typename T>
-void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+template <typename src_t, typename dst_t>
+void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
     if (!dst) {
         return;
     }
-    auto t_blob = dynamic_cast<const InferenceEngine::TBlob<T>*>(src);
+    auto t_blob = dynamic_cast<const InferenceEngine::TBlob<src_t>*>(src);
     if (!t_blob) {
         IE_THROW() << "input type is " << src->getTensorDesc().getPrecision() << " but input is not "
-                   << typeid(T).name();
+                   << typeid(src_t).name();
     }
 
-    const T* srcPtr = t_blob->readOnly();
+    const src_t* srcPtr = t_blob->readOnly();
     if (!srcPtr) {
         IE_THROW(NotAllocated) << str_input_not_allocated;
     }
@@ -47,7 +47,7 @@ void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
         dst[i] = srcPtr[i];
 }
 
-template<typename T>
+template<typename src_dt, typename dst_dt>
 void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::runtime::intel_gpu::buf_info* bi, cldnn::stream& stream) {
     size_t n = (bi == nullptr) ? dst->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
@@ -56,12 +56,12 @@ void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::runtime::
     auto size = layout.size;
 
     auto locked_dst = dst->buffer();
-    auto dst_ptr = locked_dst.as<T*>();
+    auto dst_ptr = locked_dst.as<dst_dt*>();
     if (dst_ptr == nullptr) {
         IE_THROW() << "Invalid output blob";
     }
-    cldnn::mem_lock<T> src_lock{ src, stream };
-    T* src_ptr = src_lock.data();
+    cldnn::mem_lock<src_dt> src_lock{ src, stream };
+    src_dt* src_ptr = src_lock.data();
     dst_ptr += offset;
 
     if (layout.data_padding) {
@@ -898,12 +898,17 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, buf_i
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_output_data");
     auto& stream = m_graph->GetNetwork()->get_stream();
     switch (dst->getTensorDesc().getPrecision()) {
-    case Precision::FP32: copyResultToOutputBlob<float>(src, dst, bi, stream);    break;
-    case Precision::FP16: copyResultToOutputBlob<uint16_t>(src, dst, bi, stream); break;
-    case Precision::I32:  copyResultToOutputBlob<int32_t>(src, dst, bi, stream);  break;
-    case Precision::I64:  copyResultToOutputBlob<int64_t>(src, dst, bi, stream);  break;
-    case Precision::U8:  copyResultToOutputBlob<uint8_t>(src, dst, bi, stream);  break;
-    case Precision::I8:  copyResultToOutputBlob<int8_t>(src, dst, bi, stream);  break;
+    case Precision::FP64: copyResultToOutputBlob<float, double>(src, dst, bi, stream);    break;
+    case Precision::FP32: copyResultToOutputBlob<float, float>(src, dst, bi, stream);    break;
+    case Precision::FP16: copyResultToOutputBlob<uint16_t, uint16_t>(src, dst, bi, stream); break;
+    case Precision::I64:  copyResultToOutputBlob<int64_t, int64_t>(src, dst, bi, stream);  break;
+    case Precision::I32:  copyResultToOutputBlob<int32_t, int32_t>(src, dst, bi, stream);  break;
+    case Precision::I16:  copyResultToOutputBlob<float, int16_t>(src, dst, bi, stream);  break;
+    case Precision::I8:   copyResultToOutputBlob<int8_t, int8_t>(src, dst, bi, stream);  break;
+    case Precision::U16:  copyResultToOutputBlob<float, uint16_t>(src, dst, bi, stream);  break;
+    case Precision::U32:  copyResultToOutputBlob<int32_t, uint32_t>(src, dst, bi, stream);  break;
+    case Precision::U64:  copyResultToOutputBlob<int32_t, uint64_t>(src, dst, bi, stream);  break;
+    case Precision::U8:   copyResultToOutputBlob<uint8_t, uint8_t>(src, dst, bi, stream);  break;
     default: IE_THROW(NotImplemented) << "The plugin does not support output " << dst->getTensorDesc().getPrecision() << " precision";
     }
 }
@@ -1042,7 +1047,11 @@ void InferRequest::allocate_outputs() {
     for (auto& no : _networkOutputs) {
         std::string outputID = m_graph->MapOutputName(no.first);
         const cldnn::layout output_layout = m_graph->GetNetwork()->get_output_memory(outputID)->get_layout();
-        const TensorDesc& desc = no.second->getTensorDesc();
+        TensorDesc desc = no.second->getTensorDesc();
+        // Due to some reason TensorDesc in InferRequest contains wrong dims
+        // while ExecutableNetwork contains proper ones. Thus replace dims with once from exec network
+        // Can be removed once 76176 is resolved.
+        desc.setDims(m_graph->GetOutputSize(no.first));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -1050,15 +1059,31 @@ void InferRequest::allocate_outputs() {
         }
 
         outputsMap[no.first] = outputID;
-        if (m_graph->GetEngine()->use_unified_shared_memory()) {
-            // For USM case we create host blob using custom USM host allocator
-            // and then create shared device blob on top of this buffer
-            auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+        if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16 ||
+            desc.getPrecision() == Precision::U32 || desc.getPrecision() == Precision::U64 ||
+            desc.getPrecision() == Precision::FP64) {
+            TensorDesc device_blob_desc = desc;
+
+            if (desc.getPrecision() == Precision::U32 || desc.getPrecision() == Precision::U64)
+                device_blob_desc.setPrecision(Precision::I32);
+            else
+                device_blob_desc.setPrecision(Precision::FP32);
+
+            auto host_blob = create_host_blob(desc);
             _outputs[no.first] = host_blob;
-            _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
+            auto device_blob = create_device_blob(device_blob_desc, output_layout);
+            _deviceOutputs[no.first] = device_blob;
         } else {
-            _outputs[no.first] = create_host_blob(desc);
-            _deviceOutputs[no.first] = create_device_blob(desc, output_layout);
+            if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                // For USM case we create host blob using custom USM host allocator
+                // and then create shared device blob on top of this buffer
+                auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+                _outputs[no.first] = host_blob;
+                _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
+            } else {
+                _outputs[no.first] = create_host_blob(desc);
+                _deviceOutputs[no.first] = create_device_blob(desc, output_layout);
+            }
         }
     }
 }
@@ -1111,6 +1136,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     bool is_dev_input = remote_ptr != nullptr;
 
     switch (prec) {
+        case Precision::FP64:
         case Precision::FP32:
         case Precision::FP16:
         case Precision::I8:
@@ -1119,6 +1145,8 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         case Precision::I16:
         case Precision::U16:
         case Precision::I32:
+        case Precision::U32:
+        case Precision::U64:
         case Precision::I64: {
             auto impl = getBlobImpl(is_dev_input ?
                                     remote_ptr :
@@ -1136,14 +1164,23 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
 
             if (!is_dev_input) {
-                if (prec == Precision::I16 || prec == Precision::U16) {
+                if (prec == Precision::I16 || prec == Precision::U16 || prec == Precision::FP64) {
                     // GPU plugin doesn't support I16 input precision,
                     // so have to convert input data to fp32 precision
                     cldnn::mem_lock<float> ptr{ inputMem, stream };
                     if (prec == Precision::I16) {
-                        copyToFloat<int16_t>(ptr.data(), inputBlob.get());
+                        convertAndCopy<int16_t, float>(inputBlob.get(), ptr.data());
+                    } else if (prec == Precision::U16) {
+                        convertAndCopy<uint16_t, float>(inputBlob.get(), ptr.data());
                     } else {
-                        copyToFloat<uint16_t>(ptr.data(), inputBlob.get());
+                        convertAndCopy<double, float>(inputBlob.get(), ptr.data());
+                    }
+                } else if (prec == Precision::U64 || prec == Precision::U32) {
+                    cldnn::mem_lock<int32_t> ptr{ inputMem, stream };
+                    if (prec == Precision::U64) {
+                        convertAndCopy<uint64_t, int32_t>(inputBlob.get(), ptr.data());
+                    } else {
+                        convertAndCopy<uint32_t, int32_t>(inputBlob.get(), ptr.data());
                     }
                 } else {
                     auto src_lock = inputBlob->cbuffer();

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -15,7 +15,7 @@ from openvino.tools.pot.utils.logger import get_logger, stdout_redirect
 logger = get_logger(__name__)
 
 
-class NXModel:
+class CompressedModel:
     """
     Class encapsulating the logic of graph operations handling
     for multiple NetworkX models (Model Optimizer representation).
@@ -47,8 +47,7 @@ class NXModel:
             ge.add_fullname_for_nodes(model['model'])
 
     def _from_config(self, model_config, target_device='ANY'):
-        if not isinstance(model_config, Dict):
-            model_config = Dict(model_config)
+        model_config = model_config if isinstance(model_config, Dict) else Dict(model_config)
         if model_config.cascade:
             for model_dict in model_config.cascade:
                 model_config_ = model_config.deepcopy()
@@ -56,6 +55,7 @@ class NXModel:
                 self._models.append({'model': load_graph(model_config_, target_device)})
                 if len(model_config.cascade) > 1:
                     self._models[-1]['name'] = model_dict.name
+                    self._models[-1]['model'].name = model_dict.name
         else:
             self._models.append({'model': load_graph(model_config, target_device)})
 
@@ -67,6 +67,12 @@ class NXModel:
             ge.add_fullname_for_nodes(model['model'])
 
     def _from_graph(self, graph):
+        if graph.graph['ir_version'] == 10:
+            raise AssertionError(
+                'POT does not support version 10 of IR.'
+                'Please convert the model with the newer version of OpenVINO '
+                'or use the POT from OpenVINO 2021.4.2 to work with version 10 of IR.')
+
         ge.add_fullname_for_nodes(graph)
         self._models.append({'model': graph})
         self._is_cascade = False

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 
 namespace LayerTestsDefinitions {
 
-// ! [test_convolution:definition]
 typedef std::tuple<
         InferenceEngine::SizeVector,    // Deformable values size
         InferenceEngine::SizeVector,    // Kernel size
@@ -50,6 +49,5 @@ public:
 protected:
     void SetUp() override;
 };
-// ! [test_convolution:definition]
 
 }  // namespace LayerTestsDefinitions

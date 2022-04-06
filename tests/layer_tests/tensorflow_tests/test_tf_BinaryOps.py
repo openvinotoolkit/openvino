@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,7 +36,8 @@ class TestBinaryOps(CommonTFLayerTest):
             inputs_dict[input] = generate_input(self.current_op_type, inputs_dict[input])
         return inputs_dict
 
-    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type, use_new_frontend):
+    def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
+                                         use_new_frontend):
         """
             Tensorflow net                  IR net
 
@@ -115,15 +116,20 @@ class TestBinaryOps(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommits)
     @pytest.mark.parametrize("op_type",
-                             ['Add', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow', 'Maximum', 'Minimum',
-                                 'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less', 'LessEqual',
-                                 'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod'])
+                             ['Add', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow',
+                              'Maximum', 'Minimum',
+                              'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
+                              'LessEqual',
+                              'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod'])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type, use_new_frontend):
+    def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
+                       use_new_frontend, api_2):
         if ie_device == 'GPU' and precision == "FP16":
             pytest.skip("BinaryOps tests temporary skipped on GPU with FP16 precision."
                         "Several tests don't pass accuracy checks.")
-        self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                          use_new_frontend=use_new_frontend), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+        self._test(
+            *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
+                                                   use_new_frontend=use_new_frontend), ie_device,
+            precision,
+            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)

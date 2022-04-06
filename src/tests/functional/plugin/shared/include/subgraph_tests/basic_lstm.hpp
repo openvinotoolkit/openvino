@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,15 +43,9 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // Generate inputs
     GenerateInputs();
-
-    // Calculate References for the network before transformation passes
-    auto referenceOutputs = CalculateRefs();
-
-    // Apply LowLatency and UnrollTensorIterator transformations
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::LowLatency2>(); // LowLatency enables UnrollTI
-    manager.run_passes(function);
+    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
+    auto referenceOutputs = CalculateRefs();
     auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();

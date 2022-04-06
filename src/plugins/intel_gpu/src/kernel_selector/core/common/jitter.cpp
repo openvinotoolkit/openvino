@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,6 +88,11 @@ JitTerm exp(const JitTerm& arg) {
 
 JitTerm erf(const JitTerm& arg) {
     JitTerm jit_term{"(erf(" + arg.str() + "))"};
+    return jit_term;
+}
+
+JitTerm tanh(const JitTerm& arg) {
+    JitTerm jit_term{"(tanh(" + arg.str() + "))"};
     return jit_term;
 }
 
@@ -335,6 +340,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv8_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
@@ -348,8 +354,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv8_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv16_fsv16)
+                    layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                    layout == DataLayout::fs_b_yx_fsv32)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
@@ -448,15 +456,18 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.
         if (_tensor.PitchesDifferFromLogicalDims() && _tensor.SimpleLayout()) {
-            std::string f_pitch = toCodeString(_tensor.Feature().pitch);
-            definitions.push_back({ safe_index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
+            auto f_pitch = toCodeString(_tensor.Feature().pitch);
+            auto f_size = toCodeString(_tensor.Feature().v);
+            definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
         } else if (_tensor.PitchesDifferFromLogicalDims()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            definitions.push_back({ safe_index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
+            auto f_pad = toCodeString(_tensor.Feature().pad.before);
+            auto f_size = toCodeString(_tensor.Feature().v);
+            definitions.push_back({ safe_index_func_name, "((" + f_pad + " + (f)) % " + f_size + ")" });
             definitions.push_back({ index_func_name, "(" + toCodeString(_tensor.Feature().pad.before) + " + (f))" });
         }
     } else {
@@ -1115,6 +1126,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                     (half * input * (one + erf((input * mult)))).str()));
             break;
         }
+        case ActivationFunction::GELU_TANH: {
+            const std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm half{"0.5" + type_suffix};
+            const JitTerm mult{"0.044715" + type_suffix};
+            const JitTerm sqrt_2_over_pi{"0.79788458347320556640625" + type_suffix};
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (half * input * (one + tanh(sqrt_2_over_pi * input * (one + mult * input * input)))).str()));
+            break;
+        }
         case ActivationFunction::NOT:
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
@@ -1511,7 +1532,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     std::string op_decls = "";
     auto vec_size = conf.vec_size;
-    auto idx = conf.bfzyx_idx_order;
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
 

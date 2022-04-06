@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
+import re
+from typing import List, Tuple, Union
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Create and return argument parser."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)
 
-    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     model.add_argument('-m', '--model', type=str,
                        help='Path to an .xml file with a trained model (required if -rg is missing).')
     model.add_argument('-rg', '--import_gna_model', type=str,
                        help='Read GNA model from file using path/filename provided (required if -m is missing).')
+
+    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
     args.add_argument('-o', '--output', type=str,
                       help='Optional. Output file name to save inference results (.ark or .npz).')
@@ -25,13 +28,14 @@ def parse_args() -> argparse.Namespace:
                       'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
                       ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
-    args.add_argument('-bs', '--batch_size', default=1, type=int, choices=range(1, 9), metavar='[1-8]',
-                      help='Optional. Batch size 1-8 (default 1).')
+    args.add_argument('-bs', '--batch_size', type=int, choices=range(1, 9), metavar='[1-8]',
+                      help='Optional. Batch size 1-8.')
+    args.add_argument('-layout', type=str,
+                      help='Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all inputs)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
-                      help='Optional. The user-specified input scale factor for quantization. '
-                      'If the network contains multiple inputs, provide scale factors by separating them with commas.')
+                      help='Optional. The user-specified input scale factor for quantization.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
@@ -49,43 +53,81 @@ def parse_args() -> argparse.Namespace:
                       help='Optional. Enables performance report (specify -a to ensure arch accurate results).')
     args.add_argument('-a', '--arch', default='CORE', type=str.upper, choices=('CORE', 'ATOM'), metavar='[CORE, ATOM]',
                       help='Optional. Specify architecture. CORE, ATOM with the combination of -pc.')
-    args.add_argument('-iname', '--input_layers', type=str,
-                      help='Optional. Layer names for input blobs. The names are separated with ",". '
-                      'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
-    args.add_argument('-oname', '--output_layers', type=str,
-                      help='Optional. Layer names for output blobs. The names are separated with ",". '
-                      'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
-    args.add_argument('-cw_l', '--context_window_left', type=IntRange(0), default=0,
+    args.add_argument('-cw_l', '--context_window_left', type=int, default=0,
                       help='Optional. Number of frames for left context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
-    args.add_argument('-cw_r', '--context_window_right', type=IntRange(0), default=0,
+    args.add_argument('-cw_r', '--context_window_right', type=int, default=0,
                       help='Optional. Number of frames for right context windows (default is 0). '
-                      'Works only with context window networks. '
+                      'Works only with context window models. '
                       'If you use the cw_l or cw_r flag, then batch size argument is ignored.')
+    args.add_argument('-pwl_me', type=float, default=1.0,
+                      help='Optional. The maximum percent of error for PWL function. '
+                      'The value must be in <0, 100> range. The default value is 1.0.')
 
-    return parser.parse_args()
+    return parser
 
 
-class IntRange:
-    """Custom argparse type representing a bounded int."""
+def parse_arg_with_names(arg_string: Union[str, None], separator: str = '=') -> Tuple[List[str], List[str]]:
+    keys = []
+    values = []
 
-    def __init__(self, _min=None, _max=None):
-        self._min = _min
-        self._max = _max
+    if isinstance(arg_string, str):
+        for parameter in re.split(', |,', arg_string):
+            if separator in parameter:
+                key, value = parameter.split(separator)
+                keys.append(key)
+                values.append(value)
+            else:
+                values.append(parameter)
 
-    def __call__(self, arg):
-        try:
-            value = int(arg)
-        except ValueError:
-            raise argparse.ArgumentTypeError('Must be an integer.')
+    return keys, values
 
-        if (self._min is not None and value < self._min) or (self._max is not None and value > self._max):
-            if self._min is not None and self._max is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer in the range [{self._min}, {self._max}].')
-            elif self._min is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer >= {self._min}.')
-            elif self._max is not None:
-                raise argparse.ArgumentTypeError(f'Must be an integer <= {self._max}.')
 
-        return value
+def check_arg_with_names(arg: Tuple[List[str], List[str]]) -> bool:
+    return True if len(arg[0]) == 0 and len(arg[1]) > 1 else False
+
+
+def parse_args(separator: str = '=') -> argparse.Namespace:
+    """Parse and validate command-line arguments."""
+    parser = build_arg_parser()
+    args = parser.parse_args()
+
+    if args.context_window_left < 0:
+        parser.error('Invalid value for argument -cw_l/--context_window_left: Must be an integer >= 0.')
+
+    if args.context_window_right < 0:
+        parser.error('Invalid value for argument -cw_r/--context_window_right: Must be an integer >= 0.')
+
+    if args.pwl_me < 0.0 or args.pwl_me > 100.0:
+        parser.error('Invalid value for -pwl_me argument. It must be greater than 0.0 and less than 100.0')
+
+    args.input = parse_arg_with_names(args.input, separator)
+    if check_arg_with_names(args.input):
+        parser.error(
+            'Invalid format for -i/--input argment. Please specify the parameter like this '
+            f'<input_name1>{separator}<file1.ark/.npz>,<input_name2>{separator}<file2.ark/.npz> or just <file.ark/.npz> in case of one input.',
+        )
+
+    args.scale_factor = parse_arg_with_names(args.scale_factor, separator)
+    if check_arg_with_names(args.scale_factor):
+        parser.error(
+            'Invalid format for -sf/--scale_factor argment. Please specify the parameter like this '
+            f'<input_name1>{separator}<sf1>,<input_name2>{separator}<sf2> or just <sf> to be applied to all inputs.',
+        )
+
+    args.output = parse_arg_with_names(args.output, separator)
+    if check_arg_with_names(args.output):
+        parser.error(
+            'Invalid format for -o/--output argment. Please specify the parameter like this '
+            f'<output_name1>{separator}<output1.ark/.npz>,<output_name2>{separator}<output2.ark/.npz> or just <output.ark/.npz> in case of one output.',
+        )
+
+    args.reference = parse_arg_with_names(args.reference, separator)
+    if check_arg_with_names(args.reference):
+        parser.error(
+            'Invalid format for -r/--reference argment. Please specify the parameter like this '
+            f'<output_name1>{separator}<reference1.ark/.npz>,<output_name2>{separator}<reference2.ark/.npz> or <reference.ark/.npz> in case of one output.',
+        )
+
+    return args

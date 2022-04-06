@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ JitConstants GRNKernelBase::GetJitConstants(const grn_params& params, GRNKernelB
 }
 
 GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = output.GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },

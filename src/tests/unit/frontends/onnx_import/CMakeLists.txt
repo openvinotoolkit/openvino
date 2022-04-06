@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,7 @@ addIeTargetTest(
             gtest
             gtest_main
             commonTestUtils
-            ov_onnx_frontend
+            openvino_onnx_frontend
             openvino::util
         DEFINES
             ONNX_MODELS_DIR=\"${TEST_MODEL_ZOO}/onnx_import\"

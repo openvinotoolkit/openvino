@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,8 @@ int main(int argc, char* argv[]) {
         const std::string device_name{argv[3]};
         // -------------------------------------------------------------------
 
-        // Step 1. Initialize inference engine core
-        ov::runtime::Core core;
+        // Step 1. Initialize OpenVINO Runtime core
+        ov::Core core;
         // -------------------------------------------------------------------
 
         // Step 2. Read a model
@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
         printInputAndOutputsInfo(*model);
 
         // Step 3. Validate model inputs and outputs
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // SSD has an additional post-processing DetectionOutput layer that simplifies output filtering,
         // try to find it.
@@ -126,14 +126,14 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------------------------
 
         // Step 7. Loading a model to the device
-        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
         // -------------------------------------------------------------------
 
         // Step 8. Create an infer request
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
 
         // Step 9. Fill model with input data
-        ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
+        ov::Tensor input_tensor = infer_request.get_input_tensor();
 
         // copy NHWC data from image to tensor with batch
         unsigned char* image_data_ptr = image_data.get();
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
         infer_request.infer();
 
         // Step 11. Get output data from the model
-        ov::runtime::Tensor output_tensor = infer_request.get_output_tensor();
+        ov::Tensor output_tensor = infer_request.get_output_tensor();
 
         ov::Shape output_shape = model->output().get_shape();
         const size_t ssd_object_count = output_shape[2];

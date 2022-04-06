@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace v5 {
 ///     'HALF_TO_EVEN' - round halfs to the nearest even integer.
 ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
 /// zero.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Round : public Op {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };

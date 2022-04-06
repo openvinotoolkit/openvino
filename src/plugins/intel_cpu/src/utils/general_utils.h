@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,8 @@
 #include <algorithm>
 #include <cassert>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 template<typename T, typename U>
 inline T div_up(const T a, const U b) {
@@ -132,4 +133,5 @@ inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::P
     return InferenceEngine::Precision::UNSPECIFIED;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

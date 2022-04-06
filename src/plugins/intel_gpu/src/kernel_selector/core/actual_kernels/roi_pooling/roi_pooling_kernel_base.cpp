@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ static ROIPoolingKernelBase::DispatchData SetDefault(const roi_pooling_params& p
     ROIPoolingKernelBase::DispatchData dispatchData;
 
     // Determine global work sizes.
-    dispatchData.gws[0] = params.output.LogicalSize();
+    dispatchData.gws[0] = params.outputs[0].LogicalSize();
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
 

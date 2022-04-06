@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 #include <gna_plugin_log.hpp>
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(ReorderActivationAndPooling, "ReorderActivationAndPooling", 0);
 
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
     MATCHER_SCOPE(ReorderActivationAndPooling);

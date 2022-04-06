@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,20 +15,20 @@ namespace {
 struct MatrixNmsParams {
     MatrixNmsParams(
         const opset8::MatrixNms::Attributes& attrs,
-        const Tensor& boxes, const Tensor& scores,
-        const Tensor& expectedSelectedScores, const Tensor& expectedSelectedIndices,
-        const Tensor& expectedValidOutputs, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& boxes, const reference_tests::Tensor& scores,
+        const reference_tests::Tensor& expectedSelectedScores, const reference_tests::Tensor& expectedSelectedIndices,
+        const reference_tests::Tensor& expectedValidOutputs, const std::string& testcaseName = "") :
         attrs(attrs),
         boxes(boxes), scores(scores),
         expectedSelectedScores(expectedSelectedScores), expectedSelectedIndices(expectedSelectedIndices),
         expectedValidOutputs(expectedValidOutputs), testcaseName(testcaseName) {}
 
     opset8::MatrixNms::Attributes attrs;
-    Tensor boxes;
-    Tensor scores;
-    Tensor expectedSelectedScores;
-    Tensor expectedSelectedIndices;
-    Tensor expectedValidOutputs;
+    reference_tests::Tensor boxes;
+    reference_tests::Tensor scores;
+    reference_tests::Tensor expectedSelectedScores;
+    reference_tests::Tensor expectedSelectedIndices;
+    reference_tests::Tensor expectedValidOutputs;
     std::string testcaseName;
 };
 
@@ -98,16 +98,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00,
                 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1}),             // expected_selected_scores
-            Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_output_type_i64"),
         MatrixNmsParams(
             {
@@ -123,16 +123,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00,
                 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1}),             // expected_selected_scores
-            Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_output_type_i32"),
         MatrixNmsParams(
             {
@@ -148,16 +148,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
                 1.00,  0.95, 0.00,  0.00, 1.00,      1.00, 1.00, 0.8, 0.00,
                 10.00, 1.00, 11.00, 1.00, 0.1966116, 0.0,  0.1,  1.0, 1.1}),            // expected_selected_scores
-            Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {3, 1}, std::vector<T_IND>{0, 3, 1}),                        // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_gaussian"),
         MatrixNmsParams(
             {
@@ -173,20 +173,20 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1,
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {6, 1}, std::vector<T_IND>{0, 3, 1, 6, 9, 7}),               // expected_selected_indices
-            Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {6, 1}, std::vector<T_IND>{0, 3, 1, 6, 9, 7}),               // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes"),
         MatrixNmsParams(
             {
@@ -202,15 +202,15 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.5f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
                 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
@@ -219,8 +219,8 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
                 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                 1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
-            Tensor(ET_IND, {8, 1}, std::vector<T_IND>{3, 0, 9, 6, 0, 6, 3, 9}),         // expected_selected_indices
-            Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {8, 1}, std::vector<T_IND>{3, 0, 9, 6, 0, 6, 3, 9}),         // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes_by_score_cross_batch"),
         MatrixNmsParams(
             {
@@ -236,15 +236,15 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.5f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
                 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
@@ -253,8 +253,8 @@ std::vector<MatrixNmsParams> generateParams() {
                 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
                 1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
-            Tensor(ET_IND, {8, 1}, std::vector<T_IND>{3, 0, 9, 6, 0, 3, 6, 9}),         // expected_selected_indices
-            Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {8, 1}, std::vector<T_IND>{3, 0, 9, 6, 0, 3, 6, 9}),         // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes_by_classid_cross_batch"),
         MatrixNmsParams(
             {
@@ -270,20 +270,20 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {2, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1,
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.8, 0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {6, 1}, std::vector<T_IND>{0, 3, 1, 6, 9, 7}),               // expected_selected_indices
-            Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {6, 1}, std::vector<T_IND>{0, 3, 1, 6, 9, 7}),               // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
             "matrix_nms_by_keep_top_k"),
         MatrixNmsParams(
             {
@@ -299,17 +299,17 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.0, 10.0, 1.0, 11.0, 1.00, 0.95,       0.0, 0.0, 1.0, 1.0, 0.00, 0.9,        0.0, 0.0, 1.0, 1.0,
                 1.00, 0.8,  0.0, 10.0, 1.0, 11.0, 0.00, 0.13636364, 0.0, 0.1, 1.0, 1.1, 1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {6, 1}, std::vector<T_IND>{3, 0, 0, 3, 1, 1}),               // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{6}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {6, 1}, std::vector<T_IND>{3, 0, 0, 3, 1, 1}),               // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{6}),                                 // expected_valid_outputs
             "matrix_nms_background"),
         MatrixNmsParams(
             {
@@ -325,16 +325,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}),   // boxes
-            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.0, 10.0, 1.0, 11.0, 0.00, 0.9, 1.0, 1.0, 0.0, 0.0, 0.00, 0.75, 0.0, 0.1, 1.0, 1.1}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {3, 1}, std::vector<T_IND>{3, 0, 1}),                        // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {3, 1}, std::vector<T_IND>{3, 0, 1}),                        // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_flipped_coordinates"),
         MatrixNmsParams(
             {
@@ -350,16 +350,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.8f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.9, 0.00, 0.00, 1.00, 1.00}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
             "matrix_nms_post_threshold"),
         MatrixNmsParams(
             {
@@ -375,16 +375,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.3f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 10, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 10, 4}, std::vector<T>{
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}),           // boxes
-            Tensor(ET_TH, {1, 1, 10}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 1, 10}, std::vector<T_TH>{
                 0.4, 0.01, 0.2, 0.09, 0.15, 0.05, 0.02, 0.03, 0.05, 0.0}),              // scores
-            Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
                 0.00, 0.40, 0.00, 0.00, 1.00, 1.00}),                                   // expected_selected_scores
-            Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "matrix_nms_identical_boxes"),
         MatrixNmsParams(
             {
@@ -400,16 +400,16 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
                                                                                         // expected_selected_scores
-            Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
             "matrix_nms_nms_top_k"),
         MatrixNmsParams(
             {
@@ -425,12 +425,12 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}),                  // boxes
-            Tensor(ET_TH, {1, 1, 1}, std::vector<T_TH>{0.9}),                           // scores
-            Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}),                  // boxes
+            reference_tests::Tensor(ET_TH, {1, 1, 1}, std::vector<T_TH>{0.9}),                           // scores
+            reference_tests::Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
                 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),                                   // expected_selected_scores
-            Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "matrix_nms_single_box"),
         MatrixNmsParams(
             {
@@ -446,14 +446,14 @@ std::vector<MatrixNmsParams> generateParams() {
                 0.0f,                                       // post_threshold
                 true,                                       // normalized
             },
-            Tensor(ET, {1, 6, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
+            reference_tests::Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET_TH, {0, 6}, std::vector<T_TH>{}),                                 // expected_selected_scores
-            Tensor(ET_IND, {0, 1}, std::vector<T_IND>{}),                               // expected_selected_indices
-            Tensor(ET_IND, {1}, std::vector<T_IND>{0}),                                 // expected_valid_outputs
+            reference_tests::Tensor(ET_TH, {0, 6}, std::vector<T_TH>{}),                                 // expected_selected_scores
+            reference_tests::Tensor(ET_IND, {0, 1}, std::vector<T_IND>{}),                               // expected_selected_indices
+            reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{0}),                                 // expected_valid_outputs
             "matrix_nms_no_output"),
     };
     return params;

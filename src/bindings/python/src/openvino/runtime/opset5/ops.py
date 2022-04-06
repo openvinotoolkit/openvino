@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -49,15 +49,15 @@ def batch_norm_inference(
 ) -> Node:
     """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
 
-    @param data: The input tensor with data for normalization.
-    @param gamma: The scalar scaling for normalized value.
-    @param beta: The bias added to the scaled normalized value.
-    @param mean: The value for mean normalization.
-    @param variance: The value for variance normalization.
-    @param epsilon: The  number to be added to the variance to avoid division
+    :param data: The input tensor with data for normalization.
+    :param gamma: The scalar scaling for normalized value.
+    :param beta: The bias added to the scaled normalized value.
+    :param mean: The value for mean normalization.
+    :param variance: The value for variance normalization.
+    :param epsilon: The  number to be added to the variance to avoid division
                     by zero when normalizing a value.
-    @param name: The optional name of the output node.
-    @return: The new node which performs BatchNormInference.
+    :param name: The optional name of the output node.
+    :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(data, gamma, beta, mean, variance)
     return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
@@ -72,10 +72,10 @@ def gather_nd(
 ) -> Node:
     """Return a node which performs GatherND.
 
-    @param data:       N-D tensor with data for gathering
-    @param indices:    K-D tensor of tuples with indices by which data is gathered
-    @param batch_dims: Scalar value of batch dimensions
-    @return: The new node which performs GatherND
+    :param data:       N-D tensor with data for gathering
+    :param indices:    K-D tensor of tuples with indices by which data is gathered
+    :param batch_dims: Scalar value of batch dimensions
+    :return: The new node which performs GatherND
     """
     inputs = as_nodes(data, indices)
 
@@ -90,9 +90,9 @@ def gather_nd(
 def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """Apply LogSoftmax operation on each element of input tensor.
 
-    @param data: The tensor providing input data.
-    @param axis: An axis along which LogSoftmax should be calculated
-    @return: The new node with LogSoftmax operation applied on each element.
+    :param data: The tensor providing input data.
+    :param axis: An axis along which LogSoftmax should be calculated
+    :return: The new node with LogSoftmax operation applied on each element.
     """
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
@@ -112,18 +112,18 @@ def non_max_suppression(
 ) -> Node:
     """Return a node which performs NonMaxSuppression.
 
-    @param boxes: Tensor with box coordinates.
-    @param scores: Tensor with box scores.
-    @param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
                                         to be selected per class.
-    @param iou_threshold: Tensor specifying intersection over union threshold
-    @param score_threshold: Tensor specifying minimum score to consider box for the processing.
-    @param soft_nms_sigma: Tensor specifying the sigma parameter for Soft-NMS.
-    @param box_encoding: Format of boxes data encoding.
-    @param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
+    :param iou_threshold: Tensor specifying intersection over union threshold
+    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
+    :param soft_nms_sigma: Tensor specifying the sigma parameter for Soft-NMS.
+    :param box_encoding: Format of boxes data encoding.
+    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
-    @param output_type: Output element type.
-    @return: The new node which performs NonMaxSuppression
+    :param output_type: Output element type.
+    :return: The new node which performs NonMaxSuppression
     """
     if max_output_boxes_per_class is None:
         max_output_boxes_per_class = make_constant_node(0, np.int64)
@@ -153,12 +153,12 @@ def non_max_suppression(
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
 
-    @param data: The tensor providing input data.
-    @param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
+    :param data: The tensor providing input data.
+    :param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
         integer or rounding in such a way that the result heads away from zero if `mode` attribute is
         'half_away_from_zero`.
-    @param name: An optional name of the output node.
-    @return: The new node with Round operation applied on each element.
+    :param name: An optional name of the output node.
+    :return: The new node with Round operation applied on each element.
     """
     return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
 
@@ -182,30 +182,30 @@ def lstm_sequence(
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
-    @param X: The input tensor. Shape: [batch_size, seq_length, input_size].
-    @param initial_hidden_state:    The hidden state tensor.
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
-    @param initial_cell_state:      The cell state tensor.
+    :param initial_cell_state:      The cell state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
-    @param sequence_lengths:        Specifies real sequence lengths for each batch element.
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    @param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Expected format: fico
               Shape: [num_directions, 4*hidden_size, input_size].
-    @param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
               Expected format: fico
               Shape: [num_directions, 4*hidden_size, hidden_size].
-    @param B: The sum of biases (weight and recurrence). Expected format: fico
+    :param B: The sum of biases (weight and recurrence). Expected format: fico
               Shape: [num_directions, 4*hidden_size].
-    @param hidden_size: Specifies hidden state size.
-    @param direction: Specifies if the RNN is forward, reverse, or bidirectional.
-    @param activations: The list of three activation functions for gates.
-    @param activations_alpha: The list of alpha parameters for activation functions.
-    @param activations_beta: The list of beta parameters for activation functions.
-    @param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
-    @param name: An optional name of the output node.
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param name: An optional name of the output node.
 
-    @return: The new node represents LSTMSequence. Node outputs count: 3.
+    :return: The new node represents LSTMSequence. Node outputs count: 3.
     """
     if activations is None:
         activations = ["sigmoid", "tanh", "tanh"]
@@ -230,8 +230,8 @@ def lstm_sequence(
 def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSigmoid.
 
-    @param data: Tensor with input data floating point type.
-    @return: The new node which performs HSigmoid
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs HSigmoid
     """
     return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
 
@@ -255,29 +255,29 @@ def gru_sequence(
 ) -> Node:
     """Return a node which performs GRUSequence operation.
 
-    @param X: The input tensor. Shape: [batch_size, seq_length, input_size].
-    @param initial_hidden_state:    The hidden state tensor.
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
-    @param sequence_lengths:        Specifies real sequence lengths for each batch element.
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    @param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 3*hidden_size, input_size].
-    @param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, 3*hidden_size, hidden_size].
-    @param B: The sum of biases (weight and recurrence).
+    :param B: The sum of biases (weight and recurrence).
               For linear_before_reset set True the shape is [num_directions, 4*hidden_size].
               Otherwise the shape is [num_directions, 3*hidden_size].
-    @param hidden_size: Specifies hidden state size.
-    @param direction: Specifies if the RNN is forward, reverse, or bidirectional.
-    @param activations: The list of three activation functions for gates.
-    @param activations_alpha: The list of alpha parameters for activation functions.
-    @param activations_beta: The list of beta parameters for activation functions.
-    @param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
-    @param linear_before_reset: Flag denotes if the layer behaves according to the modification
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param linear_before_reset: Flag denotes if the layer behaves according to the modification
                                 of GRU described in the formula in the ONNX documentation.
-    @param name: An optional name of the output node.
+    :param name: An optional name of the output node.
 
-    @return: The new node represents GRUSequence. Node outputs count: 2.
+    :return: The new node represents GRUSequence. Node outputs count: 2.
     """
     if activations is None:
         activations = ["sigmoid", "tanh"]
@@ -318,26 +318,26 @@ def rnn_sequence(
 ) -> Node:
     """Return a node which performs RNNSequence operation.
 
-    @param X: The input tensor. Shape: [batch_size, seq_length, input_size].
-    @param initial_hidden_state:    The hidden state tensor.
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
-    @param sequence_lengths:        Specifies real sequence lengths for each batch element.
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    @param W: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, hidden_size, input_size].
-    @param R: The tensor with weights for matrix multiplication operation with hidden state.
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, hidden_size, hidden_size].
-    @param B: The sum of biases (weight and recurrence).
+    :param B: The sum of biases (weight and recurrence).
               Shape: [num_directions, hidden_size].
-    @param hidden_size: Specifies hidden state size.
-    @param direction: Specifies if the RNN is forward, reverse, or bidirectional.
-    @param activations: The list of three activation functions for gates.
-    @param activations_alpha: The list of alpha parameters for activation functions.
-    @param activations_beta: The list of beta parameters for activation functions.
-    @param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
-    @param name: An optional name of the output node.
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param name: An optional name of the output node.
 
-    @return: The new node represents RNNSequence. Node outputs count: 2.
+    :return: The new node represents RNNSequence. Node outputs count: 2.
     """
     if activations is None:
         activations = ["tanh"]

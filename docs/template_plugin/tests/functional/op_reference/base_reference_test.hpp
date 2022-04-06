@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,31 +22,31 @@ public:
     void Infer();
     virtual void Validate();
 
-    static void ValidateBlobs(const ov::runtime::Tensor& refBlob,
-                              const ov::runtime::Tensor& outBlob,
+    static void ValidateBlobs(const ov::Tensor& refBlob,
+                              const ov::Tensor& outBlob,
                               float threshold,
                               float abs_threshold,
                               size_t actual_comparision_size = 0);
 
 protected:
     const std::string targetDevice;
-    std::shared_ptr<ov::runtime::Core> core;
+    std::shared_ptr<ov::Core> core;
     std::shared_ptr<ov::Model> function;
 
-    ov::runtime::CompiledModel executableNetwork;
-    ov::runtime::InferRequest inferRequest;
-    std::vector<ov::runtime::Tensor> inputData;
-    std::vector<ov::runtime::Tensor> refOutData;
-    std::vector<ov::runtime::Tensor> actualOutData;
+    ov::CompiledModel executableNetwork;
+    ov::InferRequest inferRequest;
+    std::vector<ov::Tensor> inputData;
+    std::vector<ov::Tensor> refOutData;
+    std::vector<ov::Tensor> actualOutData;
     float threshold = 1e-2f;             // Relative diff
     float abs_threshold = -1.f;          // Absolute diff (not used when negative)
     size_t actual_comparision_size = 0;  // For ref output data is smaller than output blob size
 };
 
 template <class T>
-ov::runtime::Tensor CreateTensor(const ov::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
+ov::Tensor CreateTensor(const ov::element::Type& element_type, const std::vector<T>& values, size_t size = 0) {
     size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
-    ov::runtime::Tensor tensor{element_type, {real_size}};
+    ov::Tensor tensor{element_type, {real_size}};
     std::memcpy(tensor.data(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
 
     return tensor;
@@ -54,10 +54,10 @@ ov::runtime::Tensor CreateTensor(const ov::element::Type& element_type, const st
 
 // Create blob with correct input shape (not 1-dimensional). Will be used in tests with dynamic input shapes
 template <class T>
-ov::runtime::Tensor CreateTensor(const ov::Shape& shape,
+ov::Tensor CreateTensor(const ov::Shape& shape,
                                  const ov::element::Type& element_type,
                                  const std::vector<T>& values) {
-    ov::runtime::Tensor tensor{element_type, shape};
+    ov::Tensor tensor{element_type, shape};
     size_t size = sizeof(T) * values.size();
     if (tensor.get_byte_size() < size)
         size = tensor.get_byte_size();
@@ -72,7 +72,7 @@ ov::runtime::Tensor CreateTensor(const ov::Shape& shape,
 struct Tensor {
     Tensor() = default;
 
-    Tensor(const ov::Shape& shape, ov::element::Type type, const ov::runtime::Tensor& data)
+    Tensor(const ov::Shape& shape, ov::element::Type type, const ov::Tensor& data)
         : shape{shape},
           type{type},
           data{data} {}
@@ -88,7 +88,7 @@ struct Tensor {
 
     ov::Shape shape;
     ov::element::Type type;
-    ov::runtime::Tensor data;
+    ov::Tensor data;
 };
 
 ///
@@ -96,7 +96,7 @@ struct Tensor {
 ///
 /// e.g.:
 /// struct Params {
-///     Tensor i,o;
+///     reference_tests::Tensor i,o;
 ///     int mul;
 /// };
 /// struct TestParamsBuilder : ParamsBuilder<Params>

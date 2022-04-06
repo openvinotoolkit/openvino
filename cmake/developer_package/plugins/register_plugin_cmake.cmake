@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -46,19 +46,34 @@ endforeach()
 set(newContent "")
 file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content)
 
+set(already_exists_in_xml OFF)
 foreach(line IN LISTS content)
-    if("${line}" MATCHES "</plugins>")
+    if(NOT already_exists_in_xml)
         foreach(plugin_file IN LISTS plugin_files_to_add)
-            file(READ "${plugin_file}" content)
-            set(newContent "${newContent}
-${content}")
+            get_filename_component(plugin_name "${plugin_file}" NAME_WE)
+            if("${line}" MATCHES "name=\"${plugin_name}\"")
+                set(already_exists_in_xml ON)
+            endif()
         endforeach()
     endif()
+    if (NOT already_exists_in_xml)
+        if("${line}" MATCHES "</plugins>")
+            foreach(plugin_file IN LISTS plugin_files_to_add)
+                file(READ "${plugin_file}" content)
+                set(newContent "${newContent}
+${content}")
+            endforeach()
+        endif()
 
-    if(newContent)
-        set(newContent "${newContent}\n${line}")
-    else()
-        set(newContent "${line}")
+        if(newContent)
+            set(newContent "${newContent}\n${line}")
+        else()
+            set(newContent "${line}")
+        endif()
+    endif()
+
+    if("${line}" MATCHES "</plugin>")
+        set(already_exists_in_xml OFF)
     endif()
 endforeach()
 

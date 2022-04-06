@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,15 @@
 
 #include "jit_emitter.hpp"
 #include <cpu/x64/jit_generator.hpp>
-#include "mkldnn_node.h"
 #include "jit_bf16_emitters.hpp"
 
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 struct load_emitter_context : public emitter_context {
     load_emitter_context() : src_prc_(Precision::FP32), dst_prc_(Precision::FP32), load_num_(8),
     offset_byte_(0), is_fill_(false), fill_value_("zero") {}
@@ -44,7 +45,7 @@ struct store_emitter_context : public emitter_context {
 
 class jit_load_emitter : public jit_emitter {
 public:
-    jit_load_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::gpr_to_vec);
     /**
     * load_num values with src_prc precision are loaded from ptr[Reg64(in_idxs[0]) + offset_byte] address to Vmm[out_idxs[0]] as dst_prc.
@@ -71,7 +72,7 @@ public:
     size_t get_inputs_num() const override;
 
 private:
-    template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, InferenceEngine::Precision src_prc,
         const int out_vec_idx, InferenceEngine::Precision dst_prc, int load_num, bool is_fill = false, std::string fill_value = "zero") const;
 
@@ -100,7 +101,7 @@ private:
 
 class jit_store_emitter : public jit_emitter {
 public:
-    jit_store_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     /**
@@ -131,7 +132,7 @@ public:
     }
 
 private:
-    template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const int in_vec_idx, InferenceEngine::Precision src_prc,
         const Xbyak::Reg64 &reg_dst, int offset_byte, InferenceEngine::Precision dst_prc, int store_num) const;
 
@@ -152,4 +153,5 @@ private:
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

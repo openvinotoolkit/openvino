@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,12 @@ namespace low_precision {
  * @brief SqueezeTransformation propagates dequantization operations through Squeeze operation.
  *
  * For more details about the transformation, refer to
- * [SqueezeTransformation](@ref openvino_docs_IE_DG_lpt_SqueezeTransformation) page
+ * [SqueezeTransformation](@ref openvino_docs_OV_UG_lpt_SqueezeTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API SqueezeTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SqueezeTransformation", "0");
     SqueezeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

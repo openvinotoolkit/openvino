@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,14 +114,17 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
 Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
-                                          uint32_t number_of_inputs_for_fused_prim) const {
+                                          uint32_t number_of_inputs_for_fused_prim,
+                                          uint32_t num_of_output) const {
     Arguments args;
 
     for (uint32_t i = 0; i < num_of_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
 
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    for (uint32_t i = 0; i < num_of_output; i++) {
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+    }
 
     if (use_weights) {
         args.push_back({ArgumentDescriptor::Types::WEIGHTS, 0});
@@ -153,7 +156,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
         kernel_string->undefs = jit.second;
         kernel_string->options = exe_mode + " -cl-mad-enable";
         if (engine_info.bOptHintsSupport)
-            kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
+            kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
         if (engine_info.bLocalBlockIOSupport)
             kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
         kernel_string->entry_point = entry_point;
@@ -183,11 +186,12 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         bool weights,
                                         bool bias,
                                         int number_of_inputs,
-                                        uint32_t number_of_inputs_for_fused_prims) const {
+                                        uint32_t number_of_inputs_for_fused_prims,
+                                        int number_of_outputs) const {
     KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
+    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs);
 }
 }  // namespace kernel_selector

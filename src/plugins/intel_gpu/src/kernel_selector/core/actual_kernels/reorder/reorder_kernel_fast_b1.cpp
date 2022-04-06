@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool ReorderKernelFastBatch1::Validate(const Params& p, const optional_params& o
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
 
-    if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32)
+    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
         return false;
 
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
@@ -68,7 +68,7 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
     const auto& input = newParams.inputs[0];
     jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", input.LogicalSize()));
 
-    const auto& output = newParams.output;
+    const auto& output = newParams.outputs[0];
 
     if (input.GetLayout() == output.GetLayout() && input.SameDimsSizes(output) &&
         !input.PitchesDifferFromLogicalDims() && !output.PitchesDifferFromLogicalDims() &&
@@ -83,7 +83,7 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
 ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     unsigned int gws = (unsigned int)output.LogicalSize();
 
@@ -109,7 +109,7 @@ KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params, const 
 KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     const auto& input = orgParams.inputs[0];
-    const auto& output = orgParams.output;
+    const auto& output = orgParams.outputs[0];
 
     return input.Batch().v == 1 && output.Batch().v == 1 ? FORCE_PRIORITY_6 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }

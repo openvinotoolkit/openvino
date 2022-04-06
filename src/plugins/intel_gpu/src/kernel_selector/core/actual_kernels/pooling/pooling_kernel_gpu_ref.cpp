@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,9 +40,9 @@ JitConstants PoolingKernelGPURef::GetJitConstants(const pooling_params& params, 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"b", "f", "y", "x"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"b", "f", "z", "y", "x"};
         }
         FusedOpsConfiguration conf = {"", idx_order, "pool_result", input_dt, 1};

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,12 @@ namespace low_precision {
  * @brief ReduceMeanTransformation propagates dequantization operations through ReduceMean operation.
  *
  * For more details about the transformation, refer to
- * [ReduceMeanTransformation](@ref openvino_docs_IE_DG_lpt_ReduceMeanTransformation) page
+ * [ReduceMeanTransformation](@ref openvino_docs_OV_UG_lpt_ReduceMeanTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReduceMeanTransformation", "0");
     ReduceMeanTransformation(const Params& params = Params());
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;

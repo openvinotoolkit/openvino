@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,5 +13,5 @@ GNAPluginNS::LayerType GNAPluginNS::LayerTypeFromStr(const std::string &str) {
     if (it != LayerNameToType.end())
         return it->second;
     else
-        return NO_TYPE;
+        return LayerType::NO_TYPE;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,30 +9,33 @@
 #include <ngraph/variant.hpp>
 
 using namespace ngraph;
-using namespace ov;
 
-MKLDNNInputMemoryFormats::~MKLDNNInputMemoryFormats() = default;
+namespace ov {
+namespace intel_cpu {
 
-std::string ngraph::getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    auto it_info = node->get_rt_info().find(MKLDNNInputMemoryFormats::get_type_info_static());
+InputMemoryFormats::~InputMemoryFormats() = default;
+
+std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(InputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
-        if (it_info->second.is<MKLDNNInputMemoryFormats>()) {
-            return it_info->second.as<MKLDNNInputMemoryFormats>().getMemoryFormats();
+        if (it_info->second.is<InputMemoryFormats>()) {
+            return it_info->second.as<InputMemoryFormats>().getMemoryFormats();
         }
     }
     return {};
 }
 
-MKLDNNOutputMemoryFormats::~MKLDNNOutputMemoryFormats() = default;
+OutputMemoryFormats::~OutputMemoryFormats() = default;
 
-std::string ngraph::getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-    auto it_info = node->get_rt_info().find(MKLDNNOutputMemoryFormats::get_type_info_static());
+std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+    auto it_info = node->get_rt_info().find(OutputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
-        if (it_info->second.is<MKLDNNOutputMemoryFormats>()) {
-            return it_info->second.as<MKLDNNOutputMemoryFormats>().getMemoryFormats();
+        if (it_info->second.is<OutputMemoryFormats>()) {
+            return it_info->second.as<OutputMemoryFormats>().getMemoryFormats();
         }
     }
     return {};
 }
 
-
+}   // namespace intel_cpu
+}   // namespace ov

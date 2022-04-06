@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,14 @@ inline bool setLogLevel(std::string logLevel) {
     } else {
         return false;
     }
+}
+
+inline void INFO_RUN(const LogTask& task) {
+   HLogger->doRun(MultiDevicePlugin::LogLevel::INFO, task);
+}
+
+inline void DEBUG_RUN(const LogTask& task) {
+   HLogger->doRun(MultiDevicePlugin::LogLevel::DEBUG, task);
 }
 
 } // namespace MultiDevicePlugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,38 +26,33 @@ TEST(permute_gpu_f32, output_ordering_test)
 {
     auto& engine = get_test_engine();
 
-    std::vector<std::vector<int32_t>> input_tensors =
-    {
-        { 10, 5, 15, 2 },{ 2, 4, 6, 8 },{ 2, 2, 3, 2 },{ 9, 8, 7, 4 }
+    std::vector<std::vector<int32_t>> input_tensors = {
+        { 10, 5, 15, 2 },
+        { 2, 4, 6, 8 },
+        { 2, 2, 3, 2 },
+        { 9, 8, 7, 4 }
     };
-    std::vector<std::vector<uint16_t>> permutations =
-    {
+    std::vector<std::vector<uint16_t>> permutations = {
         { 0, 1, 2, 3 }, //do nothing
-    { 0, 1, 3, 2 }, //replace x with y
-    { 1, 0, 3, 2 }, //replace b with f
-    { 0, 2, 3, 1 }  //big permutation
+        { 0, 1, 3, 2 }, //replace x with y
+        { 1, 0, 3, 2 }, //replace b with f
+        { 0, 2, 3, 1 }  //big permutation
     };
     std::vector<format> input_formats = { format::bfyx, format::yxfb };
 
-    auto get_permutation = [&](const std::vector<int32_t>& inp1, const std::vector<uint16_t>& order)
-    {
+    auto get_permutation = [&](const std::vector<int32_t>& inp1, const std::vector<uint16_t>& order) {
         EXPECT_EQ(inp1.size(), order.size());
         std::vector<int32_t> output;
-        for (auto const& o : order)
-        {
+        for (auto const& o : order) {
             output.push_back(inp1.at(o));
         }
         return output;
     };
 
-    for (auto const& fr : input_formats)
-    {
-        for (auto const& inp_t : input_tensors)
-        {
-            for (auto const& perm : permutations)
-            {
-
-                auto input = engine.allocate_memory({ data_types::f32, fr, tensor(inp_t) });
+    for (auto const& fr : input_formats) {
+        for (auto const& inp_t : input_tensors) {
+            for (auto const& perm : permutations) {
+                auto input = engine.allocate_memory({ data_types::f32, fr, tensor(format::bfyx, inp_t) });
                 topology topology(
                     input_layout("input", input->get_layout()),
                     permute("permute", "input", perm));
@@ -69,11 +64,11 @@ TEST(permute_gpu_f32, output_ordering_test)
                 auto output_mem = output.get_memory();
                 EXPECT_EQ(outputs.size(), size_t(1));
                 auto ref_tensor = get_permutation(inp_t, perm);
-                auto out_tensor = output_mem->get_layout().size;
-                EXPECT_EQ(out_tensor.batch[0], ref_tensor[0]);
-                EXPECT_EQ(out_tensor.feature[0], ref_tensor[1]);
-                EXPECT_EQ(out_tensor.spatial[0], ref_tensor[2]);
-                EXPECT_EQ(out_tensor.spatial[1], ref_tensor[3]);
+                auto dims = output_mem->get_layout().get_dims();
+                EXPECT_EQ(dims[0], ref_tensor[0]);
+                EXPECT_EQ(dims[1], ref_tensor[1]);
+                EXPECT_EQ(dims[2], ref_tensor[2]);
+                EXPECT_EQ(dims[3], ref_tensor[3]);
             }
         }
     }
@@ -350,11 +345,11 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 8);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 1);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 8);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 1);
 
     float answers[16] = {
         1.0f, 3.0f,
@@ -405,11 +400,11 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 8);
-    EXPECT_EQ(out_tensor.feature[0], 2);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 1);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 8);
+    EXPECT_EQ(l.feature(), 2);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 1);
 
     float answers[16] = {
         1.0f, 3.0f,
@@ -552,9 +547,9 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     topology topology_unfused(
         input_layout("input", input->get_layout()),
         reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
-        permute("permute", "reorder1", { 0, 3, 1, 2}),
+        permute("permute", "reorder1", { 0, 2, 3, 1}),
         reorder("reorder2", "permute", format::bfyx, data_types::f32),
-        permute("out", "reorder2", { 0, 2, 3, 1}));
+        permute("out", "reorder2", { 0, 3, 1, 2}));
 
     cldnn::build_options options_unfused;
     options_unfused.set_option(cldnn::build_option::optimize_data(false));
@@ -567,9 +562,9 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
     topology topology_fused(
         input_layout("input", input->get_layout()),
         reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
-        permute("permute", "reorder1", { 0, 3, 1, 2}),
+        permute("permute", "reorder1", { 0, 2, 3, 1}),
         reorder("reorder2", "permute", format::bfyx, data_types::f32), // to be fused to previous permute
-        permute("out", "reorder2", { 0, 2, 3, 1})); // return to original value
+        permute("out", "reorder2", { 0, 3, 1, 2})); // return to original value
 
     cldnn::build_options options_fused;
     options_fused.set_option(cldnn::build_option::optimize_data(true));
@@ -614,11 +609,11 @@ TEST(fc_permute_crop_gpu, basic_permute_yxfb)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 5);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 512);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 5);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 512);
     EXPECT_EQ(output->get_layout().format, cldnn::format::yxfb);
 }
 
@@ -649,11 +644,11 @@ TEST(fc_permute_crop_gpu, basic_0)
     EXPECT_EQ(outputs.begin()->first, "crop");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 1);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 512);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 1);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 512);
     EXPECT_EQ(output->get_layout().format, cldnn::format::yxfb);
 }
 
@@ -679,11 +674,11 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 5);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 256);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 5);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 256);
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfyx);
 
     cldnn::mem_lock<float> input_ptr(input_mem, get_test_stream());
@@ -739,13 +734,13 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 6);
-    EXPECT_EQ(out_tensor.spatial[1], 5);
-    EXPECT_EQ(out_tensor.spatial[2], 4);
-    EXPECT_EQ(out_tensor.spatial[3], 3);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 6);
+    EXPECT_EQ(l.spatial(1), 5);
+    EXPECT_EQ(l.spatial(2), 4);
+    EXPECT_EQ(l.spatial(3), 3);
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfwzyx);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -794,7 +789,7 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
     const int w_reshape = 2;
     const int z_reshape = 2;
 
-    std::vector<uint16_t> permute_order = { 0, 1, 5, 4, 2, 3 };
+    std::vector<uint16_t> permute_order = { 0, 1, 4, 5, 3, 2 };
 
     auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y));
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, input_size });
@@ -839,10 +834,10 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
         EXPECT_EQ(expected_out[i], output_ptr[i]);
     }
 }
-TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
+TEST(permute_gpu_f32, basic_bfzyx_permute_0_4_1_2_3)
 {
     //  Input               : bfzyx:2x2x2x2x3
-    //  Permute order       : { 0,2,3,4,1 }
+    //  Permute order       : { 0,4,1,2,3 }
 
     auto& engine = get_test_engine();
 
@@ -872,7 +867,7 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+        permute("permute", "input", { 0, 4, 1, 2, 3 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -882,12 +877,12 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 3);
-    EXPECT_EQ(out_tensor.spatial[0], 2);
-    EXPECT_EQ(out_tensor.spatial[1], 2);
-    EXPECT_EQ(out_tensor.spatial[2], 2);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 3);
+    EXPECT_EQ(l.spatial(0), 2);
+    EXPECT_EQ(l.spatial(1), 2);
+    EXPECT_EQ(l.spatial(2), 2);
 
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfzyx);
 
@@ -918,9 +913,9 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
  * Test cases for permute_tile_8x8_4x4 kernel
  *
  * This TCs are enabled only when batch axis move to the last.
- * i.e permute order is 0,3,1,2 or 0,4,1,2,3 or 0,5,1,2,3,4
+ * i.e permute order is 0,2,3,1 or 0,4,1,2,3 or 0,5,1,2,3,4
  */
-TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_3_1_2) {
+TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_2_3_1) {
     //  Input               : bfyx:2x8x2x8
     //  Permute order       : { 0,3,1,2 }
 
@@ -932,14 +927,14 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_3_1_2) {
 
     std::vector<float> input_data;
     input_data.reserve(array_size);
-    for (size_t i=0 ; i < array_size; ++i)
+    for (size_t i = 0; i < array_size; ++i)
         input_data.push_back(static_cast<float>(i));
 
     set_values(input, input_data);
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 3, 1, 2 }));
+        permute("permute", "input", { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -976,7 +971,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfyx_0_3_1_2) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_3_1_2) {
+TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_2_3_1) {
     //  Input               : bfyx:2x5x2x8
     //  Permute order       : { 0,3,1,2 }
 
@@ -995,7 +990,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_3_1_2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 3, 1, 2 }));
+        permute("permute", "input", { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1026,7 +1021,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfyx_0_3_1_2) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_3_1_2) {
+TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_2_3_1) {
     //  Input               : bfyx:2x8x2x5
     //  Permute order       : { 0,3,1,2 }
 
@@ -1051,7 +1046,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_3_1_2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 3, 1, 2 }));
+        permute("permute", "input", { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1082,7 +1077,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfyx_0_3_1_2) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_3_1_2) {
+TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_2_3_1) {
     //  Input               : bfyx:2x5x2x5
     //  Permute order       : { 0,3,1,2 }
 
@@ -1101,7 +1096,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_3_1_2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 3, 1, 2 }));
+        permute("permute", "input", { 0, 2, 3, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1132,7 +1127,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfyx_0_3_1_2) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_2_3_4_1) {
     //  Input               : bfzyx:2x8x2x2x8
     //  Permute order       : { 0,4,1,2,3 }
 
@@ -1151,7 +1146,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 4, 1, 2, 3 }));
+        permute("permute", "input", { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1194,7 +1189,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfzyx_0_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_2_3_4_1) {
     //  Input               : bfzyx:2x5x2x2x8
     //  Permute order       : { 0,4,1,2,3 }
 
@@ -1213,7 +1208,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 4, 1, 2, 3 }));
+        permute("permute", "input", { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1248,7 +1243,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfzyx_0_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_2_3_4_1) {
     //  Input               : bfzyx:2x8x2x2x5
     //  Permute order       : { 0,4,1,2,3 }
 
@@ -1267,7 +1262,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 4, 1, 2, 3 }));
+        permute("permute", "input", { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1302,7 +1297,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfzyx_0_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_2_3_4_1) {
     //  Input               : bfzyx:2x5x2x2x5
     //  Permute order       : { 0,4,1,2,3 }
 
@@ -1321,7 +1316,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 4, 1, 2, 3 }));
+        permute("permute", "input", { 0, 2, 3, 4, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1356,9 +1351,9 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfzyx_0_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_5_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_2_3_4_5_1) {
     //  Input               : bfwzyx:2x8x2x2x2x8
-    //  Permute order       : { 0,5,1,2,3,4 }
+    //  Permute order       : { 0,2,3,4,5,1 }
 
     constexpr size_t array_size = 1024;
 
@@ -1375,7 +1370,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_5_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 5, 1, 2, 3, 4 }));
+        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1428,9 +1423,9 @@ TEST(permute_gpu_f32_tile_8x8_4x4, normal_bfwzyx_0_5_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_5_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_2_3_4_5_1) {
     //  Input               : bfwzyx:2x5x2x2x2x8
-    //  Permute order       : { 0,5,1,2,3,4 }
+    //  Permute order       : { 0,2,3,4,5,1 }
 
     constexpr size_t array_size = 640;
 
@@ -1447,7 +1442,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_5_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 5, 1, 2, 3, 4 }));
+        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1488,9 +1483,9 @@ TEST(permute_gpu_f32_tile_8x8_4x4, f_remainder_bfwzyx_0_5_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_5_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_2_3_4_5_1) {
     //  Input               : bfwzyx:2x8x2x2x2x5
-    //  Permute order       : { 0,5,1,2,3,4 }
+    //  Permute order       : { 0,2,3,4,5,1 }
 
     constexpr size_t array_size = 640;
 
@@ -1507,7 +1502,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_5_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 5, 1, 2, 3, 4 }));
+        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1548,9 +1543,9 @@ TEST(permute_gpu_f32_tile_8x8_4x4, x_remainder_bfwzyx_0_5_4_1_2_3) {
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
+TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
     //  Input               : bfwzyx:2x5x2x2x2x5
-    //  Permute order       : { 0,5,1,2,3,4 }
+    //  Permute order       : { 0,2,3,4,5,1 }
 
     constexpr size_t array_size = 400;
 
@@ -1567,7 +1562,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        permute("permute", "input", { 0, 5, 1, 2, 3, 4 }));
+        permute("permute", "input", { 0, 2, 3, 4, 5, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1670,12 +1665,13 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     std::swap(internal_sizes.at(2), internal_sizes.back());
     cldnn::tensor tensor(internal_sizes);
 
-    cldnn::format format = sizes.size() == 4?cldnn::format::bfyx:cldnn::format::bfzyx;
+    cldnn::format format = sizes.size() == 4 ? cldnn::format::bfyx : cldnn::format::bfzyx;
 
-    std::vector<uint16_t> order{0, static_cast<uint16_t>(sizes.size()-1)};
-    for (uint16_t i = 1; i<(sizes.size()-1); ++i) {
-        order.push_back(i);
+    std::vector<uint16_t> order = {0};
+    for (uint16_t i = 1; i < (sizes.size() - 1); ++i) {
+        order.push_back(i+1);
     }
+    order.push_back(1);
 
     auto input = engine.allocate_memory({Data_Type, format, tensor});
     set_random_values<type>(input);

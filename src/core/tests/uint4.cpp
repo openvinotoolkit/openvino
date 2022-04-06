@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ TEST(uint4, tensor_or_constant_size) {
     ngraph::HostTensor host_tensor(ngraph::element::u4, Shape{3});
     EXPECT_EQ(constant->get_byte_size(), host_tensor.get_size_in_bytes());
 
-    ov::runtime::Tensor runtime_tensor(ov::element::u4, ov::Shape{3});
+    ov::Tensor runtime_tensor(ov::element::u4, ov::Shape{3});
     EXPECT_EQ(constant->get_byte_size(), runtime_tensor.get_byte_size());
 }
 
@@ -40,6 +40,6 @@ TEST(u1, tensor_or_constant_size) {
     ngraph::HostTensor host_tensor(ngraph::element::u1, Shape{3});
     EXPECT_EQ(constant->get_byte_size(), host_tensor.get_size_in_bytes());
 
-    ov::runtime::Tensor runtime_tensor(ov::element::u1, ov::Shape{3});
+    ov::Tensor runtime_tensor(ov::element::u1, ov::Shape{3});
     EXPECT_EQ(constant->get_byte_size(), runtime_tensor.get_byte_size());
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -7,9 +7,14 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
+    dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node
-from unit_tests.utils.graph import build_graph
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.ops.transpose import Transpose
+from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
+    build_graph, shaped_parameter
 
 input_shape = np.array([1, 3, 224, 224])
 
@@ -100,3 +105,48 @@ class TestTransposeOp(unittest.TestCase):
         transpose_node = Node(graph, 'transpose')
         transpose_node['reverse_order'] = False
         self.assertRaises(AssertionError, Transpose.infer, transpose_node)
+
+
+dyn = dynamic_dimension_value
+
+
+class TestTransposeReverseInfer(unittest.TestCase):
+    @staticmethod
+    def build_and_test_reverse_inference(order, out_shape, ref_shape):
+        nodes = {
+            **shaped_parameter('data', None, {'reverse_infer': Parameter.reverse_infer}),
+            **valued_const_with_data('order', int64_array(order)),
+            **regular_op_with_empty_data('transpose', {'op': 'Transpose',
+                                                       'infer': Transpose.infer,
+                                                       'reverse_infer': Transpose.reverse_infer}),
+            **result('res'),
+        }
+
+        edges = [
+            *connect('data', '0:transpose'),
+            *connect('order', '1:transpose'),
+            *connect('transpose', 'res')
+        ]
+
+        graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
+        Node(graph, 'transpose').out_port(0).data.set_shape(shape_array(out_shape))
+
+        partial_infer(graph)
+        actual_shape = Node(graph, 'data').out_port(0).data.get_shape()
+        assert strict_compare_tensors(actual_shape, shape_array(ref_shape))
+
+    def test_reverse_infer_1(self):
+        self.build_and_test_reverse_inference(order=[0, 3, 1, 2],
+                                              out_shape=[dyn, dyn, dyn, dyn],
+                                              ref_shape=[dyn, dyn, dyn, dyn])
+
+    def test_reverse_infer_2(self):
+        self.build_and_test_reverse_inference(order=[0, 3, 1, 2],
+                                              out_shape=[44, 32, 77, 1],
+                                              ref_shape=[44, 77, 1, 32])
+
+    def test_reverse_infer_3(self):
+        self.build_and_test_reverse_inference(order=[0, 2, 3, 1],
+                                              out_shape=[44, 32, 77, 1],
+                                              ref_shape=[44, 1, 32, 77])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ bool EltwiseKernel_b_fs_yx_fsv4::Validate(const Params& params, const optional_p
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
-    const auto& output = ewParams.output;
+    const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
 
     if (count % vec_size != 0)
@@ -148,7 +148,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::MakeLoadJitConstants(const eltwise_para
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
                         jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
                     } else {
-                        bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.output.Feature().v != 1);
+                        bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.outputs[0].Feature().v != 1);
 
                         if (feature_broadcasting) {
                             const std::string broadcast_name = "DO_FEATURE_BROADCAST" + toCodeString(op_num) + "_" + toCodeString(input_idx);
@@ -198,7 +198,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
     auto blockSize = vec_size;
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", blockSize));
-    jit.AddConstant(MakeJitConstant("BLOCKS_COUNT", CeilDiv(params.output.X().v, blockSize)));
+    jit.AddConstant(MakeJitConstant("BLOCKS_COUNT", CeilDiv(params.outputs[0].X().v, blockSize)));
 
     jit.Merge(MakeInputDeclsJitConstants(params, useVload8));
     jit.Merge(MakeLoadJitConstants(params, useVload8));
@@ -227,17 +227,17 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.output));
+        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
     }
 
     if (!params.stride.empty()) {
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, params.output.GetDType(), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
 
-    if (params.output.Feature().v % 4 != 0)
-        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.output.Feature().v % 4));
+    if (params.outputs[0].Feature().v % 4 != 0)
+        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % 4));
 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
@@ -269,14 +269,14 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv4::SetDefault(const eltwise_params& params) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                                                                      {Tensor::DataChannelName::FEATURE},
                                                                      {Tensor::DataChannelName::BATCH}};
 
-    dispatchData.gws[0] = params.output.X().v * params.output.Y().v;
-    dispatchData.gws[1] = CeilDiv(params.output.Feature().v, 4);
-    dispatchData.gws[2] = params.output.Batch().v;
+    dispatchData.gws[0] = params.outputs[0].X().v * params.outputs[0].Y().v;
+    dispatchData.gws[1] = CeilDiv(params.outputs[0].Feature().v, 4);
+    dispatchData.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     dispatchData.lws[1] = 1;
@@ -293,7 +293,7 @@ static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const 
     if (input.mode == EltwiseInputMode::INPUT_BUFFER) {
         if (params.inputs[input_idx].LogicalSize() != 1
             && params.inputs[input_idx].Feature().v == 1
-            && params.output.Feature().v != 1) {
+            && params.outputs[0].Feature().v != 1) {
                 return true;
             }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 #pragma once
 #include "primitive.hpp"
 #include <vector>
+
+#include "openvino/core/shape.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -36,11 +38,11 @@ struct strided_slice : public primitive_base<strided_slice> {
                   const primitive_id& begin_id,
                   const primitive_id& end_id,
                   const primitive_id& strides_id,
-                  std::vector<uint8_t> begin_mask,
-                  std::vector<uint8_t> end_mask,
-                  std::vector<uint8_t> new_axis_mask,
-                  std::vector<uint8_t> shrink_axis_mask,
-                  const tensor out_size,
+                  std::vector<int64_t> begin_mask,
+                  std::vector<int64_t> end_mask,
+                  std::vector<int64_t> new_axis_mask,
+                  std::vector<int64_t> shrink_axis_mask,
+                  const ov::Shape out_size,
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input, begin_id, end_id, strides_id}, ext_prim_id, output_padding),
@@ -51,15 +53,15 @@ struct strided_slice : public primitive_base<strided_slice> {
           out_size(out_size) {}
 
     /// @brief Array of bits, that provide replace begin[i] to max possible range in that dimension.
-    std::vector<uint8_t> begin_mask;
+    std::vector<int64_t> begin_mask;
     /// @brief Array of bits, that provide replace end[i] to max possible range in that dimension.
-    std::vector<uint8_t> end_mask;
+    std::vector<int64_t> end_mask;
     /// @brief Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
-    std::vector<uint8_t> new_axis_mask;
+    std::vector<int64_t> new_axis_mask;
     /// @brief Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
-    std::vector<uint8_t> shrink_axis_mask;
+    std::vector<int64_t> shrink_axis_mask;
     /// @brief Size of output tensor
-    tensor out_size;
+    ov::Shape out_size;
 };
 /// @}
 /// @}

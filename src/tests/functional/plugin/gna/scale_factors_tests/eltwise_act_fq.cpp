@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ protected:
         const ngraph::Shape shape = {1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});
 
-        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 100 * inputDataMin });
+        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 100 * -inputDataMax });
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 100 * inputDataMax });
         auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0], lowNodeIn, highNodeIn,
             lowNodeIn, highNodeIn, levels16);

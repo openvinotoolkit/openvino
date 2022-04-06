@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,7 +10,7 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 
 from openvino.tools.pot.app.run import optimize
 from openvino.tools.pot import MagnitudeSparsity
-from openvino.tools.pot.graph.nx_model import NXModel
+from openvino.tools.pot.graph.nx_model import CompressedModel
 from openvino.tools.pot.graph.node_utils import get_node_value
 from openvino.tools.pot.utils.logger import stdout_redirect
 from tests.utils.config import get_engine_config, merge_configs
@@ -39,8 +39,6 @@ TEST_SPARSITY_ALGO = [
 @pytest.mark.parametrize('test_models', TEST_SPARSITY_ALGO,
                          ids=['{}_{}_{}_{}'.format(*m) for m in TEST_SPARSITY_ALGO])
 def test_sparsity_algo(test_models, tmp_path, models):
-    # TODO: Enable these tests after solving IRReader problem
-    pytest.skip()
     model_name, model_framework, algorithm, sparsity_level, normed_threshold, ref_name = test_models
     algorithm_config = Dict({
         'algorithms': [{
@@ -66,7 +64,7 @@ def test_sparsity_algo(test_models, tmp_path, models):
     output_model, meta = stdout_redirect(restore_graph_from_ir, xml_path, bin_path)
     output_model.meta_data = meta
 
-    assert check_sparsity_level(NXModel(graph=output_model), config, sparsity_level)
+    assert check_sparsity_level(CompressedModel(graph=output_model), config, sparsity_level)
     check_graph(tmp_path, output_model, model_name + ref_name, model_framework, check_weights=True)
 
 TEST_SPARSITY_MODELS = [
@@ -119,4 +117,4 @@ def test_sparsity(test_models, tmp_path, models):
 
     # Check resulting sparsity level
     model, _ = stdout_redirect(restore_graph_from_ir, xml_path, bin_path)
-    assert check_sparsity_level(NXModel(graph=model), config, sparsity_level)
+    assert check_sparsity_level(CompressedModel(graph=model), config, sparsity_level)

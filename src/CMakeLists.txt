@@ -1,18 +1,20 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_custom_target(ov_runtime_libraries)
-
 include(cmake/install_tbb.cmake)
 
+# CC library should be registered before other cc targets
+add_subdirectory(common)
 # TODO: Fix Wall for core, frontends, tests and  c binding
 add_subdirectory(core)
 add_subdirectory(frontends)
 # TODO: remove ngraph/ngraph.hpp usage
-add_subdirectory(core/tests)
+if(ENABLE_TESTS)
+    add_subdirectory(core/tests)
+endif()
 add_subdirectory(bindings)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -22,8 +24,9 @@ endif()
 
 add_subdirectory(plugins)
 add_subdirectory(inference)
-include(cmake/ov_runtime.cmake)
-add_subdirectory(common)
+include(cmake/openvino.cmake)
+# preprocessing has dependency on `openvino` for static build
+add_subdirectory(common/preprocessing)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)

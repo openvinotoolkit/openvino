@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -95,7 +95,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -158,7 +158,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
 
@@ -197,7 +197,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -231,7 +231,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto output = outputs.at("depth_to_space").get_memory();
     cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
 
-    std::vector<uint16_t> perm = { 0,4,5,2,1,3 };
+    std::vector<uint16_t> perm = { 0,3,4,1,5,2 };
 
     topology topology_ref;
     topology_ref.add(input_layout("Input0", input1->get_layout()));
@@ -259,7 +259,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     cldnn::mem_lock<FLOAT16> output_ptr_ref(output_ref, get_test_stream());
 
     for (size_t i = 0; i < output->get_layout().count(); ++i) {
-        EXPECT_EQ(output_ptr_ref[i], output_ptr[i]);
+        ASSERT_EQ(output_ptr_ref[i], output_ptr[i]);
     }
 }
 
@@ -314,7 +314,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -364,7 +364,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -414,6 +414,6 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,39 +86,13 @@ tensor::value_type layout::ifm() const {
     return dims[dim_idx];
 }
 
-static format get_default_format(size_t rank, bool is_weights, bool is_grouped) {
-    auto default_fmt = cldnn::format::bfyx;
-    if (is_weights) {
-        if (is_grouped) {
-            if (rank == 5) {
-                default_fmt = cldnn::format::goiyx;
-            } else if (rank == 6) {
-                default_fmt = cldnn::format::goizyx;
-            }
-        } else {
-            if (rank == 4) {
-                default_fmt = cldnn::format::oiyx;
-            } else if (rank == 5) {
-                default_fmt = cldnn::format::oizyx;
-            }
-        }
-    } else {
-        if (rank == 5) {
-            default_fmt = cldnn::format::bfzyx;
-        } else if (rank == 6) {
-            default_fmt = cldnn::format::bfwzyx;
-        }
-    }
-
-    return default_fmt;
-}
 std::vector<tensor::value_type> layout::get_dims() const {
-    auto default_fmt = get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
     return size.sizes(default_fmt);
 }
 
 std::vector<tensor::value_type> layout::get_padded_dims() const {
-    auto default_fmt = get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
     auto padded_size = size.add(data_padding.lower_size()).add(data_padding.upper_size());
     return padded_size.sizes(default_fmt);
 }
@@ -167,6 +141,6 @@ std::vector<size_t> layout::get_dims_order() const {
 
 std::string layout::to_string() const {
     // TODO: Extend with format/data-type info
-    return size.to_string();
+    return format.to_string() + size.to_string();
 }
 }  // namespace cldnn

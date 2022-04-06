@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace SubgraphTestsDefinitions {
 std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple> &obj) {
@@ -29,7 +29,7 @@ std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfP
     return results.str();
 }
 
-void SimpleIfTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+void SimpleIfTest::compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) {
     // in bodies there aren't nodes that work with dimension 0. So we shouldn't call SubgraphBaseTest::compare
     bool hasZero = false;
     for (auto shape : targetStaticShapes[inferNum]) {
@@ -152,10 +152,10 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ngraph::Sh
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
 
         if (i + 1 == funcInputs.size()) {
-            tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             auto *dataPtr = tensor.data<bool>();
             dataPtr[0] = condition;
         } else {
@@ -241,7 +241,7 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
                                            params, "SimpleIfNotConstConditionAndDimsIncreaseTest");
 }
 
-void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) {
     const auto shape = targetStaticShapes[inferNum++].front();
     if (!condition && std::any_of(shape.begin(), shape.end(), [](size_t dim) { return dim == 0; })) {
         return;

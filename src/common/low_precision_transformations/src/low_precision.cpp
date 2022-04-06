@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
 #include <low_precision/lpt_itt.hpp>
 
 #include "low_precision/align_quantization_intervals.hpp"
@@ -22,6 +21,7 @@
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include <low_precision/markup_quantization_granularity.hpp>
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
 
@@ -74,16 +74,15 @@
 #include "low_precision/convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
+#include "itt.hpp"
 
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+    const std::vector<PrecisionsRestriction>& precisionRestrictions,
+    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
     const LayerTransformation::Params params) :
     precisionRestrictions(precisionRestrictions),
     quantizationRestrictions(quantizationRestrictions),
@@ -94,6 +93,7 @@ using namespace ngraph::pass::low_precision;
 
 template <typename BaseOp>
 void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
+    MATCHER_SCOPE(TypeRelaxedReplacer);
     using namespace ngraph;
 
     auto is_op_type = [](std::shared_ptr<Node> n) {
@@ -104,11 +104,11 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
         auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        if (!l_node) {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
+        }
         if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
             return false;
-        }
-        if (!l_node) {
-            THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
         }
 
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionTypeRelaxedMatcher");
@@ -130,13 +130,11 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
 
 ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Add>(this);
@@ -159,37 +157,39 @@ ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
-
 MarkupOptimizations::MarkupOptimizations(
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions) :
+    const std::vector<PrecisionsRestriction>& precisionRestrictions,
+    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
+    const AttributeParameters& params) :
     precisionRestrictions(precisionRestrictions),
-    quantizationRestrictions(quantizationRestrictions) {}
+    quantizationRestrictions(quantizationRestrictions),
+    params(params) {}
 
 bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
     ngraph::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
-    markup.register_pass<low_precision::MarkupCanBeQuantized>();
+    markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
-        markup.register_pass<low_precision::MarkupPrecisions>(precisionRestrictions);
+        markup.register_pass<low_precision::MarkupPrecisions>(precisionRestrictions, params.defaultPrecisions);
     }
     if (!quantizationRestrictions.empty()) {
-        markup.register_pass<low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
+        markup.register_pass<low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
     }
     if (ngraph::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
-        markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
+        markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
     }
-    markup.register_pass<low_precision::PropagatePrecisions>();
+    markup.register_pass<low_precision::PropagatePrecisions>(params);
     if (ngraph::op::util::has_op_with_type<ngraph::opset1::Concat>(f)) {
-        markup.register_pass<low_precision::AlignQuantizationIntervals>();
-        markup.register_pass<low_precision::AlignQuantizationParameters>();
+        markup.register_pass<low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
+        markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
     markup.run_passes(f);
     return false;
 }
 
 bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(LowPrecision);
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
@@ -204,7 +204,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 
     manager.register_pass<TypeRelaxedReplacer>();
 
-    manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions);
+    AttributeParameters attributeParams(params.deqPrecision, params.defaultPrecisions);
+    manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions, attributeParams);
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
     common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
@@ -248,7 +249,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
     cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
-        OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
+        PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -300,8 +301,4 @@ bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
         }
     }
     return false;
-}
-
-void ngraph::pass::low_precision::LowPrecision::setDefaultPrecisions(const std::vector<element::Type>& precisions) {
-    LayerTransformation::setDefaultPrecisions(precisions);
 }

@@ -11,6 +11,10 @@
    Implement Executable Network Functionality <openvino_docs_ie_plugin_dg_executable_network>
    Implement Synchronous Inference Request <openvino_docs_ie_plugin_dg_infer_request>
    Implement Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>
+   openvino_docs_ie_plugin_dg_plugin_build
+   openvino_docs_ie_plugin_dg_plugin_testing
+   openvino_docs_ie_plugin_detailed_guides
+   openvino_docs_ie_plugin_api_references
 
 @endsphinxdirective
 
@@ -52,11 +56,11 @@ Detailed guides
 * [Build](@ref openvino_docs_ie_plugin_dg_plugin_build) a plugin library using CMake\*
 * Plugin and its components [testing](@ref openvino_docs_ie_plugin_dg_plugin_testing)
 * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks)
-* [Low precision transformations](@ref openvino_docs_IE_DG_lpt) guide
-* [Writing nGraph transformations](@ref ngraph_transformation) guide
+* [Low precision transformations](@ref openvino_docs_OV_UG_lpt) guide
+* [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide
 
 API References
 -----------------------
 
-* [Inference Engine Plugin API](groupie_dev_api.html)
-* [Inference Engine Transformation API](groupie_transformation_api.html)
+* [Inference Engine Plugin API](@ref ie_dev_api)
+* [Inference Engine Transformation API](@ref ie_transformation_api)

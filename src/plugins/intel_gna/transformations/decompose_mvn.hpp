@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,12 @@ namespace GNAPluginNS {
  * See official OpenVINO documentation for the MVN formula
  * implemented partially by this decomposition:
  * https://docs.openvino.ai/latest/openvino_docs_ops_normalization_MVN_6.html
- * 
+ *
  */
 class DecomposeMVN : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DecomposeMVN", "0");
     DecomposeMVN();
 };
 
-} // namespace GNAPluginNS
+}  // namespace GNAPluginNS

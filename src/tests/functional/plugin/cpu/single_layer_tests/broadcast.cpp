@@ -1,11 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace CPUTestUtils;
 
@@ -158,15 +158,15 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (funcInput.get_node()->get_friendly_name() == "targetShape") {
-                tensor = ov::runtime::Tensor{ov::element::i64, targetInputStaticShapes[i]};
+                tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i]};
                 auto data = tensor.data<ov::element_type_traits<ov::element::i64>::value_type>();
                 for (size_t i = 0lu; i < targetShape.size(); i++) {
                     data[i] = targetShape[i];
                 }
             } else if (funcInput.get_node()->get_friendly_name() == "axesMapping") {
-                tensor = ov::runtime::Tensor{ov::element::i64, targetInputStaticShapes[i]};
+                tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i]};
                 auto data = tensor.data<ov::element_type_traits<ov::element::i64>::value_type>();
                 for (size_t i = 0lu; i < axesMapping.size(); i++) {
                     data[i] = axesMapping[i];
@@ -190,7 +190,7 @@ TEST_P(BroadcastLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Broadcast");
+    CheckPluginRelatedResults(compiledModel, "Broadcast");
 }
 
 namespace {
@@ -447,7 +447,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes1D = {
         { // Origin dynamic shapes
             {-1},
             { // Dynamic shapes instances
-                {},
+                {1},
                 {1}
             }
         }

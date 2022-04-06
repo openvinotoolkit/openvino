@@ -1,25 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GRUCellDecomposition, "GRUCellDecomposition", 0);
+#include "itt.hpp"
 
 ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell> (m.get_match_root());
+        auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell>(m.get_match_root());
         if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
         }
@@ -65,7 +63,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         // rt = f(Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr)
         auto r_t = ngraph::op::util::activation(gru_cell->get_activations()[0], clamp_r);
 
-        std::shared_ptr<Node>  _h;
+        std::shared_ptr<Node> _h;
         if (gru_cell->get_linear_before_reset()) {
             // _h = Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh
             auto Ht_Rh_Rbh = std::make_shared<opset4::Add>(Ht_R_zrh->output(2), biases_zrh->output(3));
@@ -97,8 +95,24 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto out_H = std::make_shared<opset4::Add>(mul_1, mul_2);
 
         out_H->set_friendly_name(gru_cell->get_friendly_name());
-        ngraph::copy_runtime_info(gru_cell, {Xt_W, Ht_R, axis_0, Xt_W_zrh, R_zrh, Ht_R_zrh, biases_zrh,
-                                             add_z_1, add_z_2, add_r_1, add_r_2, h_t, one, sub, mul_1, mul_2, out_H});
+        ngraph::copy_runtime_info(gru_cell,
+                                  {Xt_W,
+                                   Ht_R,
+                                   axis_0,
+                                   Xt_W_zrh,
+                                   R_zrh,
+                                   Ht_R_zrh,
+                                   biases_zrh,
+                                   add_z_1,
+                                   add_z_2,
+                                   add_r_1,
+                                   add_r_2,
+                                   h_t,
+                                   one,
+                                   sub,
+                                   mul_1,
+                                   mul_2,
+                                   out_H});
         ngraph::replace_node(gru_cell, out_H);
         return true;
     };

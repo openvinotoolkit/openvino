@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ ReorderToWinograd2x3Kernel::DispatchData ReorderToWinograd2x3Kernel::SetDefault(
     DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     dispatchData.gws[0] = static_cast<size_t>(input.Feature().v * input.Batch().v);
     dispatchData.gws[1] = static_cast<size_t>(params.winograd_nr_tiles_x);

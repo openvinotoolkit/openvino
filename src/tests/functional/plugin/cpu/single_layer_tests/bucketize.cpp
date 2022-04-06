@@ -1,8 +1,8 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -60,14 +60,14 @@ public:
         const auto& funcInputs = function->inputs();
 
         auto data_size = shape_size(targetInputStaticShapes[0]);
-        ov::runtime::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
+        ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
                                                                                  targetInputStaticShapes[0],
                                                                                  data_size * 5,
                                                                                  0,
                                                                                  10,
                                                                                  7235346);
 
-        ov::runtime::Tensor tensorBucket =
+        ov::Tensor tensorBucket =
             ov::test::utils::create_and_fill_tensor_unique_sequence(funcInputs[1].get_element_type(),
                                                                     targetInputStaticShapes[1],
                                                                     0,

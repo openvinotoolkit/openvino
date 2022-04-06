@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,15 +37,15 @@ TEST(type_prop, mish_partial_static_rank) {
 
 TEST(type_prop, mish_incompatible_dtype_i32) {
     auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 6});
-    ASSERT_THROW(std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, mish_incompatible_dtype_u32) {
     auto data = make_shared<op::Parameter>(element::u32, Shape{1, 3, 6});
-    ASSERT_THROW(std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
 }
 
 TEST(type_prop, mish_incompatible_dtype_boolean) {
     auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 3, 6});
-    ASSERT_THROW(std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
+    ASSERT_THROW(const auto unused = std::make_shared<op::v4::Mish>(data), ngraph::NodeValidationFailure);
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,76 +8,160 @@ from pathlib import Path
 import shutil
 import logging
 
+INLINE_LINKS_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)'
+REFERENCE_LINKS_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.md)'
+INLINE_IMAGES_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))\)'
+REFERENCE_IMAGES_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))'
+LABEL_PATTERN = r'\{\#(.+)\}'
+
+
+class DoxyMDFilter:
+    def __init__(self, md_file, input_dir, output_dir, file_to_label_mapping):
+        self.md_file = md_file
+        self.file_to_label_mapping = file_to_label_mapping
+        self.parent_folder = self.get_parent_folder()
+        self.content = self.get_content()
+        self.input_dir = input_dir
+        self.output_dir = output_dir
+        self.image_links = self.get_image_links()
+        self.md_links = self.get_md_links()
+
+    def copy_markdown(self):
+        """
+        Save processed content of markdown file in output_dir
+        """
+        rel_path = self.md_file.relative_to(self.input_dir)
+        dest = self.output_dir.joinpath(rel_path)
+        dest.parents[0].mkdir(parents=True, exist_ok=True)
+        with open(dest, 'w', encoding='utf-8') as f:
+            f.write(self.content)
+
+    def get_parent_folder(self):
+        """
+        Get parent folder of a markdown file
+        """
+        return self.md_file.parents[0]
+
+    def get_content(self):
+        """
+        Read Markdown File
+        """
+        with open(self.md_file, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def replace_image_links(self):
+        """
+        Replace relative image links with absolute paths.
+        This is needed for doxygen.
+        """
+        for image in self.image_links:
+            new_path = self.parent_folder.joinpath(image).resolve().relative_to(self.input_dir)
+            new_path = self.output_dir / new_path
+            self.content = self.content.replace(image, new_path.as_posix())
+
+    def replace_md_links(self):
+        """
+        Replace markdown links with doxygen labels.
+        """
+        for link in self.md_links:
+            link_path = self.parent_folder.joinpath(link).resolve()
+            if os.path.exists(link_path) and link_path in self.file_to_label_mapping:
+                self.content = self.content.replace(link, '@ref ' + self.file_to_label_mapping[link_path])
+            else:
+                rel_path = os.path.relpath(link_path, self.input_dir).replace('\\', '/')
+                self.content = self.content.replace(link, rel_path)
+
+    def remove_comment_block_sphinxdirective(self):
+        """
+        Remove comment blocks from `sphinxdirective`
+        """
+        self.content = re.sub(r'\<\!\-\-\s*?\@sphinxdirective', '@sphinxdirective', self.content)
+        self.content = re.sub(r'\@endsphinxdirective\s*?\-\-\>', '@endsphinxdirective', self.content)
+
+    def copy_images(self):
+        """
+        Go through image links and copy them into output_folder
+        """
+        for image in self.image_links:
+            path = self.parent_folder.joinpath(image)
+            self._copy_image(path)
+
+    def _copy_image(self, path):
+        """
+        A helper function for self.copy_images
+        """
+        path = path.resolve()
+        rel_path = path.relative_to(self.input_dir)
+        dest = self.output_dir.joinpath(rel_path)
+        dest.parents[0].mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy(path, dest)
+        except FileNotFoundError:
+            logging.warning('{}: image not found'.format(path))
+
+    def filter(self):
+        """
+        Do all processing operations on a markdown file
+        """
+        self.replace_image_links()
+        self.remove_comment_block_sphinxdirective()
+        self.replace_md_links()
+        self.copy_markdown()
+        self.copy_images()
+
+    def get_image_links(self):
+        """
+        Get image links from the page
+        """
+        inline_images = set(re.findall(INLINE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE))
+        reference_images = set(re.findall(REFERENCE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE))
+        image_links = inline_images
+        image_links.update(reference_images)
+        return image_links
+
+    def get_md_links(self):
+        """
+        Get markdown links from the page
+        """
+        inline_links = set(re.findall(INLINE_LINKS_PATTERN, self.content))
+        reference_links = set(re.findall(REFERENCE_LINKS_PATTERN, self.content))
+        md_links = inline_links
+        md_links.update(reference_links)
+        return sorted(md_links, key=len, reverse=True)
+
 
 def get_label(file):
     """
     Read lines of a file and try to find a doxygen label.
     If the label is not found return None.
     Assume the label is in the first line
+    :return: A doxygen label
     """
     with open(file, 'r', encoding='utf-8') as f:
         line = f.readline()
-        label = re.search(r'\{\#(.+)\}', line)
+        label = re.search(LABEL_PATTERN, line)
         if label:
             return label.group(1)
 
 
-def replace_links(content, items, md_folder, labels, docs_folder):
+def get_file_to_label_mapping(md_files):
     """
-    Replace markdown links with doxygen labels.
+    Get a dictionary containing path as keys and
+    doxygen labels as values
+    :param md_files: A list of md files
+    :return: A dictionary containing a file to label mapping 
     """
-    for item in items:
-        link = item
-        link_path = md_folder.joinpath(link).resolve()
-        if os.path.exists(link_path):
-            content = content.replace(link, '@ref ' + labels[link_path])
-        else:
-            rel_path = os.path.relpath(link_path, docs_folder).replace('\\', '/')
-            content = content.replace(link, rel_path)
-    return content
+    return dict(filter(lambda x: x[1], map(lambda f: (Path(f), get_label(f)), md_files)))
+    
 
-
-def replace_image_links(content, images, input_dir, md_folder, output_dir):
-    for image in images:
-        new_path = md_folder.joinpath(image).resolve().relative_to(input_dir)
-        new_path = output_dir / new_path
-        content = content.replace(image, new_path.as_posix())
-    return content
-
-
-def add_htmlonly(content):
-    content = content.replace('<details>', '\n\\htmlonly\n<details>')
-    content = content.replace('</summary>', '</summary>\n\\endhtmlonly')
-    content = content.replace('</details>', '\n\\htmlonly\n</details>\n\\endhtmlonly')
-    content = content.replace('<iframe', '\n\\htmlonly\n<iframe')
-    content = content.replace('</iframe>', '</iframe>\n\\endhtmlonly')
-    return content
-
-
-def copy_file(file, content, input_dir, output_dir):
-    rel_path = file.relative_to(input_dir)
-    dest = output_dir.joinpath(rel_path)
-    dest.parents[0].mkdir(parents=True, exist_ok=True)
-    with open(dest, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-
-def copy_image(file, input_dir, output_dir):
-    rel_path = file.relative_to(input_dir)
-    dest = output_dir.joinpath(rel_path)
-    dest.parents[0].mkdir(parents=True, exist_ok=True)
-    try:
-        shutil.copy(file, dest)
-    except FileNotFoundError:
-        logging.warning('{}: file not found'.format(file))
-
-
-def get_refs_by_regex(content, regex):
-    def map_func(path):
-        return (Path(path[0]), path[1]) if isinstance(path, tuple) else Path(path)
-
-    refs = set(map(map_func, re.findall(regex, content, flags=re.IGNORECASE)))
-    return refs
+def filter_paths(md_files, exclude_dirs):
+    """
+    Exclude paths presented in exclude_dirs
+    :param md_files: A list of md files
+    :param exclude_dirs: A list of directories to be excluded from processing
+    :return: A list of md files to be process after excluded paths
+    """
+    return filter(lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), md_files)
 
 
 def process(input_dir, output_dir, exclude_dirs):
@@ -86,35 +170,14 @@ def process(input_dir, output_dir, exclude_dirs):
     replace links to markdown files with doxygen labels (ex. @ref label_name).
     """
     md_files = input_dir.glob('**/*.md')
-    md_files = filter(lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), md_files)
-    label_to_file_map = dict(filter(lambda x: x[1], map(lambda f: (Path(f), get_label(f)), md_files)))
-    label_to_file_map.pop(None, None)
-    for md_file in label_to_file_map.keys():
-        md_folder = md_file.parents[0]
-        with open(md_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        inline_links = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)', content))
-        reference_links = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.md)', content))
-        inline_images = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)', content, flags=re.IGNORECASE))
-        reference_images = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))', content, flags=re.IGNORECASE))
-
-        images = inline_images
-        images.update(reference_images)
-
-        content = replace_image_links(content, images, input_dir, md_folder, output_dir)
-
-        md_links = inline_links
-        md_links.update(reference_links)
-        md_links = list(filter(lambda x: md_folder.joinpath(x) in label_to_file_map, md_links))
-        content = replace_links(content, md_links, md_folder, label_to_file_map, input_dir)
-        # content = add_htmlonly(content)
-
-        copy_file(md_file, content, input_dir, output_dir)
-
-        for image in images:
-            path = md_file.parents[0].joinpath(image)
-            copy_image(path, input_dir, output_dir)
+    md_files = filter_paths(md_files, exclude_dirs)
+    file_to_label_map = get_file_to_label_mapping(md_files)
+    for md_file in file_to_label_map.keys():
+        dmdf = DoxyMDFilter(md_file=md_file,
+                            input_dir=input_dir,
+                            output_dir=output_dir,
+                            file_to_label_mapping=file_to_label_map)
+        dmdf.filter()
 
 
 def main():

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ public:
         if (output_layout.format == format::winograd_2x3_s1_data) {
             reorder_params.winograd_input_offset_x = 0;
             reorder_params.winograd_input_offset_y = 0;
-            reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.size.spatial[0], 4);
+            reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
         }
 
         reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();

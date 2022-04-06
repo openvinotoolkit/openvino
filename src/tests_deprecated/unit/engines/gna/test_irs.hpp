@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ std::string MemoryAfterConcatModel();
 std::string MemoryAndConcatAfterOneNode();
 std::string eltwiseToMemoryModel();
 std::string eltwiseToMemoryModelNoOutput();
-std::string activationAfterSplitModel();
 std::string FCWithPaddingAfterSplitModel();
 /// @eltwise layer mode
 std::string EltwiseAfterSplitModel(int tensor_size, bool bMul = false);
@@ -28,14 +27,8 @@ std::string eltwiseMulModel();
 std::string concatModel();
 std::string doubleConcatModel();
 std::string scaleShiftAffineModel();
-std::string clampFollowedByTanhModel();
-std::string eltwiseWithMemoryAndActivationInputModel();
 std::string AffineWith2AffineOutputsModel();
-std::string SigmoidActivationModel();
-std::string TanhActivationModel();
-std::string ReLUActivationModel();
 std::string LeakyReLUActivationModel();
-std::string ClampActivationModel();
 std::string IdentityActivationModel();
 std::string maxpoolAfterRelu();
 std::string TFLeakyReluModel();
@@ -55,8 +48,6 @@ std::string affineAfterConvNoPermute();
 std::string affineAfterConvWithPermute();
 std::string ScaleShift3DModel();
 std::string FCOnlyModelFP16();
-std::string AffineWithReluSigmoid();
-std::string AffineWithReluSigmoidAndIdentity();
 std::string concatModelWithConstLayer();
 std::string LSTMCellOnlyModel();
 std::string eltwiseSumModelWithConstLayer();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v4 {
 /// \brief Range operation, analogous to `arange()` in Numpy.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset4", op::Op, 4);
@@ -53,6 +54,7 @@ private:
 }  // namespace v4
 namespace v0 {
 /// \brief Range operation, analogous to `range()` in Python.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset1");

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -254,6 +254,45 @@ public:
     }
 };
 
+class RemoveOutputConvertConnectedToLayerTest: public RemoveOutputConvertTest {
+public:
+    void SetUp() override {
+        std::tie(net_precision_, target_precision_) = this->GetParam();
+        const ngraph::Shape input_shape{1, 10};
+        // test function
+        {
+            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
+            auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
+            auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
+            auto convert1 = ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert2 = ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert3 = ngraph::builder::makeConversion(mul3, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(convert1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(convert2);
+            auto result3 = std::make_shared<ngraph::opset8::Result>(convert3);
+
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, input, "multiple_output");
+        }
+
+        // ref function
+        {
+            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
+            auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
+            auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
+            auto result1 = std::make_shared<ngraph::opset8::Result>(mul1);
+            auto result2 = std::make_shared<ngraph::opset8::Result>(mul2);
+            auto result3 = std::make_shared<ngraph::opset8::Result>(mul3);
+
+            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, input, "multiple_output");
+        }
+
+        // ref function convert should not be removed
+        ref_func_convert_ = ngraph::clone_function(*func_);
+    }
+};
+
 ov::element::TypeVector netTypes = {
     ov::element::f16,
     ov::element::f32,
@@ -294,6 +333,10 @@ TEST_P(RemoveMultiOutputsConvertTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(RemoveOutputConvertConnectedToLayerTest, CompareWithRefs) {
+    Run();
+}
+
 INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveInputConvertTest,
                          ::testing::Combine(
                                 ::testing::ValuesIn(netTypes),
@@ -323,4 +366,10 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveMultiOutputsConvertTest,
                                 ::testing::ValuesIn(netTypes),
                                 ::testing::ValuesIn(targetTypes)),
                          RemoveMultiOutputsConvertTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveOutputConvertConnectedToLayerTest,
+                         ::testing::Combine(
+                                ::testing::ValuesIn(netTypes),
+                                ::testing::ValuesIn(targetTypes)),
+                         RemoveOutputConvertConnectedToLayerTest::getTestCaseName);
 } // namespace testing

@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef CPU_DEBUG_CAPS
 
 #include "verbose.h"
-#include "mkldnn_node.h"
+#include <node.h>
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
@@ -17,14 +17,15 @@
 #include <sstream>
 #include <iostream>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
     if (lvl < 1)
         return false;
 
     if (node->isConstant() ||
-        node->getType() == Input || node->getType() == Output)
+        node->getType() == Type::Input || node->getType() == Type::Output)
         return false;
     return true;
 }
@@ -143,7 +144,7 @@ void Verbose::printInfo() {
     std::string nodeImplementer = "cpu";
     if (node->prim)
         nodeImplementer = "dnnl"; // oneDNN
-    else if (node->getType() == Reference)
+    else if (node->getType() == Type::Reference)
         nodeImplementer = "ngraph_ref"; // ngraph reference
 
     const std::string& nodeName = colorize(GREEN, node->getName());
@@ -168,5 +169,8 @@ void Verbose::printDuration() {
 void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov
+
 #endif // CPU_DEBUG_CAPS

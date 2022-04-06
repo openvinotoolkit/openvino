@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,10 +125,6 @@ std::string reorder_options(const std::string& org_options) {
     return options;
 }
 
-inline bool does_options_support_batch_compilation(const std::string& options) {
-    return options.find("-D") == std::string::npos && options.find("-I") == std::string::npos;
-}
-
 }  // namespace
 
 namespace cldnn {
@@ -152,7 +148,7 @@ bool kernels_cache::is_cache_enabled() const {
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
-    return 10;
+    return 8;
 }
 
 
@@ -162,13 +158,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
-        const source_code org_source_code = { full_code };
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;
         bool batch_compilation = code.kernel_strings->batch_compilation;
         bool dump_custom_program = code.dump_custom_program;
-
-        batch_compilation &= does_options_support_batch_compilation(options);
 
         if (batch_compilation) {
             options = reorder_options(options);
@@ -202,9 +195,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         current_batch.dump_custom_program = dump_custom_program;
         current_batch.entry_point_to_id[entry_point] = code.id;
 
-        assert(org_source_code.size() == 1);
-
-        current_batch.source.push_back(std::move(org_source_code.front()));
+        current_batch.source.push_back(std::move(full_code));
         current_batch.kernels_counter++;
     }
 
@@ -226,7 +217,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     }
 }
 
-kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
+kernels_cache::kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str)
+                                : _engine(engine), _prog_id(prog_id), batch_header_str(std::move(batch_header_str)) { }
 
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
@@ -283,7 +275,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
-        current_dump_file_name += "clDNN_program_" + std::to_string(batch.bucket_id) + "_part_" + std::to_string(batch.batch_id) + ".cl";
+        current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
+                               + "_part_" + std::to_string(batch.batch_id) + ".cl";
     }
 
     std::ofstream dump_file;
@@ -425,7 +418,7 @@ void kernels_cache::build_all() {
     std::vector<InferenceEngine::Task> tasks;
     for (int idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
-        tasks.push_back([this, &_build_engine, batch, &exception] {
+        tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {
                 build_batch(*_build_engine, batch);
             } catch(...) {
@@ -435,6 +428,10 @@ void kernels_cache::build_all() {
     }
     _task_executor->runAndWait(tasks);
     tasks.clear();
+
+    if (exception) {
+        std::rethrow_exception(exception);
+    }
 
     {
         std::lock_guard<std::mutex> lock(_mutex);

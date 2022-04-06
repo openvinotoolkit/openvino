@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,16 +39,6 @@ std::string putTime(std::chrono::system_clock::time_point tp, const char* format
 #else
     ss << std::put_time(&t, format);
 #endif
-
-    return ss.str();
-}
-
-std::string formatTimeMilli(std::chrono::system_clock::time_point tp) {
-    std::stringstream ss;
-
-    auto milliseconds = (std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count() % 1000);
-
-    ss << putTime(tp, "%T") << '.' << std::setfill('0') << std::setw(3) << milliseconds;
 
     return ss.str();
 }

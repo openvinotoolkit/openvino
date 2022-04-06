@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,15 +77,15 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
     const auto totalSize = GetTotalSize(params);
     if ((totalSize % NUM_COLS_WI) != 0 ||
         (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
-        (params.output.GetFirstElementOffset() % NUM_COLS_WI) != 0) {
+        (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0) {
         return false;
     }
 
-    if (params.output.GetLayout() != params.inputs[0].GetLayout())
+    if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
         return false;
 
     if (!params.fused_ops.empty() &&
-        (params.output.GetLayout() != DataLayout::bfyx && params.output.GetLayout() != DataLayout::bfzyx))
+        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
         return false;
 
     return true;

@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,8 +18,8 @@ if(ENABLE_INTEL_GNA)
     add_subdirectory(intel_gna)
 endif()
 
-if(ENABLE_INTEL_VPU)
-    add_subdirectory(intel_vpu)
+if(ENABLE_INTEL_MYRIAD_COMMON)
+    add_subdirectory(intel_myriad)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node) {
     auto result =
         layout(input_layout.data_type,
                input_layout.format,
-               tensor(input_layout.size.batch[0], 2, input_layout.size.spatial[0] / 4, input_layout.size.feature[0]));
+               tensor(input_layout.batch(), 2, input_layout.spatial(0) / 4, input_layout.feature()));
     return result;
 }
 

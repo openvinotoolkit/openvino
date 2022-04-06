@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeTo1D, "ReshapeTo1D", 0);
 
 ngraph::pass::ReshapeTo1D::ReshapeTo1D() {
     // TODO: enable conditional compile

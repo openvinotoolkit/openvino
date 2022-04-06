@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -398,6 +398,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 bfyx_idx_order = { "d1", "d4", "d3", "d2" };
             } else if (l == DataLayout::byxf) {
                 bfyx_idx_order = { "d4", "d1", "d3", "d2" };
+            } else if (l == DataLayout::fs_b_yx_fsv32) {
+                bfyx_idx_order = { "d3", "d4", "d2", "d1" };
             } else {
                 bfyx_idx_order = { "d4", "d3", "d2", "d1" };
             }
@@ -428,9 +430,9 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
             !(params.layoutBased || params.int8_quantization || params.broadcast)) {
             jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
         } else {
-            size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
+            size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
             if (out_c <= 4) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.output.GetLayout(),
+                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.outputs[0].GetLayout(),
                                                                                           params.layoutBased || params.broadcast,
                                                                                           {1, 1, 1})));
             } else if (out_c == 5) {
@@ -468,7 +470,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 jit.AddConstant(MakeJitConstant(idx_order, "d1"));
             } else {
                 size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());
-                size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
+                size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
                 auto in_stride = params.stride.empty() ? uSize{1, 1, 1} : params.stride[i];
                 if (out_c <= 4 && in_c <= 4) {
                     jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
@@ -538,7 +540,7 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.output));
+        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
     }
 
     if (!params.stride.empty()) {
@@ -558,13 +560,13 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     DispatchData dispatchData;
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        dispatchData.gws = GetTensorFriendlyWorkGroups(params.output);
+        dispatchData.gws = GetTensorFriendlyWorkGroups(params.outputs[0]);
     } else if (CheckInputsOutputNoPitchSameDims(params)) {
-        dispatchData.gws[0] = params.output.LogicalSize();
+        dispatchData.gws[0] = params.outputs[0].LogicalSize();
         dispatchData.gws[1] = 1;
         dispatchData.gws[2] = 1;
     } else {
-        const auto& out = params.output;
+        const auto& out = params.outputs[0];
 
         std::vector<size_t> gws;
         for (const auto& o : out.GetDims()) {
@@ -594,11 +596,11 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     // TODO: can be potentially improved for GPUs with support of LWS > 256
     const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16 };
 
-    if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-         params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
-        params.output.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
+    if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+        params.outputs[0].Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
         for (auto lws : optimal_lws_values) {
             if (dispatchData.gws[1] % lws == 0) {
@@ -607,20 +609,20 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             }
         }
         dispatchData.lws[2] = 1;
-    } else if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+    } else if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         dispatchData.gws[2] = Align(dispatchData.gws[2], 32);
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 32;
-    } else if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
-                params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32)) {
+    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32)) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
             auto bs_fsv32_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
                                                                         params.engineInfo, {32, 32, 1024});
             dispatchData.lws[0] = bs_fsv32_local[2];
             dispatchData.lws[1] = bs_fsv32_local[0];
             dispatchData.lws[2] = bs_fsv32_local[1];
-        } else if (dispatchData.gws[0] == params.output.LogicalSize()) {
+        } else if (dispatchData.gws[0] == params.outputs[0].LogicalSize()) {
             dispatchData.lws = local;
         } else {
             auto bs_fsv32_local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]}, params.engineInfo);
@@ -628,8 +630,8 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             dispatchData.lws[1] = bs_fsv32_local[2];
             dispatchData.lws[2] = bs_fsv32_local[0];
         }
-    } else if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (params.output.Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
+    } else if (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+                (params.outputs[0].Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
             auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]},
                                                                         params.engineInfo, {32 * 16, 1024, 1024});
             dispatchData.lws[0] = bs_fsv16_local[1];

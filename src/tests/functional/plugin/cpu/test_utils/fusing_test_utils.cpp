@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
+void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
     ASSERT_NE(nullptr, function);
     bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
@@ -55,7 +55,7 @@ void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Model> func
             std::string opFriendlyName = op->get_friendly_name();
             auto pos = originalLayersNames.find(opFriendlyName);
             ASSERT_TRUE(pos != std::string::npos) << "Operation name " << op->get_friendly_name() << " has not been found in originalLayersNames!";
-            for (auto fusedOp : fusedOps) {
+            for (const auto& fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
             }
@@ -64,7 +64,7 @@ void CpuTestWithFusing::CheckFusingResults(std::shared_ptr<const ov::Model> func
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model> function, std::string nodeType) const {
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
     CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
     CheckFusingResults(function, nodeType);
 }
@@ -87,8 +87,11 @@ std::shared_ptr<ngraph::Node>
 postNodesMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
     std::shared_ptr<ngraph::Node> tmpNode = lastNode;
 
-    for (auto postNode : _postNodes) {
-        tmpNode = postNode.makeNode(tmpNode, ngPrc, params);
+    postNodeConfig cfg{lastNode, tmpNode, ngPrc, params};
+
+    for (const auto& postNode : _postNodes) {
+        cfg.input = tmpNode;
+        tmpNode = postNode.makeNode(cfg);
     }
     return tmpNode;
 }

@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/frontend/extension/telemetry.hpp>
-#include <openvino/frontend/frontend.hpp>
-#include <openvino/frontend/input_model.hpp>
-
-#include "exceptions.hpp"
+#include "openvino/core/extension.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
+#include "openvino/frontend/paddle/extension/conversion.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
@@ -20,7 +22,8 @@ class OpPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    FrontEnd() = default;
+    using Ptr = std::shared_ptr<FrontEnd>;
+    FrontEnd();
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
@@ -68,13 +71,17 @@ protected:
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
-private:
+protected:
     static std::shared_ptr<Model> convert_each_node(
         const std::shared_ptr<InputModel>& frontend_model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
+
+    TelemetryExtension::Ptr m_telemetry;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace paddle

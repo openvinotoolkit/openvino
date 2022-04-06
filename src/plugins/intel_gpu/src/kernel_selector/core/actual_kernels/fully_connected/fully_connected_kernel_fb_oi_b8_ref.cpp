@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefaul
                                                                                   int) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
-    const auto& output = arg.output;
+    const auto& output = arg.outputs[0];
     dispatchData.gws[0] = output.Batch().v;
     dispatchData.gws[1] = output.LogicalSize() / dispatchData.gws[0];
     dispatchData.lws[0] = 8;

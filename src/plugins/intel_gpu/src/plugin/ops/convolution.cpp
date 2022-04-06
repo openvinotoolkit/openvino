@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,67 +23,35 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-struct ConvolutionParameters {
-    cldnn::tensor stride;
-    cldnn::tensor padding;
-    cldnn::tensor dilation;
-    uint32_t groups;
-};
-
-static ConvolutionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
-                                                      const ngraph::Strides& dilations,
-                                                      const ngraph::Strides& strides,
-                                                      uint32_t groups) {
-    cldnn::tensor stride, padding, dilation;
-    if (pads_begin.size() != strides.size() || dilations.size() != strides.size())
-        IE_THROW() << "Strides, Dilations and Pads are supposed to have the same elements count";
-
-    switch (strides.size()) {
-        case 3: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[2], strides[1], strides[0]));
-            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[2]), TensorValue(pads_begin[1]), TensorValue(pads_begin[0])}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[2], dilations[1], dilations[0]));
-            break;
-        }
-        case 2: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[1], strides[0], 1));
-            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[1]), TensorValue(pads_begin[0])}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[1], dilations[0], 1));
-            break;
-        }
-        case 1: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, strides[0], 1));
-            padding = cldnn::tensor({0, 0, 0, TensorValue(pads_begin[0])}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, dilations[0], 1));
-            break;
-        }
-        default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
-    }
-
-    return {stride, padding, dilation, groups};
-}
-
 static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
     uint32_t groups = op->get_input_shape(1)[0];
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), groups);
     auto outDims = op->get_output_shape(0);
     auto outPrecision = op->get_output_element_type(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
     const bool weights_have_group_dim = true;
 
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+    auto dilations = op->get_dilations();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
+
     auto convPrim = cldnn::convolution(layerName,
                                        inputs[0],
                                        weights,
                                        {},
-                                       params.groups,
-                                       params.stride,
-                                       params.padding,
-                                       params.dilation,
+                                       groups,
+                                       strides,
+                                       pads_begin,
+                                       dilations,
                                        tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
@@ -98,21 +66,29 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto outDims = op->get_output_shape(0);
     auto outPrecision = op->get_output_element_type(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
     const bool weights_have_group_dim = false;
 
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+    auto dilations = op->get_dilations();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
+
     auto convPrim = cldnn::convolution(layerName,
                                        inputs[0],
                                        weights,
                                        {},
-                                       params.groups,
-                                       params.stride,
-                                       params.padding,
-                                       params.dilation,
+                                       1,
+                                       strides,
+                                       pads_begin,
+                                       dilations,
                                        tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
@@ -151,7 +127,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
         std::swap(permute_order[1], permute_order[0]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          permute_order,
                                           op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
@@ -163,14 +139,20 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
     std::vector<cldnn::primitive_id> weights = {weightsName};
     const bool weights_have_group_dim = false;
 
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+
     auto deconvPrim = cldnn::deconvolution(layerName,
                                            inputs[0],
                                            weights,
                                            {},
-                                           params.groups,
-                                           params.stride,
-                                           params.padding,
+                                           1,
+                                           strides,
+                                           pads_begin,
                                            tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
@@ -192,7 +174,6 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
     }
 
     uint32_t groups = op->get_input_shape(1)[0];
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), groups);
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
@@ -210,7 +191,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
         std::swap(permute_order[2], permute_order[1]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          permute_order,
                                           op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
@@ -222,13 +203,20 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
     std::vector<cldnn::primitive_id> weights = {weightsName};
     const bool weights_have_group_dim = true;
 
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+
     auto deconvPrim = cldnn::deconvolution(layerName,
                                            inputs[0],
                                            weights,
                                            {},
-                                           params.groups,
-                                           params.stride,
-                                           params.padding,
+                                           groups,
+                                           strides,
+                                           pads_begin,
                                            tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
@@ -239,7 +227,10 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
 static void DeformableConvolutionImpl(Program& p,
                                       const std::shared_ptr<ngraph::Node>& op,
-                                      const ConvolutionParameters& params,
+                                      const int64_t groups,
+                                      const ov::Strides& strides,
+                                      const ov::Strides& dilations,
+                                      const ov::CoordinateDiff& padding,
                                       std::int64_t deformableGroupsNum,
                                       bool bilinearInterpolationPad = false) {
     auto inputs = p.GetInputPrimitiveIDs(op);
@@ -249,7 +240,7 @@ static void DeformableConvolutionImpl(Program& p,
     std::vector<cldnn::primitive_id> weights = {inputs[2]};
     // Remove weights from inputs
     inputs.erase(inputs.begin() + 2);
-    if (params.groups == 1) {
+    if (groups == 1) {
         std::string defConvLayerNameInterp = layerName + "_interp";
         std::string defConvLayerNameConv = layerName;
         cldnn::tensor kernel;
@@ -271,11 +262,11 @@ static void DeformableConvolutionImpl(Program& p,
 
         auto defConvPrimInterp = cldnn::deformable_interp(defConvLayerNameInterp,
                                                           inputs,
-                                                          params.groups,
+                                                          groups,
                                                           deformableGroupsNum,
-                                                          params.stride,
-                                                          params.padding,
-                                                          params.dilation,
+                                                          strides,
+                                                          padding,
+                                                          dilations,
                                                           tensor_from_dims(outDims),
                                                           kernel,
                                                           bilinearInterpolationPad,
@@ -286,7 +277,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                   defConvLayerNameInterp,
                                                   weights,
                                                   {},
-                                                  params.groups,
+                                                  groups,
                                                   tensor_from_dims(outDims),
                                                   op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
@@ -296,11 +287,11 @@ static void DeformableConvolutionImpl(Program& p,
                                            inputs,
                                            weights,
                                            {},
-                                           params.groups,
+                                           groups,
                                            deformableGroupsNum,
-                                           params.stride,
-                                           params.padding,
-                                           params.dilation,
+                                           strides,
+                                           padding,
+                                           dilations,
                                            tensor_from_dims(outDims),
                                            bilinearInterpolationPad,
                                            op->get_friendly_name());
@@ -312,14 +303,37 @@ static void DeformableConvolutionImpl(Program& p,
 
 static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
     p.ValidateInputs(op, {3});
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
-    DeformableConvolutionImpl(p, op, params, op->get_deformable_group());
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+    auto dilations = op->get_dilations();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
+
+    DeformableConvolutionImpl(p, op, op->get_group(), strides, dilations, pads_begin, op->get_deformable_group());
 }
 
 static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v8::DeformableConvolution>& op) {
     p.ValidateInputs(op, {3, 4});
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
-    DeformableConvolutionImpl(p, op, params, op->get_deformable_group(), op->get_bilinear_interpolation_pad());
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+    auto dilations = op->get_dilations();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
+
+    DeformableConvolutionImpl(p,
+                              op,
+                              op->get_group(),
+                              strides,
+                              dilations,
+                              pads_begin,
+                              op->get_deformable_group(),
+                              op->get_bilinear_interpolation_pad());
 }
 
 static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
@@ -327,19 +341,28 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto outDims = op->get_output_shape(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
     cldnn::data_types calc_precision = DataTypeFromPrecision(op->get_output_element_type(0));
+
+    auto strides = op->get_strides();
+    auto pads_begin = op->get_pads_begin();
+    auto dilations = op->get_dilations();
+
+    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+    strides.resize(std::max<size_t>(2, strides.size()), 1);
+    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+    dilations.resize(std::max<size_t>(2, dilations.size()), 1);
+
     auto convPrim = cldnn::binary_convolution(layerName,
                                               inputs[0],
                                               weights,
-                                              params.stride,
-                                              params.padding,
-                                              params.dilation,
+                                              strides,
+                                              pads_begin,
+                                              dilations,
                                               tensor_from_dims(outDims),
-                                              params.groups,
+                                              1,
                                               op->get_pad_value(),
                                               calc_precision,
                                               op->get_friendly_name());

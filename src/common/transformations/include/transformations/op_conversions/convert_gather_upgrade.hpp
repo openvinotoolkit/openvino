@@ -1,12 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -24,7 +23,7 @@ class TRANSFORMATIONS_API ConvertGather7ToGather8;
  */
 class ngraph::pass::ConvertGather1ToGather7 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGather1ToGather7", "0");
     ConvertGather1ToGather7();
 };
 
@@ -34,6 +33,6 @@ public:
  */
 class ngraph::pass::ConvertGather7ToGather8 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGather7ToGather8", "0");
     ConvertGather7ToGather8();
 };

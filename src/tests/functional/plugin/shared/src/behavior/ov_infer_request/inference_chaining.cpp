@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,12 +82,12 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
 }
 
 void OVInferenceChaining::Run() {
-    ov::runtime::CompiledModel execNet0, execNet1, execNet2;
+    ov::CompiledModel execNet0, execNet1, execNet2;
     OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, targetDevice, configuration));
     OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, targetDevice, configuration));
 
-    ov::runtime::InferRequest r0, r1, r2;
+    ov::InferRequest r0, r1, r2;
     OV_ASSERT_NO_THROW(r0 = execNet0.create_infer_request());
     OV_ASSERT_NO_THROW(r1 = execNet1.create_infer_request());
     OV_ASSERT_NO_THROW(r2 = execNet2.create_infer_request());
@@ -100,10 +100,10 @@ void OVInferenceChaining::Run() {
     }
 
     // create input tensors
-    ov::runtime::Tensor t0 = tensor(std::vector<float>{1.0f, 2.0f, 3.0f});
-    ov::runtime::Tensor t1 = tensor(std::vector<float>{4.0f, 5.0f, 6.0f});
-    ov::runtime::Tensor t2 = tensor(std::vector<float>{7.0f, 8.0f, 9.0f});
-    ov::runtime::Tensor t3 = tensor(std::vector<float>{2.0f, 3.0f, 2.0f});
+    ov::Tensor t0 = tensor(std::vector<float>{1.0f, 2.0f, 3.0f});
+    ov::Tensor t1 = tensor(std::vector<float>{4.0f, 5.0f, 6.0f});
+    ov::Tensor t2 = tensor(std::vector<float>{7.0f, 8.0f, 9.0f});
+    ov::Tensor t3 = tensor(std::vector<float>{2.0f, 3.0f, 2.0f});
 
     OV_ASSERT_NO_THROW(r0.set_tensor("input_tensor_0", t0));
     OV_ASSERT_NO_THROW(r0.set_tensor("input_tensor_1", t1));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ namespace v3 {
 ///
 /// \note       Note this class represents only single *cell* and not whole GRU *layer*.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);

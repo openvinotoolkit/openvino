@@ -1,8 +1,8 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -61,9 +61,9 @@ protected:
             const auto& funcInput = funcInputs[i];
             const auto& inputPrecision = funcInput.get_element_type();
             const auto& targetShape = targetInputStaticShapes[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::runtime::Tensor{ inputPrecision, targetShape };
+                tensor = ov::Tensor{ inputPrecision, targetShape };
                 const auto indicesVals = std::get<0>(this->GetParam()).indicesValues;
                 if (inputPrecision == ElementType::i32) {
                     auto data = tensor.data<std::int32_t>();
@@ -117,7 +117,7 @@ protected:
 TEST_P(ScatterNDUpdateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ScatterUpdate");
+    CheckPluginRelatedResults(compiledModel, "ScatterUpdate");
 }
 
 const std::vector<ScatterNDUpdateLayerParams> scatterParams = {

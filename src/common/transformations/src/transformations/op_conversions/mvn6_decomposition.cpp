@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 
 #include <memory>
-
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "itt.hpp"
+#include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVN6Decomposition, "MVN6Decomposition", 0);
+#include "itt.hpp"
 
 ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
@@ -37,17 +35,17 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
 
         if (!mvn_node->get_normalize_variance()) {
             mean_normalization->set_friendly_name(mvn_node->get_friendly_name());
-            ngraph::copy_runtime_info(mvn_node, { mean, mean_normalization });
+            ngraph::copy_runtime_info(mvn_node, {mean, mean_normalization});
             ngraph::replace_node(mvn_node, mean_normalization);
         } else {
             // (x - ReduceMean(x, axes)) ^ 2
-            auto sqr_const = ngraph::opset6::Constant::create(data.get_element_type(), ngraph::Shape{ 1 }, { 2 });
+            auto sqr_const = ngraph::opset6::Constant::create(data.get_element_type(), ngraph::Shape{1}, {2});
             auto sqr = std::make_shared<ngraph::opset6::Power>(mean_normalization, sqr_const);
             // ReduceMean((x - ReduceMean(x, axes)) ^ 2)
             auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(sqr, axes, true);
 
             auto eps = mvn_node->get_eps();
-            auto eps_node = ngraph::opset6::Constant::create(data.get_element_type(), ngraph::Shape{ 1 }, { eps });
+            auto eps_node = ngraph::opset6::Constant::create(data.get_element_type(), ngraph::Shape{1}, {eps});
             auto eps_mode = mvn_node->get_eps_mode();
 
             std::shared_ptr<ngraph::opset6::Add> eps_add;
@@ -71,7 +69,7 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
             }
 
             div->set_friendly_name(mvn_node->get_friendly_name());
-            ngraph::copy_runtime_info(mvn_node, { mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div });
+            ngraph::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div});
             ngraph::replace_node(mvn_node, div);
         }
         return true;

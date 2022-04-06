@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ public:
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;
-    std::string mkldnnPrimitive;
+    std::string dnnlPrimitive;
 
 protected:
     std::shared_ptr<Function> createGraph(InferenceEngine::Precision netPrecision) {
@@ -125,13 +125,13 @@ public:
         string targetDevice;
         size_t kernel;
         CoordinateDiff pads;
-        string mkldnnPrimitive;
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = obj.param;
+        string dnnlPrimitive;
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = obj.param;
 
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
-        result << "mkldnnPrimitive=" << mkldnnPrimitive << "_";
+        result << "dnnlPrimitive=" << dnnlPrimitive << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
@@ -142,7 +142,7 @@ public:
             // tests are useless on such platforms
             return;
         }
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = this->GetParam();
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = this->GetParam();
         InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
         for (const auto& inputItem : cnnNet.getInputsInfo()) {
@@ -210,11 +210,11 @@ public:
 
     void SetUp() override {
         std::vector<size_t> inputShape;
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = this->GetParam();
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
         expectedPrecisions["SS_1"] = "FP32";
-        expectedPrecisions["CONV"] = mkldnnPrimitive;
+        expectedPrecisions["CONV"] = dnnlPrimitive;
         expectedPrecisions["RELU"] = "ndef";
         expectedPrecisions["SS_2"] = "ndef";
     }

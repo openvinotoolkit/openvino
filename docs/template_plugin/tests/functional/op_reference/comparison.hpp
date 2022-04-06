@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@ namespace ComparisonOpsRefTestDefinitions {
 
 struct RefComparisonParams {
     ngraph::helpers::ComparisonTypes compType;
-    Tensor input1;
-    Tensor input2;
-    Tensor expected;
+    reference_tests::Tensor input1;
+    reference_tests::Tensor input2;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<RefComparisonParams> {

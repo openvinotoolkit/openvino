@@ -1,13 +1,15 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 from ..conftest import model_path
-from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
+from openvino.runtime import Input, Shape, PartialShape, Type, \
     RTMap
+from openvino.pyopenvino import DescriptorTensor
+import openvino.runtime.opset8 as ops
 
-from openvino.runtime import Core
+from openvino.runtime import Core, OVAny
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -90,6 +92,16 @@ def test_input_get_source_output(device):
     assert name == "fc_out"
 
 
+def test_input_get_tensor(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    tensor = input_node.get_tensor()
+    assert isinstance(tensor, DescriptorTensor)
+
+
 def test_input_get_rt_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
@@ -110,6 +122,20 @@ def test_input_rt_info(device):
     assert isinstance(rt_info, RTMap)
 
 
+def test_input_replace_source_output(device):
+    param = ops.parameter([1, 64], Type.i64)
+    param.output(0).get_tensor().set_names({"a", "b"})
+
+    param1 = ops.parameter([1, 64], Type.i64)
+    param1.output(0).get_tensor().set_names({"c", "d"})
+
+    relu = ops.relu(param)
+    relu.input(0).replace_source_output(param1.output(0))
+
+    assert param.output(0).get_tensor().get_names() == {"a", "b"}
+    assert param1.output(0).get_tensor().get_names() == {"c", "d"}
+
+
 def test_input_update_rt_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
@@ -120,4 +146,4 @@ def test_input_update_rt_info(device):
     rt["test12345"] = "test"
     for k, v in input_node.get_rt_info().items():
         assert k == "test12345"
-        assert isinstance(v, Parameter)
+        assert isinstance(v, OVAny)

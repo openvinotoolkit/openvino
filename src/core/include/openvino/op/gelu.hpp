@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace op {
 namespace v0 {
 /// \brief Gaussian Error Linear Unit
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gelu : public Op {
 public:
     OPENVINO_OP("Gelu", "opset2", op::Op, 0);
@@ -40,6 +41,7 @@ namespace v7 {
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) ) for "approximation" = "erf"
 /// f(x) = 0.5 * x * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]) for "approximation" =
 /// "tanh"
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Gelu", "opset7", op::Op, 7);

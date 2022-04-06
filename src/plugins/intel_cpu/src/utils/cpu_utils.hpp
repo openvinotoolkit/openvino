@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /**
 * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -139,4 +140,5 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
     return alignedBuffer;
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

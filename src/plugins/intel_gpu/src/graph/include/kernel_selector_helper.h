@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     const auto& output_layout = arg.get_output_layout();
 
     params.inputs[0] = convert_data_tensor(input_layout, split);
-    params.output = convert_data_tensor(output_layout, split);
+    params.outputs[0] = convert_data_tensor(output_layout, split);
 
     params.layerID = arg.id();
 

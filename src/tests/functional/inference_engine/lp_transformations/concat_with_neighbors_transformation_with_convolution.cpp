@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,17 +104,17 @@ public:
             testValues.actual.convert3,
             testValues.actual.dequantization3);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
@@ -154,7 +154,7 @@ public:
 
 TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    //auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
+    //auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
     //ASSERT_TRUE(res.first) << res.second;
 
     auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);

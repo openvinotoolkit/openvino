@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
 ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
     ReorgYoloKernelRef::DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& input = params.inputs[0];

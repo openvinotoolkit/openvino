@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import copy, deepcopy
@@ -109,7 +109,7 @@ def compute_stats_layouts(config, model, qscheme=None):
     """
     Compute stats layouts and hardware configuration
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :return: configuration dictionary
     """
     hardware_config = load_hardware_config(config)
@@ -168,7 +168,7 @@ def compute_levels(fq_config, is_weights):
 def insert_fake_quantize_nodes(config, model, qscheme=None):
     """ Inserts fake quantize nodes, fill them according config
     :param config: dictionary with params algo section from toolkit config
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param qscheme: The quantization scheme generated from the space
     :return None
     """
@@ -301,7 +301,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     2. Calculate quantization config for FQ nodes
     3. Collect the weight stats based on config
     4. Calibrate [min, max] for inserted fq nodes
-    :param model: original model (NXModel instance)
+    :param model: original model (CompressedModel instance)
     :param create_stats_collector: functor to create function for stats collector callback
     :param activations_statistics: precomputed statistics for activations layers
     :param fill_fq_range: functor to generate min and max range for fake quantize node
@@ -313,7 +313,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     fake_quantize_config = compute_stats_layouts(config, model, qscheme=qscheme)
 
     # generate a list of fq nodes that require rescaling (first convolutions weight FQs)
-    fake_quantize_config.update(set_rescaling_factors(config['target_device'], model))
+    fake_quantize_config.update(set_rescaling_factors(config, model))
 
     weights_stats_layout = create_stats_collector(fake_quantize_config, model, for_weights=True)
 
@@ -327,7 +327,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
 
 def compute_weights_stats(model, stats_layout):
     """ Computes weights statistic from provided statistics layout
-    :param model: NXModel instance
+    :param model: CompressedModel instance
     :param stats_layout: dictionary with layer names as keys and
      functions list with rules how to compute statistics as values
     :return dictionary with layers names as keys and list of evaluated statistics as values"""
@@ -386,32 +386,43 @@ def broadcast_fq_values(fq, node, min_level, max_level, fq_config):
     return min_level, max_level
 
 
-def set_rescaling_factors(target_device, model, scaling_factor=2.0):
+def set_rescaling_factors(config, model, scaling_factor=2.0):
     """
         Generate a list of weight FQ nodes for input convolutions
         for further rescaling of weights/FQs.
         Skip if target device is not CPU.
-        :param target_device: target device name
-        :param model: NXModel instance
+        :param config: algo config
+        :param model: CompressedModel instance
         :param scaling_factor: rescaling factor for first convolution nodes
     """
-    fqs_to_rescale = []
 
-    if target_device not in ['CPU', 'ANY'] or not get_nodes_by_type(model, ['Convolution'], recursively=False):
+    fqs_to_rescale = []
+    saturation_fix = config.get('saturation_fix', 'first_layer')
+
+    if config['target_device'] not in ['CPU', 'ANY'] \
+            or not get_nodes_by_type(model, ['Convolution'], recursively=False) \
+            or saturation_fix == 'no':
         return {'scaling_factor': 1.0,
                 'fqs_to_rescale': fqs_to_rescale}
 
     input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
+    fc_layers = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
 
-    input_convolutions = get_first_convolutions(input_nodes)
+    fc_layers_to_rescale = []
+    if saturation_fix == 'first_layer':
+        fc_layers_to_rescale = get_first_convolutions(input_nodes)
+    elif saturation_fix == 'all':
+        fc_layers_to_rescale = fc_layers
 
-    for node in input_convolutions:
+    for node in fc_layers_to_rescale:
         fqs_to_rescale.append(get_node_input(node, 1).name)
 
-    conv_nodes_to_rescale = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
-    conv_fqs_to_rescale = [get_node_input(node, 1).name for node in conv_nodes_to_rescale if
-                           'need_rescale' in node and node['need_rescale']]
-    fqs_to_rescale.extend(conv_fqs_to_rescale)
+    for fc_layer in fc_layers:
+        fq_input_name = get_node_input(fc_layer, 1).name
+        if 'need_rescale' in fc_layer and fc_layer['need_rescale'] and \
+                fq_input_name not in fqs_to_rescale:
+            fqs_to_rescale.append(fq_input_name)
+
     return {'scaling_factor': scaling_factor,
             'fqs_to_rescale': fqs_to_rescale}
 

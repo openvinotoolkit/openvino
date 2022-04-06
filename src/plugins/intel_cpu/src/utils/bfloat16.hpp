@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,9 @@
 
 #define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 class bfloat16_t {
 public:
     constexpr bfloat16_t()
@@ -73,7 +75,8 @@ private:
     uint16_t m_value;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 /**
  * std::numeric_limits overloaded for better compatibility with template metaprogramming.
@@ -88,17 +91,17 @@ private:
 
 namespace std {
 template <>
-class numeric_limits<MKLDNNPlugin::bfloat16_t> {
+class numeric_limits<ov::intel_cpu::bfloat16_t> {
 public:
     static constexpr bool is_specialized = true;
-    static constexpr MKLDNNPlugin::bfloat16_t min() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x007F);
+    static constexpr ov::intel_cpu::bfloat16_t min() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x007F);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t max() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x7F7F);
+    static constexpr ov::intel_cpu::bfloat16_t max() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x7F7F);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t lowest() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0xFF7F);
+    static constexpr ov::intel_cpu::bfloat16_t lowest() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0xFF7F);
     }
     static constexpr int digits = 7;
     static constexpr int digits10 = 2;
@@ -106,11 +109,11 @@ public:
     static constexpr bool is_integer = false;
     static constexpr bool is_exact = false;
     static constexpr int radix = 2;
-    static constexpr MKLDNNPlugin::bfloat16_t epsilon() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x3C00);
+    static constexpr ov::intel_cpu::bfloat16_t epsilon() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x3C00);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t round_error() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x3F00);
+    static constexpr ov::intel_cpu::bfloat16_t round_error() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x3F00);
     }
     static constexpr int min_exponent = -125;
     static constexpr int min_exponent10 = -37;
@@ -121,17 +124,17 @@ public:
     static constexpr bool has_signaling_NaN = true;
     static constexpr float_denorm_style has_denorm = denorm_absent;
     static constexpr bool has_denorm_loss = false;
-    static constexpr MKLDNNPlugin::bfloat16_t infinity() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x7F80);
+    static constexpr ov::intel_cpu::bfloat16_t infinity() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x7F80);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t quiet_NaN() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x7FC0);
+    static constexpr ov::intel_cpu::bfloat16_t quiet_NaN() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x7FC0);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t signaling_NaN() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0x7FC0);
+    static constexpr ov::intel_cpu::bfloat16_t signaling_NaN() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0x7FC0);
     }
-    static constexpr MKLDNNPlugin::bfloat16_t denorm_min() noexcept {
-        return MKLDNNPlugin::bfloat16_t::from_bits(0);
+    static constexpr ov::intel_cpu::bfloat16_t denorm_min() noexcept {
+        return ov::intel_cpu::bfloat16_t::from_bits(0);
     }
     static constexpr bool is_iec559 = false;
     static constexpr bool is_bounded = false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,11 +87,10 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
-            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              cldnn_permute_order,
+                                              transpose_order,
                                               op->get_friendly_name());
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
@@ -107,11 +106,10 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
-            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              cldnn_permute_order,
+                                              transpose_order,
                                               op->get_friendly_name());
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);

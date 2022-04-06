@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -7,6 +7,9 @@
 #include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace util {
 template <class T>
 void shape_infer(const ov::op::util::FFTBase* op,
                  const std::vector<T>& input_shapes,
@@ -110,8 +113,11 @@ void shape_infer(const ov::op::util::FFTBase* op,
         }
     } else if (input_shape.rank().is_static() && (axes_shape.rank().is_dynamic() || !axes_are_known)) {
         const auto input_rank = input_shape.size();
-        for (int64_t i = 0; i < input_rank - 1; ++i) {
+        for (size_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = ov::Dimension::dynamic();
         }
     }
 }
+}  // namespace util
+}  // namespace op
+}  // namespace ov

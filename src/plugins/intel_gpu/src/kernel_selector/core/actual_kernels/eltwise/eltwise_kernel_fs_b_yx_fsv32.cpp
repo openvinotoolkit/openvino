@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
-    const auto& output = ewParams.output;
+    const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
 
     const bool bSupportedCount = (count % 8) == 0;
@@ -38,7 +38,7 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params, const optional_
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
-        if (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.output) && ewParams.inputs[i].PhysicalSize() != 1)
+        if (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) && ewParams.inputs[i].PhysicalSize() != 1)
             bCheckSizes = false;
     }
 

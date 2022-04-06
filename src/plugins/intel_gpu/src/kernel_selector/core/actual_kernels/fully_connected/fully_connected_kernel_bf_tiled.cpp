@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
-    auto& output = fc_params.output;
+    auto& output = fc_params.outputs[0];
 
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
@@ -82,7 +82,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     }
 
     // We don't support 4d output
-    if (fc_params.output.GetLayout() == DataLayout::bfyx) {
+    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
             return false;
     }
@@ -127,11 +127,11 @@ struct TuneParamsSelector {
 
 bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams) {
     // Check divisibility by dispatch tile sizes.
-    size_t output_f = params.output.Feature().v;
-    size_t output_b = params.output.Batch().v;
-    if (params.output.GetLayout() == DataLayout::bfyx) {
-        output_b *= params.output.Feature().v;
-        output_f = params.output.Y().v;
+    size_t output_f = params.outputs[0].Feature().v;
+    size_t output_b = params.outputs[0].Batch().v;
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        output_b *= params.outputs[0].Feature().v;
+        output_f = params.outputs[0].Y().v;
     }
 
     if (output_b % (tparams.tile_b * tparams.dispatch_bsv) != 0)
@@ -168,13 +168,13 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
 
-    size_t batch = params.output.Batch().v;
-    size_t output_f = params.output.Feature().v;
+    size_t batch = params.outputs[0].Batch().v;
+    size_t output_f = params.outputs[0].Feature().v;
 
     // 3d output
-    if (params.output.GetLayout() == DataLayout::bfyx) {
-        batch *= params.output.Feature().v;
-        output_f = params.output.Y().v;
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        batch *= params.outputs[0].Feature().v;
+        output_f = params.outputs[0].Y().v;
     }
     Datatype dtype = params.inputs[0].GetDType();
 
@@ -230,11 +230,11 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     auto dispatchData = Parent::SetDefault(params);
     auto tparams = GetAutoTuneParams(params, autoTuneIndex);
 
-    size_t feature_threads = CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd);
-    size_t batch_threads = params.output.Batch().v / tparams.tile_b;
-    if (params.output.GetLayout() == DataLayout::bfyx) {
-        feature_threads = CeilDiv(params.output.Y().v, tparams.tile_ofm * simd);
-        batch_threads = (params.output.Batch().v * params.output.Feature().v) / tparams.tile_b;
+    size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
+    size_t batch_threads = params.outputs[0].Batch().v / tparams.tile_b;
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        feature_threads = CeilDiv(params.outputs[0].Y().v, tparams.tile_ofm * simd);
+        batch_threads = (params.outputs[0].Batch().v * params.outputs[0].Feature().v) / tparams.tile_b;
     }
 
     dispatchData.gws[0] = feature_threads * batch_threads * simd;
@@ -258,11 +258,11 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
-    size_t output_b = fc_params.output.Batch().v;
-    if (fc_params.output.GetLayout() == DataLayout::bfyx)
-        output_b *= fc_params.output.Feature().v;
+    size_t output_b = fc_params.outputs[0].Batch().v;
+    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx)
+        output_b *= fc_params.outputs[0].Feature().v;
 
-    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    float estimated_time = FORCE_PRIORITY_9;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
@@ -289,45 +289,48 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
 
     auto activation_dt = GetActivationType(params);
-    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+    auto accumulator_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+    jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
 
     // for 3d output we are treating spatial as features
-    if (params.output.GetLayout() == DataLayout::bfyx) {
-        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.output.Y().v));
-        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.output.Y().pitch));
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Feature().pitch));
-        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Feature().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     } else {
-        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.output.Feature().v));
-        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.output.Feature().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Feature().v));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Batch().pitch));
-        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Batch().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
     }
 
-    size_t output_f = params.output.GetLayout() == DataLayout::bfyx ? params.output.Y().v : params.output.Feature().v;
     if (!params.fused_ops.empty()) {
-        auto boundary_check = BoundaryCheck::DISABLED;
-        if (output_f % (dispatchData.tile_n * simd) != 0)
-            boundary_check = BoundaryCheck::ENABLED;
+        std::vector<std::string> idx_order_scalar = { "(out_b + bi)", "(out_f + sglid)", "0", "0" };
+        std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + fi + sglid)", "0", "0" };
+        if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+            idx_order_scalar = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
+            idx_order_vec = { "(out_b + bi) / OUTPUT_FEATURE_NUM", "(out_b + bi) % OUTPUT_FEATURE_NUM", "sglid", "0" };
+        }
 
-        std::vector<std::string> idx_order = {"(out_b + bi)", "out_f", "0", "0"};
-        if (params.output.GetLayout() == DataLayout::bfyx)
-            idx_order = {"(out_b + bi) % OUTPUT_BATCH_NUM", "(out_b + bi) / OUTPUT_BATCH_NUM", "out_f", "0"};
-        FusedOpsConfiguration conf = { "",
-                                       idx_order,
-                                       "activated[bi]",
-                                       activation_dt,
-                                       dispatchData.tile_n,
-                                       LoadType::LT_ALIGNED_READ,
-                                       boundary_check,
-                                       IndexType::TENSOR_COORD,
-                                       Tensor::DataChannelName::FEATURE };
-        conf.SetLoopAxes({ Tensor::DataChannelName::BATCH }, true);
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        // Simplify fused ops configuration to prevent mixed layout exception in jitter
+        // for common cases with bfyx -> bf layouts and eltwise fusing (such scenarios currently don't work for vectors)
+        FusedOpsConfiguration conf_scalar = { "_SCALAR",
+                                              idx_order_scalar,
+                                              "activated[bi]",
+                                              activation_dt,
+                                              1 };
+        FusedOpsConfiguration conf_vec = { "_VEC",
+                                           idx_order_vec,
+                                           "activated[bi][fi]",
+                                           activation_dt,
+                                           1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf_scalar, conf_vec }));
     }
+
     return jit;
 }
 
@@ -365,6 +368,7 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
             res.emplace_back(kds[0]);
         }
     }
+
     return res;
 }
 

@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # suppress shadowing names warning
 set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-# disabled due to compiler issues
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
 
+# disabled due to compiler issues
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(BUILD_SHARED_LIBS OFF)
 set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(JSON_VALIDATOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)

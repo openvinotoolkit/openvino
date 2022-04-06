@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestDefinitions {
+namespace LayerTestsDefinitions {
 using priorBoxSpecificParams =  std::tuple<
         std::vector<float>, // min_size
         std::vector<float>, // max_size
@@ -79,4 +79,4 @@ protected:
     void SetUp() override;
 };
 
-} // namespace LayerTestDefinitions
+} // namespace LayerTestsDefinitions

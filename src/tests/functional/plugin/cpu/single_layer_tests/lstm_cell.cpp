@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,11 +87,10 @@ protected:
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            inType = outType = ElementType::bf16;
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            inType = outType = netPrecision;
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
@@ -106,7 +105,7 @@ TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "RNNCell");
+    CheckPluginRelatedResults(compiledModel, "RNNCell");
 }
 
 namespace {
@@ -173,7 +172,13 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
       { { {1, 20}, {8, 12} },              // Dynamic shape 1
         { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } },   // Target shapes
       { { {1, 20}, -1 },                   // Dynamic shape 2
-        { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } } }  // Target shapes
+        { {2, 10}, {5, 10}, {8, 10}, {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
+    { { { -1, -1 },                         // Dynamic shape 0
+        { {37, 512}, {15, 512} } },         // Target shapes
+      { { -1, 128 },                        // Dynamic shape 1
+        { {37, 128}, {15, 128} } },         // Target shapes
+      { { -1, 128 },                        // Dynamic shape 2
+        { {37, 128}, {15, 128} } } },       // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMCellLayerCPUTest,

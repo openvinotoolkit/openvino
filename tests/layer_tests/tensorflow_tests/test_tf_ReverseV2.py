@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
-
+import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
@@ -30,27 +29,28 @@ class TestReverseV2Ops(CommonTFLayerTest):
 
     test_data = []
     test_data.extend([
-                      dict(shape=[5], axis=[0]),
-                      dict(shape=[2, 3], axis=[1]),
-                      dict(shape=[2, 3, 5], axis=[-2]),
-                      dict(shape=[2, 3, 5, 7], axis=[0]),
-                      ])
+        dict(shape=[5], axis=[0]),
+        dict(shape=[2, 3], axis=[1]),
+        dict(shape=[2, 3, 5], axis=[-2]),
+        dict(shape=[2, 3, 5, 7], axis=[0]),
+    ])
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    def test_reversev2(self, params, keep_dims, ie_device, precision, ir_version, temp_dir):
+    def test_reversev2(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_reversev2_net(**params, keep_dims=keep_dims, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
 
     test_data_pre_commit = []
     test_data_pre_commit.extend([dict(shape=[5], axis=[0]),
                                  dict(shape=[2, 3, 5], axis=[-2])
-                                ])
+                                 ])
 
     @pytest.mark.parametrize("params", test_data_pre_commit)
     @pytest.mark.parametrize("keep_dims", [True])
     @pytest.mark.precommit
-    def test_reversev2_precommit(self, params, keep_dims, ie_device, precision, ir_version, temp_dir):
+    def test_reversev2_precommit(self, params, keep_dims, ie_device, precision, ir_version,
+                                 temp_dir, api_2):
         self._test(*self.create_reversev2_net(**params, keep_dims=keep_dims, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)

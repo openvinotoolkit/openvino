@@ -15,7 +15,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     files.
     
     > **Example**: We have `ie_reshaper.cpp` within the `src/shape_infer` subfolder of the tested module. In this case
-    new `shape_infer` subfolder should be created within the the root of the Unit Test folder for this module. And new
+    new `shape_infer` subfolder should be created within the root of the Unit Test folder for this module. And new
     `ie_reshaper_test.cpp` file should be created within this newly created subfolder. This test file should cover all
     the classes and methods from the original file.
   

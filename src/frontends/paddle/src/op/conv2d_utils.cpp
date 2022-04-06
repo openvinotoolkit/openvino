@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "conv2d_utils.hpp"
 
-#include "node_context.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -58,7 +58,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node, cons
 }
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
-    const auto data_rank = node.get_ng_input("Input").get_partial_shape().rank();
+    const auto data_rank = node.get_input("Input").get_partial_shape().rank();
     PADDLE_OP_CHECK(node, data_rank.get_length() > 2, "the rank of conv input must > 2");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 

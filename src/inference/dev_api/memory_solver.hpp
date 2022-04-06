@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,7 +147,8 @@ public:
                     for (auto* box_in_slot : time_slots[i_slot]) {
                         // intersect with already stored boxes for all covered time slots
                         // and move up the new one if needed
-                        popped_up |= popupTogetherWith(box, *box_in_slot);
+                        // Execution of 'popupTogetherWith' is important even if 'popped_up' is already 'true'
+                        popped_up = popupTogetherWith(box, *box_in_slot) || popped_up;
                     }
                 }
             } while (popped_up);

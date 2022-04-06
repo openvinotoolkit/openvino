@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,8 @@
 #include "cpu_shape.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CreatorsMapFilterConstIterator;
 
@@ -91,4 +92,6 @@ private:
     Iterator _end;
     predicate_type _filter;
 };
-} // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

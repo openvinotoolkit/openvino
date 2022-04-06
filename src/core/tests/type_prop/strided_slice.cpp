@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <dimension_tracker.hpp>
 #include <memory>
+#include <strided_slice_shape_inference.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -161,4 +163,49 @@ TEST(type_prop, strided_slice_reverse_out_of_bounds) {
 
     Shape expected{3, 4, 5};
     EXPECT_EQ(ss->get_output_shape(0), expected);
+}
+
+TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
+    Dimension marked_0 = Dimension(3);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> start_val{0}, stop_val{1}, step_val{1};
+    const auto start = std::make_shared<op::v0::Constant>(et, Shape{start_val.size()}, start_val);
+    const auto stop = std::make_shared<op::v0::Constant>(et, Shape{stop_val.size()}, stop_val);
+    const auto step = std::make_shared<op::v0::Constant>(et, Shape{step_val.size()}, step_val);
+    const auto slice = std::make_shared<op::v1::StridedSlice>(shape_0,
+                                                              start,
+                                                              stop,
+                                                              step,
+                                                              std::vector<int64_t>{0},
+                                                              std::vector<int64_t>{0});
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, slice);
+    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+TEST(type_prop, default_strided_slice_shape_inference) {
+    auto slice = new op::v1::StridedSlice;
+    slice->set_begin_mask({0, 0, 0});
+    slice->set_end_mask({0, 0, 0});
+    slice->set_new_axis_mask({1, 0, 0});
+    slice->set_shrink_axis_mask({0, 0, 0, 1});
+    slice->set_ellipsis_mask_mask({0, 0, 0});
+    std::vector<ov::PartialShape> in = {{10, 11, 12}, {3}, {3}, {3}}, out = {PartialShape()};
+    int64_t begin_data[] = {0, 0, 0, 0}, end_data[] = {1, 1, 5, 1}, stride_data[] = {1, 1, 1, 1};
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+        {1, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, begin_data)},
+        {2, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, end_data)},
+        {3, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, stride_data)}};
+    ov::op::v1::shape_infer(slice, in, out, const_data);
+    ASSERT_EQ(out[0], PartialShape({1, 1, 5}));
 }

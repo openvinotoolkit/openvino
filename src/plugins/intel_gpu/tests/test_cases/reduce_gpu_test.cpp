@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -519,10 +519,10 @@ public:
 
         ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
         ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
-        ASSERT_EQ(out_lay.size.spatial[3], reference_result[0][0].size());           // w
-        ASSERT_EQ(out_lay.size.spatial[2], reference_result[0][0][0].size());        // z
-        ASSERT_EQ(out_lay.size.spatial[1], reference_result[0][0][0][0].size());     // y
-        ASSERT_EQ(out_lay.size.spatial[0], reference_result[0][0][0][0][0].size());  // x
+        ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
+        ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
+        ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y
+        ASSERT_EQ(out_lay.spatial(0), reference_result[0][0][0][0][0].size());  // x
 
         for (size_t bi = 0; bi < reference_result.size(); bi++)
             for (size_t fi = 0; fi < reference_result[0].size(); fi++)
@@ -1733,10 +1733,10 @@ public:
 
             ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
             ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
-            ASSERT_EQ(out_lay.size.spatial[3], reference_result[0][0].size());           // w
-            ASSERT_EQ(out_lay.size.spatial[2], reference_result[0][0][0].size());        // z
-            ASSERT_EQ(out_lay.size.spatial[1], reference_result[0][0][0][0].size());     // y
-            ASSERT_EQ(out_lay.size.spatial[0], reference_result[0][0][0][0][0].size());  // x
+            ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
+            ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
+            ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y
+            ASSERT_EQ(out_lay.spatial(0), reference_result[0][0][0][0][0].size());  // x
 
             bool need_adjust_threshold = (typeid(output_t) == typeid(output_data_type<data_types::i8>::type));
             for (size_t bi = 0; bi < reference_result.size(); bi++)

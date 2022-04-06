@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,31 @@
 
 namespace ov {
 
+/**
+ * @defgroup ov_layout_cpp_api Layout
+ * @ingroup ov_model_cpp_api
+ * OpenVINO Layout API to work and configure layouts for ov::Model inputs or outputs
+ *
+ */
+
+/// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout `NCHW` means that 4D
+/// tensor `{-1, 3, 480, 640}` will have:
+/// - 0: `N = -1`: batch dimension is dynamic
+/// - 1: `C = 3`: number of channels is '3'
+/// - 2: `H = 480`: image height is 480
+/// - 3: `W = 640`: image width is 640
+///
+/// Examples: `ov::Layout` can be specified for:
+/// - Preprocessing purposes. E.g.
+///    - To apply normalization (means/scales) it is usually required to set 'C' dimension in a layout.
+///    - To resize the image to specified width/height it is needed to set 'H' and 'W' dimensions in a layout
+///    - To transpose image - source and target layout can be set (see
+///    `ov::preprocess::PreProcessSteps::convert_layout`)
+/// - To set/get model's batch (see `ov::get_batch`/`ov::set_batch') it is required in general to specify 'N' dimension
+/// in layout for appropriate inputs
+///
+/// Refer also to `ov::layout` namespace for various additional helper functions of `ov::Layout`
+/// \ingroup ov_layout_cpp_api
 class OPENVINO_API Layout {
 public:
     /// \brief Constructs a dynamic Layout with no layout information.
@@ -61,6 +86,7 @@ public:
     /// \brief String representation of Layout
     std::string to_string() const;
 
+    /// \brief Returns 'true' if layout has no information, i.e. equals to Layout()
     bool empty() const {
         return *this == Layout();
     }
@@ -83,66 +109,79 @@ private:
 namespace layout {
 
 /// \brief Checks if layout has 'batch' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_batch(const Layout& layout);
 
 /// \brief Returns 'batch' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t batch_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'channels' dimension
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_channels(const Layout& layout);
 
 /// \brief Returns 'channels' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t channels_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'depth' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_depth(const Layout& layout);
 
 /// \brief Returns 'depth' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t depth_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'height' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_height(const Layout& layout);
 
 /// \brief Returns 'height' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t height_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'width' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_width(const Layout& layout);
 
 /// \brief Returns 'width' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t width_idx(const Layout& layout);
 
 /// \brief Sets Layout of port
 ///
 /// \throws ov::Exception if port is not connected with Result or Parameter
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout);
 
 /// \brief Gets Layout of port
 ///
 /// \return layout from port and empty layout in other case
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API ov::Layout get_layout(const ov::Output<ov::Node>& output);
 
 /// \brief Gets Layout of port
 ///
 /// \return layout from port and empty layout in other case
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API ov::Layout get_layout(const ov::Output<const ov::Node>& output);
 
 }  // namespace layout

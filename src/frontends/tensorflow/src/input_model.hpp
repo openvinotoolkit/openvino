@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/place.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "place.hpp"
 
 namespace ov {
 namespace frontend {

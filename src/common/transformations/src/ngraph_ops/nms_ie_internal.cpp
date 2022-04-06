@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include <ngraph/opsets/opset5.hpp>
 #include "ngraph_ops/nms_ie_internal.hpp"
+
+#include <memory>
+#include <ngraph/opsets/opset5.hpp>
+
 #include "itt.hpp"
 
 using namespace std;
@@ -22,9 +23,11 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        bool sort_result_descending,
                                                                        const ngraph::element::Type& output_type,
                                                                        const ngraph::element::Type& score_output_type)
-        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type),
-          m_scores_output_type(score_output_type) {
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
+      m_center_point_box(center_point_box),
+      m_sort_result_descending(sort_result_descending),
+      m_output_type(output_type),
+      m_scores_output_type(score_output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -38,22 +41,36 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        bool sort_result_descending,
                                                                        const ngraph::element::Type& output_type,
                                                                        const ngraph::element::Type& score_output_type)
-        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type),
-          m_scores_output_type(score_output_type) {
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
+      m_center_point_box(center_point_box),
+      m_sort_result_descending(sort_result_descending),
+      m_output_type(output_type),
+      m_scores_output_type(score_output_type) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(
+    const ngraph::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_clone_with_new_inputs);
     if (new_args.size() == 6) {
-        return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                             new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
-                                             m_output_type);
+        return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0),
+                                                        new_args.at(1),
+                                                        new_args.at(2),
+                                                        new_args.at(3),
+                                                        new_args.at(4),
+                                                        new_args.at(5),
+                                                        m_center_point_box,
+                                                        m_sort_result_descending,
+                                                        m_output_type);
     } else if (new_args.size() == 5) {
-        return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                             new_args.at(4), m_center_point_box, m_sort_result_descending,
-                                             m_output_type);
+        return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0),
+                                                        new_args.at(1),
+                                                        new_args.at(2),
+                                                        new_args.at(3),
+                                                        new_args.at(4),
+                                                        m_center_point_box,
+                                                        m_sort_result_descending,
+                                                        m_output_type);
     }
     throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
@@ -104,8 +121,7 @@ void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
             const auto num_classes = scores_ps[1].get_length();
             const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                           scores_ps[0].get_length();
+            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
         }
     }
 

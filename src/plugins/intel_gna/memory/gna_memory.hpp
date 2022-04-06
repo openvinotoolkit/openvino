@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_plugin_log.hpp"
+#include "memory/gna_allocator.hpp"
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
@@ -32,6 +33,7 @@ namespace memory {
  */
 template<class Allocator = std::allocator<uint8_t>>
 class GNAMemory : public GNAMemRequestsQueue {
+protected:
     std::vector<MemRequest> _future_heap;
     std::list<std::vector<char>> _local_storage;
     size_t _total = 0;

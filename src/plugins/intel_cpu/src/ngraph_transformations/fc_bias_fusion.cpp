@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,13 @@
 
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
+#include "itt.hpp"
 
-MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
+ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
+    MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto input = ngraph::pattern::any_input();
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
-    auto m_fc = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>({ input, weights }, [](ngraph::Output<ngraph::Node> output) {
+    auto m_fc = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>({ input, weights }, [](ngraph::Output<ngraph::Node> output) {
         return ngraph::pattern::consumers_count(1)(output) && ngraph::pattern::has_static_rank()(output);
     });
     auto m_bias = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
@@ -27,7 +28,7 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();
         auto bias = pattern_to_output[m_bias].get_node_shared_ptr();
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(pattern_to_output[m_fc].get_node_shared_ptr());
+        auto fc = std::dynamic_pointer_cast<ov::intel_cpu::FullyConnectedNode>(pattern_to_output[m_fc].get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -57,7 +58,7 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
             new_ops.push_back(final_bias);
         }
 
-        auto new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc->input_value(0),
+        auto new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc->input_value(0),
                                                                          fc->input_value(1),
                                                                          final_bias,
                                                                          fc->get_output_rank(),
@@ -70,6 +71,6 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, "FullyConnectedBiasFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, matcher_name);
     this->register_matcher(m, callback);
 }

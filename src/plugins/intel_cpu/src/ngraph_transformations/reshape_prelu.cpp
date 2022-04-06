@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapePRelu, "ReshapePRelu", 0);
+#include "itt.hpp"
 
-MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
+ov::intel_cpu::ReshapePRelu::ReshapePRelu() {
+    MATCHER_SCOPE(ReshapeFullyConnectedFusion);
     auto input_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto slope_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto prelu_m = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input_m, slope_m });
@@ -51,6 +52,6 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu_m, "ReshapePRelu");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu_m, matcher_name);
     this->register_matcher(m, callback);
 }

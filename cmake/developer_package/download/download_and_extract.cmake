@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -146,8 +146,6 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
 
 endfunction(DownloadOrExtractInternal)
 
-file(REMOVE ${CMAKE_BINARY_DIR}/dependencies_64.txt)
-
 function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256 files_to_extract)
   set (archive_path ${TEMP}/download/${archive_name})
   set (status "ON")
@@ -164,7 +162,6 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   if (${use_alternatives})
     set(DEP_INFO "${component}=${URL}")
     debug_message (STATUS "DEPENDENCY_URL: ${DEP_INFO}")
-    file(APPEND ${CMAKE_BINARY_DIR}/dependencies_64.txt "${DEP_INFO}\n")
   endif()
 
   debug_message ("checking that unpacked directory exist: ${unpacked_path}")

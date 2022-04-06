@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,13 +32,13 @@ class PropagateToInput;
  * from parent output ports to consumers input ports.
  *
  * For more details about the transformation, refer to
- * [PropagateToInput](@ref openvino_docs_IE_DG_lpt_PropagateToInput) page
+ * [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>
 class ngraph::pass::low_precision::PropagateToInput : public ngraph::pass::MatcherPass {
 public:
-    PropagateToInput() {
+    PropagateToInput(const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 }) {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
@@ -49,7 +49,7 @@ public:
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateToInput");
 
                 for (auto input : node->inputs()) {
-                    auto parentAttribute = getSourceOutputAttribute(input);
+                    auto parentAttribute = getSourceOutputAttribute(input, defaultPrecisions);
                     if (parentAttribute == nullptr) {
                         continue;
                     }
@@ -78,9 +78,9 @@ public:
 
 private:
     // TODO: possible duplicate: PropagateThroughPrecisionPreserved::getParentInputRestrictions
-    ov::Any getSourceOutputAttribute(const Input<Node>& input) {
-        auto getInput = [](const Input<Node>& input) {
-            const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
+    ov::Any getSourceOutputAttribute(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+        auto getInput = [&defaultPrecisions](const Input<Node>& input) {
+            const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
             if (!dequantization.empty() &&
                 ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from ngraph.opset1.ops import absolute
@@ -84,7 +84,7 @@ from ngraph.opset5.ops import log_softmax
 from ngraph.opset5.ops import loop
 from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
-from ngraph.opset1.ops import lstm_sequence
+from ngraph.opset5.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
 from ngraph.opset8.ops import matrix_nms
 from ngraph.opset8.ops import max_pool

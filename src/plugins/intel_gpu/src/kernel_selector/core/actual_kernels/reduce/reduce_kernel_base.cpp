@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ bool ReduceKernelBase::Validate(const Params& p, const optional_params&) const {
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.output.LogicalSize()));
+    jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
 
@@ -213,7 +213,7 @@ Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) 
 }
 
 Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     else
         return Datatype::F32;

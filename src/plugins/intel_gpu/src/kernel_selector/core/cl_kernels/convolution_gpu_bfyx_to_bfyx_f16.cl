@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,17 +90,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     const uint filter_offset = f_block * filter_os_pitch;
 #endif
 
-#if BIAS_TERM
-    uint bias_offset = f_block * FEATURE_SLICE_SIZE;
-
-#   if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    bias_offset += split_idx * BIAS_LENGTH;
-#   endif
-
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE) dst = (MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE))(DT_BIAS_BLOCK_READ(biases, bias_offset));
-#else
     MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE) dst = INPUT0_VAL_ZERO;
-#endif
 
     INPUT0_TYPE line_cache[INPUT0_FEATURE_NUM * INPUT_BLOCK_SIZE];
     for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++)
@@ -150,6 +140,16 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
             }
         }
     }
+
+#if BIAS_TERM
+    uint bias_offset = f_block * FEATURE_SLICE_SIZE;
+
+#   if GROUPED && !DEPTHWISE_SEPARABLE_OPT
+    bias_offset += split_idx * BIAS_LENGTH;
+#   endif
+
+    dst += (MAKE_VECTOR_TYPE(INPUT0_TYPE, OUTPUT_X_BLOCK_SIZE))(DT_BIAS_BLOCK_READ(biases, bias_offset));
+#endif
 
     OUTPUT_PACKED_TYPE res;
 #ifndef HAS_FUSED_OPS

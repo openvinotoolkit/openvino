@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <low_precision/avg_pool.hpp>
-#include <low_precision/common/operation_precision_restriction.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/low_precision.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -71,16 +71,15 @@ public:
         const ngraph::PartialShape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
-
-        const auto params = TestTransformationParams(fakeQuantizeOnData.params).setUpdatePrecisions(updatePrecision);
+        std::vector<element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support;
 
         if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
-            low_precision::LowPrecision::setDefaultPrecisions({
-                 ngraph::element::u8, ngraph::element::i8,
-                 ngraph::element::u16, ngraph::element::i16,
-                 ngraph::element::u32, ngraph::element::i32
-            });
+            defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         }
+
+        const auto params = TestTransformationParams(fakeQuantizeOnData.params)
+            .setUpdatePrecisions(updatePrecision)
+            .setDefaultPrecisions(defaultPrecisions);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
             TestTransformationParams::toParams(fakeQuantizeOnData.params),
@@ -89,11 +88,11 @@ public:
             fakeQuantizeOnData.actual,
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
         });
 
-        SimpleLowPrecisionTransformer transform(supportedPrecisions);
+        SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, { ngraph::element::f32, defaultPrecisions });
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
         transform.transform(actualFunction);
@@ -126,7 +125,7 @@ public:
 
 TEST_P(FakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -143,7 +142,8 @@ const std::vector<bool> updatePrecisions = { true, false };
 
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 72, 48 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+    { -1, -1, -1, -1 },
+    PartialShape::dynamic(),
     // TODO: 3D tensor
 };
 
@@ -356,51 +356,3 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
-
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-    PartialShape::dynamic(),
-};
-
-const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-        ngraph::element::u8,
-        {
-            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.01f }} },
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            256ul,
-            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
-            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
-        },
-        {
-            256ul,
-            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
-            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
-        },
-        ngraph::element::f32,
-        {
-            { ngraph::element::f32, {} },
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::Values(ngraph::element::f32),
-        ::testing::ValuesIn(shapesWithDynamicChannel),
-        ::testing::Values(true),
-        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
-    FakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues2

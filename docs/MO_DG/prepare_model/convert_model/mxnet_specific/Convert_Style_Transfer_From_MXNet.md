@@ -1,4 +1,4 @@
-# Converting a Style Transfer Model from MXNet*  {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet}
+# Convert MXNet Style Transfer Model {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet}
 
 The tutorial explains how to generate a model for style transfer using the public MXNet\* neural style transfer sample.
 To use the style transfer sample from OpenVINO&trade;, follow the steps below as no public pre-trained style transfer model is provided with the OpenVINO toolkit.
@@ -86,8 +86,8 @@ import make_image
 maker = make_image.Maker('models/13', (1024, 768))
 maker.generate('output.jpg', '../images/tubingen.jpg')
 ```
-Where the `models/13` string is composed of the following substrings: 
-* `models/`: path to the folder that contains .nd files with pre-trained styles weights 
+Where the `models/13` string is composed of the following substrings:
+* `models/`: path to the folder that contains .nd files with pre-trained styles weights
 * `13`: prefix pointing to 13_decoder, which is the default decoder for the repository.
 
 > **NOTE**: If you get an error saying "No module named 'cPickle'", try running the script from this step in Python 2. Then return to Python 3 for the remaining steps.
@@ -114,4 +114,4 @@ cp models/13_decoder_auxs.nd nst_model
 ```sh
 mo --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
 ```
-4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the Inference Engine. 
+4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the OpenVINO Runtime.

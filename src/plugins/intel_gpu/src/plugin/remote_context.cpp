@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     uint32_t plane,
     BlobType mem_type) :
     m_context(context), m_stream(stream), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
+    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedCounter(0), lockedHolder(nullptr) {
     auto _impl = getContextImpl(m_context.lock());
     auto eng = _impl->GetEngine();
 
@@ -43,7 +43,7 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     }
 }
 
-ParamMap RemoteBlobImpl::getParams() const {
+AnyMap RemoteBlobImpl::getParams() const {
     assert(m_memObject != nullptr);
     auto params = m_memObject->get_internal_params();
 
@@ -189,14 +189,22 @@ void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
     }
-    lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
-    auto ptr = lockedHolder->data();
-    _handle = reinterpret_cast<void*>(ptr);
-    m_allocator.regLockedBlob(_handle, this);
+
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    if (lockedCounter == 0) {
+        lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
+        auto ptr = lockedHolder->data();
+        _handle = reinterpret_cast<void*>(ptr);
+        m_allocator.regLockedBlob(_handle, this);
+    }
+    lockedCounter++;
 }
 
 void RemoteBlobImpl::unlock() const {
-    lockedHolder.reset();
+    std::lock_guard<std::mutex> locker(lockedMutex);
+    lockedCounter--;
+    if (lockedCounter == 0)
+        lockedHolder.reset();
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
@@ -264,7 +272,7 @@ void RemoteAllocator::unlock(void* handle) noexcept {
 }
 
 ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
-    const ParamMap& params,
+    const AnyMap& params,
     const Config& config) :
     m_plugin(plugin),
     m_type(ContextType::OCL),
@@ -330,8 +338,8 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
                                      engine_params.task_executor);
 }
 
-ParamMap ExecutionContextImpl::getParams() const {
-    ParamMap ret = { { GPU_PARAM_KEY(OCL_CONTEXT), m_engine->get_user_context() } };
+AnyMap ExecutionContextImpl::getParams() const {
+    AnyMap ret = { { GPU_PARAM_KEY(OCL_CONTEXT), m_engine->get_user_context() } };
 
     switch (m_type) {
     case OCL:

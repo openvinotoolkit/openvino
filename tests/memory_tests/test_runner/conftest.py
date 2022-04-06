@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
@@ -18,17 +18,16 @@ This plugin adds the following command-line options:
 import hashlib
 import json
 import logging
-import tempfile
 # pylint:disable=import-error
 import os
+import pytest
 import sys
+import tempfile
+import yaml
 from copy import deepcopy
 from inspect import getsourcefile
-from pathlib import Path
-
-import pytest
-import yaml
 from jsonschema import validate, ValidationError
+from pathlib import Path
 
 UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
@@ -42,7 +41,6 @@ MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
 from test_runner.utils import query_memory_timeline, REFS_FACTOR
-
 
 OMZ_NUM_ATTEMPTS = 6
 
@@ -168,6 +166,8 @@ def executable(request):
 def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
+
+
 # -------------------- CLI options --------------------
 
 

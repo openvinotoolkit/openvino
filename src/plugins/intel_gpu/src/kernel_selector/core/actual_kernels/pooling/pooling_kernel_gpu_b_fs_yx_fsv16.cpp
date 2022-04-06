@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,16 +34,16 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
-    if (params.output.X().v > 4)
+    if (params.outputs[0].X().v > 4)
         return 8;
-    else if (params.output.X().v > 1)
+    else if (params.outputs[0].X().v > 1)
         return 2;
     else
         return 1;
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
-    auto& out = params.output;
+    auto& out = params.outputs[0];
     // Use smaller simd size in case of global pooling and small channels count to have more threads
     if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64)
         return 8;
@@ -54,7 +54,7 @@ size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) co
 PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto x = out.X().v;
@@ -76,14 +76,14 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
 KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& pooling_p = static_cast<const pooling_params&>(params);
 
-    return pooling_p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
+    return pooling_p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
 JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
     const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     size_t input_line_size = params.poolStride.x * (x_block_size - 1) + params.poolSize.x;
@@ -109,7 +109,7 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, x_block_size)));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
 
-    if (params.output.Feature().v % 16 != 0) {
+    if (params.outputs[0].Feature().v % 16 != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
 
@@ -148,7 +148,7 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;

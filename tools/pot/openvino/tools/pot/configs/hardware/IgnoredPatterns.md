@@ -186,12 +186,76 @@ graph TB
 
 ---
 
+**Name:** input_subtract<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> subtract(Subtract)
+    subtract_const(Const) --> subtract(Subtract)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_transpose_add<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> add(Add)
+    add_const(Const) --> add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_add<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
+    transpose(Transpose) --> add(Add)
+    add_const(Const) --> add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
 **Name:** input_multiply<br/>
 **Pattern:** <br/>
 
 ```mermaid
 graph TB
     input(Parameter) --> multiply(Multiply)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_transpose_multiply<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> multiply(Multiply)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_multiply<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
+    transpose(Transpose) --> multiply(Multiply)
     style input fill:#73C2FB
 ```
 
@@ -207,6 +271,43 @@ graph TB
     split(Split) --> concat(Concat)
     concat(Concat) --> add(Add)
     add_const(Const) --> add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_transpose_reverse_input_channels_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> split(Split)
+    split_const(Const) --> split(Split)
+    split(Split) --> concat(Concat)
+    concat(Concat) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_reverse_input_channels_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
+    transpose(Transpose) --> split(Split)
+    split_const(Const) --> split(Split)
+    split(Split) --> concat(Concat)
+    concat(Concat) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
     style input fill:#73C2FB
 ```
 
@@ -235,6 +336,37 @@ graph TB
 ```mermaid
 graph TB
     input(Parameter) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_transpose_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> transpose(Transpose)
+    transpose(Transpose) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
+    scaleshift_multiply(Multiply) --> scaleshift_add(Add)
+    scaleshift_add_const(Const) --> scaleshift_add(Add)
+    style input fill:#73C2FB
+```
+
+---
+
+**Name:** input_convert_transpose_scale_shift<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    input(Parameter) --> convert(Convert)
+    convert(Convert) --> transpose(Transpose)
+    transpose(Transpose) --> scaleshift_multiply(Multiply)
     scaleshift_multiply_const(Const) --> scaleshift_multiply(Multiply)
     scaleshift_multiply(Multiply) --> scaleshift_add(Add)
     scaleshift_add_const(Const) --> scaleshift_add(Add)
@@ -347,6 +479,18 @@ graph TB
 
 ---
 
+**Name:** softmax<br/>
+**Pattern:** <br/>
+
+```mermaid
+graph TB
+    exp(Exp) --> reduce(ReduceSum)
+    exp(Exp) --> divide(Divide)
+    reduce_const(Const) --> reduce(ReduceSum)
+    reduce(ReduceSum) --> divide(Divide)
+```
+---
+
 **Name:** softmax_reshape_matmul<br/>
 **Pattern:** <br/>
 
@@ -389,4 +533,3 @@ graph TB
 ```
 
 ---
-

@@ -1,38 +1,42 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API, input auto-resize feature and support of UNICODE paths.
+This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
+Models with only one input and output are supported.
 
-Hello Classification C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
+The following C++ API is used in the application:
 
-| Feature    | API  | Description |
-|:---     |:--- |:---
-| Basic Infer Flow | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model`, `ov::runtime::CompiledModel::create_infer_request`, `ov::runtime::InferRequest::get_input_tensor`, `ov::runtime::InferRequest::set_input_tensor`, `ov::runtime::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
-| Synchronous Infer | `ov::runtime::InferRequest::infer` | Do synchronous inference
-| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` |  Managing of model
-| Tensor Operations| `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
-| Input auto-resize | `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputInfo::model::set_layout` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: read and compile a model, create an infer request, configure input and output tensors |
+| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference |
+| Model Operations | `ov::Model::inputs`, `ov::Model::outputs` | Get inputs and outputs of a model |
+| Tensor Operations | `ov::Tensor::get_shape` | Get a tensor shape |
+| Preprocessing | `ov::preprocess::InputTensorInfo::set_element_type`, `ov::preprocess::InputTensorInfo::set_layout`, `ov::preprocess::InputTensorInfo::set_spatial_static_shape`, `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputModelInfo::set_layout`, `ov::preprocess::OutputTensorInfo::set_element_type`, `ov::preprocess::PrePostProcessor::build` | Set image of the original size as input for a model with other input size. Resize and layout conversions are performed automatically by the corresponding plugin just before inference. |
 
-| Options  | Values |
-|:---                              |:---
-| Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [C](../../../samples/c/hello_classification/README.md), [Python](../../../samples/python/hello_classification/README.md) |
+| Options | Values |
+| :--- | :--- |
+| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
+| Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
+| Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C](../../../samples/c/hello_classification/README.md), [Python](../../../samples/python/hello_classification/README.md) |
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters, loads specified network and an image to the Inference Engine plugin.
-Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
+At startup, the sample application reads command line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
+
+```
+hello_classification <path_to_model> <path_to_image> <device_name>
+```
 
 To run the sample, you need specify a model and image:
 
@@ -41,28 +45,36 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
-python <path_to_omz_tools>/converter.py --name alexnet
+python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+2. Download a pre-trained model using:
 
 ```
-<path_to_sample>/hello_classification <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
+omz_downloader --name googlenet-v1
+```
+
+3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
+
+```
+omz_converter --name googlenet-v1
+```
+
+4. Perform inference of `car.bmp` using the `googlenet-v1` model on a `GPU`, for example:
+
+```
+hello_classification googlenet-v1.xml car.bmp GPU
 ```
 
 ## Sample Output
@@ -70,29 +82,41 @@ python <path_to_omz_tools>/converter.py --name alexnet
 The application outputs top-10 inference results.
 
 ```
+[ INFO ] OpenVINO Runtime version ......... <version>
+[ INFO ] Build ........... <build>
+[ INFO ]
+[ INFO ] Loading model files: /models/googlenet-v1.xml
+[ INFO ] model name: GoogleNet
+[ INFO ]     inputs
+[ INFO ]         input name: data
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 224, 224}
+[ INFO ]     outputs
+[ INFO ]         output name: prob
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1000}
+
 Top 10 results:
 
-Image /opt/intel/openvino/samples/scripts/car.png
+Image /images/car.bmp
 
 classid probability
 ------- -----------
-656     0.6664789
-654     0.1129405
-581     0.0684867
-874     0.0333845
-436     0.0261321
-817     0.0167310
-675     0.0109796
-511     0.0105919
-569     0.0081782
-717     0.0063356
-
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+656     0.8139648
+654     0.0550537
+468     0.0178375
+436     0.0165405
+705     0.0111694
+817     0.0105820
+581     0.0086823
+575     0.0077515
+734     0.0064468
+785     0.0043983
 ```
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/util.hpp"
 #include "util/all_close_f.hpp"
 
 using namespace std;

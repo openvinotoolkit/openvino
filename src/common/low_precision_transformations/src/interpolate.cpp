@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::InterpolateTransformation, "InterpolateTransformation", 0);
-
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(InterpolateTransformation);
     auto mul = pattern::wrap_type<opset1::Multiply>();
 
     auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
@@ -47,7 +47,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
 
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
-        "InterpolateTransformation");
+        matcher_name);
 
     this->register_matcher(matcher, callback);
 }
@@ -57,8 +57,8 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
-    interpolate = NetworkHelper::separateInStandaloneBranch(interpolate);
-    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate), true);
+    interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
+    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions), true);
     return true;
 }
 
@@ -85,7 +85,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
 
     // TODO: expand transformation cases
     // just repeat CNNNetwork Resample transformation
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,11 +85,6 @@ protected:
 };
 
 TEST_P(all_close_f_param_test, test_boundaries) {
-    if (getenv_bool("NGRAPH_GTEST_INFO")) {
-        // Print short string documenting which test is being run
-        std::cout << "[   INFO   ] Test params: (" << expected << ", " << tolerance_bits << ")\n";
-    }
-
     // Format verbose info to only print out in case of test failure
     stringstream ss;
     ss << "Testing target of: " << expected << " (" << test::float_to_bits(expected) << ")\n";
@@ -208,11 +203,6 @@ protected:
 };
 
 TEST_P(all_close_f_double_param_test, test_boundaries) {
-    if (getenv_bool("NGRAPH_GTEST_INFO")) {
-        // Print short string documenting which test is being run
-        std::cout << "[   INFO   ] Test params: (" << expected << ", " << tolerance_bits << ")\n";
-    }
-
     // Format verbose info to only print out in case of test failure
     stringstream ss;
     ss << "Testing target of: " << expected << " (" << test::double_to_bits(expected) << ")\n";

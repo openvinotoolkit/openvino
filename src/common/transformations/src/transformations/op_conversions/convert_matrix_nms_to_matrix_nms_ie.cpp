@@ -1,28 +1,25 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-#include <memory>
-#include <vector>
+#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
+#include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
-
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
 
+#include "itt.hpp"
 #include "ngraph_ops/nms_static_shape_ie.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIE, "ConvertMatrixNmsToMatrixNmsIE", 0);
 
 ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto nms = std::dynamic_pointer_cast<ngraph::opset8::MatrixNms>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
@@ -38,10 +35,9 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
-                new_args.at(0),
-                new_args.at(1),
-                attrs);
+        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(new_args.at(0),
+                                                                                                   new_args.at(1),
+                                                                                                   attrs);
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);

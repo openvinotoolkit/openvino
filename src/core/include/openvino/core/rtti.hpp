@@ -1,41 +1,43 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/core/type.hpp"
+#include "openvino/core/visibility.hpp"
 
 #define _OPENVINO_RTTI_EXPAND(X)                                      X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)            \
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
-        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
-        type_info.hash();                                                    \
-        return type_info;                                                    \
-    }                                                                        \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {           \
-        return get_type_info_static();                                       \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                         \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, 0, VERSION_NAME};       \
+        type_info_static.hash();                                                          \
+        return type_info_static;                                                          \
+    }                                                                                     \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                        \
+        return get_type_info_static();                                                    \
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
     _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, 0)
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
-    static const ::ov::DiscreteTypeInfo& get_type_info_static() {                                    \
-        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                           \
-                                                OLD_VERSION,                                         \
-                                                VERSION_NAME,                                        \
-                                                &PARENT_CLASS::get_type_info_static()};              \
-        type_info.hash();                                                                            \
-        return type_info;                                                                            \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                                    \
+                                                       OLD_VERSION,                                  \
+                                                       VERSION_NAME,                                 \
+                                                       &PARENT_CLASS::get_type_info_static()};       \
+        type_info_static.hash();                                                                     \
+        return type_info_static;                                                                     \
     }                                                                                                \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
         return get_type_info_static();                                                               \
     }
+
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.

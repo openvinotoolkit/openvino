@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,9 @@ struct MinimumParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    ov::runtime::Tensor inputData1;
-    ov::runtime::Tensor inputData2;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferenceMinimumLayerTest : public testing::TestWithParam<MinimumParams>, public CommonReferenceTest {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ void * ExportSueLegacyUsingGnaApi2(
     status = Gna2ModelExportConfigSetTarget(exportConfig, Gna2DeviceVersionEmbedded1_0);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
-    void * bufferSueCreekHeader;
+    void * bufferSueCreekHeader = nullptr;
     uint32_t bufferSueCreekHeaderSize;
 
     status = Gna2ModelExport(exportConfig,
@@ -37,7 +37,7 @@ void * ExportSueLegacyUsingGnaApi2(
 
     (*modelHeader) = *(reinterpret_cast<Gna2ModelSueCreekHeader*>(bufferSueCreekHeader));
 
-    void * bufferDump;
+    void * bufferDump = nullptr;
     uint32_t bufferDumpSize;
     status = Gna2ModelExport(exportConfig,
         Gna2ModelExportComponentLegacySueCreekDump,

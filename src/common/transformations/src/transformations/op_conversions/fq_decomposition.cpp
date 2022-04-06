@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 
+#include <ngraph/builder/autobroadcast.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/builder/autobroadcast.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeDecomposition, "FakeQuantizeDecomposition", 0);
+#include "itt.hpp"
 
 namespace {
 
-bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq) {
+bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
     auto greater_equal = std::make_shared<ngraph::opset1::GreaterEqual>(il, ih);
@@ -30,10 +28,12 @@ bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq
 
     const std::vector<bool> comp_result = res_node->cast_vector<bool>();
 
-    return !std::any_of(comp_result.begin(), comp_result.end(), [](const bool value) { return value; });
+    return !std::any_of(comp_result.begin(), comp_result.end(), [](const bool value) {
+        return value;
+    });
 }
 
-} // namespace
+}  // namespace
 
 ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
@@ -44,11 +44,13 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     auto oh = ngraph::pattern::wrap_type<opset1::Constant>();
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>({data, il, ih, ol, oh});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto &pattern_to_output = m.get_pattern_value_map();
-        const auto fake_quantize_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node_shared_ptr());
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
+        const auto fake_quantize_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(
+            pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
-        if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) || !isValidRangesInputs(fake_quantize_node)) {
+        if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) ||
+            !isValidRangesInputs(fake_quantize_node)) {
             return false;
         }
 
@@ -74,7 +76,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(min);
 
         // (levels-1)
-        const auto levels_minus_one = std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+        const auto levels_minus_one =
+            std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
         decomp_ops.push_back(levels_minus_one);
         // (input_high - input_low)
         const auto subInHighLow = std::make_shared<ngraph::opset1::Subtract>(input_high, input_low);
@@ -94,7 +97,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(after_ish_apply);
 
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+        const auto round =
+            std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(round);
 
         // (output_high - output_low)
@@ -104,10 +108,11 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(sub_out_high_low);
         decomp_ops.push_back(osc);
 
-        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) * (output_high - output_low) / (levels-1)
+        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+        // (output_high - output_low) / (levels-1)
         const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(round, osc);
-        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) * (output_high - output_low) / (levels-1) +
-        // output_low
+        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+        // (output_high - output_low) / (levels-1) + output_low
         std::shared_ptr<Node> result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
         decomp_ops.push_back(after_osc_apply);
         decomp_ops.push_back(result);

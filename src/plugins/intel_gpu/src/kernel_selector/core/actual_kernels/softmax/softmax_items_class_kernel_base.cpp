@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
@@ -34,6 +36,7 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableSoftmaxDim(SoftmaxDim::Y);
     k.EnableSoftmaxDim(SoftmaxDim::Z);
     k.EnableSoftmaxDim(SoftmaxDim::FEATURE);
+    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -58,6 +61,8 @@ std::vector<size_t> SoftmaxItemsClassKernelBase::GetSoftmaxDimGlobalSizes(Softma
 JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
 
+    std::vector<std::string> idx_order;
+    const auto ndims = params.inputs[0].GetDims().size();
     switch (params.dim) {
         case SoftmaxDim::X:
             jit.AddConstants({
@@ -72,6 +77,7 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_FEATURE_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_X_PITCH"),
             });
+            idx_order = {"batch", "other1", ndims == 5 ? "other2" : "0", "other0", "cls"};
             break;
         case SoftmaxDim::Y:
             jit.AddConstants({
@@ -86,6 +92,7 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_Y_PITCH"),
             });
+            idx_order = {"batch", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
             break;
         case SoftmaxDim::Z:
             jit.AddConstants({
@@ -100,6 +107,7 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Y_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_Z_PITCH"),
             });
+            idx_order = {"batch", "other1", "cls", "other2", "other0"};
             break;
         case SoftmaxDim::FEATURE:
             jit.AddConstants({
@@ -114,14 +122,21 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_FEATURE_PITCH"),
             });
+            idx_order = {"batch", "cls", ndims == 5 ? "other2" : "0", "other1", "other0"};
             break;
         default:
             break;
     }
 
-    // TODO: W/A - currently using low precision accumulator type. (for testing only)
-    if (params.output.GetDType() == Datatype::F16) {
-        jit.AddConstant(MakeJitConstant("ACCUMULATOR_TYPE", "half"));
+    auto acc_dt = GetAccumulatorType(params);
+    jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"",
+                                      idx_order,
+                                      "res",
+                                      acc_dt};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

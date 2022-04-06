@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "deformable_convolution_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
@@ -24,7 +23,7 @@ layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
+    tensor output_size(input_layout.batch(),
                        desc->output_size.feature[0],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
@@ -71,8 +70,8 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0]*kernel_size.spatial[0]*kernel_size.spatial[1],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature()*kernel_size.spatial[0]*kernel_size.spatial[1],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
                        desc->output_size.spatial[2]);
@@ -90,10 +89,10 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     std::stringstream primitive_description;
 
     json_composite interp_info;
-    interp_info.add("stride", strd.to_string());
-    interp_info.add("pad", desc->pad.to_string());
+    interp_info.add("stride", cldnn::to_string(strd));
+    interp_info.add("pad", cldnn::to_string(desc->pad));
     interp_info.add("split", split);
-    interp_info.add("dilation", dilation.to_string());
+    interp_info.add("dilation", cldnn::to_string(dilation));
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);
     interp_info.add("bilinear_interpolation_pad", desc->bilinear_interpolation_pad);

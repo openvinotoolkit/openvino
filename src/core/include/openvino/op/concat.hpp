@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Concatenation operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Concat : public Op {
 public:
     OPENVINO_OP("Concat", "opset1");
@@ -58,6 +59,7 @@ public:
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 protected:
     /// \ brief m_axis stores default value for all iterations

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,8 @@
 #include <array>
 #include <tuple>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_kernel;
 
@@ -60,8 +61,42 @@ struct reg_traits_by_size<8> {
                         = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
 };
 
+template<>
+struct reg_traits_by_size<16> {
+    using type = Xbyak::Xmm;
+    constexpr static size_t size = 16;          // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::sse41;
+};
+
+template<>
+struct reg_traits_by_size<32> {
+    using type = Xbyak::Ymm;
+    constexpr static size_t size = 32;          // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::avx2;
+};
+
+template<>
+struct reg_traits_by_size<64> {
+    using type = Xbyak::Zmm;
+    constexpr static size_t size = 64;          // in bytes
+    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
+                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_common;
+};
+
 template<typename T>
 struct reg_traits : public reg_traits_by_size<sizeof(T)> {};
+
+template<size_t N>
+struct vec_min_size {
+    constexpr static size_t size = N <= 16 ? 16 :
+                                   N <= 32 ? 32 :
+                                   64;
+};
+
+template<typename T, size_t N>
+struct reg_traits<T[N]> : public reg_traits_by_size<vec_min_size<sizeof(T[N])>::size> {};
 
 template<>
 struct reg_traits<float> {
@@ -72,33 +107,6 @@ struct reg_traits<float> {
 };
 template<>
 struct reg_traits<double> : public reg_traits<float> {};
-
-template<typename T>
-struct reg_traits<T[1]> : public reg_traits<T> {};
-
-template<typename T>
-struct reg_traits<T[4]> {
-    using type = Xbyak::Xmm;
-    constexpr static size_t size = 4 * 4;       // in bytes
-    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::sse41;
-};
-
-template<typename T>
-struct reg_traits<T[8]> {
-    using type = Xbyak::Ymm;
-    constexpr static size_t size = 8 * 4;       // in bytes
-    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::avx2;
-};
-
-template<typename T>
-struct reg_traits<T[16]> {
-    using type = Xbyak::Zmm;
-    constexpr static size_t size = 16 * 4;      // in bytes
-    constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_common;
-};
 
 template<>
 struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::sse41> {
@@ -127,48 +135,51 @@ struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx512_common> {
     };
 };
 
-template<typename T>
+template<typename T, typename Tag>
 class variable;
 template<typename T>
 class if_expression;
 template<typename T>
 class then_expression;
+template<typename Reg>
+using shared_reg = std::shared_ptr<Reg>;
+
+template<typename Reg>
+shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel);
 
 template<typename T>
 class boolean_expression {
-private:
-    using reg_type = typename reg_traits<T>::type;
+public:
+    using reg_type = const typename reg_traits<T>::type;
 
     enum class type {
-        eq, neq
+        eq,     // ==
+        neq,    // !=
+        ls,     // <
+        gt,     // >
+        le,     // <=
+        ge      // >=
     };
 
-    boolean_expression(jit_kernel & kernel, type t, const reg_type & lhs, const reg_type & rhs);
-    boolean_expression(jit_kernel & kernel, type t, const reg_type & lhs, T rhs);
+    boolean_expression(jit_kernel & kernel, type t, const shared_reg<reg_type> & lhs, const shared_reg<reg_type> & rhs);
+    boolean_expression(jit_kernel & kernel, type t, const shared_reg<reg_type> & lhs, T rhs);
+
+private:
     void cmp(const Xbyak::Label & exit) const;
 
     jit_kernel & _kernel;
     type _type;
-    const reg_type & _lhs;
+    shared_reg<reg_type> _lhs;
+    shared_reg<reg_type> _rhs;
+    T _rvalue;
 
-    bool _is_ref;
-
-    union datum {
-        datum(const reg_type & r)
-            : reg(&r) {}
-        datum(T v)
-            : value(v) {}
-        const reg_type * reg;
-        T value;
-    } _rhs;
-
-    friend class variable<T>;
     friend class if_expression<T>;
     friend class then_expression<T>;
 };
 
 template<typename T>
-struct then_expression {
+class then_expression {
+public:
     then_expression(if_expression<T> & expr);
 
     template<typename F>
@@ -179,7 +190,8 @@ private:
 };
 
 template<typename T>
-struct if_expression {
+class if_expression {
+public:
     if_expression(const boolean_expression<T> & expr)
         : _expr(expr) {}
 
@@ -211,131 +223,323 @@ private:
     friend class then_expression<T>;
 };
 
-template<typename T>
-class variable_base {
-public:
-    using reg_type = typename reg_traits<T>::type;
+typedef struct register_tag {} register_tag;
+typedef struct memory_tag {} memory_tag;
 
-    variable_base(const variable_base &) = delete;
+template<typename T, typename Tag>
+class variable_base;
+
+template<typename T>
+class variable_base<T, register_tag> {
+public:
+    using reg_type = const typename reg_traits<T>::type;
+
     variable_base & operator = (const variable_base &) = delete;
+
+    variable_base(const variable_base &);
     variable_base(variable_base &&);
 
-    operator const reg_type &() const {
+    reg_type & reg() const {
+        return  *_reg;
+    }
+
+    const shared_reg<reg_type> & shreg() const {
         return _reg;
+    }
+
+    operator reg_type &() const {
+        return reg();
     }
 
     operator Xbyak::RegExp () const {
-        return _reg;
+        return reg();
     }
 
-    jit_kernel & kernel;
-
 protected:
-    variable_base(jit_kernel & krnl, const reg_type & reg);
-    ~variable_base();
+    variable_base(jit_kernel & krnl, const shared_reg<reg_type> & reg);
+    ~variable_base() = default;
 
-    bool _manage_lifetime = true;
-    const reg_type & _reg;
+    jit_kernel & _kernel;
+    shared_reg<reg_type> _reg;
 };
 
 template<typename T>
-class variable : public variable_base<typename std::enable_if<!std::is_floating_point<T>::value, T>::type> {
+class variable_base<T, memory_tag> {
+public:
+    using reg_type = const typename reg_traits<T*>::type;
+
+    variable_base & operator = (const variable_base &) = delete;
+
+    variable_base(const variable_base &);
+    variable_base(variable_base &&);
+
+    reg_type & reg() const {
+        return  *_addr;
+    }
+
+protected:
+    variable_base(jit_kernel & krnl, const shared_reg<reg_type> & addr);
+    ~variable_base() = default;
+
+    jit_kernel & _kernel;
+    shared_reg<const reg_type> _addr;
+};
+
+template<typename T>
+class variable<T, register_tag> : public variable_base<typename std::enable_if<!std::is_floating_point<T>::value, T>::type, register_tag> {
 public:
     using type = T;
-    using base = variable_base<type>;
-    using reg_type = typename base::reg_type;
+    using base = variable_base<type, register_tag>;
+    using reg_type = const typename base::reg_type;
+    using arithmetic_type = typename std::conditional<std::is_pointer<T>::value, size_t, T>::type;
 
     variable(variable &&) = default;
     variable(jit_kernel & krnl);
-    variable(jit_kernel & krnl, const reg_type & reg);
+    variable(jit_kernel & krnl, const shared_reg<reg_type> & reg);
 
-    const variable & operator = (const reg_type & rhs) const {
-        base::kernel.mov(base::_reg, rhs);
+    typename std::conditional<std::is_pointer<T>::value
+                    && !std::is_pointer<typename std::remove_pointer<T>::type>::value,
+                    variable<typename std::remove_pointer<T>::type, memory_tag>, void>::type
+    operator *() const {
+        return variable<typename std::remove_pointer<T>::type, memory_tag>(base::_kernel, base::shreg());
+    }
+
+    const variable & operator = (reg_type & rhs) const {
+        base::_kernel.mov(base::reg(), rhs);
         return *this;
     }
-    const variable & operator = (T rhs) const {
-        base::kernel.mov(base::_reg, rhs);
+    template<typename U>
+    const variable & operator = (U *rhs) const {
+        // interpret pointers as size_t
+        base::_kernel.mov(base::reg(), reinterpret_cast<size_t>(rhs));
         return *this;
     }
-    const variable & operator += (const reg_type & rhs) const {
-        base::kernel.add(base::_reg, rhs);
+    const variable & operator = (arithmetic_type rhs) const {
+        base::_kernel.mov(base::reg(), static_cast<size_t>(rhs));
         return *this;
     }
-    const variable & operator += (typename std::conditional<std::is_pointer<T>::value, size_t, T>::type rhs) const {
-        base::kernel.add(base::_reg, rhs);
+    const variable & operator += (reg_type & rhs) const {
+        base::_kernel.add(base::reg(), rhs);
         return *this;
     }
-    const variable & operator -= (const reg_type & rhs) const {
-        base::kernel.sub(base::_reg, rhs);
+    variable operator + (reg_type & rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res += rhs;
+        return std::move(res);
+    }
+    const variable & operator += (arithmetic_type rhs) const {
+        base::_kernel.add(base::reg(), rhs);
         return *this;
     }
-    const variable & operator -= (typename std::conditional<std::is_pointer<T>::value, size_t, T>::type rhs) const {
-        base::kernel.sub(base::_reg, rhs);
+    variable operator + (arithmetic_type rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res += rhs;
+        return std::move(res);
+    }
+    const variable & operator -= (reg_type & rhs) const {
+        base::_kernel.sub(base::reg(), rhs);
         return *this;
     }
-    const variable & operator &= (const reg_type & rhs) const {
-        base::kernel.and_(base::_reg, rhs);
+    variable operator - (reg_type & rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res -= rhs;
+        return std::move(res);
+    }
+    const variable & operator -= (arithmetic_type rhs) const {
+        base::_kernel.sub(base::reg(), rhs);
         return *this;
+    }
+    variable operator - (arithmetic_type rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res -= rhs;
+        return std::move(res);
+    }
+    const variable & operator *= (reg_type & rhs) const {
+        base::_kernel.imul(base::reg(), rhs);
+        return *this;
+    }
+    variable operator * (reg_type & rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res *= rhs;
+        return std::move(res);
+    }
+    const variable & operator *= (arithmetic_type rhs) const {
+        base::_kernel.imul(base::reg(), base::reg(), static_cast<int>(rhs));
+        return *this;
+    }
+    variable operator * (arithmetic_type rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res *= rhs;
+        return std::move(res);
+    }
+    const variable & operator &= (reg_type & rhs) const {
+        base::_kernel.and_(base::reg(), rhs);
+        return *this;
+    }
+    variable operator & (reg_type & rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res &= rhs;
+        return std::move(res);
     }
     const variable & operator &= (T rhs) const {
-        base::kernel.and_(base::_reg, rhs);
+        base::_kernel.and_(base::reg(), rhs);
         return *this;
     }
-    const variable & operator |= (const reg_type & rhs) const {
-        base::kernel.or_(base::_reg, rhs);
+    variable operator & (T rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res &= rhs;
+        return std::move(res);
+    }
+    const variable & operator |= (reg_type & rhs) const {
+        base::_kernel.or_(base::reg(), rhs);
         return *this;
+    }
+    variable operator | (reg_type & rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res |= rhs;
+        return std::move(res);
     }
     const variable & operator |= (T rhs) const {
-        base::kernel.or_(base::_reg, rhs);
+        base::_kernel.or_(base::reg(), rhs);
         return *this;
+    }
+    variable operator | (T rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res |= rhs;
+        return std::move(res);
     }
     const variable & operator >>= (size_t rhs) const {
-        base::kernel.shr(base::_reg, rhs);
+        base::_kernel.shr(base::reg(), rhs);
         return *this;
+    }
+    variable operator >> (size_t rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res >>= rhs;
+        return std::move(res);
     }
     const variable & operator <<= (size_t rhs) const {
-        base::kernel.shl(base::_reg, rhs);
+        base::_kernel.shl(base::reg(), rhs);
         return *this;
     }
+    variable operator << (size_t rhs) const {
+        variable res(base::_kernel);
+        res = base::reg();
+        res <<= rhs;
+        return std::move(res);
+    }
 
-    boolean_expression<T> operator == (const reg_type & rhs) const {
-        return boolean_expression<T>(base::kernel, boolean_expression<T>::type::eq, base::_reg, rhs);
+    boolean_expression<T> operator == (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::eq, base::shreg(), rhs.shreg());
     }
 
     boolean_expression<T> operator == (T rhs) const {
-        return boolean_expression<T>(base::kernel, boolean_expression<T>::type::eq, base::_reg, rhs);
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::eq, base::shreg(), rhs);
     }
 
-    boolean_expression<T> operator != (const reg_type & rhs) const {
-        return boolean_expression<T>(base::kernel, boolean_expression<T>::type::neq, base::_reg, rhs);
+    boolean_expression<T> operator != (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::neq, base::shreg(), rhs.shreg());
     }
 
     boolean_expression<T> operator != (T rhs) const {
-        return boolean_expression<T>(base::kernel, boolean_expression<T>::type::neq, base::_reg, rhs);
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::neq, base::shreg(), rhs);
+    }
+
+    boolean_expression<T> operator < (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::ls, base::shreg(), rhs.shreg());
+    }
+
+    boolean_expression<T> operator < (T rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::ls, base::shreg(), rhs);
+    }
+
+    boolean_expression<T> operator > (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::gt, base::shreg(), rhs.shreg());
+    }
+
+    boolean_expression<T> operator > (T rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::gt, base::shreg(), rhs);
+    }
+
+    boolean_expression<T> operator <= (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::le, base::shreg(), rhs.shreg());
+    }
+
+    boolean_expression<T> operator <= (T rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::le, base::shreg(), rhs);
+    }
+
+    boolean_expression<T> operator >= (const variable & rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::ge, base::shreg(), rhs.shreg());
+    }
+
+    boolean_expression<T> operator >= (T rhs) const {
+        return boolean_expression<T>(base::_kernel, boolean_expression<T>::type::ge, base::shreg(), rhs);
     }
 
     // TODO: add necessary operations
 };
 
+template<typename T>
+class variable<T, memory_tag> : public variable_base<T*, memory_tag> {
+public:
+    using type = T;
+    using base = variable_base<type*, memory_tag>;
+    using reg_type = const typename base::reg_type;
+
+    variable(variable &&) = default;
+    variable(jit_kernel & krnl, const shared_reg<reg_type> & reg);
+
+    const variable & operator = (const variable<T, register_tag> & rhs) const;
+};
+
 template<typename T, size_t N>
-class variable<T[N]> : public variable_base<T[N]> {
+class variable<T[N], register_tag> : public variable_base<T[N], register_tag> {
 public:
     using type = T[N];
-    using base = variable_base<type>;
-    using reg_type = typename base::reg_type;
+    using base = variable_base<type, register_tag>;
+    using reg_type = const typename base::reg_type;
     constexpr static size_t length = N;
 
     variable(variable &&) = default;
     variable(jit_kernel & krnl);
-    variable(jit_kernel & krnl, const reg_type & reg);
+    variable(jit_kernel & krnl, const shared_reg<reg_type> & reg);
 
-    const variable & operator = (const reg_type & rhs) const {
-        base::kernel.uni_vmovups(base::_reg, rhs);
+    const variable & operator = (reg_type & rhs) const {
+        base::_kernel.uni_vmovups(base::reg(), rhs);
         return *this;
     }
 
-    const variable & blend(const reg_type & rhs, uint16_t mask) const {
-        base::kernel.uni_vblendps(base::_reg, rhs, mask);
+    const variable & operator = (const type & rhs) const {
+        const type & cref = base::_kernel.constant(rhs);
+        variable<const type*, register_tag> creg(base::_kernel);
+        creg = &cref;
+        base::_kernel.uni_vmovdqu(base::reg(), base::_kernel.ptr[creg]);
+        return *this;
+    }
+
+    const variable & blend(reg_type & rhs, uint16_t mask) const {
+        base::_kernel.uni_vblendps(base::reg(), rhs, mask);
+        return *this;
+    }
+
+    const variable & permute(const std::array<uint8_t, N> & order) const {
+        base::_kernel.uni_vpermps(base::reg(), order.data(), base::reg());
+        return *this;
+    }
+
+    const variable & permute(const uint8_t * order) const {
+        base::_kernel.uni_vpermps(base::reg(), order, base::reg());
         return *this;
     }
 
@@ -347,7 +551,7 @@ class stack_frame {
     stack_frame & operator = (const stack_frame &) = delete;
 
 public:
-    stack_frame(jit_kernel & kernel, size_t size);
+    stack_frame(jit_kernel & kernel, size_t size, uint32_t alignment = 1);
     stack_frame(stack_frame && rhs);
     ~stack_frame();
     const Xbyak::Reg64 & pointer() const;
@@ -356,12 +560,28 @@ public:
 private:
     jit_kernel & _kernel;
     size_t _size;
+    uint32_t _alignment;
 };
 
 template<typename T>
 InferenceEngine::Precision type2precision();
 
 dnnl::impl::cpu::x64::cpu_isa_t get_current_isa();
+
+class consts_table {
+    consts_table(const consts_table &) = delete;
+    consts_table & operator = (const consts_table &) = delete;
+
+public:
+    consts_table() = default;
+    const void * store(const void *data, size_t size);
+
+private:
+    static constexpr const size_t chunk_size = 512;
+    using chunk = std::array<uint8_t, chunk_size>;
+    std::list<chunk> _chunks;
+    size_t _size {};
+};
 
 }   // namespace internal
 
@@ -374,8 +594,10 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
     template<dnnl::impl::cpu::x64::cpu_isa_t isa>
     using isa_traits = internal::isa_traits<isa>;
     using stack_frame = internal::stack_frame;
-    template<typename T>
-    using variable = internal::variable<T>;
+    using register_tag = internal::register_tag;
+    using memory_tag = internal::memory_tag;
+    template<typename T, typename Tag = register_tag>
+    using variable = internal::variable<T, Tag>;
     template<typename T>
     using if_expression = internal::if_expression<T>;
     template<typename T>
@@ -397,7 +619,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
             movzx(res, argPtr(member));
         else
             mov(res, argPtr(member));
-        return { *this, res };
+        return { *this, internal::make_shared(res, *this) };
     }
 
     template<typename CastU, typename T, typename U>
@@ -409,7 +631,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
             movzx(res, argPtr(member));
         else
             mov(res, argPtr(member));
-        return { *this, res };
+        return { *this, internal::make_shared(res, *this) };
     }
 
     jit_kernel();
@@ -429,43 +651,57 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
               const Xbyak::Reg64& src,
               const Xbyak::Reg64& size);
 
-    template<typename DstT, typename SrcT>
-    void load(const variable<DstT> & dst, const variable<SrcT> & src);
-    template<typename DstT, typename SrcT>
-    void store(const variable<DstT> & dst, const variable<SrcT> & src);
+    template<typename DstT, size_t N, typename SrcT>
+    void load(const variable<DstT[N]> & dst, const variable<SrcT> & src, size_t length = N);
+    template<typename DstT, size_t N, typename SrcT>
+    void load(const variable<DstT[N]> & dst, const variable<SrcT> & src, const variable<size_t> & length);
+    template<typename DstT, typename SrcT, size_t N>
+    void store(const variable<DstT> & dst, const variable<SrcT[N]> & src, size_t length = N);
+    template<typename DstT, typename SrcT, size_t N>
+    void store(const variable<DstT> & dst, const variable<SrcT[N]> & src, const variable<size_t> & length);
 
     template<typename B, typename E, typename S = size_t>
     void foreach(const B & begin,
                  const E & end,
-                 std::function<void(const Xbyak::Reg64&)> && fn,
+                 std::function<void(const variable<size_t>&)> && fn,
                  const S & step = 1);
 
     template<typename T>
     variable<T> var();
-
-    stack_frame stack(size_t size);
+    template<typename T>
+    variable<T> var(const T & val);
 
     template<typename T>
-    if_expression<T> _if(const boolean_expression<T> & expr);
+    const T & constant(const T & c);
+    template<typename T>
+    const T * constant(const T * c, size_t size);
 
-    void uni_vpermps(const Xbyak::Xmm& x1, const int *mask, const Xbyak::Operand& op);
-    void uni_vpermps(const Xbyak::Ymm& y1, const int *mask, const Xbyak::Operand& op);
-    void uni_vpermps(const Xbyak::Zmm& z1, const int *mask, const Xbyak::Operand& op);
+    stack_frame stack(size_t size, uint32_t alignment = 1);
+
+    template<typename T>
+    if_expression<T> _if(const boolean_expression<T> & expr) const;
+
+    void uni_vpermps(const Xbyak::Xmm& x1, const uint8_t mask[4], const Xbyak::Operand& op);
+    void uni_vpermps(const Xbyak::Ymm& y1, const uint8_t mask[8], const Xbyak::Operand& op);
+    void uni_vpermps(const Xbyak::Zmm& z1, const uint8_t mask[16], const Xbyak::Operand& op);
     void uni_vblendps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, uint16_t mask);
     void uni_vblendps(const Xbyak::Ymm& y1, const Xbyak::Ymm& y2, uint16_t mask);
     void uni_vblendps(const Xbyak::Zmm& z1, const Xbyak::Zmm& z2, uint16_t mask);
 
     void postamble();
 
-private:
     const Xbyak::AddressFrame & address_frame(size_t size) const;
+    const reg_indices & free_x64regs() const;
+    const reg_indices & free_rmmregs() const;
 
+private:
     reg_indices _free_x64regs;
     reg_indices _free_rmmregs;
     bool _is_load_emitter_used = false;
     bool _is_store_emitter_used = false;
     jit_load_emitter _load_emitter;
     jit_store_emitter _store_emitter;
+    internal::consts_table _consts;
 };
 
 template<typename T>
@@ -497,18 +733,15 @@ void jit_kernel::copy(const Xbyak::Address& dst,
     free(p);
 }
 
-template<typename DstT, typename SrcT>
-void jit_kernel::load(const variable<DstT> & dst, const variable<SrcT> & src) {
-    static_assert(std::is_same<typename variable<SrcT>::reg_type, Xbyak::Reg64>::value,
+template<typename DstT, size_t N, typename SrcT>
+void jit_kernel::load(const variable<DstT[N]> & dst, const variable<SrcT> & src, size_t length) {
+    static_assert(std::is_same<typename variable<SrcT>::reg_type, const Xbyak::Reg64>::value,
         "Source register must be Reg64");
 
     using src_type = typename std::remove_cv<
-                        typename std::remove_pointer<
-                            typename std::decay<SrcT>::type>::type>::type;
+                        typename std::remove_pointer<SrcT>::type>::type;
     using dst_type = typename std::remove_cv<
-                        typename std::remove_pointer<
-                            typename std::decay<DstT>::type>::type>::type;
-    constexpr size_t length = variable<DstT>::length;
+                        typename std::remove_pointer<DstT>::type>::type;
 
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
@@ -526,18 +759,31 @@ void jit_kernel::load(const variable<DstT> & dst, const variable<SrcT> & src) {
     _is_load_emitter_used = true;
 }
 
-template<typename DstT, typename SrcT>
-void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT> & src) {
-    static_assert(std::is_same<typename variable<DstT>::reg_type, Xbyak::Reg64>::value,
-        "Destibnation register must be Reg64");
+template<typename DstT, size_t N, typename SrcT>
+void jit_kernel::load(const variable<DstT[N]> & dst, const variable<SrcT> & src, const variable<size_t> & length) {
+    using src_type = typename std::remove_cv<
+                        typename std::remove_pointer<SrcT>::type>::type;
+
+    auto s = stack(N * sizeof(src_type));
+    s.clear();
+
+    auto tmp = var<SrcT>();
+    tmp = s.pointer();
+
+    copy<src_type>(tmp, src, length);
+
+    load(dst, tmp);
+}
+
+template<typename DstT, typename SrcT, size_t N>
+void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT[N]> & src, size_t length) {
+    static_assert(std::is_same<typename variable<DstT>::reg_type, const Xbyak::Reg64>::value,
+        "Destination register must be Reg64");
 
     using src_type = typename std::remove_cv<
-                        typename std::remove_pointer<
-                            typename std::decay<SrcT>::type>::type>::type;
+                        typename std::remove_pointer<SrcT>::type>::type;
     using dst_type = typename std::remove_cv<
-                        typename std::remove_pointer<
-                            typename std::decay<DstT>::type>::type>::type;
-    constexpr size_t length = variable<SrcT>::length;
+                        typename std::remove_pointer<DstT>::type>::type;
 
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
@@ -555,18 +801,33 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT> & src) {
     _is_store_emitter_used = true;
 }
 
+template<typename DstT, typename SrcT, size_t N>
+void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT[N]> & src, const variable<size_t> & length) {
+    using dst_type = typename std::remove_cv<
+                        typename std::remove_pointer<DstT>::type>::type;
+
+    auto s = stack(N * sizeof(dst_type));
+
+    auto tmp = var<DstT>();
+    tmp = s.pointer();
+
+    store(tmp, src);
+
+    copy<dst_type>(dst, tmp, length);
+}
+
 template<typename B, typename E, typename S>
 void jit_kernel::foreach(const B & begin,
                          const E & end,
-                         std::function<void(const Xbyak::Reg64&)> && fn,
+                         std::function<void(const variable<size_t>&)> && fn,
                          const S & step) {
     using namespace Xbyak;
 
     Label loop, exit;
 
-    auto idx = reserve<Reg64>();
+    auto idx = var<size_t>();
 
-    mov(idx, begin);
+    idx = begin;
 
     L(loop);
     cmp(idx, end);
@@ -577,51 +838,82 @@ void jit_kernel::foreach(const B & begin,
     add(idx, step);
     jmp(loop, T_NEAR);
     L(exit);
-
-    free<Reg64>(idx);
 }
 
 template<typename T>
 jit_kernel::variable<T> jit_kernel::var() {
     using reg_type = typename reg_traits<T>::type;
     const auto & reg = reserve<reg_type>();
-    return variable<T>(*this, reg);
+    return variable<T>(*this, internal::make_shared(reg, *this));
 }
 
 template<typename T>
-jit_kernel::if_expression<T> jit_kernel::_if(const boolean_expression<T> & expr) {
+jit_kernel::variable<T> jit_kernel::var(const T & val) {
+    using reg_type = typename reg_traits<T>::type;
+    const auto & reg = reserve<reg_type>();
+    variable<T> res(*this, internal::make_shared(reg, *this));
+    res = val;
+    return std::move(res);
+}
+
+template<typename T>
+const T & jit_kernel::constant(const T & c) {
+    auto res = _consts.store(&c, sizeof c);
+    return *reinterpret_cast<const T*>(res);
+}
+
+template<typename T>
+const T * jit_kernel::constant(const T * c, size_t size) {
+    auto res = _consts.store(c, size * sizeof(T));
+    return reinterpret_cast<const T*>(res);
+}
+
+template<typename T>
+jit_kernel::if_expression<T> jit_kernel::_if(const boolean_expression<T> & expr) const {
     return if_expression<T>(expr);
 }
 
 namespace internal {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// shared_reg
+
+template<typename Reg>
+shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel) {
+    std::shared_ptr<Reg> ptr(&reg, [&kernel](Reg *preg) {
+        try {
+            kernel.free(*preg);
+        } catch(...) {}
+    });
+    return std::move(ptr);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // boolean_expression
 
 template<typename T>
-boolean_expression<T>::boolean_expression(jit_kernel & kernel, type t, const reg_type & lhs, const reg_type & rhs)
+boolean_expression<T>::boolean_expression(jit_kernel & kernel, type t, const shared_reg<reg_type> & lhs, const shared_reg<reg_type> & rhs)
     : _kernel(kernel)
     , _type(t)
     , _lhs(lhs)
-    , _is_ref(true)
-    , _rhs(rhs) {
+    , _rhs(rhs)
+    , _rvalue {} {
 }
 
 template<typename T>
-boolean_expression<T>::boolean_expression(jit_kernel & kernel, type t, const reg_type & lhs, T rhs)
+boolean_expression<T>::boolean_expression(jit_kernel & kernel, type t, const shared_reg<reg_type> & lhs, T rhs)
     : _kernel(kernel)
     , _type(t)
     , _lhs(lhs)
-    , _is_ref(false)
-    , _rhs(rhs) {
+    , _rvalue(rhs) {
 }
 
 template<typename T>
 void boolean_expression<T>::cmp(const Xbyak::Label & exit) const {
-    if (_is_ref)
-        _kernel.cmp(_lhs, *_rhs.reg);
+    if (_rhs)
+        _kernel.cmp(*_lhs, *_rhs);
     else
-        _kernel.cmp(_lhs, _rhs.value);
+        _kernel.cmp(*_lhs, _rvalue);
 
     switch (_type) {
         case type::eq: {
@@ -630,6 +922,22 @@ void boolean_expression<T>::cmp(const Xbyak::Label & exit) const {
         }
         case type::neq: {
             _kernel.je(exit, Xbyak::CodeGenerator::T_NEAR);
+            break;
+        }
+        case type::ls: {
+            _kernel.jge(exit, Xbyak::CodeGenerator::T_NEAR);
+            break;
+        }
+        case type::gt: {
+            _kernel.jle(exit, Xbyak::CodeGenerator::T_NEAR);
+            break;
+        }
+        case type::le: {
+            _kernel.jg(exit, Xbyak::CodeGenerator::T_NEAR);
+            break;
+        }
+        case type::ge: {
+            _kernel.jl(exit, Xbyak::CodeGenerator::T_NEAR);
             break;
         }
     }
@@ -654,44 +962,74 @@ void then_expression<T>::_else(F && fn) {
 // variable
 
 template<typename T>
-variable_base<T>::variable_base(jit_kernel & krnl, const reg_type & reg)
-    : kernel(krnl)
+variable_base<T, register_tag>::variable_base(jit_kernel & krnl, const shared_reg<reg_type> & reg)
+    : _kernel(krnl)
     , _reg(reg) {
 }
 
 template<typename T>
-variable_base<T>::variable_base(variable_base && rhs)
-    : kernel(rhs.kernel)
+variable_base<T, register_tag>::variable_base(const variable_base & rhs)
+    : _kernel(rhs._kernel)
     , _reg(rhs._reg) {
-    rhs._manage_lifetime = false;
 }
 
 template<typename T>
-variable_base<T>::~variable_base() {
-    if (_manage_lifetime)
-        kernel.free(_reg);
+variable_base<T, register_tag>::variable_base(variable_base && rhs)
+    : _kernel(rhs._kernel)
+    , _reg(std::move(rhs._reg)) {
 }
 
 template<typename T>
-variable<T>::variable(jit_kernel & krnl)
-    : base(krnl, krnl.reserve<typename reg_traits<T>::type>()) {
+variable_base<T, memory_tag>::variable_base(jit_kernel & krnl, const shared_reg<reg_type> & addr)
+    : _kernel(krnl)
+    , _addr(addr) {
 }
 
 template<typename T>
-variable<T>::variable(jit_kernel & krnl, const reg_type & reg)
+variable_base<T, memory_tag>::variable_base(const variable_base & rhs)
+    : _kernel(rhs._kernel)
+    , _addr(rhs._addr) {
+}
+
+template<typename T>
+variable_base<T, memory_tag>::variable_base(variable_base && rhs)
+    : _kernel(rhs._kernel)
+    , _addr(std::move(rhs._addr)) {
+}
+
+template<typename T>
+variable<T, register_tag>::variable(jit_kernel & krnl)
+    : base(krnl, make_shared(krnl.reserve<typename reg_traits<T>::type>(), krnl)) {
+}
+
+template<typename T>
+variable<T, register_tag>::variable(jit_kernel & krnl, const shared_reg<reg_type> & reg)
     : base(krnl, reg) {
 }
 
-template<typename T, size_t N>
-variable<T[N]>::variable(jit_kernel & krnl)
-    : base(krnl, krnl.reserve<typename reg_traits<T[N]>::type>()) {
+template<typename T>
+variable<T, memory_tag>::variable(jit_kernel & krnl, const shared_reg<reg_type> & reg)
+    : base(krnl, reg) {
+}
+
+template<typename T>
+const variable<T, memory_tag> & variable<T, memory_tag>::operator = (const variable<T, register_tag> & rhs) const {
+    const auto & addr_frame = base::_kernel.address_frame(sizeof(T));
+    base::_kernel.mov(addr_frame[base::reg()], rhs);
+    return *this;
 }
 
 template<typename T, size_t N>
-variable<T[N]>::variable(jit_kernel & krnl, const reg_type & reg)
+variable<T[N], register_tag>::variable(jit_kernel & krnl)
+    : base(krnl, make_shared(krnl.reserve<typename reg_traits<T[N]>::type>(), krnl)) {
+}
+
+template<typename T, size_t N>
+variable<T[N], register_tag>::variable(jit_kernel & krnl, const shared_reg<reg_type> & reg)
     : base(krnl, reg) {
 }
 
 }   // namespace internal
 
-}   // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

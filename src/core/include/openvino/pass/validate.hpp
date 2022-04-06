@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ namespace pass {
 /// pass does not break the shape and data type requirement on a computation node.
 /// This default validation run can be changed via calling the
 /// \link ov::pass::Manager::set_per_pass_validation(bool) \endlink function.
+/// \ingroup ov_pass_cpp_api
 class OPENVINO_API Validate : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::Validate");

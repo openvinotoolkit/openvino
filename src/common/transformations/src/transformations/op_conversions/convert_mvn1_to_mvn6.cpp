@@ -1,20 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 
-#include <ngraph/rt_info.hpp>
-
-#include <numeric>
-
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <numeric>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
 
 ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
@@ -37,12 +33,12 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         }
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
-        auto axes = opset6::Constant::create(ngraph::element::i64, { axes_v.size() }, axes_v);
+        auto axes = opset6::Constant::create(ngraph::element::i64, {axes_v.size()}, axes_v);
         auto mvn6_node = std::make_shared<ngraph::opset6::MVN>(input,
-            axes,
-            mvn_node->get_normalize_variance(),
-            mvn_node->get_eps(),
-            ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+                                                               axes,
+                                                               mvn_node->get_normalize_variance(),
+                                                               mvn_node->get_eps(),
+                                                               ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
         ngraph::copy_runtime_info(mvn_node, mvn6_node);

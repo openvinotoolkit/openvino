@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,8 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node) {
     auto primitive = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
     auto rois_layout = node.input(1).get_output_layout();
-    auto num_rois = rois_layout.size.batch[0];
-    auto num_channels = input_layout.size.feature[0];
+    auto num_rois = rois_layout.batch();
+    auto num_channels = input_layout.feature();
     return layout(input_layout.data_type, format::bfyx, {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
 

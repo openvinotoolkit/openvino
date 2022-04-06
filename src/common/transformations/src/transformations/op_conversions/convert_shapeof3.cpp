@@ -1,26 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);
     auto shapeof = pattern::wrap_type<ngraph::opset3::ShapeOf>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto shapeof = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf> (m.get_match_root());
+        auto shapeof = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(m.get_match_root());
         if (!shapeof) {
             return false;
         }

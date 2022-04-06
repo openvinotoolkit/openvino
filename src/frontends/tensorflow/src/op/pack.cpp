@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
-    auto axis = node.get_attribute<int32_t>("axis");
+    auto axis = node.get_attribute<int64_t>("axis");
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
 
     OutputVector concat_inputs;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "permute_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -182,6 +183,12 @@ public:
 private:
     void run(program& p) override;
     void conv_eltwise_read_write_opt(program& p, program_node* node);
+};
+
+class prepare_primitive_fusing_through : public base_pass {
+public:
+    prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
+    void run(program& p) override;
 };
 
 class prepare_primitive_fusing : public base_pass {

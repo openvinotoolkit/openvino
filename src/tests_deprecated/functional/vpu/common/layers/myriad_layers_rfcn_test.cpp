@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -690,7 +690,7 @@ public:
 
         // Disable HW pooling
         std::map<std::string, std::string> networkConfig;
-        networkConfig["VPU_HW_STAGES_OPTIMIZATION"] = "NO";
+        networkConfig[InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION] = "NO";
 
         ExecutableNetwork exeNetwork;
         ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network_part, networkConfig));
@@ -744,7 +744,7 @@ public:
 
         // Disable HW pooling
         std::map<std::string, std::string> networkConfig;
-        networkConfig["VPU_HW_STAGES_OPTIMIZATION"] = "NO";
+        networkConfig[InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION] = "NO";
 
         ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, networkConfig));
         ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());

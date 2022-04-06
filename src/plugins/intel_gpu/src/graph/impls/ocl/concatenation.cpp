@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,24 +16,33 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::concat_axis convert_axis(concatenation::concatenation_axis axis) {
-    switch (axis) {
-        case concatenation::along_x:
-            return kernel_selector::concat_axis::X;
-        case concatenation::along_y:
-            return kernel_selector::concat_axis::Y;
-        case concatenation::along_z:
-            return kernel_selector::concat_axis::Z;
-        case concatenation::along_w:
-            return kernel_selector::concat_axis::W;
-        case concatenation::along_f:
-            return kernel_selector::concat_axis::FEATURE;
-        case concatenation::along_b:
-            return kernel_selector::concat_axis::BATCH;
-        default:
-            return kernel_selector::concat_axis::X;
+kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
+    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
+    if (cldnn_axis >= rank)
+        IE_THROW() << "Concatenation axis exceeds number of dimensions";
+
+    // Difference in dimension ordering between IE and GPU plugin,
+    // reverse spatial dimensions after batch and feature.
+    if (cldnn_axis >= 2) {
+        auto spatial_axis = cldnn_axis - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max<size_t>(rank, 4) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
     }
+
+    switch (cldnn_axis) {
+        case 0: return kernel_selector::concat_axis::BATCH;
+        case 1: return kernel_selector::concat_axis::FEATURE;
+        case 2: return kernel_selector::concat_axis::X;
+        case 3: return kernel_selector::concat_axis::Y;
+        case 4: return kernel_selector::concat_axis::Z;
+        case 5: return kernel_selector::concat_axis::W;
+        default: IE_THROW() << "Unsupported concatenation axis: " << axis;
+    }
+
+    return kernel_selector::concat_axis::FEATURE;  // shouldn't get here
 }
+
 }  // namespace
 
 struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
@@ -76,7 +85,7 @@ public:
             concat_params.inputs[i] = convert_data_tensor(input_layout);
         }
 
-        concat_params.axis = convert_axis(axis);
+        concat_params.axis = convert_axis(axis, arg.get_output_layout().get_rank());
         concat_optional_params.kernelPerInput = true;
 
         auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();

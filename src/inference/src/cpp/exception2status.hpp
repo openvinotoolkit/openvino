@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,9 @@
 #include "description_buffer.hpp"
 
 namespace InferenceEngine {
-#define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType) catch (const ExceptionType& ex) {   \
-    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();                       \
+#define CATCH_IE_EXCEPTION_TO_STATUS(StatusCode, ExceptionType)                 \
+catch (const InferenceEngine::ExceptionType& ex) {                              \
+    return InferenceEngine::DescriptionBuffer(StatusCode, resp) << ex.what();   \
 }
 
 #define CATCH_IE_EXCEPTIONS_TO_STATUS                                         \

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ normalize_inst::typed_primitive_inst(network& network, normalize_node const& nod
     auto scale_size = scale_layout.size;
     auto scale_feature_size = scale_size.feature[0];
     auto input_layout = node.input().get_output_layout();
-    auto input_feature_size = input_layout.size.feature[0];
+    auto input_feature_size = input_layout.feature();
 
     if (scale_feature_size != 1) {
         CLDNN_ERROR_NOT_EQUAL(node.id(),

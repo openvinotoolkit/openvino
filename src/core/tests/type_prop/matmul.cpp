@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,7 @@ TEST(type_prop, matmul_dynamic_5D_transpose_b) {
     auto matmul = make_shared<op::MatMul>(A, B, 0, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{Dimension(1, -1), 4, dynamic, dynamic, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{Dimension(-1), 4, dynamic, dynamic, 4}));
 }
 
 TEST(type_prop, matmul_dynamic_2D_transpose_a) {
@@ -422,7 +422,7 @@ TEST(type_prop, matmul_batch_dynamic_bounds) {
                                               Dimension(5, 7),    // 3
                                               Dimension(5, 7),    // 4
                                               Dimension(5, 7),    // 5
-                                              Dimension(1, -1),   // 6
+                                              Dimension(-1),      // 6
                                               Dimension(0, 1),    // 7
                                               Dimension(2, 5),    // 8
                                               Dimension(5, 10),   // 9
@@ -432,7 +432,7 @@ TEST(type_prop, matmul_batch_dynamic_bounds) {
                                               Dimension(2, -1),   // 13
                                               Dimension(2, -1),   // 14
                                               Dimension(1, -1),   // 15
-                                              Dimension(1, -1),   // 16
+                                              Dimension(-1),      // 16
                                               3,                  // 17
                                               5,                  // 18
                                               4};                 // 19

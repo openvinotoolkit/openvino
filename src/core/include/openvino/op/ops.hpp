@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,6 +78,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/irdft.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/log.hpp"
@@ -118,6 +119,7 @@
 #include "openvino/op/psroi_pooling.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/rdft.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::op::util;
-
-NGRAPH_RTTI_DEFINITION(pass::ConvertDetectionOutput8ToDetectionOutput1, "ConvertDetectionOutput8ToDetectionOutput1", 0);
 
 pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetectionOutput1() {
     MATCHER_SCOPE(ConvertDetectionOutput8ToDetectionOutput1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,7 @@
 #include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
+#include "op/dynamic_quantize_linear.hpp"
 #include "op/einsum.hpp"
 #include "op/elu.hpp"
 #include "op/equal.hpp"
@@ -281,6 +282,10 @@ static const char* const MICROSOFT_DOMAIN = "com.microsoft";
     m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
 OperatorsBridge::OperatorsBridge() {
+    _load_initial_state();
+}
+
+void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Abs", 1, abs);
     REGISTER_OPERATOR("Acos", 1, acos);
     REGISTER_OPERATOR("Acosh", 1, acosh);
@@ -325,6 +330,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
     REGISTER_OPERATOR("Dropout", 12, dropout);
+    REGISTER_OPERATOR("DynamicQuantizeLinear", 1, dynamic_quantize_linear);
     REGISTER_OPERATOR("Einsum", 1, einsum);
     REGISTER_OPERATOR("Elu", 1, elu);
     REGISTER_OPERATOR("Equal", 1, equal);

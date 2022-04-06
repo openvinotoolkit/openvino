@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -465,8 +465,6 @@ def test_constant(value_type):
     assert np.allclose(ng_results, [values])
 
 
-# See https://github.com/onnx/onnx/issues/1190
-@pytest.mark.xfail(reason="ONNX#1190 numpy.float16 not supported by ONNX make_node", strict=True)
 def test_constant_err():
     values = np.random.randn(5, 5).astype(np.float16)
     node = onnx.helper.make_node(

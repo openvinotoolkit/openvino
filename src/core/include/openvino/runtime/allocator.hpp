@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
-namespace runtime {
 
 /**
  * @interface AllocatorImpl
@@ -62,6 +61,7 @@ class Tensor;
 /**
  * @brief Wraps allocator implementation to provide safe way to store allocater loaded from shared library
  *        And constructs default based on `new` `delete` c++ calls allocator if created without parameters
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_API Allocator {
     AllocatorImpl::Ptr _impl;
@@ -75,7 +75,7 @@ class OPENVINO_API Allocator {
      */
     Allocator(const AllocatorImpl::Ptr& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::runtime::Tensor;
+    friend class ov::Tensor;
 
 public:
     /**
@@ -148,5 +148,10 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
+namespace runtime {
+using ov::Allocator;
+using ov::AllocatorImpl;
 }  // namespace runtime
+
 }  // namespace ov

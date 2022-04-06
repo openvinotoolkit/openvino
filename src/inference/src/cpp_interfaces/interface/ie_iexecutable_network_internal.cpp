@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
     try {
         asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (!asyncRequestImpl)
         asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);

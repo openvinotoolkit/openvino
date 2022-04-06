@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ protected:
             args.inputs.push_back(instance.last_hidden_output_memory());
         if (instance.last_cell_output_term())
             args.inputs.push_back(instance.last_cell_output_memory());
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         args.recurrent = instance.recurrent_memory();
         args.hidden = instance.initial_hidden_term() ? instance.initial_hidden_memory() : nullptr;
         args.cell = instance.initial_cell_term() ? instance.initial_cell_memory() : nullptr;

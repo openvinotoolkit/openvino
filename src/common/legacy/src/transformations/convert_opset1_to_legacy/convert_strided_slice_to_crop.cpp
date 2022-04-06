@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
 
 ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -204,8 +202,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         }
 
         auto data_node_shape = data_output.get_shape();
-        // MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
-        if (data_node_shape.size() != 2 && data_node_shape.size() != 4 && data_node_shape.size() != 5) {
+        if (data_node_shape.size() < 2 || data_node_shape.size() > 5) {
             return false;
         }
 

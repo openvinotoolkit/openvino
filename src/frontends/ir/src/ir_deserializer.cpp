@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +177,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(co
     const auto up_io_map = updated_io_map(node, body_node);
 
     NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
-                 "No parameters or results found in body Function.");
+                 "No parameters or results found in body Model.");
 
     // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive
     // order
@@ -342,7 +342,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 IE_THROW() << "Empty weights data in bin file or bin file cannot be found!";
             if (m_weights->size() < offset + size)
                 IE_THROW() << "Incorrect weights in bin file!";
-            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+            if (size < ((ngraph::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
                 IE_THROW() << "Attribute and shape size are inconsistent for " << type << " op!";
 
             char* data = m_weights->get_ptr<char>() + offset;
@@ -383,6 +383,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 void XmlDeserializer::on_adapter(const std::string& name,
                                  ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
     std::shared_ptr<ngraph::Function> ngraph_function;
+    io_map = {};
 
     if (!name.compare("body") || !name.compare("then_body") || !name.compare("else_body")) {
         auto body_node = m_node.child(name.c_str());
@@ -495,12 +496,12 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         auto node = createNode(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        // Check that output shape after nGraph node validation the same as in IR
+        // Check that output shape after OpenVINO node validation the same as in IR
         // because IR always right!
         // Temporary disabled!
         //        for (size_t i = 0; i < p.params.outputPorts.size(); ++i) {
         //            if (p.params.outputPorts[i].dims != node->output(i).get_shape()) {
-        //                IE_THROW() << "Shape after nGraph infer " <<
+        //                IE_THROW() << "Shape after Model infer " <<
         //                details::dumpVec(node->output(i).get_shape())
         //                                   << " differ from IR shapes: " <<
         //                                   details::dumpVec(p.params.outputPorts[i].dims);
@@ -607,6 +608,20 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     return params;
 }
 
+// Symmetric function to translate type name.
+// See translate_type_name in src/core/src/pass/serialize.cpp.
+static const std::string& translate_type_name(const std::string& name) {
+    static const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Const", "Constant"},
+                                                                                                {"PReLU", "PRelu"},
+                                                                                                {"ReLU", "Relu"},
+                                                                                                {"SoftMax", "Softmax"}};
+    auto found = translate_type_name_translator.find(name);
+    if (found != end(translate_type_name_translator)) {
+        return found->second;
+    }
+    return name;
+}
+
 std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
     const std::vector<ngraph::Output<ngraph::Node>>& inputs,
     const pugi::xml_node& node,
@@ -622,8 +637,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                        << " has undefined element type for input with index " << i << "!";
     }
 
+    const std::string& type_name = translate_type_name(params.type);
+
     std::shared_ptr<ngraph::Node> ngraphNode;
-    ov::DiscreteTypeInfo type(params.type.c_str(), 0, params.version.c_str());
+    ov::DiscreteTypeInfo type(type_name.c_str(), 0, params.version.c_str());
     auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
@@ -645,17 +662,15 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         "RNNCell",
         "Proposal"};
 
-    if (experimental_ops_added_to_opset.count(params.type) &&
+    if (experimental_ops_added_to_opset.count(type_name) &&
         (params.version == "experimental" || params.version == "extension")) {
         opsetIt = m_opsets.find("opset6");
     }
 
     if (!ngraphNode && opsetIt != m_opsets.end()) {
-        auto const& type = params.type == "Const" ? "Constant" : params.type;
-
         if (params.version == "opset1") {
             // MVN, ROIPooling and ReorgYolo were missing in opset1
-            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
+            if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
                 opsetIt = m_opsets.find("opset2");
                 if (opsetIt == m_opsets.end()) {
                     IE_THROW() << "Cannot create " << params.type << " layer " << params.name
@@ -666,9 +681,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         auto const& opset = opsetIt->second;
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type_name));
         if (!ngraphNode) {
-            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type_name;
         }
         // Share Weights form constant blob
         if (auto constant = std::dynamic_pointer_cast<ngraph::op::Constant>(ngraphNode)) {
@@ -754,7 +769,8 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
                     IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
+                // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
+                // when loading new IR with new attribute in old IE version.
             }
         }
     };

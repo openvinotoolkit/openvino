@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
+#include "itt.hpp"
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     MATCHER_SCOPE(LSTMCellDecomposition);
@@ -78,10 +76,11 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto hC = ngraph::op::util::activation(lstm_cell->get_activations()[2], out_C);
         auto out_H = std::make_shared<opset4::Multiply>(o_t, hC);
 
-        out_H->set_friendly_name(lstm_cell->get_friendly_name()+".0");
-        out_C->set_friendly_name(lstm_cell->get_friendly_name()+".1");
-        ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
-                                              f_t, i_t, c_t, o_t});
+        out_H->set_friendly_name(lstm_cell->get_friendly_name() + ".0");
+        out_C->set_friendly_name(lstm_cell->get_friendly_name() + ".1");
+        ngraph::copy_runtime_info(
+            lstm_cell,
+            {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB, f_t, i_t, c_t, o_t});
         ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
         return true;
     };

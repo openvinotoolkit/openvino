@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,8 +14,8 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER IE_VERSION IE_VERSION_BUILD
-                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_VERSION_BUILD
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
         endif()
@@ -129,7 +129,7 @@ set(IE_DEBUG_POSTFIX_WIN "d")
 set(IE_RELEASE_POSTFIX_WIN "")
 set(IE_DEBUG_POSTFIX_LIN "")
 set(IE_RELEASE_POSTFIX_LIN "")
-set(IE_DEBUG_POSTFIX_MAC "")
+set(IE_DEBUG_POSTFIX_MAC "d")
 set(IE_RELEASE_POSTFIX_MAC "")
 
 if(WIN32)
@@ -158,16 +158,22 @@ else ()
 endif()
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
+
 if(NOT UNIX)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 else()
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
 endif()
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
@@ -180,6 +186,8 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
@@ -206,6 +214,10 @@ endif()
 
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
+        get_target_property(target_type ${target} TYPE)
+        if(${target_type} STREQUAL "STATIC_LIBRARY")
+            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
+        endif()
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()

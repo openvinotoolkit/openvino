@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,20 +19,20 @@ public:
 
     explicit MatchersManager(const std::string &cfg_path = {});
 
-    bool match_all(const std::shared_ptr<ngraph::Node> &node,
-                   const std::shared_ptr<ngraph::Node> &ref,
+    bool match_all(const std::shared_ptr<ov::Node> &node,
+                   const std::shared_ptr<ov::Node> &ref,
                    const LayerTestsUtils::OPInfo &op_info);
 
-    bool match_any(const std::shared_ptr<ngraph::Node> &node,
-                   const std::shared_ptr<ngraph::Node> &ref,
+    bool match_any(const std::shared_ptr<ov::Node> &node,
+                   const std::shared_ptr<ov::Node> &ref,
                    const LayerTestsUtils::OPInfo &op_info);
 
     // TODO: Implement default xml config file generation by Matchers
     void generate_config() {}
 
 private:
-    std::vector<bool> run_matchers(const std::shared_ptr<ngraph::Node> &node,
-                                   const std::shared_ptr<ngraph::Node> &ref,
+    std::vector<bool> run_matchers(const std::shared_ptr<ov::Node> &node,
+                                   const std::shared_ptr<ov::Node> &ref,
                                    const LayerTestsUtils::OPInfo &op_info);
 // TODO: No copy constructor for xml_document
 //    pugi::xml_document m_cfg;

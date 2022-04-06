@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,12 +25,14 @@ TEST(type_prop, if_simple_test) {
     auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // Body
     auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
-    auto then_op_res = std::make_shared<op::Result>(then_op);
+    auto convert_then_op = std::make_shared<op::v0::Convert>(then_op, element::f32);
+    auto then_op_res = std::make_shared<op::Result>(convert_then_op);
 
     auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt});
 
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
-    auto else_op_res = std::make_shared<op::Result>(else_op);
+    auto convert_else_op = std::make_shared<op::v0::Convert>(else_op, element::f32);
+    auto else_op_res = std::make_shared<op::Result>(convert_else_op);
     auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye});
     auto if_op = make_shared<op::v8::If>(cond);
     if_op->set_then_body(then_body);
@@ -42,6 +44,12 @@ TEST(type_prop, if_simple_test) {
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
+    // Check that If validation validates both bodies
+    convert_then_op->set_convert_element_type(ov::element::f16);
+    convert_else_op->set_convert_element_type(ov::element::f16);
+    if_op->validate_and_infer_types();
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+    EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
 }
 
 TEST(type_prop, if_non_const_condition_test) {

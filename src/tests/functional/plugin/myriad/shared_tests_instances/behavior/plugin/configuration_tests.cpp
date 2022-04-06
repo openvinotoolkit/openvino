@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/vpu_plugin_config.hpp"
+#include <ie_plugin_config.hpp>
 #include "vpu/private_plugin_config.hpp"
 #include "vpu/utils/optional.hpp"
 #include "behavior/plugin/configuration_tests.hpp"
@@ -150,30 +150,6 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, CONFIG_VALUE(YES)}},
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, CONFIG_VALUE(NO)}},
 
-        // Deprecated
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE}},
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR}},
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_WARNING}},
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_INFO}},
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG}},
-        {{VPU_CONFIG_KEY(LOG_LEVEL), LOG_TRACE}},
-
-        {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},
-        {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}},
-
-        {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}},
-        {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)}},
-
-        {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}},
-        {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}},
-
-        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES)}},
-        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}},
-
-        {{VPU_CONFIG_KEY(CUSTOM_LAYERS), ""}},
-
-        {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}},
-
         {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, CONFIG_VALUE(NO)},
@@ -194,6 +170,8 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
             {InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER},
             {KEY_PERF_COUNT, CONFIG_VALUE(YES)},
+            {KEY_PERFORMANCE_HINT, CONFIG_VALUE(LATENCY)},
+            {KEY_PERFORMANCE_HINT_NUM_REQUESTS, "2"},
             {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, CONFIG_VALUE(NO)},
             {InferenceEngine::MYRIAD_TENSOR_STRIDES, "tensor[1,2,3,4]"},
             {InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, CONFIG_VALUE(NO)},
@@ -222,12 +200,10 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
 
     MyriadDevicesInfo info;
     if (info.getAmountOfDevices(ncDeviceProtocol_t::NC_PCIE) > 0) {
-        correctConfigs.emplace_back(std::map<std::string, std::string>{{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}});
         correctConfigs.emplace_back(std::map<std::string, std::string>{{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}});
     }
 
     if (info.getAmountOfDevices(ncDeviceProtocol_t::NC_USB) > 0) {
-        correctConfigs.emplace_back(std::map<std::string, std::string>{{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}});
         correctConfigs.emplace_back(std::map<std::string, std::string>{{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}});
     }
 
@@ -278,6 +254,8 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, {false}},
         {InferenceEngine::MYRIAD_PERF_REPORT_MODE, {InferenceEngine::MYRIAD_PER_LAYER}},
         {KEY_PERF_COUNT, {false}},
+        {KEY_PERFORMANCE_HINT, {}},
+        {KEY_PERFORMANCE_HINT_NUM_REQUESTS, {}},
         {InferenceEngine::MYRIAD_PACK_DATA_IN_CMX, {true}},
         {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, {InferenceEngine::MYRIAD_NUMBER_OF_SHAVES_AUTO}},
         {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS_AUTO}},
@@ -327,13 +305,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(KEY_LOG_LEVEL, LOG_DEBUG,   InferenceEngine::Parameter{LOG_DEBUG}),
         std::make_tuple(KEY_LOG_LEVEL, LOG_TRACE,   InferenceEngine::Parameter{LOG_TRACE}),
 
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_NONE,    InferenceEngine::Parameter{LOG_NONE}),
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_ERROR,   InferenceEngine::Parameter{LOG_ERROR}),
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_WARNING, InferenceEngine::Parameter{LOG_WARNING}),
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_INFO,    InferenceEngine::Parameter{LOG_INFO}),
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG,   InferenceEngine::Parameter{LOG_DEBUG}),
-        std::make_tuple(VPU_CONFIG_KEY(LOG_LEVEL), LOG_TRACE,   InferenceEngine::Parameter{LOG_TRACE}),
-
         std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::YES,
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO,
@@ -343,11 +314,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_USB}),
         std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_PCIE}),
-
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(USB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(PCIE)}),
 
         std::make_tuple(InferenceEngine::MYRIAD_POWER_MANAGEMENT, InferenceEngine::MYRIAD_POWER_FULL,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_POWER_FULL}),
@@ -364,9 +330,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
-
-        std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
-        std::make_tuple(VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_HW_EXTRA_SPLIT, InferenceEngine::PluginConfigParams::YES,
             InferenceEngine::Parameter{true}),
@@ -416,9 +379,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
-
-        std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
-        std::make_tuple(VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_LAYER,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_PER_LAYER}),
@@ -505,9 +465,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
 
-        std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
-        std::make_tuple(VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
-
         std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_AUTO}),
         std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_2GB,
@@ -519,24 +476,10 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
         std::make_tuple(InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_DDR_MICRON_1GB}),
 
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB)}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB)}),
-
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::YES,
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
-
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES), InferenceEngine::Parameter{true}),
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO), InferenceEngine::Parameter{false}),
 
         std::make_tuple(InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, InferenceEngine::PluginConfigParams::YES,
             InferenceEngine::Parameter{true}),
@@ -572,24 +515,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectSingleOptionCustomValueConf
 const std::vector<std::string>& getPublicOptions() {
     static const std::vector<std::string> publicOptions = {
         KEY_LOG_LEVEL,
-        VPU_CONFIG_KEY(LOG_LEVEL),
         InferenceEngine::MYRIAD_PROTOCOL,
-        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
         InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
         InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
-        VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
         KEY_PERF_COUNT,
+        KEY_PERFORMANCE_HINT,
+        KEY_PERFORMANCE_HINT_NUM_REQUESTS,
         InferenceEngine::MYRIAD_THROUGHPUT_STREAMS,
         KEY_EXCLUSIVE_ASYNC_REQUESTS,
         KEY_DEVICE_ID,
         InferenceEngine::MYRIAD_CUSTOM_LAYERS,
-        VPU_CONFIG_KEY(CUSTOM_LAYERS),
         KEY_CONFIG_FILE,
         InferenceEngine::MYRIAD_DDR_TYPE,
-        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
         InferenceEngine::MYRIAD_ENABLE_FORCE_RESET,
-        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
     };
     return publicOptions;
 }
@@ -630,7 +568,6 @@ const std::vector<std::string>& getPrivateOptions() {
         InferenceEngine::MYRIAD_DISABLE_REORDER,
         InferenceEngine::MYRIAD_DEVICE_CONNECT_TIMEOUT,
         InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH,
-        VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
         InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL,
         InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION,
         InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM,
@@ -760,28 +697,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, "ON"}},
         {{InferenceEngine::MYRIAD_ENABLE_ASYNC_DMA, "OFF"}},
 
-        // Deprecated
-        {{VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"}},
-
-        {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "LAN"}},
-
-        {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}},
-        {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "OFF"}},
-
-        {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), "ON"}},
-        {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), "OFF"}},
-
-        {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "ON"}},
-        {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}},
-
-        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "ON"}},
-        {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "OFF"}},
-
-        {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "AUTO"}},
-        {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "2GB"}},
-        {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "1GB"}},
-
         {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, "ON"},
@@ -865,28 +780,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {InferenceEngine::MYRIAD_DDR_TYPE, "1GB"}
-        },
-
-        // Deprecated
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(LOG_LEVEL), "INCORRECT_LOG_LEVEL"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "1GB"}
         },
     };
     return incorrectMultiConfigs;

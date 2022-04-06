@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,13 @@ private:
     static std::string make_what(const CheckLocInfo& check_loc_info,
                                  const std::string& context_info,
                                  const std::string& explanation);
+};
+
+/// Exception class to be thrown on not implemented code
+class OPENVINO_API NotImplemented : public AssertFailure {
+public:
+    NotImplemented(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
+        : AssertFailure(check_loc_info, context_info, explanation) {}
 };
 }  // namespace ov
 
@@ -139,6 +146,7 @@ private:
 /// \throws ::ov::AssertFailure if the macro is executed.
 #define OPENVINO_UNREACHABLE(...)                   OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
 #define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
+#define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
 
 #define GLUE(x, y) x y
 

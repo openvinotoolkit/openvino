@@ -1,11 +1,13 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
+// clang-format off
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_static_shape_ie.hpp"
+// clang-format on
+
+#include <memory>
 
 namespace ngraph {
 namespace op {

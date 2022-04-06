@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,20 +72,20 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     }
 
     // map function params -> HostTensor
-    unordered_map<descriptor::Tensor*, shared_ptr<HostTensor>> tensor_map;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, shared_ptr<HostTensor>> tensor_map;
     size_t input_count = 0;
     for (const auto& param : get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); ++i) {
-            descriptor::Tensor* tensor = &param->output(i).get_tensor();
+            auto tensor = param->output(i).get_tensor_ptr();
             tensor_map.insert({tensor, func_inputs[input_count++]});
         }
     }
 
-    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> results_map;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, size_t> results_map;
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count) {
-        auto output = get_results()[output_count];
-        results_map[output] = output_count;
+        auto output = get_results()[output_count]->output(0).get_tensor_ptr();
+        results_map.emplace(output, results_map.size());
     }
 
     EvaluationContext eval_context;
@@ -101,7 +101,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         // get op inputs from map
         vector<shared_ptr<HostTensor>> op_inputs;
         for (auto input : op->inputs()) {
-            descriptor::Tensor* tensor = &input.get_tensor();
+            auto tensor = input.get_tensor_ptr();
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
@@ -115,11 +115,11 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         // get op outputs from map or create
         vector<shared_ptr<HostTensor>> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
-            descriptor::Tensor* tensor = &op->output(i).get_tensor();
+            auto tensor = op->output(i).get_tensor_ptr();
             shared_ptr<HostTensor> host_tensor;
             auto it = tensor_map.find(tensor);
             if (op::is_output(op)) {
-                host_tensor = func_outputs[results_map[op]];
+                host_tensor = func_outputs[results_map[tensor]];
             } else if (it == tensor_map.end()) {
                 // Use cloned_node to create HostTensor with static dimensions
                 host_tensor = make_shared<HostTensor>(cloned_node->output(i));
@@ -154,8 +154,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             if (!variable_context.get_variable_value(variable)) {
                 auto h_tensor = std::make_shared<ngraph::HostTensor>(cloned_node->get_input_element_type(0),
                                                                      cloned_node->get_input_shape(0));
-                std::vector<float> data(ov::shape_size(cloned_node->get_input_shape(0)), 0);
-                h_tensor->write(data.data(), data.size() * sizeof(float));
+                h_tensor->write(h_tensor->get_data_ptr(), h_tensor->get_size_in_bytes());
                 variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
             }
         }

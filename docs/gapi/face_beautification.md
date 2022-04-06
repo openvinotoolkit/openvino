@@ -338,7 +338,7 @@ The steps to get the masks are:
 Once the graph is fully expressed, we can finally compile it and run on real data. G-API graph compilation is the stage where the G-API framework actually understands which kernels and networks to use. This configuration happens via G-API compilation arguments.
 
 ### DNN Parameters
-This sample is using OpenVINO™ Toolkit Inference Engine backend for DL inference, which is configured the following way:
+This sample is using OpenVINO™ Toolkit OpenVINO Runtime backend for DL inference, which is configured the following way:
 ```cpp
 auto faceParams  = cv::gapi::ie::Params<custom::FaceDetector>
 {

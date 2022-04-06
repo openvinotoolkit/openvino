@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace GNAPluginNS {
  */
 class ConvertMatmulToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulToPointWiseConvolution", "0");
   ConvertMatmulToPointWiseConvolution();
 };
 
@@ -42,7 +42,7 @@ public:
  */
 class ConvertMatmulWithBiasToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulWithBiasToPointWiseConvolution", "0");
   ConvertMatmulWithBiasToPointWiseConvolution();
 };
 
@@ -64,7 +64,7 @@ public:
  */
 class ConvertMatmulWithFqToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulWithFqToPointWiseConvolution", "0");
   ConvertMatmulWithFqToPointWiseConvolution();
 };
 

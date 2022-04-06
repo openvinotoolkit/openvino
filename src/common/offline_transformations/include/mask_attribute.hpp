@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <set>
 
 #include <ngraph/node.hpp>
+#include <ngraph/log.hpp>
 
 namespace ngraph {
 
@@ -28,8 +29,8 @@ class Mask : public std::vector<std::set<uint64_t>>,
              public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info{"Mask", 0, "0"};
-        return type_info;
+        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
+        return type_info_static;
     }
 
     using Ptr = std::shared_ptr<Mask>;
@@ -42,6 +43,15 @@ public:
 
     explicit Mask(const size_t & size)
             : std::vector<value_type>(size) {
+    }
+
+    explicit Mask(const size_t & size, const bool adjust_value)
+            : std::vector<value_type>(size),
+              m_adjust_value(adjust_value) {
+    }
+
+    explicit Mask(const std::vector<value_type> val)
+            : std::vector<value_type>(val) {
     }
 
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
@@ -117,7 +127,7 @@ public:
         return result_mask;
     }
 
-    Mask::Ptr union_masks_reversed(Mask *const mask) {
+    Mask::Ptr union_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
@@ -144,9 +154,13 @@ public:
         return result_mask;
     }
 
-    void add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+        if (m_callbacks.find(mask.get()) != m_callbacks.end())
+            NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
+
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());
+        return true;
     }
 
     /* Modify state of this mask by corresponding callback,
@@ -168,11 +182,14 @@ public:
         m_need_initialization = false;
         // recursively apply callbacks for each dependent mask
         for (const auto & m_dependency : m_dependencies) {
+            if (m_dependency == mask.get())
+                continue;
             if (!m_dependency->apply_callback(shared_from_this())) {
                 return false;
             }
         }
-        return true;
+
+        return mask->apply_callback(shared_from_this());
     }
 
     void invalidate() {
@@ -196,8 +213,20 @@ public:
         m_need_initialization = true;
     }
 
+    bool adjust_value() const {
+        return m_adjust_value;
+    }
+
 private:
     bool m_is_shape_like{false};
+    // Flag is true if this mask should be interpretated in special way:
+    // Each value of the constant at index i decreasing by a number
+    // of elements in i'th mask dimension during weights shrinking pass.
+    // Only a 1D constants could be pruned in this way and
+    // the number of mask dimensions should be equal to the number of elements
+    // in the constant. The constant is typically interpetated as a shape
+    // of some operation.
+    bool m_adjust_value{false};
 
     // Masks dependent on this mask vs methods, specifying how
     // this mask will be modifed by correspondent dependent mask

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 
 using namespace BehaviorTestsDefinitions;
 using namespace ov::test::conformance;
+
 namespace {
     const std::vector<std::vector<int >> orders = {
             // 0 - plugin
@@ -23,9 +24,9 @@ namespace {
             {0, 1, 3, 2}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, HoldersTest,
             ::testing::Combine(
-            ::testing::Values(ConformanceTests::targetDevice),
+            ::testing::ValuesIn(return_all_possible_device_combination()),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 

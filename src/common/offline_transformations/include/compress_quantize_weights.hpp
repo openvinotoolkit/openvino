@@ -1,10 +1,8 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
-#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -63,7 +61,7 @@ class ZeroPointOptimizer;
 */
 class ngraph::pass::CompressQuantizeWeights: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("CompressQuantizeWeights", "0");
     CompressQuantizeWeights();
 };
 
@@ -90,6 +88,6 @@ public:
 */
 class ngraph::pass::ZeroPointOptimizer: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ZeroPointOptimizer");
     ZeroPointOptimizer();
 };

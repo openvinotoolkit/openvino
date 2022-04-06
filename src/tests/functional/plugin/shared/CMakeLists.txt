@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,21 +9,21 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(DEPENDENCIES mock_engine)
 
 if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES ov_hetero_plugin)
+    list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
-    list(APPEND DEPENDENCIES ov_auto_plugin)
+    list(APPEND DEPENDENCIES openvino_auto_plugin)
 endif()
 
 if(ENABLE_AUTO_BATCH)
-    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
+    list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
 endif()
 
 
 # remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
-    list(APPEND DEPENDENCIES ov_ir_frontend)
+    list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
@@ -58,6 +58,7 @@ addIeTarget(
             PRIVATE
                 openvino::util
                 openvino::runtime::dev
+                snippetsNgraphFunctions
         DEPENDENCIES
             ${DEPENDENCIES}
 )

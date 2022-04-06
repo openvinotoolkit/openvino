@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -54,7 +54,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     # to produce correct mapping
     extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.offline_transformations import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
     from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
@@ -94,11 +95,11 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     if 'scale' in argv:
         argv.scale = scale
 
-    apply_user_transformations(func, parse_transform(argv.transform))
     apply_moc_transformations(func)
 
     params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)
+    apply_user_transformations(func, parse_transform(argv.transform))
 
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/variant.hpp"
 #include "util/all_close_f.hpp"

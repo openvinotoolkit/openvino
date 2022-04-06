@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,10 +44,10 @@ protected:
 };
 
 TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
-    auto ie = ov::runtime::Core();
+    auto ie = ov::Core();
 
     ov::ResultVector outputs;
-    std::vector<ov::runtime::InferRequest> irs;
+    std::vector<ov::InferRequest> irs;
     std::vector<std::vector<uint8_t>> ref;
     std::vector<int> outElementsCount;
 

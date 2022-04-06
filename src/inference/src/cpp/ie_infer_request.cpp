@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ namespace InferenceEngine {
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
-        throw ov::runtime::Busy(ex.what());                                 \
+        throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
     } catch (...) {                                                         \
@@ -79,9 +79,9 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     Blob::Ptr blobPtr;
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (blobPtr == nullptr)
         IE_THROW() << error;
+    const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
         IE_THROW() << error;
     return blobPtr;
@@ -134,7 +134,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
 }
 
 #define CATCH_IE_EXCEPTION_RETURN(StatusCode, ExceptionType) \
-    catch (const ExceptionType&) {                           \
+    catch (const ::InferenceEngine::ExceptionType&) {        \
         return StatusCode;                                   \
     }
 
@@ -243,7 +243,6 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
 }  // namespace
 
 namespace ov {
-namespace runtime {
 
 InferRequest::~InferRequest() {
     _impl = {};
@@ -443,7 +442,7 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
                 info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
                 break;
             case ie::InferenceEngineProfileInfo::EXECUTED:
-                info.status = ProfilingInfo::Status::OPTIMIZED_OUT;
+                info.status = ProfilingInfo::Status::EXECUTED;
                 break;
             }
             info.real_time = std::chrono::microseconds{ieInfo.realTime_uSec};
@@ -521,5 +520,4 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
     return r._impl == _impl;
 }
 
-}  // namespace runtime
 }  // namespace ov

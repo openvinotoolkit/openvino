@@ -1,22 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
-#include <memory>
 #include <algorithm>
-
-#include <transformations_visibility.hpp>
-
+#include <memory>
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/validation_util.hpp>
-#include <ngraph/rt_info.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
+#include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -35,27 +32,27 @@ public:
     ngraph::matcher_pass_callback convert_reduce_to_pooling();
 };
 
-class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
+class ngraph::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
     ConvertReduceMeanToPooling();
 };
 
-class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
+class ngraph::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
     ConvertReduceMaxToPooling();
 };
 
-class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
+class ngraph::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
     ConvertReduceSumToPooling();
 };
 
-class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertReduceToPooling : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertReduceToPooling", "0");
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();
@@ -74,7 +71,8 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         auto input = reduce->input_value(0);
 
-        auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
+        auto axes_node =
+            std::dynamic_pointer_cast<ngraph::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
         if (!axes_node) {
             return false;
         }
@@ -97,11 +95,16 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         auto input_shape = input.get_shape();
 
         // If Reduce op reduces only 1 dims we replace it with Reshape
-        if (std::all_of(axes_vector.begin(), axes_vector.end(),
-                [&input_shape](const int64_t & axis) { return input_shape[axis] == 1; })) {
+        if (std::all_of(axes_vector.begin(), axes_vector.end(), [&input_shape](const int64_t& axis) {
+                return input_shape[axis] == 1;
+            })) {
             const auto reshape_shape = reduce->output(0).get_shape();
-            auto reshape = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape), true);
+            auto reshape = std::make_shared<ngraph::opset1::Reshape>(
+                input,
+                ngraph::opset1::Constant::create(ngraph::element::i64,
+                                                 ngraph::Shape{reshape_shape.size()},
+                                                 reshape_shape),
+                true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
             copy_runtime_info(reduce, reshape);
@@ -111,7 +114,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         // Check that axes are consecutive otherwise this transformation is not applicable
         for (size_t i = 1; i < axes_vector.size(); ++i) {
-            if (axes_vector[i] - axes_vector[i-1] != 1) {
+            if (axes_vector[i] - axes_vector[i - 1] != 1) {
                 return false;
             }
         }
@@ -169,7 +172,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                 kernel.push_back(1);
             }
             for (auto& axis : axes_vector) {
-                kernel[axis-2] = input_shape[axis];
+                kernel[axis - 2] = input_shape[axis];
             }
             shape_end = reduce->output(0).get_shape();
         }
@@ -192,8 +195,10 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         ngraph::NodeVector new_ops;
 
         if (!shape_begin.empty() && shape_begin != input.get_shape()) {
-            input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_begin.size()}, shape_begin), true);
+            input = std::make_shared<ngraph::opset1::Reshape>(
+                input,
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_begin.size()}, shape_begin),
+                true);
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
             new_ops.push_back(input.get_node_shared_ptr());
         }
@@ -229,18 +234,19 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             }
 
             input = std::make_shared<ngraph::opset1::AvgPool>(input,
-                    strides,
-                    pads_begin,
-                    pads_end,
-                    kernel,
-                    true,
-                    ngraph::op::RoundingType::FLOOR);
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              kernel,
+                                                              true,
+                                                              ngraph::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
 
-            input = std::make_shared<ngraph::opset1::Multiply>(input,
-                    ngraph::opset1::Constant::create(input.get_element_type(), ngraph::Shape{1}, {reduction_dims_count}));
+            input = std::make_shared<ngraph::opset1::Multiply>(
+                input,
+                ngraph::opset1::Constant::create(input.get_element_type(), ngraph::Shape{1}, {reduction_dims_count}));
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
             new_ops.push_back(input.get_node_shared_ptr());
 
@@ -253,8 +259,10 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         }
 
         if (shape_end != input.get_shape()) {
-            input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_end.size()}, shape_end), true);
+            input = std::make_shared<ngraph::opset1::Reshape>(
+                input,
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_end.size()}, shape_end),
+                true);
             new_ops.push_back(input.get_node_shared_ptr());
         }
         input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());

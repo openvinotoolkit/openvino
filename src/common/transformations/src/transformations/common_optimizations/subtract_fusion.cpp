@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SubtractFusion, "SubtractFusion", 0);
 
 ngraph::pass::SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
@@ -29,17 +27,18 @@ ngraph::pass::SubtractFusion::SubtractFusion() {
     auto p_add_input = pattern::any_input();
     auto p_add = ngraph::pattern::wrap_type<opset8::Add>({p_add_input, p_mul_or_neg});
 
-    matcher_pass_callback callback = [=](pattern::Matcher &m) {
-        const auto & pattern_to_output = m.get_pattern_value_map();
-        const auto & minuend_input = pattern_to_output.at(p_add_input);
-        const auto & subtrahend_input = pattern_to_output.at(p_input);
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto& minuend_input = pattern_to_output.at(p_add_input);
+        const auto& subtrahend_input = pattern_to_output.at(p_input);
 
-        const auto & add = pattern_to_output.at(p_add).get_node_shared_ptr();
+        const auto& add = pattern_to_output.at(p_add).get_node_shared_ptr();
 
         NodeVector nodes_to_replace{add};
 
         if (pattern_to_output.count(p_mul_const)) {
-            auto minus_one_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
+            auto minus_one_const =
+                std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
             if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }

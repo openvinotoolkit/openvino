@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,16 +18,15 @@ static const char constants_size_threshold_message[] = "Optional. Maximum size o
                                                        "If constant size exceeds specified number it will be replaced"
                                                        "with parameter and meta information about original data range "
                                                        "will be saved";
-static const char eliminate_dynamism_message[] = "Optional. If specified dynamic shapes will be eliminated from model"
-                                                 "and replaced by propagated upper bound values (if possible)";
+static const char extract_body_message[] = "Optional. Allow to extract operation bodies to operation cache.";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(input_folders, "", local_cache_message);
-DEFINE_string(local_cache, ".", input_folders_message);
+DEFINE_string(local_cache, "", input_folders_message);
 DEFINE_string(output_folder, "output", output_folder_message);
 DEFINE_string(path_regex, ".*", output_folder_message);
 DEFINE_double(constants_size_threshold, 1., constants_size_threshold_message);
-DEFINE_bool(eliminate_dynamism, true, eliminate_dynamism_message);
+DEFINE_bool(extract_body, true, extract_body_message);
 
 /**
 * @brief This function shows a help message
@@ -43,6 +42,6 @@ static void showUsage() {
     std::cout << "    --output_folder \"<path>\"             " << output_folder_message << "\n";
     std::cout << "    --path_regex \"<path>\"                " << path_regex_message << "\n";
     std::cout << "    --constants_size_threshold \"<value>\" " << constants_size_threshold_message << "\n";
-    std::cout << "    --eliminate_dynamism \"<value>\"       " << eliminate_dynamism_message << "\n";
+    std::cout << "    --extract_body \"<value>\"             " << extract_body_message << "\n";
     std::cout << std::flush;
 }

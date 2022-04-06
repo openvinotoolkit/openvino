@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,17 +17,15 @@ primitive_type_id scale::type_id() {
 layout scale_inst::calc_output_layout(scale_node const& node) {
     auto desc = node.get_primitive();
     auto result = node.input().get_non_padded_output_layout();
+    auto scale_layout = node.scale_in().get_non_padded_output_layout();
 
-    auto scale_sizes = node.scale_in().get_non_padded_output_layout().size;
-    auto input_sizes = result.size;
+    auto scale_x_size = scale_layout.spatial(0);
+    auto scale_y_size = scale_layout.spatial(1);
+    auto scale_z_size = scale_layout.spatial(2);
 
-    auto scale_x_size = scale_sizes.spatial[0];
-    auto scale_y_size = scale_sizes.spatial[1];
-    auto scale_z_size = scale_sizes.spatial[2];
-
-    auto input_x_size = input_sizes.spatial[0];
-    auto input_y_size = input_sizes.spatial[1];
-    auto input_z_size = input_sizes.spatial[2];
+    auto input_x_size = result.spatial(0);
+    auto input_y_size = result.spatial(1);
+    auto input_z_size = result.spatial(2);
 
     if ((result.data_type == data_types::u8 || result.data_type == data_types::i8 || result.data_type == data_types::i32) &&
         (node.scale_in().get_non_padded_output_layout().data_type == data_types::f32 ||
@@ -76,11 +74,11 @@ scale_inst::typed_primitive_inst(network& network, scale_node const& node) : par
     auto scale_layout = node.scale_in().get_output_layout();
     auto scale_format = scale_layout.format;
 
-    auto scale_batch_size = scale_layout.size.batch[0];
-    auto scale_feature_size = scale_layout.size.feature[0];
+    auto scale_batch_size = scale_layout.batch();
+    auto scale_feature_size = scale_layout.feature();
 
-    auto input_batch_size = node.input().get_output_layout().size.batch[0];
-    auto input_feature_size = node.input().get_output_layout().size.feature[0];
+    auto input_batch_size = node.input().get_output_layout().batch();
+    auto input_feature_size = node.input().get_output_layout().feature();
 
     if (scale_batch_size != 1) {
         CLDNN_ERROR_NOT_EQUAL(node.id(),

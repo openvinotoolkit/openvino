@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -6,6 +6,7 @@ import numpy as np
 import ngraph as ng
 from tests_compatibility.runtime import get_runtime
 from tests_compatibility.test_ngraph.util import run_op_node
+from tests_compatibility import xfail_issue_78741
 
 
 def test_onehot():
@@ -20,6 +21,7 @@ def test_onehot():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_78741
 def test_one_hot():
     data = np.array([0, 1, 2], dtype=np.int32)
     depth = 2
@@ -32,6 +34,7 @@ def test_one_hot():
     assert np.allclose(result, excepted)
 
 
+@xfail_issue_78741
 def test_range():
     start = 5
     stop = 35

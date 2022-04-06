@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,18 +10,21 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
+#include "itt.hpp"
 
-MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
-    auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>(ngraph::pattern::has_static_shape());
+ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
+    MATCHER_SCOPE(ReshapeFullyConnectedFusion);
+    auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>({ngraph::pattern::any_input(ov::pass::pattern::has_static_shape()),
+                                                                          ngraph::pattern::any_input()},
+                                                                         ngraph::pattern::has_static_shape());
     ngraph::OutputVector twoInputs = {m_reshape, ngraph::pattern::any_input()};
     ngraph::OutputVector threeInputs = {m_reshape, ngraph::pattern::any_input(), ngraph::pattern::any_input()};
-    auto fcTwoInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
-    auto fcThreeInputs = ngraph::pattern::wrap_type<MKLDNNPlugin::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
+    auto fcTwoInputs = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(twoInputs, ngraph::pattern::has_static_shape());
+    auto fcThreeInputs = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(threeInputs, ngraph::pattern::has_static_shape());
     const auto fcTwoOrThreeInputs = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fcTwoInputs, fcThreeInputs});
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(m.get_match_root());
+        auto fc = std::dynamic_pointer_cast<ov::intel_cpu::FullyConnectedNode>(m.get_match_root());
         if (!fc)
             return false;
         auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->get_input_node_shared_ptr(0));
@@ -61,12 +64,12 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
 
         std::shared_ptr<ngraph::Node> new_fc;
         if (fc->get_input_size() == 2) {
-            new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
+            new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
                                                                         ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
         } else if (fc->get_input_size() == 3) {
-            new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
+            new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
                                                                         fc->input_value(2),
                                                                         ngraph::Rank(outShape.size()),
@@ -81,6 +84,6 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, "ReshapeFullyConnectedFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, matcher_name);
     register_matcher(m, callback);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,9 @@ public:
     void SetUp() override {
         const auto tensorType  = ngraph::element::f16;
         const auto shapeType   = ngraph::element::i64;
-        const auto tensorShape = std::initializer_list<std::size_t>{1, 800};
+        const ov::Shape tensorShape{1, 800};
 
-        const auto tensor = std::make_shared<ngraph::opset3::Parameter>(tensorType, ngraph::Shape{tensorShape});
+        const auto tensor = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
         const auto shape  = std::make_shared<ngraph::opset3::Parameter>(shapeType, ngraph::Shape{tensorShape.size()});
         auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(tensor, shape);
         dynamicShapeResolver->set_friendly_name(s_FriendlyName);

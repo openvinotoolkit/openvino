@@ -1,28 +1,25 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
-
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MulFakeQuantizeFusion, "MulFakeQuantizeFusion", 0);
+#include "transformations/utils/utils.hpp"
 
 ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
     auto input_pattern = ngraph::pattern::any_input();
     auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset5::Multiply>({input_pattern, const_pattern},
-                                                                    pattern::consumers_count(1));
+    auto mul_pattern =
+        ngraph::pattern::wrap_type<opset5::Multiply>({input_pattern, const_pattern}, pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({mul_pattern,
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input(),
@@ -34,19 +31,30 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         const auto& type = input.get_element_type();
         if (type.bitwidth() < element::f32.bitwidth())
             return false;
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq =
+            std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
-        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        auto mul_const =
+            std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
 
+        auto const_shape = mul_const->get_shape();
+        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+            // We can't eliminate Multiply if Constant input broadcasts another input shape because
+            // when we reconnect input from Multiply to FQ won't broadcast given input, so it will result
+            // in shape collision.
+            return false;
+        }
+
         auto mul_const_value = mul_const->cast_vector<float>();
-        if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f <= 0.0f; }))
+        if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [](float f) -> bool {
+                return f <= 0.0f;
+            }))
             return false;
 
         std::shared_ptr<Node> new_const = mul_const;
-        auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -60,28 +68,34 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         }
 
         if (!is_single_value) {
+            const auto& fq_input_shape = fq->get_input_partial_shape(0);
+            if (fq_input_shape.rank().is_dynamic())
+                return false;
+
+            const auto diff = fq_input_shape.size() - const_shape.size();
+            if (diff > 0) {
+                // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
+                const_shape.insert(const_shape.begin(), diff, 1);
+                new_const = std::make_shared<opset5::Reshape>(
+                    new_const,
+                    op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
+                    false);
+            }
+
             // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
             if (!(const_shape[0] > 1 && const_shape[0] == const_shape_size) &&
                 !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
                 return false;
             }
-            const auto& rank = fq->get_input_partial_shape(0).rank();
-            if (rank.is_dynamic())
-                return false;
+
             auto fq_users = fq->get_users();
             // Concat LPT transformation supports per tensor quantization only
-            bool fq_user_is_concat = std::any_of(fq_users.begin(), fq_users.end(),
-                                                 [] (const Output<Node>& node) -> bool {
-                                                     auto node_ptr = node.get_node();
-                                                     return is_type<opset5::Concat>(node_ptr);
-                                                 });
+            bool fq_user_is_concat =
+                std::any_of(fq_users.begin(), fq_users.end(), [](const std::shared_ptr<Node> node_ptr) -> bool {
+                    return is_type<opset5::Concat>(node_ptr);
+                });
             if (fq_user_is_concat)
                 return false;
-            auto diff = rank.get_length() - static_cast<Dimension::value_type>(const_shape.size());
-            // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
-            const_shape.insert(const_shape.begin(), diff, 1);
-            new_const = std::make_shared<opset5::Reshape>(new_const,
-                    op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
         }
 
         auto input_low_div = std::make_shared<opset5::Divide>(fq->input_value(1), new_const);
@@ -93,8 +107,8 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!new_input_high)
             new_input_high = input_high_div;
 
-        auto new_fq = fq->clone_with_new_inputs({input, new_input_low, new_input_high,
-                fq->input_value(3), fq->input_value(4)});
+        auto new_fq =
+            fq->clone_with_new_inputs({input, new_input_low, new_input_high, fq->input_value(3), fq->input_value(4)});
         if (transformation_callback(new_fq))
             return false;
         register_new_node(new_fq);

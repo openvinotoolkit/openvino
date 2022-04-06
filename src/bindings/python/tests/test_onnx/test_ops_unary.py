@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -7,7 +7,7 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from openvino.runtime.exceptions import NgraphTypeError
+from openvino.runtime.exceptions import OVTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 
@@ -425,7 +425,7 @@ def test_cast_errors():
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
-    with pytest.raises((RuntimeError, NgraphTypeError)):
+    with pytest.raises((RuntimeError, OVTypeError)):
         import_onnx_model(model)
 
     # unsupported output tensor data type:
@@ -465,8 +465,6 @@ def test_constant(value_type):
     assert np.allclose(ng_results, [values])
 
 
-# See https://github.com/onnx/onnx/issues/1190
-@pytest.mark.xfail(reason="ONNX#1190 numpy.float16 not supported by ONNX make_node", strict=True)
 def test_constant_err():
     values = np.random.randn(5, 5).astype(np.float16)
     node = onnx.helper.make_node(

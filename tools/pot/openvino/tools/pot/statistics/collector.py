@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import copy
@@ -49,7 +49,7 @@ class StatisticsCollector:
     def compute_statistics(self, model):
         """
         Compute statistics for registered statistics
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         """
         # checks that statistics layouts for registered algorithms are not empty
         if all([not stats_layout for stats_layout in self._layout_by_algo.values()]):

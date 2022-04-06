@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
  */
 
 /**
- * @ingroup ie_cpp_api
  * @defgroup ie_transformation_api Inference Engine Transformation API
  * @brief Defines Inference Engine Transformations API which is used to transform ngraph::Function
  *

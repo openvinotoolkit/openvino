@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
         return false;
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     const bool bSupportedPitch = params.inputs[0].Batch().pitch == 1 && out.Batch().pitch == 1;
     const bool bSupportedBatch = (out.Batch().v % 8) == 0 && ((out.Batch().v * out.Feature().v) % 64) == 0;

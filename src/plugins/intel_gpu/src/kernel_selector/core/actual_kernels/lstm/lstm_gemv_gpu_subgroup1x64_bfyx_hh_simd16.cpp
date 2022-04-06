@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Par
     // 2) The input size y-x size is 64x1
     const lstm_gemm_params& orgParams = static_cast<const lstm_gemm_params&>(params);
     const auto& input = orgParams.inputs[0];
-    const auto& out = orgParams.output;
+    const auto& out = orgParams.outputs[0];
 
     if ((input.Batch().v == 1) && (input.X().v >= 64) && (input.Y().v == 1))
         kernel.params.workGroups.global = {16, out.X().v, out.Batch().v};

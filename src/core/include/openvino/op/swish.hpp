@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ namespace v4 {
 /// f(x) =  x / (1.0 + exp(-beta * x)) or
 /// f(x) = x * sigmoid(beta * x)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Swish : public Op {
 public:
     OPENVINO_OP("Swish", "opset4", op::Op, 4);

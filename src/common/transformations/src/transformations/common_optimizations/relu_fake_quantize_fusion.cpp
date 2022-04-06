@@ -1,27 +1,25 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
-#include "transformations/utils/utils.hpp"
-#include "itt.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFusion", 0);
+#include "itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
     auto data_pattern = ngraph::pattern::any_input();
     auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
     auto input_low_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern, input_low_pattern,
+    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern,
+                                                                        input_low_pattern,
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input()});
@@ -35,7 +33,9 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
-        if (std::any_of(input_low_values.begin(), input_low_values.end(), [] (float f) -> bool { return f < 0; }))
+        if (std::any_of(input_low_values.begin(), input_low_values.end(), [](float f) -> bool {
+                return f < 0;
+            }))
             return false;
         auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)

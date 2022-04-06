@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,11 @@ protected:
         auto prim = arg.get_primitive();
 
         auto& input = arg.get_dependency(0);
-        auto spatials_rank = cldnn::format::spatial_num(input.get_output_layout().format);
 
-        auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
-        auto kernel = onednn::convert_spatials(prim->size, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->pad_end, spatials_rank);
+        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+        dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
+        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
+        dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());

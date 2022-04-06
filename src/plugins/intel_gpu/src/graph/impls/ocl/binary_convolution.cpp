@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ protected:
 public:
     static primitive_impl* create(const binary_convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.size;
 
         const auto& split = primitive->split();
@@ -74,7 +74,7 @@ public:
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        assert(arg.get_output_layout().feature() / primitive->split() == weights_layout.batch());
 
         auto conv_params =
             get_weights_bias_default_params<kernel_selector::binary_convolution_params>(arg, actual_split);
@@ -93,14 +93,20 @@ public:
             (uint32_t)weights_size.spatial[2],
         };
 
-        conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
-                               (uint32_t)std::max(pad.spatial[1], 0),
-                               (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        conv_params.padding = {pad_x, pad_y, pad_z};
 
-        conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
-        conv_params.dilation = {(uint32_t)dilation.spatial[0],
-                                (uint32_t)dilation.spatial[1],
-                                (uint32_t)dilation.spatial[2]};
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        conv_params.stride = {stride_x, stride_y, stride_z};
+
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::binary_convolution_kernel_selector::Instance();
 

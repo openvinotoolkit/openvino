@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ protected:
         else
             args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
 
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
 
         return args;
     }

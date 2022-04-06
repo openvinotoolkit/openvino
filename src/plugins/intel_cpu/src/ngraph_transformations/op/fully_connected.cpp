@@ -1,10 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "fully_connected.hpp"
+#include "../itt.hpp"
 
-MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
+ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
                                                      const ngraph::Rank& output_rank,
                                                      const ngraph::element::Type output_type)
@@ -12,7 +13,7 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
     validate_and_infer_types();
 }
 
-MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
+ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
                                                      const ngraph::Output<Node>& C,
                                                      const ngraph::Rank& output_rank,
@@ -21,18 +22,20 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
     validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> MKLDNNPlugin::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ngraph::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(FullyConnectedNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return std::make_shared<MKLDNNPlugin::FullyConnectedNode>(new_args.at(0), new_args.at(1), m_output_rank, m_output_type);
+        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), m_output_rank, m_output_type);
     } else if (new_args.size() == 3) {
-        return std::make_shared<MKLDNNPlugin::FullyConnectedNode>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_rank, m_output_type);
+        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_rank, m_output_type);
     }
 
     throw ngraph::ngraph_error("Unsupported number of arguments for FullyConnected operation");
 }
 
-void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
+void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(FullyConnectedNode_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
         input_size == 2 || input_size == 3,
@@ -93,7 +96,8 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
     set_output_type(0, output_type, output_pshape);
 }
 
-bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+bool ov::intel_cpu::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+    INTERNAL_OP_SCOPE(FullyConnectedNode_visit_attributes);
     visitor.on_attribute("out-rank", m_output_rank);
     visitor.on_attribute("out-type", m_output_type);
     return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,9 @@
  * @file init_node_info.hpp
  */
 
-#include <vector>
 #include <memory>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 /**
  * @brief ngraph namespace
@@ -37,8 +36,8 @@ class NGRAPH_API FixRtInfo;
  *
  * Used to extract runtime attributes from shared pointer to `ov::RuntimeAttributeWrapper` to standard or trivial types
  */
-class ngraph::pass::FixRtInfo: public ngraph::pass::FunctionPass {
+class ngraph::pass::FixRtInfo : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FixRtInfo", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
-#include "openvino/opsets/opset8.hpp"
+#include "itt.hpp"
 #include "ngraph/rt_info.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
-#include "itt.hpp"
-
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
@@ -40,7 +39,8 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     }
     if (is_overflow) {
         std::cerr << "Warning: One or more of the values of the Constant can't fit in the float16 data type."
-            " Those values were casted to the nearest limit value, the model can produce incorrect results." << std::endl;
+                     " Those values were casted to the nearest limit value, the model can produce incorrect results."
+                  << std::endl;
     }
     return new_constant;
 }
@@ -54,8 +54,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
-        auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(
-            const_node_pattern.get_node_shared_ptr());
+        auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(const_node_pattern.get_node_shared_ptr());
         if (!const_node)
             return false;
 

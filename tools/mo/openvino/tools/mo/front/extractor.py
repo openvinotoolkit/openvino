@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import ast
@@ -780,7 +780,7 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
                                     refer_to_faq_msg(29), value['in'], node)
                     for u, v, attrs in in_edges:
                         if 'in' in attrs and attrs['in'] == value['in']:
-                            sinks.append(add_opoutput(graph, u, attrs['out']))
+                            sinks.append(add_opoutput(graph, u, attrs['out'], user_defined_name=node))
                 elif 'out' in value:
                     out_edges = list(graph.out_edges(node, data=True))
                     if len(out_edges) - 1 < value['out']:
@@ -788,9 +788,9 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
                                     refer_to_faq_msg(29), value['out'], node)
                     for u, v, attrs in out_edges:
                         if 'out' in attrs and attrs['out'] == value['out']:
-                            sinks.append(add_opoutput(graph, node, attrs['out']))
+                            sinks.append(add_opoutput(graph, node, attrs['out'], user_defined_name=node))
                 else:
-                    sinks.append(add_opoutput(graph, node, 0))
+                    sinks.append(add_opoutput(graph, node, 0, user_defined_name=node))
     return sinks
 
 
@@ -870,13 +870,16 @@ def add_input_op_input_port_with_data(graph: Graph, node_id: str, input_op, edge
     out_port.data.set_shape(input_node.soft_get('shape', None))
     input_data_node = input_node.out_node(0)
 
+    if 'fw_tensor_debug_info' in edge_attrs:
+        input_data_node['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
+
     log.debug('Input: {} for node {}'.format(input_node.id, node_id))
     log.debug("Add edge from {} to {}".format(input_node.id, input_data_node.id))
     log.debug("Add edge from {} to {}".format(input_data_node.id, node_id))
     return input_node.id
 
 
-def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, port: int):
+def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, port: int, fw_info: list):
     input_node = input_op.create_node()
     # In this case it can be more than one out edge from one port and we should iterate over all output edges
     for _, out_node, attrs in graph.out_edges(node_id, data=True):
@@ -884,17 +887,20 @@ def add_input_op_output_port_without_data(graph: Graph, node_id: str, input_op, 
             # new out port = 0
             attrs = attrs.copy()
             attrs['out'] = 0
+            attrs['fw_tensor_debug_info'] = fw_info
+            attrs['data_attrs'] = ['fw_tensor_debug_info']
             graph.add_edge(input_node.id, out_node, **attrs)
             log.debug('Input: {} for node {} output port {}'.format(input_node.id, node_id, port))
             log.debug("Add edge from {} to {}".format(input_node.id, out_node))
     return input_node.id
 
 
-def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, port: int):
+def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, port: int, fw_info: list):
     # we assume that after op always data node
     assert graph.stage == 'middle', 'add_input_op_input_port_with_data() function can be used only for graph after ' \
                                     'shape inference!'
     data_node = Node(graph, node_id).out_node(port)
+    data_node['fw_tensor_debug_info'] = fw_info
     assert data_node.has_valid('kind') and data_node.kind == 'data'
     input_node = input_op.create_node()
     Node(graph, node_id).out_port(port).get_connection().set_source(input_node.out_port(0))
@@ -924,21 +930,36 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     input_op = Parameter(graph, dict(shape=shape, user_shape=user_shape, data_type=data_type, initial_node_name=node_id,
                                      name=get_new_placeholder_name(node_id, is_out_port, port)))
 
-    fw_name = Node(graph, node_id).soft_get('name')
+    if is_out_port:
+        tensor_name = Node(graph, node_id).soft_get('name') + ":" + str(port)
+    else:
+        tensor_name = str(port) + ":" + Node(graph, node_id).soft_get('name')
+    fw_info = [(Node(graph, node_id).soft_get('name'), tensor_name)]
+
+    if not is_out_port and port == 0:
+        tensor_name_no_port = Node(graph, node_id).soft_get('name')
+        if graph.has_tensor_name(tensor_name_no_port):
+            log.warning('Could not add user defined input name {} to tensor names list of as '
+                        'graph contains tensor name with same name.'.format(tensor_name_no_port))
+        else:
+            # Add alias with operation name, as this format is used in some config files
+            fw_info.append((Node(graph, node_id).soft_get('name'), tensor_name_no_port))
+
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
-                  'fw_tensor_debug_info': [(fw_name, fw_name)],
+                  'fw_tensor_debug_info': fw_info,
                   'data_attrs': ['fw_tensor_debug_info']}
+
     if not data:
         if is_out_port:
             new_input_id = add_input_op_output_port_without_data(graph=graph, node_id=node_id, input_op=input_op,
-                                                                 port=port)
+                                                                 port=port, fw_info=edge_attrs['fw_tensor_debug_info'])
         else:
             new_input_id = add_input_op_input_port_without_data(graph=graph, node_id=node_id, input_op=input_op,
                                                                 edge_attrs=edge_attrs)
     else:
         if is_out_port:
             new_input_id = add_input_op_output_port_with_data(graph=graph, node_id=node_id, input_op=input_op,
-                                                              port=port)
+                                                              port=port, fw_info=edge_attrs['fw_tensor_debug_info'])
         else:
             new_input_id = add_input_op_input_port_with_data(graph=graph, node_id=node_id, input_op=input_op,
                                                              edge_attrs=edge_attrs)
@@ -962,12 +983,6 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
 
 def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                 inputs: list, edges_to_remove: list):
-    n_inputs = len(smart_node.in_nodes())
-    if n_inputs > 1 and port is not None and port != 0:
-        raise Error(
-            'Input port > 0 in --input is not supported if --input_shape is not provided. Node:'
-            ' "{}". Omit port index and all input ports will be replaced by placeholders. '
-            'Or provide --input_shape. ' + refer_to_faq_msg(31), node_id)
     port = port if port is not None else 0
     in_node = smart_node.in_node(port)
     shape = in_node['shape'] if 'shape' in in_node else None
@@ -1070,6 +1085,20 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         smart_node['data_type'] = data_type
                     inputs.append(node_id)
                     port_and_shape_info['added'] = True
+
+                    if smart_node.out_edges():
+                        # User specified input is Parameter, so input cut is not needed, but
+                        # Op name needs to be added to tensor names
+                        op_name = smart_node.soft_get('name')
+                        if graph.has_tensor_name(op_name):
+                            continue
+                        out_edges = list(graph.out_edges(op_name, data=True))
+                        for _, _, attrs in out_edges:
+                            fw_info = []
+                            if 'fw_tensor_debug_info' in attrs:
+                                fw_info += attrs['fw_tensor_debug_info']
+                            attrs['fw_tensor_debug_info'] = fw_info + [(op_name, op_name)]
+
                     continue
 
                 if before_infer:

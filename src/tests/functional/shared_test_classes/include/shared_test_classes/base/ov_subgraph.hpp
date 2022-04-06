@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape);
 
 using ElementType = ov::element::Type_t;
-using Config = std::map<std::string, std::string>;
+using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
 class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
@@ -26,15 +26,9 @@ public:
     virtual void serialize();
     virtual void query_model();
 
-    void TearDown() override {
-        if (!configuration.empty()) {
-            ov::test::utils::PluginCache::get().core().reset();
-        }
-    }
-
 protected:
-    virtual void compare(const std::vector<ov::runtime::Tensor> &expected,
-                         const std::vector<ov::runtime::Tensor> &actual);
+    virtual void compare(const std::vector<ov::Tensor> &expected,
+                         const std::vector<ov::Tensor> &actual);
 
     virtual void configure_model();
     virtual void compile_model();
@@ -45,26 +39,26 @@ protected:
 
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
-    std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
-    Config configuration;
+    ov::AnyMap configuration;
 
     std::shared_ptr<ov::Model> function, functionRefs = nullptr;
-    std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor> inputs;
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
+    std::vector<ov::PartialShape> inputDynamicShapes;
+    std::vector<std::vector<ov::Shape>> targetStaticShapes;
     ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
-    ov::runtime::CompiledModel executableNetwork;
-    ov::runtime::InferRequest inferRequest;
+    ov::CompiledModel compiledModel;
+    ov::InferRequest inferRequest;
 
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
 
-    virtual std::vector<ov::runtime::Tensor> calculate_refs();
-    virtual std::vector<ov::runtime::Tensor> get_plugin_outputs();
+    virtual std::vector<ov::Tensor> calculate_refs();
+    virtual std::vector<ov::Tensor> get_plugin_outputs();
 };
 
 inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {

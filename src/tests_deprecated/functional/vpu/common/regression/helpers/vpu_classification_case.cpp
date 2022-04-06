@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu_classification_case.hpp"
+#include "vpu/private_plugin_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
 //------------------------------------------------------------------------------
@@ -37,8 +38,8 @@ void VpuNoClassificationRegression::InitConfig() {
     VpuNoRegressionBase::InitConfig();
 
     if (resources_ != -1) {
-        config_["VPU_NUMBER_OF_CMX_SLICES"] = std::to_string(resources_);
-        config_["VPU_NUMBER_OF_SHAVES"] = std::to_string(resources_);
+        config_[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = std::to_string(resources_);
+        config_[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = std::to_string(resources_);
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();

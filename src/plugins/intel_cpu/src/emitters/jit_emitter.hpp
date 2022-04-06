@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,12 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <set>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -57,8 +58,8 @@ protected:
     size_t get_max_vecs_count() const;
     size_t get_vec_length() const;
 
-    mkldnn::impl::cpu::x64::jit_generator* h;
-    mkldnn::impl::cpu::x64::cpu_isa_t host_isa_;
+    dnnl::impl::cpu::x64::jit_generator* h;
+    dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
     InferenceEngine::Precision exec_prc_;
     Xbyak::Opmask k_mask;
 
@@ -86,12 +87,12 @@ protected:
     mutable std::shared_ptr<Xbyak::Label> l_table;
 
     enum {
-        _cmp_eq_oq = mkldnn::impl::cpu::x64::jit_generator::_cmp_eq_oq,
-        _cmp_neq_uq = mkldnn::impl::cpu::x64::jit_generator::_cmp_neq_uq,
-        _cmp_lt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_lt_os,
-        _cmp_le_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_le_os,
-        _cmp_ge_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nlt_us,
-        _cmp_gt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nle_us,
+        _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator::_cmp_eq_oq,
+        _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator::_cmp_neq_uq,
+        _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_lt_os,
+        _cmp_le_os = dnnl::impl::cpu::x64::jit_generator::_cmp_le_os,
+        _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nlt_us,
+        _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nle_us,
     };
 
     virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -153,4 +154,5 @@ private:
                                     const std::vector<size_t>&, const std::vector<size_t> &) const {}
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

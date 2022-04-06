@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ protected:
 
 TEST_P(ReluTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -103,7 +103,7 @@ TEST_P(ReluTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 16, 16 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+    { -1, -1, -1, -1 },
 };
 
 const std::vector<ReluTransformationTestValues> testValues = {
@@ -245,49 +245,6 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-};
-
-const std::vector<ReluTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ReluTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    ReluTransformation::getTestCaseName);
-}// namespace testValues2
-
-namespace testValues3 {
 const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {
     PartialShape::dynamic()
 };
@@ -315,5 +272,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(shapesWithDynamicRank),
         ::testing::ValuesIn(testValues)),
     ReluTransformation::getTestCaseName);
-} // namespace testValues3
+} // namespace testValues2
 } // namespace

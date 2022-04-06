@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/util/convert_color_nv12_base.hpp"
 
-#include <memory>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "openvino/core/layout.hpp"
 
 static const size_t N_DIM = 0;

@@ -1,11 +1,11 @@
-﻿# Copyright (C) 2018-2021 Intel Corporation
+﻿# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 find_package(PythonInterp 3 REQUIRED)
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-set(WHEEL_VERSION "${IE_VERSION}" CACHE STRING "Version of this release" FORCE)
-set(WHEEL_BUILD "${IE_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
+set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -25,7 +25,7 @@ endif()
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api)
-foreach(_target ov_runtime_libraries ie_plugins _pyngraph pyopenvino)
+foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins py_ov_frontends)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
     endif()

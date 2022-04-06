@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,6 @@ class ConvertTopKToTopKIEMatcher;
 
 class ngraph::pass::ConvertTopKToTopKIEMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTopKToTopKIEMatcher", "0");
     ConvertTopKToTopKIEMatcher();
 };

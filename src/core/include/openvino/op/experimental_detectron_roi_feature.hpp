@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronROIFeatureExtractor
 /// is the ROIAlign operation applied over a feature pyramid.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronROIFeatureExtractor : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,7 @@ NGRAPH_OP(Log, ngraph::op::v0)
 NGRAPH_OP(LogicalNot, ngraph::op::v1)
 NGRAPH_OP(Negative, ngraph::op::v0)
 NGRAPH_OP(Relu, ngraph::op::v0)
+NGRAPH_OP(Round, ngraph::op::v5)
 NGRAPH_OP(Selu, ngraph::op::v0)
 NGRAPH_OP(Sign, ngraph::op::v0)
 NGRAPH_OP(Sigmoid, ngraph::op::v0)

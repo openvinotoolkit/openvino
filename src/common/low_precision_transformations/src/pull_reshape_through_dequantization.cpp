@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullReshapeThroughDequantization, "PullReshapeThroughDequantizationFusion", 0);
 
 namespace pull_reshape_through_dequantization {
 namespace {
@@ -96,6 +95,7 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
     const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
     const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
 
+    MATCHER_SCOPE(PullReshapeThroughDequantization);
     const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
         ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
         ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
@@ -112,7 +112,7 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto reshape = opsMap.find(reshapeWrapper)->second.get_node()->shared_from_this();
+        auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
 
         auto child = reshape->get_output_target_inputs(0).begin()->get_node();
         if (ov::is_type<opset1::GroupConvolution>(child)) {
@@ -136,6 +136,6 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshapeWrapper, "PullReshapeThroughDequantization");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshapeWrapper, matcher_name);
     this->register_matcher(m, callback);
 }

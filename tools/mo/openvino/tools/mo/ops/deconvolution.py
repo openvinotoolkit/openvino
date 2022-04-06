@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -59,6 +59,9 @@ class Deconvolution(Op):
 
         if not node.has_valid('dilation'):
             node['dilation'] = np.full([len(output_shape)], 1, dtype=np.int64)
+
+        if node.has_valid('get_group'):
+            node['group'] = node.get_group(node)
 
         spatial_dims = node.spatial_dims
         output_spatial = shape_array(output_shape[spatial_dims])

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     size_t feature_block_size = 1;
     std::vector<size_t> preferred_sizes = { 32, 16, 8 };
     for (auto& s : preferred_sizes)
-        if (params.output.Feature().v % s == 0)
+        if (params.outputs[0].Feature().v % s == 0)
             return s;
-    if (params.output.Feature().v < max_size)
-        return params.output.Feature().v;
-    for (size_t f = 1; f <= params.output.Feature().v && f <= max_size; f++)
-        if (params.output.Feature().v % f == 0)
+    if (params.outputs[0].Feature().v < max_size)
+        return params.outputs[0].Feature().v;
+    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++)
+        if (params.outputs[0].Feature().v % f == 0)
             feature_block_size = f;
     return std::max(feature_block_size, min_size);
 }
@@ -50,10 +50,10 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
 ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = arg.output;
+    const auto& out = arg.outputs[0];
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR) {
         dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
@@ -118,7 +118,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto align_corners = params.align_corners;
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
@@ -213,14 +213,14 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
-        if (params.output.Feature().v % feature_block_size != 0) {
+        if (params.outputs[0].Feature().v % feature_block_size != 0) {
             jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
-            jit.AddConstant(MakeJitConstant("FEATURE_LEFTOVER", params.output.Feature().v % feature_block_size));
+            jit.AddConstant(MakeJitConstant("FEATURE_LEFTOVER", params.outputs[0].Feature().v % feature_block_size));
         }
     }
 
     if (params.resampleType == ResampleType::BILINEAR_INTERP || params.resampleType == ResampleType::LINEAR_ONNX) {
-        if (params.output.X().v % 32 != 0) {
+        if (params.outputs[0].X().v % 32 != 0) {
             jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
         }
     }

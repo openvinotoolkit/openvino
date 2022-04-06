@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FoldFakeQuantizeTransformation, "FoldFakeQuantizeTransformation", 0);
-
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FoldFakeQuantizeTransformation);
     auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -28,7 +28,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, "FoldFakeQuantizeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fakeQuantize, matcher_name);
     this->register_matcher(m, callback);
 }
 

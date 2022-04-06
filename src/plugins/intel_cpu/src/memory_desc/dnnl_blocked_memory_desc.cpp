@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,10 @@
 #include <dnnl_types.h>
 #include <common/memory_desc_wrapper.hpp>
 
-using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
@@ -18,11 +20,11 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
         if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0; } )) {
             IE_THROW() << "Can't create DnnlBlockedMemoryDesc with zero dim, but with non zero strides";
         }
-        desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims),
-                MKLDNNExtensionUtils::IEPrecisionToDataType(prc),
-                MKLDNNExtensionUtils::convertToDnnlDims(strides)};
+        desc = {DnnlExtensionUtils::convertToDnnlDims(dims),
+                DnnlExtensionUtils::IEPrecisionToDataType(prc),
+                DnnlExtensionUtils::convertToDnnlDims(strides)};
     } else {
-        mkldnn::memory::dims plain_strides;
+        dnnl::memory::dims plain_strides;
         if (shape.hasZeroDims()) {
             plain_strides.resize(ndims, 0);
         } else if (std::any_of(dims.begin(), dims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
@@ -34,7 +36,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             }
         }
 
-        desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims), MKLDNNExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
+        desc = {DnnlExtensionUtils::convertToDnnlDims(dims), DnnlExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
     }
 
     order.resize(ndims);
@@ -65,17 +67,17 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                                              const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                                              const VectorDims& strides) : MemoryDesc(shape, DnnlBlocked) {
-    using namespace mkldnn;
+    using namespace dnnl;
     // scalar case
     if (shape.getRank() == 0) {
         desc.data.format_kind = dnnl_blocked;
-        desc.data.data_type = memory::convert_to_c(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+        desc.data.data_type = memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(prc));
         desc.data.ndims = 1;
         desc.data.dims[0] = 1;
         desc.data.padded_dims[0] = 1;
         desc.data.format_desc.blocking.strides[0] = 1;
         desc.data.padded_offsets[0] = 0;
-        desc.data.offset0 = MKLDNNExtensionUtils::convertToDnnlDim(offsetPadding);
+        desc.data.offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
         return;
     }
 
@@ -99,7 +101,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
         IE_THROW() << "DnnlBlockedMemoryDesc doesn't support undefined or zero blockedDims.";
     }
 
-    auto dims = MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims());
+    auto dims = DnnlExtensionUtils::convertToDnnlDims(shape.getDims());
 
     size_t outer_ndims = dims.size();
 
@@ -141,9 +143,9 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     // Fill general memory desc fields
     desc.data.format_kind = dnnl_blocked;
     desc.data.extra.flags = 0;
-    desc.data.data_type = memory::convert_to_c(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+    desc.data.data_type = memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(prc));
     desc.data.ndims = dims.size();
-    desc.data.offset0 = MKLDNNExtensionUtils::convertToDnnlDim(offsetPadding);
+    desc.data.offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.data.dims);
 
     if (!offsetPaddingToData.empty()) {
@@ -152,14 +154,14 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 
         if (!inner_pad_offsets_is_zero)
             IE_THROW() << "Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: " << vec2str(offsetPaddingToData);
-        auto dnnlPaddedOffsets = MKLDNNExtensionUtils::convertToDnnlDims(offsetPaddingToData);
+        auto dnnlPaddedOffsets = DnnlExtensionUtils::convertToDnnlDims(offsetPaddingToData);
         std::copy(dnnlPaddedOffsets.begin(), dnnlPaddedOffsets.begin() + outer_ndims, desc.data.padded_offsets);
     } else {
         std::fill(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + outer_ndims, 0);
     }
 
     std::fill(desc.data.padded_dims, desc.data.padded_dims + outer_ndims, 1);
-    auto dnnlBlkDims = MKLDNNExtensionUtils::convertToDnnlDims(blockedDims);
+    auto dnnlBlkDims = DnnlExtensionUtils::convertToDnnlDims(blockedDims);
 
     for (size_t i = 0; i < order.size(); i++) {
         auto idx = order[i];
@@ -184,31 +186,31 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
         this->recomputeDefaultStrides();
     } else {
         for (size_t i = 0; i < outer_ndims; i++) {
-            auto dnnlStrides = MKLDNNExtensionUtils::convertToDnnlDims(strides);
+            auto dnnlStrides = DnnlExtensionUtils::convertToDnnlDims(strides);
             dnn_blk_desc.strides[order[i]] = dnnlStrides[i];
         }
         initStrides();
     }
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format) :
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, dnnl::memory::data_type dataType, dnnl::memory::format_tag format) :
         MemoryDesc(shape, DnnlBlocked) {
-    using namespace mkldnn;
+    using namespace dnnl;
     if (format == memory::format_tag::any || format == memory::format_tag::undef)
-        IE_THROW(Unexpected) << "Can't create mkldnn::desc with any or undef format";
+        IE_THROW(Unexpected) << "Can't create dnnl::desc with any or undef format";
 
     const auto dims = shape.getDims();
     if (format == memory::format_tag::x && shape.getRank() == 0) {
-        desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
+        desc = dnnl::memory::desc(dnnl::memory::dims(1, 1), dataType, format);
     } else {
-        desc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(dims), dataType, format);
+        desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dims), dataType, format);
     }
 
     VectorDims perm;
     VectorDims inner_blks;
     VectorDims inner_idxs;
 
-    mkldnn::impl::memory_desc_wrapper::compute_blocking(mkldnn::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
+    dnnl::impl::memory_desc_wrapper::compute_blocking(dnnl::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
 
     order.swap(perm);
     order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
@@ -231,11 +233,21 @@ bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs) const {
-    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatible(rhs);
+bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else {
+        return false;
+    }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
+    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
+}
+
+bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     using namespace dnnl;
     using namespace impl;
     using namespace impl::utils;
@@ -243,6 +255,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
         return false;
     }
 
+    // TODO: do we really need this check, seems the code below does the same thing
     if (this->desc == rhs.desc) {
         return true;
     }
@@ -251,17 +264,18 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = 0;
+    const uint64_t stride_mask = (0xffffffffffffffff << cmpMask.size()) | cmpMask.to_ullong();
+    const bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
     return this->getOrder() == rhs.getOrder() && (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
-           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
+           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, true, checkOffset, stride_mask);
 }
 
-static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
+static VectorDims extractOrder(const dnnl::memory::desc& desc) {
     const auto dims = desc.dims();
-    mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(desc.data);
 
     if (descWrapped.has_runtime_dims_or_strides()) {
         IE_THROW(Unexpected) << "Cannot calculate order from undefined dims or strides";
@@ -300,13 +314,13 @@ static VectorDims extractOrder(const mkldnn::memory::desc& desc) {
     return blk_order;
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) :
-                MemoryDesc(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
+                MemoryDesc(DnnlExtensionUtils::convertToVectorDims(mdesc.dims()), DnnlBlocked) {
     desc = mdesc;
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 
-    mkldnn::impl::memory_desc_wrapper descWrapped(desc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(desc.data);
     if (!descWrapped.is_blocking_desc())
         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 
@@ -386,11 +400,11 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
-static mkldnn::memory::desc cloneDescWithNewDims(const mkldnn::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
+static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
     using namespace dnnl::impl::utils;
-    auto mklDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
+    auto mklDims = DnnlExtensionUtils::convertToDnnlDims(dims);
     const auto offsetPadding = desc.data.offset0;
-    mkldnn::memory::desc newMklDesc = desc;
+    dnnl::memory::desc newMklDesc = desc;
     array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
     std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
     auto& blockingDesc = newMklDesc.data.format_desc.blocking;
@@ -426,8 +440,8 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
-bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
-    mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
+bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
+    dnnl::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
 
     if (desc.data.ndims != refDesc.data.ndims)
         return false;
@@ -550,7 +564,7 @@ void DnnlBlockedMemoryDesc::initBlockDims() {
     }
     // blocked dims
     // [dims via new_outer_order with auto pad] U [inner_blk_dims]
-    VectorDims outer_block_dims = MKLDNNExtensionUtils::convertToVectorDims(dims);
+    VectorDims outer_block_dims = DnnlExtensionUtils::convertToVectorDims(dims);
     for (size_t i = 0; i < outer_block_dims.size(); i++) {
         if (outer_block_dims[i] != Shape::UNDEFINED_DIM) {
             outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
@@ -599,24 +613,6 @@ void DnnlBlockedMemoryDesc::initOffsetPadding() {
     offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
 }
 
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    auto &dnnlBlkDesc = newDesc->desc.data.format_desc.blocking;
-    std::fill(std::begin(dnnlBlkDesc.strides), std::begin(dnnlBlkDesc.strides) + getShape().getRank(), DNNL_RUNTIME_DIM_VAL);
-    newDesc->initStrides();
-    newDesc->desc.data.offset0 = DNNL_RUNTIME_DIM_VAL;
-    newDesc->status = descStatus::Undefined;
-    return newDesc;
-}
-
-MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
-    DnnlBlockedMemoryDescPtr newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    newDesc->recomputeDefaultStrides();
-    newDesc->desc.data.offset0 = 0;
-    newDesc->status = descStatus::Unknown;
-    return newDesc;
-}
-
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
     auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
@@ -647,16 +643,16 @@ void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
     }
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape) :
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const Shape& shape) :
         MemoryDesc(shape, DnnlBlocked) {
     if (mdesc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 
-    mkldnn::impl::memory_desc_wrapper descWrapped(mdesc.data);
+    dnnl::impl::memory_desc_wrapper descWrapped(mdesc.data);
     if (!descWrapped.is_blocking_desc())
         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
 
-    if (!shape.isCompatible(MKLDNNExtensionUtils::convertToVectorDims(mdesc.dims()))) {
+    if (!shape.isCompatible(DnnlExtensionUtils::convertToVectorDims(mdesc.dims()))) {
         IE_THROW(ParameterMismatch) << "Can not create DnnlBlockedMemoryDesc. memory::desc dims: " << vec2str(mdesc.dims()) <<
                                     " are incompatible with provided shape: " << shape.toString() << ".";
     }
@@ -676,3 +672,6 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, 
 std::string DnnlBlockedMemoryDesc::serializeFormat() const {
     return BlockedMemoryDesc::serializeFormat();
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

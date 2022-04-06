@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -10,14 +10,17 @@ import networkx as nx
 
 from openvino.tools.mo.back.RemoveUselessConvert import RemoveUselessConvert
 from openvino.tools.mo.back.ResultRename import ResultRename
+from openvino.tools.mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, \
+    serialize_mean_image
 from openvino.tools.mo.back.op_versioning import OpVersioning
-from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes import tensor_names, convert_data_type
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.passes.infer import type_infer
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
 
 
@@ -171,9 +174,28 @@ def convert_inputs_of_specific_ops(graph: Graph):
                         in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
 
+def set_default_tensor_names_for_parameters_results(graph: Graph):
+    for node in graph.get_op_nodes():
+        if node.soft_get('type') == 'Result' and node.is_in_port_connected(0):
+            port = node.in_port(0).get_connection().get_source()
+        elif node.soft_get('type') == 'Parameter' and node.is_out_port_connected(0):
+            port = node.out_port(0)
+        else:
+            continue
+        if node.has_and_set('keep_output_port'):
+            continue
+
+        tensors = port.get_tensor_names()
+        if tensors is not None and isinstance(tensors, list) and len(tensors) > 0:
+            continue
+        new_tensor_name = port.get_default_tensor_name()
+        op_name = port.node.soft_get('name')
+        port.add_tensor_names([new_tensor_name, op_name])
+
+
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
-                    use_temporary_path=False, convert_types=False):
+                    use_temporary_path=False, convert_types=False, rename_results=True):
     if input_names is None:
         input_names = []
     if meta_info is None:
@@ -198,7 +220,9 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
 
     for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
-    ResultRename().find_and_replace_pattern(graph)
+    if rename_results:
+        ResultRename().find_and_replace_pattern(graph)
+    set_default_tensor_names_for_parameters_results(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))

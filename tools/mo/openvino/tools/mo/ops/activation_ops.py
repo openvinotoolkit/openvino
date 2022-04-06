@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.clamp import AttributedClamp
 from openvino.tools.mo.ops.op import Op
@@ -24,6 +25,7 @@ class Activation(Op):
             'operation': self.operation,
             'version': self.version,
             'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -289,6 +291,6 @@ class Swish(Op):
                 assert beta.ndim == 0, 'The "beta" value for node {} must be a scalar'.format(node_name)
                 beta = beta.item()
 
-        input_value = node.in_port(1).data.get_value()
+        input_value = node.in_port(0).data.get_value()
         if input_value is not None and beta is not None:
             node.out_port(0).data.set_value(input_value / (1.0 + np.exp(-input_value * beta)))

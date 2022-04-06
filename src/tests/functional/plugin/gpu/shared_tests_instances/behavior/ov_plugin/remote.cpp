@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,19 +8,22 @@
 using namespace ov::test;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs;
+const std::vector<ov::AnyMap> configs;
 
 
-std::vector<std::pair<ov::runtime::ParamMap, ov::runtime::ParamMap>> generate_remote_params() {
+std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
         return {};
 }
 
-const std::vector<std::map<std::string, std::string>> MultiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
+const std::vector<ov::AnyMap> MultiConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
-const std::vector<std::map<std::string, std::string>> AutoBatchConfigs = {
-        {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
+const std::vector<ov::AnyMap> AutoBatchConfigs = {
+        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_GPU) + "(4)"},
+                // no timeout to avoid increasing the test time
+                {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0 "}}
 };
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests, OVRemoteTest,

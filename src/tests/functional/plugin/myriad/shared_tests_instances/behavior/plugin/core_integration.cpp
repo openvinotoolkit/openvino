@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <functional_test_utils/skip_tests_config.hpp>
+#include <openvino/runtime/properties.hpp>
 #include "behavior/plugin/core_integration.hpp"
 #include "common_test_utils/file_utils.hpp"
 
@@ -16,7 +17,7 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("ov_intel_vpu_plugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
+        std::make_pair(std::string("openvino_intel_myriad_plugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
 };
 
 //
@@ -45,8 +46,13 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ASSERT_NO_THROW(optimizationCapabilitiesParameter = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
-    ASSERT_EQ(optimizationCapabilities.size(), 1);
-    ASSERT_EQ(optimizationCapabilities.front(), METRIC_VALUE(FP16));
+    ASSERT_EQ(optimizationCapabilities.size(), 2);
+    ASSERT_NE(std::find(optimizationCapabilities.begin(),
+                        optimizationCapabilities.end(),
+                        ov::device::capability::EXPORT_IMPORT),
+              optimizationCapabilities.end());
+    ASSERT_NE(std::find(optimizationCapabilities.begin(), optimizationCapabilities.end(), ov::device::capability::FP16),
+              optimizationCapabilities.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(

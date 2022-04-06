@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and openvino types."""
@@ -8,9 +8,8 @@ from typing import List, Union
 
 import numpy as np
 
-from openvino.runtime.exceptions import NgraphTypeError
-from openvino.runtime import Node, Shape, Output
-from openvino.runtime import Type as NgraphType
+from openvino.runtime.exceptions import OVTypeError
+from openvino.runtime import Node, Shape, Output, Type
 from openvino.runtime.op import Constant
 
 log = logging.getLogger(__name__)
@@ -22,19 +21,19 @@ ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
 openvino_to_numpy_types_map = [
-    (NgraphType.boolean, np.bool),
-    (NgraphType.f16, np.float16),
-    (NgraphType.f32, np.float32),
-    (NgraphType.f64, np.float64),
-    (NgraphType.i8, np.int8),
-    (NgraphType.i16, np.int16),
-    (NgraphType.i32, np.int32),
-    (NgraphType.i64, np.int64),
-    (NgraphType.u8, np.uint8),
-    (NgraphType.u16, np.uint16),
-    (NgraphType.u32, np.uint32),
-    (NgraphType.u64, np.uint64),
-    (NgraphType.bf16, np.uint16),
+    (Type.boolean, np.bool),
+    (Type.f16, np.float16),
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.i8, np.int8),
+    (Type.i16, np.int16),
+    (Type.i32, np.int32),
+    (Type.i64, np.int64),
+    (Type.u8, np.uint8),
+    (Type.u16, np.uint16),
+    (Type.u32, np.uint32),
+    (Type.u64, np.uint64),
+    (Type.bf16, np.uint16),
 ]
 
 openvino_to_numpy_types_str_map = [
@@ -53,23 +52,23 @@ openvino_to_numpy_types_str_map = [
 ]
 
 
-def get_element_type(data_type: NumericType) -> NgraphType:
+def get_element_type(data_type: NumericType) -> Type:
     """Return an ngraph element type for a Python type or numpy.dtype."""
     if data_type is int:
         log.warning("Converting int type of undefined bitwidth to 32-bit ngraph integer.")
-        return NgraphType.i32
+        return Type.i32
 
     if data_type is float:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
-        return NgraphType.f32
+        return Type.f32
 
-    ng_type = next(
-        (ng_type for (ng_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None
+    ov_type = next(
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None
     )
-    if ng_type:
-        return ng_type
+    if ov_type:
+        return ov_type
 
-    raise NgraphTypeError("Unidentified data type %s", data_type)
+    raise OVTypeError("Unidentified data type %s", data_type)
 
 
 def get_element_type_str(data_type: NumericType) -> str:
@@ -82,27 +81,27 @@ def get_element_type_str(data_type: NumericType) -> str:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
 
-    ng_type = next(
-        (ng_type for (ng_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
+    ov_type = next(
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
         None,
     )
-    if ng_type:
-        return ng_type
+    if ov_type:
+        return ov_type
 
-    raise NgraphTypeError("Unidentified data type %s", data_type)
+    raise OVTypeError("Unidentified data type %s", data_type)
 
 
-def get_dtype(ngraph_type: NgraphType) -> np.dtype:
-    """Return a numpy.dtype for an ngraph element type."""
+def get_dtype(openvino_type: Type) -> np.dtype:
+    """Return a numpy.dtype for an openvino element type."""
     np_type = next(
-        (np_type for (ng_type, np_type) in openvino_to_numpy_types_map if ng_type == ngraph_type),
+        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
         None,
     )
 
     if np_type:
         return np.dtype(np_type)
 
-    raise NgraphTypeError("Unidentified data type %s", ngraph_type)
+    raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
 def get_ndarray(data: NumericData) -> np.ndarray:
@@ -121,11 +120,11 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
-    """Return an ngraph Constant node with the specified value."""
+def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None) -> Constant:
+    """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
-    if dtype:
-        element_type = get_element_type(dtype)
+    if dtype is not None:
+        element_type = get_element_type(dtype) if isinstance(dtype, (type, np.dtype)) else dtype
     else:
         element_type = get_element_type(ndarray.dtype)
 

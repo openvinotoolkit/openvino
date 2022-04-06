@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceLoadsWithScalarLoads_callback")
             auto root = m.get_match_root();
+            if (transformation_callback(root))
+                return false;
             auto load = std::make_shared<ngraph::snippets::op::ScalarLoad> (root->input_value(0));
             load->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, load);
@@ -33,6 +35,8 @@ ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarSt
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceStoresWithScalarStores_callback")
             auto root = m.get_match_root();
+            if (transformation_callback(root))
+                return false;
             auto store = std::make_shared<ngraph::snippets::op::ScalarStore> (root->input_value(0));
             store->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, store);

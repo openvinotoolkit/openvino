@@ -1,4 +1,4 @@
-# Convert TensorFlow* XLNet Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
+# Convert TensorFlow XLNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
 
 Pre-trained models for XLNet (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/zihangdai/xlnet).
@@ -16,8 +16,8 @@ Download and unzip an archive with the [XLNet-Base, Cased](https://storage.googl
 
 After the archive is unzipped, the directory `cased_L-12_H-768_A-12` is created and contains the following files:
 * TensorFlow checkpoint (`xlnet_model.ckpt`) containing the pre-trained weights (which is actually 3 files)
-* sentence piece model (`spiece.model`) used for (de)tokenization 
-* config file (`xlnet_config.json`) which specifies the hyperparameters of the model 
+* sentence piece model (`spiece.model`) used for (de)tokenization
+* config file (`xlnet_config.json`) which specifies the hyperparameters of the model
 
 To get pb-file from the archive contents, you need to do the following.
 
@@ -33,7 +33,7 @@ To get pb-file from the archive contents, you need to do the following.
    mkdir try_save
 ```
 
-   
+
 
 2. Save and run the following Python script in `~/XLNet-Base/xlnet`:
 
@@ -102,8 +102,8 @@ Download and unzip an archive with the [XLNet-Large, Cased](https://storage.goog
 After the archive is unzipped, the directory `cased_L-12_H-1024_A-16` is created and contains the following files:
 
 * TensorFlow checkpoint (`xlnet_model.ckpt`) containing the pre-trained weights (which is actually 3 files)
-* sentence piece model (`spiece.model`) used for (de)tokenization 
-* config file (`xlnet_config.json`) which specifies the hyperparameters of the model 
+* sentence piece model (`spiece.model`) used for (de)tokenization
+* config file (`xlnet_config.json`) which specifies the hyperparameters of the model
 
 To get pb-file from the archive contents, you need to do the following.
 

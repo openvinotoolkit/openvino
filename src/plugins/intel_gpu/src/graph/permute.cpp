@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,20 +24,26 @@ layout permute_inst::calc_output_layout(permute_node const& node) {
            "Output data type forcing is not supported for permute_node!");
     auto input_layout = node.input().get_output_layout();
     auto permute_order = node.get_primitive()->permute_order;
-    std::vector<tensor::value_type> output_sizes;
+    std::vector<tensor::value_type> output_shape;
+
+    auto input_shape = input_layout.get_dims();
 
     for (size_t x = 0; x < permute_order.size(); x++) {
-        output_sizes.push_back(input_layout.size.raw[permute_order[x]]);
+        output_shape.push_back(input_shape[permute_order[x]]);
     }
 
-    auto input_size = tensor(output_sizes);
+    for (size_t i = output_shape.size(); i < 4; i++) {
+        output_shape.push_back(1);
+    }
+
+    auto output_size = tensor(format::get_default_format(input_layout.get_rank()), output_shape);
     auto op = node.get_primitive()->output_padding;
 
     if (node.has_fused_primitives()) {
         input_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
-    return layout(input_layout.data_type, input_layout.format, input_size, op);
+    return layout(input_layout.data_type, input_layout.format, output_size, op);
 }
 
 std::string permute_inst::to_string(permute_node const& node) {
@@ -66,13 +72,6 @@ std::string permute_inst::to_string(permute_node const& node) {
 
 permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
     auto permute_order = argument.permute_order;
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Permute order size",
-                          permute_order.size(),
-                          "minimum order size",
-                          4,
-                          "Permute order size needs to be at least 4.");
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
 

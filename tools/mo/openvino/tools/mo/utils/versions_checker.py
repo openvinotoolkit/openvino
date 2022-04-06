@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -8,17 +8,19 @@ import sys
 from distutils.version import LooseVersion
 from pathlib import Path
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 modules = {
     "protobuf": "google.protobuf",
     "test-generator": "generator",
+    "openvino-telemetry": "openvino_telemetry"
 }
 critical_modules = ["networkx", "defusedxml", "numpy"]
 
 message = "\nDetected not satisfied dependencies:\n" \
           "{}\n" \
-          "Please install required versions of components or use install_prerequisites script\n" \
-          "{}\n" \
-          "Note that install_prerequisites scripts may install additional components."
+          "Please install required versions of components or run pip installation\n{}"
 
 
 def get_imported_module_version(imported_module):
@@ -287,9 +289,17 @@ def check_requirements(framework=None):
             continue
 
     if len(not_satisfied_versions) != 0:
-        extension = 'bat' if os.name == 'nt' else 'sh'
-        install_file = 'install_prerequisites{0}.{1}'.format(framework_suffix, extension)
-        helper_command = os.path.join(os.path.dirname(requirements_file), 'install_prerequisites', install_file)
+
+        if framework == 'tf':
+            extra = '[tensorflow]'
+        elif framework == 'tf2':
+            extra = '[tensorflow2]'
+        elif framework is None:
+            extra = ''
+        else:
+            extra = '[{}]'.format(framework)
+        helper_command = "pip install openvino-dev{}".format(extra)
+
         missed_modules_message = ""
         for module in not_satisfied_versions:
             missed_modules_message += "\t{}: {}, {}\n".format(module[0], module[1], module[2])

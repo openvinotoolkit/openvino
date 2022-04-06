@@ -34,8 +34,8 @@ namespace GNAPluginNS {
  */
 class Unfuse2dto4dReshapeAndTranspose : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  Unfuse2dto4dReshapeAndTranspose();
+    OPENVINO_RTTI("Unfuse2dto4dReshapeAndTranspose", "0");
+    Unfuse2dto4dReshapeAndTranspose();
 };
 
 /**
@@ -65,8 +65,8 @@ public:
  */
 class Unfuse4dto2dReshapeAndTranspose : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
-  Unfuse4dto2dReshapeAndTranspose();
+    OPENVINO_RTTI("Unfuse4dto2dReshapeAndTranspose", "0");
+    Unfuse4dto2dReshapeAndTranspose();
 };
 
-} // namespace GNAPluginNS
+}  // namespace GNAPluginNS

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,7 +210,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto num_classes = detectOutParams.detectOutParams.num_classes;
     auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
     auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
+    auto max_wg = detectOutParams.engineInfo.maxWorkGroupSize;
 
+    constexpr size_t stack_size = 100;   // The size of stack for QuickSort
     constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
@@ -228,6 +230,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
         auto cldnnJit = GetJitConstants(detectOutParams);
         auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
+        cldnnJit.AddConstant(MakeJitConstant("QUICK_SORT_STACK_SIZE", stack_size));
         if (i == 0) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
@@ -238,37 +241,80 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                     cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true")});
                 }
                 size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
-                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, 256), 8);
+                size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, max_wg), 8);
                 size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
                 cldnnJit.AddConstants({MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
                                        MakeJitConstant("NUM_PRIORS_PER_ITEM", num_score_per_item),
                                        MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
             }
         } else if (i == 1) {
-             if (detectOutParams.detectOutParams.decrease_label_id) {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                // Always use local memory since LWS size is 1x1x16 (16 WI * 100 (stack size) * 4 (int size) = 6.25 KB of SLM memory)
+                cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
-             } else {
+            } else {
+                // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
+                //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
+                auto req_local_mem_size = dispatchData.lws[1] * dispatchData.lws[2] * 2 * 4 +
+                                          dispatchData.lws[1] * dispatchData.lws[2] * stack_size * 4;
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                    cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
-             }
-         } else if (i == 2) {
+            }
+        } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
                 if (detectOutParams.detectOutParams.top_k > 0) {
+                    auto estimateRegPressure = [&]() {
+                        // Assume that the kernel is compiled with SIMD16 instuctions
+                        const size_t simd = 16;
+                        const size_t reg_num = 128;
+                        const size_t bytes_per_reg = 32;
+                        const size_t max_reg_bytes = reg_num * bytes_per_reg;
+
+                        size_t bytes_used = 0;
+                        const auto num_prior_boxes = detectOutParams.inputs[1].Feature().v / detectOutParams.detectOutParams.num_classes;
+                        const auto top_k = std::min(detectOutParams.detectOutParams.top_k, (int32_t)num_prior_boxes);
+
+                        // Memory buffer for decoded_bboxes array
+                        bytes_used += top_k * 4 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Memory buffer for decoded_bbox_cur and decoded_bbox_kept arrays
+                        bytes_used += 8 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Memory for get_decoded_bbox function execution
+                        bytes_used += (4 * BytesPerElement(detectOutParams.inputs[2].GetDType()) + 12 * 4);
+                        // Memory for jaccardOverlap function execution
+                        bytes_used += 5 * BytesPerElement(detectOutParams.inputs[0].GetDType());
+                        // Approximate amount of additional memory for local variables
+                        bytes_used += 10 * 4;
+                        bytes_used *= simd;
+
+                        return static_cast<float>(bytes_used) / static_cast<float>(max_reg_bytes);
+                    };
+
+                    if (estimateRegPressure() > 0.8)
+                        cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY", "true"));
+
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true"));
                 } else {
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
                 }
             }
-         } else {
+        } else {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+                // Always use local memory since LWS size is 1x1x1
+                cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
             } else {
+                // Limit local memory usage for stack buffer [LWS0 * 100 (stack_size) * 4 (int size) bytes]
+                auto req_local_mem_size = dispatchData.lws[0] * stack_size * 4;
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                    cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
             }

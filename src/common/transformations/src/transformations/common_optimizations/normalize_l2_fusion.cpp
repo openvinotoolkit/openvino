@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
+#include "itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
@@ -37,9 +35,12 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto exp_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+        const auto exp_input =
+            std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
+        const auto axes_input =
+            std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
+        const auto eps_attr =
+            std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
 
         if (!exp_input || !axes_input || !eps_attr) {
             return false;
@@ -75,9 +76,8 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
                                    pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
                                    pattern_to_output.at(sqrt).get_node_shared_ptr(),
                                    pattern_to_output.at(divide).get_node_shared_ptr(),
-                                   eps_node.get_node_shared_ptr()
-                                   },
-                                   normalize_l2);
+                                   eps_node.get_node_shared_ptr()},
+                                  normalize_l2);
         ngraph::replace_node(m.get_match_root(), normalize_l2);
         return true;
     };

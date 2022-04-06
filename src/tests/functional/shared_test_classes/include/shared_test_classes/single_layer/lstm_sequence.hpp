@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,6 @@ protected:
     void GenerateInputs() override;
     void SetUp() override;
 
-private:
     ngraph::helpers::SequenceTestsMode m_mode;
     int64_t m_max_seq_len = 0;
 };

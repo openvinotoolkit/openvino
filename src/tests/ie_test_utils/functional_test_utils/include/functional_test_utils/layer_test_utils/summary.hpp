@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,21 +30,24 @@ struct PassRate {
         PASSED,
         FAILED,
         SKIPPED,
-        CRASHED
+        CRASHED,
+        HANGED
     };
     unsigned long passed = 0;
     unsigned long failed = 0;
     unsigned long skipped = 0;
     unsigned long crashed = 0;
+    unsigned long hanged = 0;
     bool isImplemented = false;
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h) {
         passed = p;
         failed = f;
         skipped = s;
         crashed = c;
+        hanged = h;
         if (!isImplemented && passed > 0) {
             isImplemented = true;
         }
@@ -55,10 +58,10 @@ struct PassRate {
     }
 
     float getPassrate() const {
-        if (passed + failed + crashed == 0) {
+        if (passed + failed + crashed + hanged == 0) {
             return 0.f;
         } else {
-            return passed * 100.f / (passed + failed + skipped + crashed);
+            return passed * 100.f / (passed + failed + skipped + crashed + hanged);
         }
     }
 };
@@ -72,6 +75,7 @@ private:
     bool isReported = false;
     static size_t saveReportTimeout;
     static bool extendReport;
+    static bool extractBody;
     static bool saveReportWithUniqueName;
     static const char *outputFolder;
     std::vector<ngraph::OpSet> opsets;
@@ -109,21 +113,21 @@ public:
 
     #ifdef IE_TEST_DEBUG
     void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
-                        unsigned long skipped, unsigned long crashed);
+                         unsigned long skipped, unsigned long crashed, unsigned long hanged);
     #endif  //IE_TEST_DEBUG
 
     void saveReport();
 
-    static void setExtendReport(bool val) { extendReport = val; }
+    static void setExtractBody(bool val) { extractBody = val; }
+    static bool getExtractBody() { return extractBody; }
 
+    static void setExtendReport(bool val) { extendReport = val; }
     static bool getExtendReport() { return extendReport; }
 
     static void setSaveReportWithUniqueName(bool val) { saveReportWithUniqueName = val; }
-
     static bool getSaveReportWithUniqueName() { return saveReportWithUniqueName; }
 
     static void setSaveReportTimeout(size_t val) { saveReportTimeout = val; }
-
     static size_t getSaveReportTimeout() { return saveReportTimeout; }
 
     static void setOutputFolder(const std::string &val) { outputFolder = val.c_str(); }

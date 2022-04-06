@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,13 +49,18 @@ struct one_hot : public primitive_base<one_hot> {
     one_hot(const primitive_id& id,
             const primitive_id& input,
             const tensor& shape,
-            const uint16_t& one_hot_axis,
+            const int64_t& one_hot_axis,
+            const int64_t& depth,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), shape(shape), one_hot_axis(one_hot_axis),
-          on_value(on_value), off_value(off_value) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        , shape(shape)
+        , one_hot_axis(one_hot_axis)
+        , depth(depth)
+        , on_value(on_value)
+        , off_value(off_value) {}
 
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
@@ -68,18 +73,25 @@ struct one_hot : public primitive_base<one_hot> {
             const primitive_id& input,
             const tensor& shape,
             const data_types output_dt,
-            const uint16_t& one_hot_axis,
+            const int64_t& one_hot_axis,
+            const int64_t& depth,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_dt}), shape(shape), one_hot_axis(one_hot_axis),
-          on_value(on_value), off_value(off_value) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_dt})
+        , shape(shape)
+        , one_hot_axis(one_hot_axis)
+        , depth(depth)
+        , on_value(on_value)
+        , off_value(off_value) {}
 
     /// @brief Output size reference.
     tensor shape;
     /// @brief One-hot axis position in output shape (0-based, from left to right).
-    uint16_t one_hot_axis;
+    int64_t one_hot_axis;
+    /// @brief The number of classes and thus the size of the one-hot dimension
+    int64_t depth;
     /// @brief The locations represented by indices in indices take this value.
     float on_value;
     /// @brief all other locations take value this value.

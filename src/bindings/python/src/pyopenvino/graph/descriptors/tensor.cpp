@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,8 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Returns the shape description.
 
-                Returns
-                ----------
-                get_shape : Shape
-                   The shape description.
+                :return: The shape description.
+                :rtype:  openvino.runtime.Shape
              )");
 
     tensor.def("get_rt_info",
@@ -39,77 +37,73 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                R"(
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
-                Returns
-                ----------
-                get_rt_info : PyRTMap
-                    A dictionary of user defined data.
+                :return: A dictionary of user defined data.
+                :rtype: openvino.runtime.RTMap
              )");
 
     tensor.def("size",
                &ov::descriptor::Tensor::size,
                R"(
-                Returns the size description
+                Returns the size description.
 
-                Returns
-                ----------
-                size : size_t
-                    The size description.
+                :return: The size description.
+                :rtype: size_t
              )");
 
     tensor.def("get_partial_shape",
                &ov::descriptor::Tensor::get_partial_shape,
                R"(
-                Returns the partial shape description
+                Returns the partial shape description.
 
-                Returns
-                ----------
-                get_partial_shape : PartialShape
-                    PartialShape description.
+                :return: PartialShape description.
+                :rtype: openvino.runtime.PartialShape
              )");
 
     tensor.def("get_element_type",
                &ov::descriptor::Tensor::get_element_type,
                R"(
-                Returns the element type description
+                Returns the element type description.
 
-                Returns
-                ----------
-                get_element_type : Type
-                    Type description
+                :return: Type description.
+                :rtype: openvino.runtime.Type
              )");
 
     tensor.def("get_names",
                &ov::descriptor::Tensor::get_names,
                R"(
-                Returns names
+                Returns names.
 
-                Returns
-                ----------
-                get_names : set
-                    Set of names
+                :return: Get names.
+                :rtype: set
              )");
 
     tensor.def("set_names",
                &ov::descriptor::Tensor::set_names,
                py::arg("names"),
                R"(
-                Set names for tensor
+                Set names for tensor.
 
-                Parameters
-                ----------
-                names : set
-                    Set of names
+                :param names: Set of names.
+                :type names: set
+             )");
+
+    tensor.def("add_names",
+               &ov::descriptor::Tensor::add_names,
+               py::arg("names"),
+               R"(
+                Adds names for tensor.
+
+                :param names: Add names.
+                :type names: set
              )");
 
     tensor.def("get_any_name",
                &ov::descriptor::Tensor::get_any_name,
                R"(
-                Returns any of set name
+                Returns any of set name.
 
-                Returns
-                ----------
-                get_any_name : string
-                    Any name
+                :return: Any name.
+                :rtype: string
              )");
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);

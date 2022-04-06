@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertPriorBox8To0;
  */
 class ngraph::pass::ConvertPriorBox8To0 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPriorBox8To0", "0");
     ConvertPriorBox8To0();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,24 +25,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
 
         // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
-        // TODO: execution graph is not supported
-        R"(.*ExecGraph.*)",
-
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
         // TODO: support import / export of precisions in template plugin
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
-
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.ieImportExportedFunction.*)",
         // TODO: Round with f16 is not supported
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecGraphImportExportTest.*readFromV10IR.*)",
+
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
+        R"(.*importExportedIENetworkConstantResultOnly.*elementType=(u32|u64).*)",
 
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
-        // CVS-64080
-        R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
         //CVS-64012
         R"(.*ReferenceDeformableConvolutionLayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionLayerTest.*bf16.*)",
@@ -100,14 +100,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceTopKTest.*aType=f64.*)",
         // CVS-63947
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
-        // CVS-64096
-        R"(.*ReferenceNonMaxSuppressionTest.*esiType=i32.*evoType=i32.*)",
-        // CVS-64081
-        R"(.*ReferenceNonMaxSuppression4Test.*esiType=i32.*)",
-        // CVS-64067
-        R"(.*ReferenceNonMaxSuppression3Test.*esiType=i32.*)",
-        // CVS-64034
-        R"(.*ReferenceNonMaxSuppression1Test.*esiType=i32.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
         // CVS-72215
@@ -116,6 +108,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
+        R"(.*DeviceID.*)",
     };
 
 #ifdef _WIN32

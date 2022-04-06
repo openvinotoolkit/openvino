@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ static std::string get_extension_path() {
 }
 
 static std::string get_ov_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("ov_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -87,7 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#endif  // NGRAPH_ONNX_FRONTEND_ENABLE
+#endif  // ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
@@ -155,7 +155,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
     const std::string model =
         CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_identity.xml");
 
-    ov::runtime::Core core;
+    ov::Core core;
     core.add_extension(get_ov_extension_path());
     auto expected = core.read_model(model);
     ngraph::pass::Manager manager;
@@ -169,4 +169,20 @@ TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
     std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
+}
+
+TEST_F(CustomOpsSerializationTest, CloneFrameworkNode) {
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+    InferenceEngine::Core ie;
+    auto extension = std::make_shared<FrameworkNodeExtension>();
+    ie.AddExtension(extension);
+    auto expected = ie.ReadNetwork(model);
+    auto clone = ov::clone_model(*expected.getFunction());
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES)
+            .enable(FunctionsComparator::PRECISIONS);
+    const FunctionsComparator::Result result = func_comparator.compare(clone, expected.getFunction());
+    ASSERT_TRUE(result.valid) << result.message;
 }

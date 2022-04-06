@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ namespace {
             {}
     };
 
+IE_SUPPRESS_DEPRECATED_START
     const std::vector<std::map<std::string, std::string>> Inconfigs = {
             {{InferenceEngine::GNAConfigParams::KEY_GNA_SCALE_FACTOR, "1.0"}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_PRECISION, "I8"}},
@@ -23,6 +24,7 @@ namespace {
             {{InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT}},
             {{InferenceEngine::GNAConfigParams::KEY_GNA_COMPACT_MODE, InferenceEngine::PluginConfigParams::NO}}
     };
+IE_SUPPRESS_DEPRECATED_END
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,
                             ::testing::Combine(

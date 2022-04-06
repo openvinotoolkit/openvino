@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,14 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
+            InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::I32
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Check, ShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::I64),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ShapeOfLayerTest::getTestCaseName);

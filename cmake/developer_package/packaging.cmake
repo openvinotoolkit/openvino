@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,6 +14,10 @@ function(ie_cpack_set_library_dir)
     if(WIN32)
         set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_RUNTIME_PATH runtime/bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+    elseif(APPLE)
+        set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
+        set(IE_CPACK_RUNTIME_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
         set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER} PARENT_SCOPE)
@@ -65,8 +69,8 @@ macro(ie_cpack)
     endif()
 
     foreach(ver IN LISTS MAJOR MINOR PATCH)
-        if(DEFINED IE_VERSION_${ver})
-            set(CPACK_PACKAGE_VERSION_${ver} ${IE_VERSION_${ver}})
+        if(DEFINED OpenVINO_VERSION_${ver})
+            set(CPACK_PACKAGE_VERSION_${ver} ${OpenVINO_VERSION_${ver}})
         endif()
     endforeach()
 

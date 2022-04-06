@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
 
 from openvino.runtime import PartialShape
-from openvino.frontend import FrontEndManager, InitializationFailure
+from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
 from openvino.runtime.utils.types import get_element_type
 
 import numpy as np
@@ -92,7 +92,7 @@ def test_convert_partially():
     func = fe.convert_partially(model=model)
     stat = get_fe_stat()
     assert stat.convert_partially == 1
-    fe.convert(function=func)
+    fe.convert(model=func)
     stat = get_fe_stat()
     assert stat.convert == 1
 
@@ -106,7 +106,7 @@ def test_decode_and_normalize():
     func = fe.decode(model=model)
     stat = get_fe_stat()
     assert stat.decode == 1
-    fe.normalize(function=func)
+    fe.normalize(model=func)
     stat = get_fe_stat()
     assert stat.normalize == 1
     assert stat.decode == 1
@@ -388,6 +388,40 @@ def test_model_set_element_type():
     assert stat.set_element_type == 1
     assert stat.lastArgPlace == place
     assert stat.lastArgElementType == get_element_type(np.int32)
+
+
+@mock_needed
+def test_model_telemetry():
+    class MockTelemetry:
+        def __init__(self, stat):
+            self.stat = stat
+
+        def send_event(self, *arg, **kwargs):
+            self.stat["send_event"] = 1
+
+        def send_error(self, *arg, **kwargs):
+            self.stat["send_error"] = 1
+
+        def send_stack_trace(self, *arg, **kwargs):
+            self.stat["send_stack_trace"] = 1
+
+    def add_ext(front_end, stat):
+        tel = MockTelemetry(stat)
+        front_end.add_extension(TelemetryExtension("mock",
+                                                   tel.send_event,
+                                                   tel.send_error,
+                                                   tel.send_stack_trace))
+
+    clear_all_stat()
+    tel_stat = {}
+    fe = fem.load_by_framework(framework="mock_py")
+    # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
+    add_ext(fe, tel_stat)
+    model = fe.load(path="")
+    assert tel_stat["send_event"] == 1
+    assert tel_stat["send_error"] == 1
+    assert tel_stat["send_stack_trace"] == 1
+    assert model
 
 
 # ----------- Place test ------------

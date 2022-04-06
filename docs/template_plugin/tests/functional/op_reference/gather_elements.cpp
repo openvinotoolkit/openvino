@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,15 @@ using namespace ov;
 namespace {
 struct GatherElementsParams {
     GatherElementsParams(
-        const Tensor& dataTensor, const Tensor& indicesTensor, int64_t axis,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& indicesTensor, int64_t axis,
+        const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
         dataTensor(dataTensor), indicesTensor(indicesTensor), axis(axis),
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor indicesTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor indicesTensor;
     int64_t axis;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -87,53 +87,53 @@ std::vector<GatherElementsParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<GatherElementsParams> params {
         GatherElementsParams(
-            Tensor(IN_ET, {3}, std::vector<T>{1, 2, 3}),
-            Tensor(element::i32, {7}, std::vector<int32_t>{1, 2, 0, 2, 0, 0, 2}),
+            reference_tests::Tensor(IN_ET, {3}, std::vector<T>{1, 2, 3}),
+            reference_tests::Tensor(element::i32, {7}, std::vector<int32_t>{1, 2, 0, 2, 0, 0, 2}),
             0,
-            Tensor(IN_ET, {7}, std::vector<T>{2, 3, 1, 3, 1, 1, 3}),
+            reference_tests::Tensor(IN_ET, {7}, std::vector<T>{2, 3, 1, 3, 1, 1, 3}),
             "evaluate_1D_gather_elements_3_indices_int32"),
         GatherElementsParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
             0,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 4, 1, 2}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 4, 1, 2}),
             "evaluate_2D_gather_elements_2x2_indices_int32_axis_0"),
         GatherElementsParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
             1,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
             "evaluate_2D_gather_elements_2x2_indices_int32_axis_1"),
         GatherElementsParams(
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
             -1,
-            Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
+            reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
             "evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1"),
         GatherElementsParams(
-            Tensor(IN_ET, {3, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 2, 0, 2, 0, 0}),
+            reference_tests::Tensor(IN_ET, {3, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 2, 0, 2, 0, 0}),
             0,
-            Tensor(IN_ET, {2, 3}, std::vector<T>{4, 8, 3, 7, 2, 3}),
+            reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{4, 8, 3, 7, 2, 3}),
             "evaluate_2D_gather_elements_2x3_indices_int32"),
         GatherElementsParams(
-            Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-            Tensor(element::i32, {3, 2, 2}, std::vector<int32_t>{1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1}),
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i32, {3, 2, 2}, std::vector<int32_t>{1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1}),
             -1,
-            Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
             "evaluate_3D_gather_elements_3x2x2_indices_int32"),
         GatherElementsParams(
-            Tensor(IN_ET, {3, 2, 2, 2}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
+            reference_tests::Tensor(IN_ET, {3, 2, 2, 2}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
                                                        9,  10, 11, 12, 13, 14, 15, 16,
                                                        17, 18, 19, 20, 21, 22, 23, 24}),
-            Tensor(element::i32, {3, 2, 2, 4}, std::vector<int32_t>{1, 0, 0, 0, 0, 1, 1, 0,
+            reference_tests::Tensor(element::i32, {3, 2, 2, 4}, std::vector<int32_t>{1, 0, 0, 0, 0, 1, 1, 0,
                                                                     1, 1, 1, 1, 1, 0, 0, 1,
                                                                     0, 0, 0, 1, 1, 1, 1, 0,
                                                                     0, 0, 0, 0, 1, 0, 1, 0,
                                                                     1, 1, 1, 1, 1, 0, 1, 0,
                                                                     1, 0, 0, 1, 0, 0, 0, 0}),
             -1,
-            Tensor(IN_ET, {3, 2, 2, 4}, std::vector<T>{2,  1,  1,  1,  3,  4,  4,  3,
+            reference_tests::Tensor(IN_ET, {3, 2, 2, 4}, std::vector<T>{2,  1,  1,  1,  3,  4,  4,  3,
                                                        6,  6,  6,  6,  8,  7,  7,  8,
                                                        9,  9,  9,  10, 12, 12, 12, 11,
                                                        13, 13, 13, 13, 16, 15, 16, 15,
@@ -141,22 +141,22 @@ std::vector<GatherElementsParams> generateParams() {
                                                        22, 21, 21, 22, 23, 23, 23, 23}),
             "evaluate_4D_gather_elements_3x2x2x2_indices_int64"),
         GatherElementsParams(
-            Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8, 9,  10, 11, 12}),
-            Tensor(element::i32, {3, 2, 2}, std::vector<int32_t>{1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1}),
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8, 9,  10, 11, 12}),
+            reference_tests::Tensor(element::i32, {3, 2, 2}, std::vector<int32_t>{1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1}),
             -1,
-            Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
             "evaluate_3D_gather_elements_3x2x2_indices_int64"),
         GatherElementsParams(
-            Tensor(IN_ET, {3, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 2, 0, 2, 0, 0}),
+            reference_tests::Tensor(IN_ET, {3, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 2, 0, 2, 0, 0}),
             0,
-            Tensor(IN_ET, {2, 3}, std::vector<T>{4, 8, 3, 7, 2, 3}),
+            reference_tests::Tensor(IN_ET, {2, 3}, std::vector<T>{4, 8, 3, 7, 2, 3}),
             "evaluate_2D_gather_elements_2x3_data_float32"),
         GatherElementsParams(
-            Tensor(IN_ET, {2, 2, 1}, std::vector<T>{5, 4, 1, 4}),
-            Tensor(element::i32, {4, 2, 1}, std::vector<int32_t>{0, 0, 1, 1, 1, 1, 0, 1}),
+            reference_tests::Tensor(IN_ET, {2, 2, 1}, std::vector<T>{5, 4, 1, 4}),
+            reference_tests::Tensor(element::i32, {4, 2, 1}, std::vector<int32_t>{0, 0, 1, 1, 1, 1, 0, 1}),
             0,
-            Tensor(IN_ET, {4, 2, 1}, std::vector<T>{5, 4, 1, 4, 1, 4, 5, 4}),
+            reference_tests::Tensor(IN_ET, {4, 2, 1}, std::vector<T>{5, 4, 1, 4, 1, 4, 5, 4}),
             "evaluate_2D_gather_elements_2x2x1_data_float32"),
     };
     return params;
@@ -166,10 +166,10 @@ template <>
 std::vector<GatherElementsParams> generateParams<element::Type_t::boolean>() {
     std::vector<GatherElementsParams> params {
         GatherElementsParams(
-            Tensor(element::boolean, {3, 2}, std::vector<char>{true, false, true, true, false, false}),
-            Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 2}),
+            reference_tests::Tensor(element::boolean, {3, 2}, std::vector<char>{true, false, true, true, false, false}),
+            reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 2}),
             0,
-            Tensor(element::boolean, {2, 2}, std::vector<char>{true, true, true, false}),
+            reference_tests::Tensor(element::boolean, {2, 2}, std::vector<char>{true, true, true, false}),
             "evaluate_2D_gather_elements_3x2_data_bool"),
     };
     return params;
@@ -178,16 +178,16 @@ std::vector<GatherElementsParams> generateParams<element::Type_t::boolean>() {
 std::vector<GatherElementsParams> generateParamsNegative() {
     std::vector<GatherElementsParams> params {
         GatherElementsParams(
-            Tensor(element::i32, {3}, std::vector<int32_t>{1, 2, 3}),
-            Tensor(element::i32, {7}, std::vector<int32_t>{1, 2, 0, 2, 0, 0, 8}),
+            reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{1, 2, 3}),
+            reference_tests::Tensor(element::i32, {7}, std::vector<int32_t>{1, 2, 0, 2, 0, 0, 8}),
             0,
-            Tensor(element::i32, {7}, std::vector<int32_t>{2, 3, 1, 3, 1, 1, 3}),
+            reference_tests::Tensor(element::i32, {7}, std::vector<int32_t>{2, 3, 1, 3, 1, 1, 3}),
             "evaluate_1D_gather_elements_negative_test"),
         GatherElementsParams(
-            Tensor(element::i32, {3, 3}, std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 3, 0, 2, 0, 0}),
+            reference_tests::Tensor(element::i32, {3, 3}, std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{1, 3, 0, 2, 0, 0}),
             0,
-            Tensor(element::i32, {2, 3}, std::vector<int32_t>{4, 8, 3, 7, 2, 3}),
+            reference_tests::Tensor(element::i32, {2, 3}, std::vector<int32_t>{4, 8, 3, 7, 2, 3}),
             "evaluate_2D_gather_elements_negative_test"),
     };
     return params;

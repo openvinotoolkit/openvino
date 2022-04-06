@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ struct mutable_data;
 struct input_layout;
 struct prior_box;
 struct loop;
+struct shape_of;
 
 struct primitive_impl;
 
@@ -60,6 +61,13 @@ template <>
 struct implementation_key<permute> {
     typedef int32_t type;
     type operator()(const typed_program_node<permute>&) { return -1; }
+    type operator()(const layout&) { return -1; }
+};
+
+template <>
+struct implementation_key<shape_of> {
+    typedef int32_t type;
+    type operator()(const typed_program_node<shape_of>&) { return -1; }
     type operator()(const layout&) { return -1; }
 };
 

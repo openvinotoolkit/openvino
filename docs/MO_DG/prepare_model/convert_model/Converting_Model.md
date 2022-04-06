@@ -1,291 +1,80 @@
-# Converting a Model to Intermediate Representation (IR)  {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+# Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-@sphinxdirective
+Paragraphs below provide details about specifying input shapes for model conversion.
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
+@anchor when_to_specify_input_shapes
+## When to Specify --input_shape Command-line Parameter
+Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
+However, if the shape of inference data is not going to change from one inference request to another,
+it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
+It can be beneficial from a performance perspective and memory consumption.
+To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
+This is an offline approach to set static shapes and it can save time and memory on runtime shape change.
+To learn more about runtime shape change please see a dedicated article about [reshape feature](../../../OV_Runtime_UG/ShapeInference.md).
+For more information about the dynamic shapes, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
 
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
-   openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
-   openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
-   openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer
-   openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec
+OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware (see [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference).
+In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help resolving undefined dimensions.
 
-@endsphinxdirective
+Sometimes Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
+Such problem can relate to models with inputs of undefined ranks and a case of cutting off parts of a model.
+In this case, user has to specify input shapes explicitly using `--input_shape` parameter.
 
-To convert the model to the Intermediate Representation (IR), run Model Optimizer using the following command:
-
-```sh
-mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-```
-
-The output directory must have write permissions, so you can run Model Optimizer from the output directory or specify an output path with the `--output_dir` option.
-
-> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
-
-To adjust the conversion process, you may use general parameters defined in the [General Conversion Parameters](#general_conversion_parameters) and 
-Framework-specific parameters for:
-* [Caffe](Convert_Model_From_Caffe.md)
-* [TensorFlow](Convert_Model_From_TensorFlow.md)
-* [MXNet](Convert_Model_From_MxNet.md)
-* [ONNX](Convert_Model_From_ONNX.md)
-* [Kaldi](Convert_Model_From_Kaldi.md)
-
-
-## General Conversion Parameters
-
-To adjust the conversion process, you can also use the general (framework-agnostic) parameters:
+For example, run the Model Optimizer for the TensorFlow* MobileNet model with the single input
+and specify input shape `[2,300,300,3]`.
 
 ```sh
-optional arguments:
-  -h, --help            show this help message and exit
-  --framework {tf,caffe,mxnet,kaldi,onnx}
-                        Name of the framework used to train the input model.
-
-Framework-agnostic parameters:
-  --input_model INPUT_MODEL, -w INPUT_MODEL, -m INPUT_MODEL
-                        Tensorflow*: a file with a pre-trained model (binary
-                        or text .pb file after freezing). Caffe*: a model
-                        proto file with model weights
-  --model_name MODEL_NAME, -n MODEL_NAME
-                        Model_name parameter passed to the final create_ir
-                        transform. This parameter is used to name a network in
-                        a generated IR and output .xml/.bin files.
-  --output_dir OUTPUT_DIR, -o OUTPUT_DIR
-                        Directory that stores the generated IR. By default, it
-                        is the directory from where the Model Optimizer is
-                        launched.
-  --input_shape INPUT_SHAPE
-                        Input shape(s) that should be fed to an input node(s)
-                        of the model. Shape is defined as a comma-separated
-                        list of integer numbers enclosed in parentheses or
-                        square brackets, for example [1,3,227,227] or
-                        (1,227,227,3), where the order of dimensions depends
-                        on the framework input layout of the model. For
-                        example, [N,C,H,W] is used for Caffe* models and
-                        [N,H,W,C] for TensorFlow* models. Model Optimizer
-                        performs necessary transformations to convert the
-                        shape to the layout required by Inference Engine
-                        (N,C,H,W). The shape should not contain undefined
-                        dimensions (? or -1) and should fit the dimensions
-                        defined in the input operation of the graph. Boundaries 
-                        of undefined dimension can be specified with ellipsis, 
-                        for example [1,1..10,128,128]. One boundary can be undefined, 
-                        for example [1,..100] or [1,3,1..,1..]. If there
-                        are multiple inputs in the model, --input_shape should
-                        contain definition of shape for each input separated
-                        by a comma, for example: [1,3,227,227],[2,4] for a
-                        model with two inputs with 4D and 2D shapes.
-                        Alternatively, specify shapes with the --input
-                        option.
-  --scale SCALE, -s SCALE
-                        All input values coming from original network inputs
-                        will be divided by this value. When a list of inputs
-                        is overridden by the --input parameter, this scale is
-                        not applied for any input that does not match with the
-                        original input of the model.
-                        If both --mean and --scale are specified,
-                        the mean is subtracted first and then scale is applied
-                        regardless of the order of options in command line.
-  --reverse_input_channels
-                        Switch the input channels order from RGB to BGR (or
-                        vice versa). Applied to original inputs of the model
-                        if and only if a number of channels equals 3.
-                        When --mean_values/--scale_values are also specified,
-                        reversing of channels will be applied to user's input
-                        data first, so that numbers in --mean_values and
-                        --scale_values go in the order of channels used in
-                        the original model. In other words, if both options are
-                        specified then the data flow in the model looks as following:
-                        Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.                        
-  --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
-                        Logger level
-  --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
-                        data types, and values for freezing. The shape and value are 
-                        specified as space-separated lists. The data type of input 
-                        node is specified in braces and can have one of the values: 
-                        f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
-                        i32 (int32), u8 (uint8), boolean (bool). Data type is optional. 
-                        If it's not specified explicitly then there are two options: 
-                        if input node is a parameter, data type is taken from the 
-                        original node dtype, if input node is not a parameter, data type 
-                        is set to f32. Example, to set `input_1` with shape [1 100], 
-                        and Parameter node `sequence_len` with scalar input with value `150`, 
-                        and boolean input `is_training` with `False` value use the 
-                        following format: "input_1[1 10],sequence_len->150,is_training->False". 
-                        Another example, use the following format to set input port 0 
-                        of the node `node_name1` with the shape [3 4] as an input node 
-                        and freeze output port 1 of the node `node_name2` with the 
-                        value [20 15] of the int32 type and shape [2]: 
-                        "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
-  --output OUTPUT       The name of the output operation of the model. For
-                        TensorFlow*, do not add :0 to this name.
-  --mean_values MEAN_VALUES, -ms MEAN_VALUES
-                        Mean values to be used for the input image per
-                        channel. Values to be provided in the (R,G,B) or
-                        [R,G,B] format. Can be defined for desired input of
-                        the model, for example: "--mean_values
-                        data[255,255,255],info[255,255,255]". The exact
-                        meaning and order of channels depend on how the
-                        original model was trained.
-  --scale_values SCALE_VALUES
-                        Scale values to be used for the input image per
-                        channel. Values are provided in the (R,G,B) or [R,G,B]
-                        format. Can be defined for desired input of the model,
-                        for example: "--scale_values
-                        data[255,255,255],info[255,255,255]". The exact
-                        meaning and order of channels depend on how the
-                        original model was trained.
-                        If both --mean_values and --scale_values are specified,
-                        the mean is subtracted first and then scale is applied
-                        regardless of the order of options in command line.
-  --data_type {FP16,FP32,half,float}
-                        Data type for all intermediate tensors and weights. If
-                        original model is in FP32 and --data_type=FP16 is
-                        specified, all model weights and biases are compressed
-                        to FP16.
-  --disable_fusing      Turn off fusing of linear operations to Convolution
-  --disable_resnet_optimization
-                        Turn off resnet optimization
-  --finegrain_fusing FINEGRAIN_FUSING
-                        Regex for layers/operations that won't be fused.
-                        Example: --finegrain_fusing Convolution1,.*Scale.*
-  --disable_gfusing     Turn off fusing of grouped convolutions
-  --enable_concat_optimization
-                        Turn on Concat optimization.
-  --extensions EXTENSIONS
-                        Directory or a comma separated list of directories
-                        with extensions. To disable all extensions including
-                        those that are placed at the default location, pass an
-                        empty string.
-  --batch BATCH, -b BATCH
-                        Input batch size
-  --version             Version of Model Optimizer
-  --silent              Prevent any output messages except those that
-                        correspond to log level equals ERROR, that can be set
-                        with the following option: --log_level. By default,
-                        log level is already ERROR.
-  --freeze_placeholder_with_value FREEZE_PLACEHOLDER_WITH_VALUE
-                        Replaces input layer with constant node with provided
-                        value, for example: "node_name->True". It will be
-                        DEPRECATED in future releases. Use --input option to
-                        specify a value for freezing.
-  --static_shape        Enables IR generation for fixed input shape (folding
-                        `ShapeOf` operations and shape-calculating sub-graphs
-                        to `Constant`). Changing model input shape using
-                        the Inference Engine API in runtime may fail for such an IR.
-  --disable_weights_compression
-                        Disable compression and store weights with original
-                        precision.
-  --progress            Enable model conversion progress display.
-  --stream_output       Switch model conversion progress display to a
-                        multiline mode.
-  --transformations_config TRANSFORMATIONS_CONFIG
-                        Use the configuration file with transformations
-                        description.
+mo --input_model MobileNet.pb --input_shape [2,300,300,3]
 ```
 
-The sections below provide details on using particular parameters and examples of CLI commands.
+If a model has multiple inputs, `--input_shape` must be used in conjunction with `--input` parameter.
+The parameter `--input` contains a list of input names for which shapes in the same order are defined via `--input_shape`.
+For example, launch the Model Optimizer for the ONNX* OCR model with a pair of inputs `data` and `seq_len` 
+and specify shapes `[3,150,200,1]` and `[3]` for them.
 
-## When to Specify Mean and Scale Values
-Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range, for example, `[0, 1]` or `[-1, 1]`. Sometimes the mean values (mean images) are subtracted from the input data values as part of the pre-processing. There are two cases how the input data pre-processing is implemented.
- * The input pre-processing operations are a part of a topology. In this case, the application that uses the framework to infer the topology does not pre-process the input.
- * The input pre-processing operations are not a part of a topology and the pre-processing is performed within the application which feeds the model with an input data.
- 
-In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
- 
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
-
-> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels will be applied first, then mean and after that scale.
-
-There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
-* Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
-* Open the example script/application executing the model and track how the input data is read and passed to the framework.
-* Open the model in a visualization tool and check for layers performing subtraction or multiplication (like `Sub`, `Mul`, `ScaleShift`, `Eltwise` etc) of the input data. If such layers exist, pre-processing is probably part of the model.
-
-## When to Specify Input Shapes <a name="when_to_specify_input_shapes"></a>
-There are situations when the input data shape for the model is not fixed, like for the fully-convolutional neural networks. In this case, for example, TensorFlow\* models contain `-1` values in the `shape` attribute of the `Placeholder` operation. Inference Engine does not support input layers with undefined size, so if the input shapes are not defined in the model, the Model Optimizer fails to convert the model. The solution is to provide the input shape(s) using the `--input` or `--input_shape` command line parameter for all input(s) of the model or provide the batch size using the `-b` command line parameter if the model contains just one input with undefined batch size only. In the latter case, the `Placeholder` shape for the TensorFlow\* model looks like this `[-1, 224, 224, 3]`. 
-
-## When to Reverse Input Channels <a name="when_to_reverse_input_channels"></a>
-Input data for your application can be of RGB or BRG color input order. For example, Inference Engine samples load input images in the BGR channels order. However, the model may be trained on images loaded with the opposite order (for example, most TensorFlow\* models are trained with images in RGB order). In this case, inference results using the Inference Engine samples may be incorrect. The solution is to provide `--reverse_input_channels` command line parameter. Taking this parameter, the Model Optimizer performs first convolution or other channel dependent operation weights modification so these operations output will be like the image is passed with RGB channels order.
-
-## When to Specify `--static_shape` Command Line Parameter
-If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
-Resulting Intermediate Representation will not be resizable with the help of Inference Engine.
-
-## Examples of CLI Commands
-
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with debug log level:
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with the output IR called `result.*` in the specified `output_dir`:
+The alternative way to specify input shapes is to use the `--input` parameter as follows:
+
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/
+mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3]
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with one input with scale values:
+The parameter `--input_shape` allows overriding original input shapes to the shapes compatible with a given model.
+Dynamic shapes, i.e. with dynamic dimensions, in the original model can be replaced with static shapes for the converted model, and vice versa.
+The dynamic dimension can be marked in Model Optimizer command-line as `-1` or `?`.
+For example, launch the Model Optimizer for the ONNX* OCR model and specify dynamic batch dimension for inputs.
+
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale values:
+To optimize memory consumption for models with undefined dimensions in run-time, Model Optimizer provides the capability to define boundaries of dimensions.
+The boundaries of undefined dimension can be specified with ellipsis.
+For example, launch the Model Optimizer for the ONNX* OCR model and specify a boundary for the batch dimension.
+
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale and mean values specified for the particular nodes:
-```sh
-mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
-```
+Practically, some models are not ready for input shapes change.
+In this case, a new input shape cannot be set via Model Optimizer.
+Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
-```sh
-mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
-```
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with disabled fusing for linear operations to Convolution and grouped convolutions:
-```sh
-mo --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
-```
+## When to Specify --static_shape Command-line Parameter
+Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
+and to fold shape computing sub-graphs into constants. The resulting IR can be more compact in size and the loading time for such IR can be decreased.
+However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.
+It is worth noting that the `--input_shape` parameter does not affect reshape-ability of the model.
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
-```sh
-mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
-```
+For example, launch the Model Optimizer for the ONNX* OCR model using `--static_shape`.
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto 
- file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
 ```sh
-mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3] --static_shape
 ```
-
-Launch the Model Optimizer for TensorFlow* FaceNet* model with a placeholder freezing value. 
-It replaces the placeholder with a constant layer that contains the passed value.
-For more information about FaceNet conversion, please refer to [this](tf_specific/Convert_FaceNet_From_Tensorflow.md) page.
-```sh
-mo --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
-```
-Launch the Model Optimizer for any model with a placeholder freezing tensor of values. 
-It replaces the placeholder with a constant layer that contains the passed values.
-
-Tensor here is represented in square brackets with each value separated from another by a whitespace. 
-If data type is set in the model, this tensor will be reshaped to a placeholder shape and casted to placeholder data type.
-Otherwise, it will be casted to data type passed to `--data_type` parameter (by default, it is FP32).
-```sh
-mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
-```
-
 
 ## See Also
-* [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
-* [IR Notation Reference](../../IR_and_opsets.md)
-* [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
-* [Model Cutting](Cutting_Model.md)
+* [Introduction](../../Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Cutting Off Parts of a Model](Cutting_Model.md)

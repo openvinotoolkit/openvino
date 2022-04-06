@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullTransposeThroughDequantization, "PullTransposeThroughDequantization", 0);
 
 namespace pull_transpose_through_dequantization {
 namespace {
@@ -94,6 +93,7 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
     const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
     const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
 
+    MATCHER_SCOPE(PullTransposeThroughDequantization);
     const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
         ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
         ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
@@ -129,6 +129,6 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherTranspose, "PullTransposeThroughDequantization");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherTranspose, matcher_name);
     this->register_matcher(m, callback);
 }

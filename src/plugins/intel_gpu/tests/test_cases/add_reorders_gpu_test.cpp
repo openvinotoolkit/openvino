@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(cldnn::convolution("conv2", { "reorder" }, { "weights2" }));
 
-    topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, cldnn::concatenation::along_f));
+    topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, 1));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);

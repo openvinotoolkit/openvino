@@ -1,4 +1,4 @@
-# Overview of Inference Engine C* API {#openvino_inference_engine_ie_bridges_c_docs_api_overview}
+# Overview of Inference Engine C* API
 
 > **NOTE**: It is a preview version of the Inference Engine C* API for evaluation purpose only.
 > Module structure and API itself may be changed in future releases.
@@ -352,7 +352,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
   - Parameters:
 
     - `core` -A pointer to `ie_core_t` instance.
-    - `device_name` - Name of the the registered plugin.
+    - `device_name` - Name of the registered plugin.
   - `version_result` - Dictionary mapping a plugin name .
 
   - Return value: Status  of the operation: OK(0) for success.

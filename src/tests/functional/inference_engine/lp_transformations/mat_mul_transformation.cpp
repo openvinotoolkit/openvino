@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,7 +134,7 @@ public:
 
 TEST_P(MatMulTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -147,10 +147,7 @@ const std::vector<ngraph::element::Type> precisions = {
 
 namespace testValues1 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
+    { { -1, -1, -1, -1 }, { -1, -1, -1, -1 } },
     { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } },
     { { 4, 16, 384, 64 }, { 4, 16, 64, 384 } }
 };
@@ -392,10 +389,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues2 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
-    {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
-    },
+    { { -1, -1, -1, -1 }, { -1, -1, -1, -1 } },
     { { 1, 3, 384, 64 }, { 1, 3, 64, 384 } },
 };
 
@@ -451,10 +445,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace testValues3 {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesWithDynamicChannels = {
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
     { PartialShape::dynamic(), PartialShape::dynamic() }
 };
 

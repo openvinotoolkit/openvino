@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -41,7 +41,7 @@ def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, 
     return new_graph, copy(ir.meta_data)
 
 
-def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
+def save_restored_graph(graph: Graph, path: str, meta_data, name=None, rename_results=True):
     """
     Function to apply all necessary transforms from back stage to prepare and save restored graph and metadata.
     :param graph: Graph to save
@@ -86,4 +86,4 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data)
+    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data, rename_results=rename_results)

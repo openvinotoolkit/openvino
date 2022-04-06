@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,7 +183,7 @@ void shape_infer(const StridedSlice* op,
                             if (ub <= lb) {
                                 dimension = (ub - lb) / stride + 1;
                             }
-                        } else {
+                        } else if (stride != 0) {
                             // apply masks
                             if (begin_mask.count(axis)) {
                                 lb = 0;

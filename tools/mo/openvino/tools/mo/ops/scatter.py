@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -25,6 +25,7 @@ class Scatter(Op):
 
             'is_scatter': True,  # is used for gathering all types of scatters in common transformations
             'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
 
             'in_ports_count': 4,
             'out_ports_count': 1,
@@ -40,11 +41,6 @@ class Scatter(Op):
         updates_shape = node.in_port(2).data.get_shape()
         assert input_shape is not None and updates_shape is not None and indices_shape is not None, \
             'The node "{}" input shape is None'.format(node_name)
-        assert len(input_shape) == len(indices_shape), 'data and indices inputs for node "{}" must be of the ' \
-            'same rank. Instead got {} and {}'.format(node_name, len(input_shape), len(indices_shape))
-        assert compatible_shapes(indices_shape, updates_shape), \
-            'updates and indices shapes for node "{}" must be equal. Instead got {} and {}.' \
-            ''.format(node_name, indices_shape, updates_shape)
 
         node.out_port(0).data.set_shape(input_shape)
 
@@ -100,8 +96,20 @@ class ScatterElementsUpdate(Scatter):
 
         input_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
-        indices_shape = node.in_port(1).data.get_shape()
         updates_value = node.in_port(2).data.get_value()
+
+        input_shape = node.in_port(0).data.get_shape()
+        indices_shape = node.in_port(1).data.get_shape()
+        updates_shape = node.in_port(2).data.get_shape()
+
+        assert len(input_shape) == len(indices_shape), 'data and indices inputs for node "{}" must be of the ' \
+                                                       'same rank. Instead got {} and {}'.format(node_name,
+                                                                                                 len(input_shape),
+                                                                                                 len(indices_shape))
+        assert compatible_shapes(indices_shape, updates_shape), \
+            'updates and indices shapes for node "{}" must be equal. Instead got {} and {}.' \
+            ''.format(node_name, indices_shape, updates_shape)
+
         axis = node.in_port(3).data.get_value()
         if input_value is not None and indices_value is not None and updates_value is not None and axis is not None:
             assert axis.size == 1, "The node {} has axis input value size equal to {} but it should be exactly 1.".format(

@@ -1,27 +1,25 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
+
 #include "itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(pass::MatMulMultiplyFusion, "MatMulMultiplyFusion", 0);
-
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
-                                                   std::shared_ptr<opset8::Constant> mul_const,
-                                                   const op::AutoBroadcastSpec& autob) {
+                                                   std::shared_ptr<opset8::Constant> mul_const) {
     auto const_shape = mul_const->get_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
-    const auto& weights_shape = weights.get_shape();
-    int64_t weights_rank = static_cast<int64_t>(weights_shape.size());
+    const auto& weights_shape = weights.get_partial_shape();
+    int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
     // Fuse if const is a scalar
     if (ngraph::is_scalar(const_shape)) {
@@ -61,10 +59,13 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         if (const_shape.back() > 1) {
             // Check if const's last dimension matches last weights dimension
             if (matmul_casted->get_transpose_b()) {
-                if (weights_rank > 1 && const_shape.back() != weights_shape[weights_rank - 2]) {
+                if (weights_shape[weights_rank - 2].is_dynamic() ||
+                    (weights_rank > 1 &&
+                     const_shape.back() != static_cast<size_t>(weights_shape[weights_rank - 2].get_length()))) {
                     return nullptr;
                 }
-            } else if (const_shape.back() != weights_shape.back()) {
+            } else if (weights_shape[weights_rank - 1].is_dynamic() ||
+                       const_shape.back() != static_cast<size_t>(weights_shape[weights_rank - 1].get_length())) {
                 return nullptr;
             }
         }
@@ -82,8 +83,9 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
             bool const_broadcasts_weights = weights_rank < const_rank;
             for (int64_t i = 3; i <= const_rank; i++) {
                 if (const_shape[const_rank - i] != 1) {
-                    const_broadcasts_weights = const_broadcasts_weights ||
-                                               ((weights_rank - i >= 0) && (weights_shape[weights_rank - i] != const_shape[const_rank - i]));
+                    const_broadcasts_weights =
+                        const_broadcasts_weights ||
+                        ((weights_rank - i >= 0) && (weights_shape[weights_rank - i] != const_shape[const_rank - i]));
                 }
             }
             bool const_broadcasts_input = true;
@@ -93,8 +95,9 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
                 const_broadcasts_input = input_rank < const_rank;
                 for (int64_t i = 3; i <= const_rank; i++) {
                     if (const_shape[const_rank - i] != 1) {
-                        const_broadcasts_input = const_broadcasts_input ||
-                                                 ((input_rank - i >= 0) && (input_shape[input_rank - i] != const_shape[const_rank - i]));
+                        const_broadcasts_input =
+                            const_broadcasts_input ||
+                            ((input_rank - i >= 0) && (input_shape[input_rank - i] != const_shape[const_rank - i]));
                     }
                 }
             }
@@ -104,10 +107,11 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         }
     }
 
-    auto transpose_const = [] (const std::shared_ptr<Node>& mul_const) -> std::shared_ptr<Node> {
+    auto transpose_const = [](const std::shared_ptr<Node>& mul_const) -> std::shared_ptr<Node> {
         auto const_shape = mul_const->get_shape();
         auto const_rank = const_shape.size();
-        if (shape_size(const_shape) == 1 || (const_rank > 1 && const_shape[const_rank - 2] == 1 && const_shape[const_rank - 1] == 1)) {
+        if (shape_size(const_shape) == 1 ||
+            (const_rank > 1 && const_shape[const_rank - 2] == 1 && const_shape[const_rank - 1] == 1)) {
             // Nothing to transpose - constant has shape (..., 1, 1)
             return mul_const;
         }
@@ -115,14 +119,17 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         // Scalars were fused before, it suffices to check for 1D shape here
         if (const_rank == 1) {
             const_shape.insert(const_shape.begin(), 1);
-            new_const = std::make_shared<opset8::Reshape>(mul_const,
-                    opset8::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
+            new_const = std::make_shared<opset8::Reshape>(
+                mul_const,
+                opset8::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
+                false);
         }
         std::vector<int64_t> perm(const_shape.size());
         std::iota(perm.begin(), perm.end(), 0);
         std::swap(*(perm.end() - 1), *(perm.end() - 2));
-        auto transpose = std::make_shared<opset8::Transpose>(new_const,
-                opset8::Constant::create(element::i64, Shape{perm.size()}, perm));
+        auto transpose =
+            std::make_shared<opset8::Transpose>(new_const,
+                                                opset8::Constant::create(element::i64, Shape{perm.size()}, perm));
         return get_constant_from_source(transpose);
     };
 
@@ -139,7 +146,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
 pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     MATCHER_SCOPE(MatMulMultiplyFusion);
     auto input_pattern = pattern::any_input();
-    auto weights_pattern = pattern::any_input(pattern::has_static_shape());
+    auto weights_pattern = pattern::any_input(pattern::has_static_rank());
     auto mul_const_pattern = pattern::wrap_type<opset8::Constant>();
     auto matmul_pattern = pattern::wrap_type<opset8::MatMul>({input_pattern, weights_pattern});
     auto mul_pattern = pattern::wrap_type<opset8::Multiply>({matmul_pattern, mul_const_pattern});
@@ -147,15 +154,14 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
-        auto mul = std::dynamic_pointer_cast<opset8::Multiply>(pattern_map.at(mul_pattern).get_node_shared_ptr());
-        if (!mul)
-            return false;
-        auto mul_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
+        auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
+        auto mul_const =
+            std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
 
-        auto new_weights = fuse_const_to_weights(matmul, weights, mul_const, mul->get_autob());
+        auto new_weights = fuse_const_to_weights(matmul, weights, mul_const);
         if (!new_weights)
             return false;
 

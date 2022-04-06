@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,11 @@
 #include "program_helpers.h"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
+#include "pooling_inst.h"
 #include <algorithm>
 #include <utility>
 #include <vector>
+#include <sstream>
 
 namespace cldnn {
 // helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
@@ -101,10 +103,10 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 
     return layout(mem_layout.data_type,
                   mem_layout.format,
-                  {split * mem_layout.size.batch[0],
-                   mem_layout.size.feature[0],
-                   mem_layout.size.spatial[0],
-                   mem_layout.size.spatial[1]});
+                  {split * mem_layout.batch(),
+                   mem_layout.feature(),
+                   mem_layout.spatial(0),
+                   mem_layout.spatial(1)});
 }
 
 // pair.first tells whether l1 and l2 are absolutely identical
@@ -121,12 +123,6 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
     auto offset_last_element_l2 = l2.get_linear_offset(l2.size - tensor{1});
     if (l1 == l2)
         return {true, true};
-    // If data is actually 1d along f and dense, the layouts are identical
-    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
-        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
-        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
-        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
-        return {false, true};
     if (l1.data_type != l2.data_type)
         return {false, false};
     // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
@@ -153,12 +149,20 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         check_format(format::b_fs_zyx_fsv16) ||
         check_format(format::bs_fs_yx_bsv4_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) ||
         check_format(format::bs_fs_yx_bsv4_fsv2) ||
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
         check_format(format::bs_fs_yx_bsv16_fsv16) ||
         check_format(format::bs_fs_zyx_bsv16_fsv16))
         return {false, false};
+
+    // If data is actually 1d along f and dense, the layouts are identical
+    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
+        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
+        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
+        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
+        return {false, true};
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
@@ -179,14 +183,49 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
     return {false, false};
 }
 
-// check if input and output layouts are identical to reuse memory in fused_ops of onednn
-bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout) {
-    if (input_layout.size == output_layout.size && input_layout.format == output_layout.format &&
-        input_layout.data_padding == output_layout.data_padding &&
-        data_type_traits::size_of(input_layout.data_type) == data_type_traits::size_of(output_layout.data_type))
+bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
+    if (l.size.spatial[0] > 1 || l.size.spatial[1] > 1 || (l.get_spatial_rank() == 3 && l.size.spatial[2] > 1)
+        || l.size.batch[0] > 1) {
         return true;
-
+    }
     return false;
 }
+
+void onednn_add_fusing_helpers::for_eltwise(
+    const program_node& node, eltwise_mode mode,
+    std::function<void(const program_node& p_node, const eltwise_node& e_node,
+                    const fused_primitive_desc& desc)> func) {
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.node->is_type<eltwise>() && fo.node->as<eltwise>().get_primitive()->mode == mode) {
+            func(node, fo.node->as<eltwise>(), fo);
+        }
+    }
+}
+
+add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
+    const program_node& p_node, const fused_primitive_desc& desc) {
+    if (!desc.node->is_type<eltwise>() || desc.node->as<eltwise>().get_primitive()->mode != eltwise_mode::sum) {
+        return add_fusing_type::not_supported;
+    }
+
+    auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+    auto p_layout = p_node.get_output_layout();
+    auto d_layout = dep_node.get_output_layout();
+
+    if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
+            && p_layout.format == d_layout.format && p_layout.size == d_layout.size
+            && p_layout.data_padding == d_layout.data_padding
+            && dep_node.get_users().size() == 1
+            && !p_node.is_type<pooling>()) {
+            return add_fusing_type::sum;
+        } else if (p_layout.size == d_layout.size) {
+            return add_fusing_type::binary_per_tensor;
+        }
+    }
+
+    return add_fusing_type::binary_per_oc;
+}
+
 
 }  // namespace cldnn

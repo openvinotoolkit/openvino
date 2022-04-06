@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,7 +140,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
                                   op->get_friendly_name()));
     p.AddPrimitive(cldnn::concatenation(input_concatID,
                                         { permuteID, hiddenInStr },
-                                        cldnn::concatenation::concatenation_axis::along_x,
+                                        3,
                                         op->get_friendly_name()));
 
     p.AddInnerPrimitiveToProfiler(hiddenInResh, op->get_friendly_name(), op);
@@ -159,7 +159,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     std::string crop_id = layerName + "_crop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
-    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, cldnn::concatenation::concatenation_axis::along_f, op->get_friendly_name()));
+    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 1, op->get_friendly_name()));
     p.AddInnerPrimitiveToProfiler(WRconcatID, op->get_friendly_name(), op);
 
     p.AddPrimitive(cldnn::fully_connected(lstm_fc_id, input_concatID, WRconcatID, hasBias ? biasID : "", op->get_friendly_name()));
@@ -273,7 +273,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     cldnn::primitive_id inputCropID = layerName + "_inputCrop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
-    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, cldnn::concatenation::concatenation_axis::along_y, op->get_friendly_name()));
+    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 2, op->get_friendly_name()));
     p.AddInnerPrimitiveToProfiler(WRconcatID, op->get_friendly_name(), op);
 
     std::vector<size_t> WRreshapeSize = { 4 * size_t(lstm_hidden_size), size_t(lstm_input_size + lstm_hidden_size) };
@@ -300,7 +300,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
         p.AddPrimitive(cldnn::crop(inputCrop_id, permuteID, crop_tensor, offset_tensor, op->get_friendly_name()));
         p.AddInnerPrimitiveToProfiler(inputCrop_id, op->get_friendly_name(), op);
 
-        p.AddPrimitive(cldnn::concatenation(concatID, { inputCrop_id, hiddenStr }, cldnn::concatenation::concatenation_axis::along_x, op->get_friendly_name()));
+        p.AddPrimitive(cldnn::concatenation(concatID, { inputCrop_id, hiddenStr }, 3, op->get_friendly_name()));
         p.AddInnerPrimitiveToProfiler(concatID, op->get_friendly_name(), op);
         p.AddPrimitive(cldnn::fully_connected(lstm_fc_id, concatID, WRreshapeID, biasID, op->get_friendly_name()));
         p.AddInnerPrimitiveToProfiler(lstm_fc_id, op->get_friendly_name(), op);
@@ -345,7 +345,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     // concatenated hidden state (output 1)
     cldnn::primitive_id outputConcatID = layerName + ".0";
     cldnn::primitive_id concatStr = layerName + ":hiddenConcat";
-    p.AddPrimitive(cldnn::concatenation(concatStr, output_ids_offsets, cldnn::concatenation::along_f, op->get_friendly_name()));
+    p.AddPrimitive(cldnn::concatenation(concatStr, output_ids_offsets, 1, op->get_friendly_name()));
 
     p.primitiveIDs[outputConcatID] = concatStr;
     p.primitiveIDs[layerName] = concatStr;

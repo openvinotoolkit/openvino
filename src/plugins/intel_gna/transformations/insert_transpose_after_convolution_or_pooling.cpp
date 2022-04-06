@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/cc/ngraph/itt.hpp>
@@ -13,8 +13,6 @@
 #include "gna_plugin_log.hpp"
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(InsertTransposeAfterConvOrPool, "InsertTransposeAfterConvOrPool", 0);
 
 bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);

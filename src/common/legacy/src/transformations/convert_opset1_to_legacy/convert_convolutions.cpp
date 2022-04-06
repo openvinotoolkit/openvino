@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolutions, "ConvertConvolutions", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
 
 ngraph::pass::ConvertConvolution::ConvertConvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
@@ -45,8 +43,6 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolution");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
@@ -92,8 +88,6 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
-
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
 
@@ -124,8 +118,6 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertDeconvolution");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();

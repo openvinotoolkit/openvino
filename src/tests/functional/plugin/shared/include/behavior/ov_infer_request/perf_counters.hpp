@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace behavior {
 struct OVInferRequestPerfCountersTest : public OVInferRequestTests {
     static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
-    runtime::InferRequest req;
+    ov::InferRequest req;
 };
 }  // namespace behavior
 }  // namespace test

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,11 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank() == 1,
                               "The rank of the tensor defining output shape must be equal to 1.");
+
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
             output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
+        } else {
+            output_shape = ov::PartialShape::dynamic(input_shape[0]);
         }
     }
 
@@ -119,12 +122,10 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::RandomUniform>(new_args[0],
-                                          new_args[1],
-                                          new_args[2],
-                                          m_output_type,
-                                          m_global_seed,
-                                          m_op_seed);
+    auto ru_copy =
+        make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_output_type, m_global_seed, m_op_seed);
+    ru_copy->m_state = this->m_state;
+    return ru_copy;
 }
 
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

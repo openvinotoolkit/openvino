@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,9 +105,9 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
     auto tile_b = GetTileB(params);
 
     dispatchData.gws = {
-         CeilDiv(params.output.X().v, tile_x) * params.output.Y().v * params.output.Z().v,
-         Align(CeilDiv(params.output.Feature().v, tile_ofm), simd),
-         CeilDiv(params.output.Batch().v, tile_b)
+         CeilDiv(params.outputs[0].X().v, tile_x) * params.outputs[0].Y().v * params.outputs[0].Z().v,
+         Align(CeilDiv(params.outputs[0].Feature().v, tile_ofm), simd),
+         CeilDiv(params.outputs[0].Batch().v, tile_b)
     };
 
     dispatchData.lws = { 1, simd, 1 };
@@ -167,7 +167,7 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
     jit.AddConstant(MakeJitConstant("INPUT_TILE_IFM_PITCH", input_tile_ifm_pitch));
     jit.AddConstant(MakeJitConstant("INPUT_IN_TILE_B_PITCH", input_in_tile_batch_pitch));
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
         jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_X_STORE", true));
     } else {
         jit.AddConstant(MakeJitConstant("OUTPUT_NAIVE_STORE", true));
@@ -176,15 +176,15 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
     if (!params.fused_ops.empty()) {
         auto fused_in_dt = GetActivationType(params);
         std::vector<std::string> idx_order;
-        if (params.output.Dimentions() <= 4) {
+        if (params.outputs[0].Dimentions() <= 4) {
             idx_order = { "(out_b + ob)", "(out_f + of * SIMD)", "out_y", "(out_x + tx)" };
         } else {
             idx_order = { "(out_b + ob)", "(out_f + of * SIMD)", "out_z", "out_y", "(out_x + tx)" };
         }
         auto boundary_check = BoundaryCheck::DISABLED;
-        if (params.output.X().v % tile_x != 0
-            || params.output.Feature().v % (tile_ofm * simd) != 0
-            || params.output.Batch().v % tile_b != 0) {
+        if (params.outputs[0].X().v % tile_x != 0
+            || params.outputs[0].Feature().v % (tile_ofm * simd) != 0
+            || params.outputs[0].Batch().v % tile_b != 0) {
             boundary_check = BoundaryCheck::ENABLED;
         }
         std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
@@ -241,7 +241,7 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution_params& params) const {
     // TODO Loosen divisibility requirement for tile ofm 2
-    if (params.weights.OFM().v % (simd * 2) == 0 && params.output.Batch().v % 2 != 0)
+    if (params.weights.OFM().v % (simd * 2) == 0 && params.outputs[0].Batch().v % 2 != 0)
         return 2;
 
     return 1;
@@ -249,14 +249,14 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_params& params) const {
     constexpr size_t max_tile_x = simd;
-    if (params.output.X().v <= max_tile_x)
-        return params.output.X().v;
+    if (params.outputs[0].X().v <= max_tile_x)
+        return params.outputs[0].X().v;
 
     return max_tile_x;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileB(const deconvolution_params& params) const {
-    if (params.output.Batch().v % 2 == 0)
+    if (params.outputs[0].Batch().v % 2 == 0)
         return 2;
 
     return 1;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,13 +37,13 @@ KERNEL (fully_connected_gpu_xb_xb_b8_x8)(
 
     uint weight_offset = sub_group_id + neuronIdx;
 
-    for(uint h = 0; h < INPUT0_ELEMENTS_COUNT; h++)
+    for (uint h = 0; h < INPUT0_ELEMENTS_COUNT; h++)
     {
         DOT_PRODUCT_8(_data0, input[h * batch_num + batch_id], weight[weight_offset])
 #if NEURONS_PER_WORK_ITEM > 8
         DOT_PRODUCT_8(_data1, input[h * batch_num + batch_id], weight[weight_offset + 8])
 #endif
-        weight_offset+= FILTER_OFM_NUM;
+        weight_offset += FILTER_OFM_NUM;
     }
 
 #if BIAS_TERM

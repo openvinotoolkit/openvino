@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "roi_align_inst.h"
@@ -36,7 +36,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<roi_align>& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = { instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory() };
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
 
         return args;
     }

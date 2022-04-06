@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 #include <legacy/ngraph_ops/onehot_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOneHotToOneHotIEMatcher, "ConvertOneHotToOneHotIEMatcher", 0);
 
 ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
     auto input = std::make_shared<pattern::op::Label>(element::i32, Shape{1, 1, 1, 1});

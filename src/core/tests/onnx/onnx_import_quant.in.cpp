@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
@@ -258,6 +259,51 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
     test_case.add_expected_output<float>(
         {3, 4},
         std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({0.f, 2.f, -3.f, -2.5f, 1.34f, 0.5f});
+    test_case.add_expected_output<uint8_t>(Shape{6}, {153, 255, 0, 25, 221, 179});
+    test_case.add_expected_output<float>(Shape{}, {0.0196078438f});
+    test_case.add_expected_output<uint8_t>(Shape{}, {153});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_255) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
+    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
+    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
+    test_case.add_expected_output<uint8_t>(Shape{}, {255});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_3x4) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear_3x4.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input<float>({1.0f,  2.1f, 1.3f, 2.5f,
+                                3.34f, 4.0f, 1.5f, 2.6f,
+                                3.9f,  4.0f, 3.0f, 2.345f});
+    test_case.add_expected_output<uint8_t>(Shape{3, 4}, {  64, 134,  83, 159,
+                                                          213, 255,  96, 166,
+                                                          249, 255, 191, 149});
+    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
+    test_case.add_expected_output<uint8_t>(Shape{}, {0});
+
+    // clang-format on
     test_case.run();
 }
 
@@ -771,6 +817,27 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_scalar_zp.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 22, 33,
+                                             44, 55, 66,
+                                             77, 88, 99});                          // x
+    test_case.add_input(std::vector<uint8_t>{5, 6,
+                                             7, 8});                                // w
+    test_case.add_input(std::vector<uint8_t>{10});                                  // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{20});                                  // w_zero_point
+
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-1165, -1759,
+                                                                     -2947, -3541});  // y
+    // clang-format on
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_int8.onnx"));
 
@@ -931,5 +998,44 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
         data_shape,
         std::vector<float>{2.f,   2.f,   2.f,   2.f,   2.f,  5.5f, 5.5f, 5.5f, 5.5f, 9.f,  9.f,  9.f,
                            12.5f, 12.5f, 12.5f, 12.5f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opset10) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opset10.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{0.5f});
+    test_case.add_input(std::vector<uint8_t>{0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 100, 166});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis0) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis0.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{0.5f, 1.0f});
+    test_case.add_input(std::vector<uint8_t>{0, 0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 50, 83});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis1) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis1.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+    test_case.add_input(std::vector<float>{1.0f, 0.5f});
+    test_case.add_input(std::vector<uint8_t>{0, 0});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{32, 97, 50, 166});
     test_case.run();
 }

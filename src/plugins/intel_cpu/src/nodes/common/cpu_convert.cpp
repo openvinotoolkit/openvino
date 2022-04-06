@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <utils/jit_kernel.hpp>
-#include <mkldnn_selective_build.h>
+#include <selective_build.h>
 #include <ie_parallel.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -15,13 +15,15 @@
 #include <type_traits>
 #include <tuple>
 #include <cmath>
+#include <onednn/dnnl.h>
 
-using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
+namespace ov {
+namespace intel_cpu {
 namespace {
 
 template <typename src_t, typename dst_t>
@@ -160,7 +162,7 @@ struct PrecisionInfo {
 
 template <>
 struct PrecisionInfo<Precision::BF16> {
-    using value_type = MKLDNNPlugin::bfloat16_t;
+    using value_type = ov::intel_cpu::bfloat16_t;
 };
 
 template <>
@@ -176,7 +178,7 @@ struct PrecisionInfo<Precision::BOOL> {
 template<typename T,
          typename U = typename std::conditional<
                         std::is_same<ov::float16, T>::value
-                        || std::is_same<MKLDNNPlugin::bfloat16_t, T>::value,
+                        || std::is_same<ov::intel_cpu::bfloat16_t, T>::value,
                         float, T>::type>
 struct Range {
     const std::tuple<U, U> & fit(const Precision & prec);
@@ -194,8 +196,8 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
         double lbound, ubound;
         switch (prec) {
             case Precision::BF16:
-                lbound = static_cast<double>(std::numeric_limits<MKLDNNPlugin::bfloat16_t>::lowest());
-                ubound = static_cast<double>(std::numeric_limits<MKLDNNPlugin::bfloat16_t>::max());
+                lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
+                ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());
                 break;
             case Precision::FP16:
                 lbound = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
@@ -310,20 +312,20 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 };
 
 template<>
-struct ConvertPrecision<std::tuple<float, MKLDNNPlugin::bfloat16_t>> {
+struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
     void operator()(ConvertContext & ctx) {
         auto src = static_cast<const float *>(ctx.srcPtr);
-        auto dst = static_cast<MKLDNNPlugin::bfloat16_t *>(ctx.dstPtr);
+        auto dst = static_cast<ov::intel_cpu::bfloat16_t *>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_float()) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<MKLDNNPlugin::bfloat16_t>(src[i]);
+                dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
             float lbound, ubound;
             std::tie(lbound, ubound) = ctx.range<float>();
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<MKLDNNPlugin::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
 
@@ -332,9 +334,9 @@ struct ConvertPrecision<std::tuple<float, MKLDNNPlugin::bfloat16_t>> {
 };
 
 template<>
-struct ConvertPrecision<std::tuple<MKLDNNPlugin::bfloat16_t, float>> {
+struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     void operator()(ConvertContext & ctx) {
-        auto src = static_cast<const MKLDNNPlugin::bfloat16_t *>(ctx.srcPtr);
+        auto src = static_cast<const ov::intel_cpu::bfloat16_t *>(ctx.srcPtr);
         auto dst = static_cast<float *>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_float()) {
@@ -343,7 +345,7 @@ struct ConvertPrecision<std::tuple<MKLDNNPlugin::bfloat16_t, float>> {
             });
         } else {
             float lbound, ubound;
-            std::tie(lbound, ubound) = ctx.range<MKLDNNPlugin::bfloat16_t>();
+            std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
             });
@@ -360,7 +362,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         src_t lbound, ubound;
@@ -398,7 +400,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         auto dst = static_cast<dst_t *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         float lbound, ubound;
@@ -436,7 +438,7 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         auto dst = static_cast<ov::float16 *>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
-        const size_t iterations = MKLDNNPlugin::div_up(ctx.size, batch);
+        const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
         float lbound, ubound;
@@ -469,52 +471,52 @@ bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
 
 }   // namespace
 
-#define MKLDNN_CVT(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)
+#define INTEL_CPU_CVT(ST, DT) OV_CASE2(Precision::ST, Precision::DT, PrecisionInfo<Precision::ST>::value_type, PrecisionInfo<Precision::DT>::value_type)
 
-#define MKLDNN_CVT_LIST                                                                             \
-    MKLDNN_CVT(U8, I8),     MKLDNN_CVT(U8, U16),    MKLDNN_CVT(U8, I16),    MKLDNN_CVT(U8, U32),    \
-    MKLDNN_CVT(U8, I32),    MKLDNN_CVT(U8, U64),    MKLDNN_CVT(U8, I64),    MKLDNN_CVT(U8, FP32),   \
-    MKLDNN_CVT(U8, FP16),   MKLDNN_CVT(U8, BF16),   MKLDNN_CVT(U8, FP64),   MKLDNN_CVT(U8, BOOL),   \
-    MKLDNN_CVT(I8, U8),     MKLDNN_CVT(I8, U16),    MKLDNN_CVT(I8, I16),    MKLDNN_CVT(I8, U32),    \
-    MKLDNN_CVT(I8, I32),    MKLDNN_CVT(I8, U64),    MKLDNN_CVT(I8, I64),    MKLDNN_CVT(I8, FP32),   \
-    MKLDNN_CVT(I8, FP16),   MKLDNN_CVT(I8, BF16),   MKLDNN_CVT(I8, FP64),   MKLDNN_CVT(I8, BOOL),   \
-    MKLDNN_CVT(U16, U8),    MKLDNN_CVT(U16, I8),    MKLDNN_CVT(U16, I16),   MKLDNN_CVT(U16, U32),   \
-    MKLDNN_CVT(U16, I32),   MKLDNN_CVT(U16, U64),   MKLDNN_CVT(U16, I64),   MKLDNN_CVT(U16, FP32),  \
-    MKLDNN_CVT(U16, FP16),  MKLDNN_CVT(U16, BF16),  MKLDNN_CVT(U16, FP64),  MKLDNN_CVT(U16, BOOL),  \
-    MKLDNN_CVT(I16, U8),    MKLDNN_CVT(I16, I8),    MKLDNN_CVT(I16, U16),   MKLDNN_CVT(I16, U32),   \
-    MKLDNN_CVT(I16, I32),   MKLDNN_CVT(I16, U64),   MKLDNN_CVT(I16, I64),   MKLDNN_CVT(I16, FP32),  \
-    MKLDNN_CVT(I16, FP16),  MKLDNN_CVT(I16, BF16),  MKLDNN_CVT(I16, FP64),  MKLDNN_CVT(I16, BOOL),  \
-    MKLDNN_CVT(U32, U8),    MKLDNN_CVT(U32, I8),    MKLDNN_CVT(U32, U16),   MKLDNN_CVT(U32, I16),   \
-    MKLDNN_CVT(U32, I32),   MKLDNN_CVT(U32, U64),   MKLDNN_CVT(U32, I64),   MKLDNN_CVT(U32, FP32),  \
-    MKLDNN_CVT(U32, FP16),  MKLDNN_CVT(U32, BF16),  MKLDNN_CVT(U32, FP64),  MKLDNN_CVT(U32, BOOL),  \
-    MKLDNN_CVT(I32, U8),    MKLDNN_CVT(I32, I8),    MKLDNN_CVT(I32, U16),   MKLDNN_CVT(I32, I16),   \
-    MKLDNN_CVT(I32, U32),   MKLDNN_CVT(I32, U64),   MKLDNN_CVT(I32, I64),   MKLDNN_CVT(I32, FP32),  \
-    MKLDNN_CVT(I32, FP16),  MKLDNN_CVT(I32, BF16),  MKLDNN_CVT(I32, FP64),  MKLDNN_CVT(I32, BOOL),  \
-    MKLDNN_CVT(U64, U8),    MKLDNN_CVT(U64, I8),    MKLDNN_CVT(U64, U16),   MKLDNN_CVT(U64, I16),   \
-    MKLDNN_CVT(U64, U32),   MKLDNN_CVT(U64, I32),   MKLDNN_CVT(U64, I64),   MKLDNN_CVT(U64, FP32),  \
-    MKLDNN_CVT(U64, FP16),  MKLDNN_CVT(U64, BF16),  MKLDNN_CVT(U64, FP64),  MKLDNN_CVT(U64, BOOL),  \
-    MKLDNN_CVT(I64, U8),    MKLDNN_CVT(I64, I8),    MKLDNN_CVT(I64, U16),   MKLDNN_CVT(I64, I16),   \
-    MKLDNN_CVT(I64, U32),   MKLDNN_CVT(I64, I32),   MKLDNN_CVT(I64, U64),   MKLDNN_CVT(I64, FP32),  \
-    MKLDNN_CVT(I64, FP16),  MKLDNN_CVT(I64, BF16),  MKLDNN_CVT(I64, FP64),  MKLDNN_CVT(I64, BOOL),  \
-    MKLDNN_CVT(FP32, U8),   MKLDNN_CVT(FP32, I8),   MKLDNN_CVT(FP32, U16),  MKLDNN_CVT(FP32, I16),  \
-    MKLDNN_CVT(FP32, U32),  MKLDNN_CVT(FP32, I32),  MKLDNN_CVT(FP32, U64),  MKLDNN_CVT(FP32, I64),  \
-    MKLDNN_CVT(FP32, FP16), MKLDNN_CVT(FP32, BF16), MKLDNN_CVT(FP32, FP64), MKLDNN_CVT(FP32, BOOL), \
-    MKLDNN_CVT(FP16, U8),   MKLDNN_CVT(FP16, I8),   MKLDNN_CVT(FP16, U16),  MKLDNN_CVT(FP16, I16),  \
-    MKLDNN_CVT(FP16, U32),  MKLDNN_CVT(FP16, I32),  MKLDNN_CVT(FP16, U64),  MKLDNN_CVT(FP16, I64),  \
-    MKLDNN_CVT(FP16, FP32), MKLDNN_CVT(FP16, BF16), MKLDNN_CVT(FP16, FP64), MKLDNN_CVT(FP16, BOOL), \
-    MKLDNN_CVT(BF16, U8),   MKLDNN_CVT(BF16, I8),   MKLDNN_CVT(BF16, U16),  MKLDNN_CVT(BF16, I16),  \
-    MKLDNN_CVT(BF16, U32),  MKLDNN_CVT(BF16, I32),  MKLDNN_CVT(BF16, U64),  MKLDNN_CVT(BF16, I64),  \
-    MKLDNN_CVT(BF16, FP32), MKLDNN_CVT(BF16, FP16), MKLDNN_CVT(BF16, FP64), MKLDNN_CVT(BF16, BOOL), \
-    MKLDNN_CVT(FP64, U8),   MKLDNN_CVT(FP64, I8),   MKLDNN_CVT(FP64, U16),  MKLDNN_CVT(FP64, I16),  \
-    MKLDNN_CVT(FP64, U32),  MKLDNN_CVT(FP64, I32),  MKLDNN_CVT(FP64, U64),  MKLDNN_CVT(FP64, I64),  \
-    MKLDNN_CVT(FP64, FP32), MKLDNN_CVT(FP64, FP16), MKLDNN_CVT(FP64, BF16), MKLDNN_CVT(FP64, BOOL), \
-    MKLDNN_CVT(BOOL, U8),   MKLDNN_CVT(BOOL, I8),   MKLDNN_CVT(BOOL, U16),  MKLDNN_CVT(BOOL, I16),  \
-    MKLDNN_CVT(BOOL, U32),  MKLDNN_CVT(BOOL, I32),  MKLDNN_CVT(BOOL, U64),  MKLDNN_CVT(BOOL, I64),  \
-    MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, FP16), MKLDNN_CVT(BOOL, BF16), MKLDNN_CVT(BOOL, FP64), \
-    MKLDNN_CVT(U8, U8),     MKLDNN_CVT(I8, I8),     MKLDNN_CVT(U16, U16),   MKLDNN_CVT(I16, I16),   \
-    MKLDNN_CVT(U32, U32),   MKLDNN_CVT(I32, I32),   MKLDNN_CVT(U64, U64),   MKLDNN_CVT(I64, I64),   \
-    MKLDNN_CVT(FP32, FP32), MKLDNN_CVT(FP16, FP16), MKLDNN_CVT(BF16, BF16), MKLDNN_CVT(FP64, FP64), \
-    MKLDNN_CVT(BOOL, BOOL)
+#define INTEL_CPU_CVT_LIST                                                                                      \
+    INTEL_CPU_CVT(U8, I8),     INTEL_CPU_CVT(U8, U16),    INTEL_CPU_CVT(U8, I16),    INTEL_CPU_CVT(U8, U32),    \
+    INTEL_CPU_CVT(U8, I32),    INTEL_CPU_CVT(U8, U64),    INTEL_CPU_CVT(U8, I64),    INTEL_CPU_CVT(U8, FP32),   \
+    INTEL_CPU_CVT(U8, FP16),   INTEL_CPU_CVT(U8, BF16),   INTEL_CPU_CVT(U8, FP64),   INTEL_CPU_CVT(U8, BOOL),   \
+    INTEL_CPU_CVT(I8, U8),     INTEL_CPU_CVT(I8, U16),    INTEL_CPU_CVT(I8, I16),    INTEL_CPU_CVT(I8, U32),    \
+    INTEL_CPU_CVT(I8, I32),    INTEL_CPU_CVT(I8, U64),    INTEL_CPU_CVT(I8, I64),    INTEL_CPU_CVT(I8, FP32),   \
+    INTEL_CPU_CVT(I8, FP16),   INTEL_CPU_CVT(I8, BF16),   INTEL_CPU_CVT(I8, FP64),   INTEL_CPU_CVT(I8, BOOL),   \
+    INTEL_CPU_CVT(U16, U8),    INTEL_CPU_CVT(U16, I8),    INTEL_CPU_CVT(U16, I16),   INTEL_CPU_CVT(U16, U32),   \
+    INTEL_CPU_CVT(U16, I32),   INTEL_CPU_CVT(U16, U64),   INTEL_CPU_CVT(U16, I64),   INTEL_CPU_CVT(U16, FP32),  \
+    INTEL_CPU_CVT(U16, FP16),  INTEL_CPU_CVT(U16, BF16),  INTEL_CPU_CVT(U16, FP64),  INTEL_CPU_CVT(U16, BOOL),  \
+    INTEL_CPU_CVT(I16, U8),    INTEL_CPU_CVT(I16, I8),    INTEL_CPU_CVT(I16, U16),   INTEL_CPU_CVT(I16, U32),   \
+    INTEL_CPU_CVT(I16, I32),   INTEL_CPU_CVT(I16, U64),   INTEL_CPU_CVT(I16, I64),   INTEL_CPU_CVT(I16, FP32),  \
+    INTEL_CPU_CVT(I16, FP16),  INTEL_CPU_CVT(I16, BF16),  INTEL_CPU_CVT(I16, FP64),  INTEL_CPU_CVT(I16, BOOL),  \
+    INTEL_CPU_CVT(U32, U8),    INTEL_CPU_CVT(U32, I8),    INTEL_CPU_CVT(U32, U16),   INTEL_CPU_CVT(U32, I16),   \
+    INTEL_CPU_CVT(U32, I32),   INTEL_CPU_CVT(U32, U64),   INTEL_CPU_CVT(U32, I64),   INTEL_CPU_CVT(U32, FP32),  \
+    INTEL_CPU_CVT(U32, FP16),  INTEL_CPU_CVT(U32, BF16),  INTEL_CPU_CVT(U32, FP64),  INTEL_CPU_CVT(U32, BOOL),  \
+    INTEL_CPU_CVT(I32, U8),    INTEL_CPU_CVT(I32, I8),    INTEL_CPU_CVT(I32, U16),   INTEL_CPU_CVT(I32, I16),   \
+    INTEL_CPU_CVT(I32, U32),   INTEL_CPU_CVT(I32, U64),   INTEL_CPU_CVT(I32, I64),   INTEL_CPU_CVT(I32, FP32),  \
+    INTEL_CPU_CVT(I32, FP16),  INTEL_CPU_CVT(I32, BF16),  INTEL_CPU_CVT(I32, FP64),  INTEL_CPU_CVT(I32, BOOL),  \
+    INTEL_CPU_CVT(U64, U8),    INTEL_CPU_CVT(U64, I8),    INTEL_CPU_CVT(U64, U16),   INTEL_CPU_CVT(U64, I16),   \
+    INTEL_CPU_CVT(U64, U32),   INTEL_CPU_CVT(U64, I32),   INTEL_CPU_CVT(U64, I64),   INTEL_CPU_CVT(U64, FP32),  \
+    INTEL_CPU_CVT(U64, FP16),  INTEL_CPU_CVT(U64, BF16),  INTEL_CPU_CVT(U64, FP64),  INTEL_CPU_CVT(U64, BOOL),  \
+    INTEL_CPU_CVT(I64, U8),    INTEL_CPU_CVT(I64, I8),    INTEL_CPU_CVT(I64, U16),   INTEL_CPU_CVT(I64, I16),   \
+    INTEL_CPU_CVT(I64, U32),   INTEL_CPU_CVT(I64, I32),   INTEL_CPU_CVT(I64, U64),   INTEL_CPU_CVT(I64, FP32),  \
+    INTEL_CPU_CVT(I64, FP16),  INTEL_CPU_CVT(I64, BF16),  INTEL_CPU_CVT(I64, FP64),  INTEL_CPU_CVT(I64, BOOL),  \
+    INTEL_CPU_CVT(FP32, U8),   INTEL_CPU_CVT(FP32, I8),   INTEL_CPU_CVT(FP32, U16),  INTEL_CPU_CVT(FP32, I16),  \
+    INTEL_CPU_CVT(FP32, U32),  INTEL_CPU_CVT(FP32, I32),  INTEL_CPU_CVT(FP32, U64),  INTEL_CPU_CVT(FP32, I64),  \
+    INTEL_CPU_CVT(FP32, FP16), INTEL_CPU_CVT(FP32, BF16), INTEL_CPU_CVT(FP32, FP64), INTEL_CPU_CVT(FP32, BOOL), \
+    INTEL_CPU_CVT(FP16, U8),   INTEL_CPU_CVT(FP16, I8),   INTEL_CPU_CVT(FP16, U16),  INTEL_CPU_CVT(FP16, I16),  \
+    INTEL_CPU_CVT(FP16, U32),  INTEL_CPU_CVT(FP16, I32),  INTEL_CPU_CVT(FP16, U64),  INTEL_CPU_CVT(FP16, I64),  \
+    INTEL_CPU_CVT(FP16, FP32), INTEL_CPU_CVT(FP16, BF16), INTEL_CPU_CVT(FP16, FP64), INTEL_CPU_CVT(FP16, BOOL), \
+    INTEL_CPU_CVT(BF16, U8),   INTEL_CPU_CVT(BF16, I8),   INTEL_CPU_CVT(BF16, U16),  INTEL_CPU_CVT(BF16, I16),  \
+    INTEL_CPU_CVT(BF16, U32),  INTEL_CPU_CVT(BF16, I32),  INTEL_CPU_CVT(BF16, U64),  INTEL_CPU_CVT(BF16, I64),  \
+    INTEL_CPU_CVT(BF16, FP32), INTEL_CPU_CVT(BF16, FP16), INTEL_CPU_CVT(BF16, FP64), INTEL_CPU_CVT(BF16, BOOL), \
+    INTEL_CPU_CVT(FP64, U8),   INTEL_CPU_CVT(FP64, I8),   INTEL_CPU_CVT(FP64, U16),  INTEL_CPU_CVT(FP64, I16),  \
+    INTEL_CPU_CVT(FP64, U32),  INTEL_CPU_CVT(FP64, I32),  INTEL_CPU_CVT(FP64, U64),  INTEL_CPU_CVT(FP64, I64),  \
+    INTEL_CPU_CVT(FP64, FP32), INTEL_CPU_CVT(FP64, FP16), INTEL_CPU_CVT(FP64, BF16), INTEL_CPU_CVT(FP64, BOOL), \
+    INTEL_CPU_CVT(BOOL, U8),   INTEL_CPU_CVT(BOOL, I8),   INTEL_CPU_CVT(BOOL, U16),  INTEL_CPU_CVT(BOOL, I16),  \
+    INTEL_CPU_CVT(BOOL, U32),  INTEL_CPU_CVT(BOOL, I32),  INTEL_CPU_CVT(BOOL, U64),  INTEL_CPU_CVT(BOOL, I64),  \
+    INTEL_CPU_CVT(BOOL, FP32), INTEL_CPU_CVT(BOOL, FP16), INTEL_CPU_CVT(BOOL, BF16), INTEL_CPU_CVT(BOOL, FP64), \
+    INTEL_CPU_CVT(U8, U8),     INTEL_CPU_CVT(I8, I8),     INTEL_CPU_CVT(U16, U16),   INTEL_CPU_CVT(I16, I16),   \
+    INTEL_CPU_CVT(U32, U32),   INTEL_CPU_CVT(I32, I32),   INTEL_CPU_CVT(U64, U64),   INTEL_CPU_CVT(I64, I64),   \
+    INTEL_CPU_CVT(FP32, FP32), INTEL_CPU_CVT(FP16, FP16), INTEL_CPU_CVT(BF16, BF16), INTEL_CPU_CVT(FP64, FP64), \
+    INTEL_CPU_CVT(BOOL, BOOL)
 
 void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision dstPrc, const size_t size) {
     cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
@@ -530,7 +532,19 @@ void cpu_convert(const void *srcPtr,
         IE_THROW() << "cpu_convert has null data pointer";
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
-        cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
+        const size_t totalSize = size * dstPrc.size();
+        if (totalSize >= L2_cache_size) {
+            auto src = static_cast<const uint8_t *>(srcPtr);
+            auto dst = static_cast<uint8_t *>(dstPtr);
+            parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
+                size_t start = 0, end = 0;
+                splitter(totalSize, nthr, ithr, start, end);
+                cpu_memcpy(dst + start, src + start, end - start);
+            });
+        } else {
+            cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
+        }
     } else {
         ConvertContext ctx = {
             srcPtr,
@@ -540,11 +554,14 @@ void cpu_convert(const void *srcPtr,
             dstPrc,
             false
         };
-        OV_SWITCH(MKLDNNPlugin, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), MKLDNN_CVT_LIST);
+        OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         if (!ctx.converted)
             IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
     }
 }
 
-#undef MKLDNN_CVT
-#undef MKLDNN_CVT_LIST
+#undef INTEL_CPU_CVT
+#undef INTEL_CPU_CVT_LIST
+
+}   // namespace intel_cpu
+}   // namespace ov

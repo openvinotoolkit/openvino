@@ -1,30 +1,27 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp"
 
 #include <memory>
-#include <queue>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <queue>
 #include <transformations/rt_info/disable_constant_folding.hpp>
+#include <vector>
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableConvertConstantFoldingOnConstPath, "DisableConvertConstantFoldingOnConstPath", 0);
-
 ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
-    const element::TypeVector & inputPrecisions) {
+    const element::TypeVector& inputPrecisions) {
     auto matcherData = ngraph::pattern::any_input();
-    auto matcherConvert = ngraph::pattern::wrap_type<opset3::Convert>({ matcherData }, pattern::consumers_count(1));
+    auto matcherConvert = ngraph::pattern::wrap_type<opset3::Convert>({matcherData}, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto convert = opsMap.at(matcherConvert).get_node_shared_ptr();
 

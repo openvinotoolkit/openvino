@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ using param_callback_map = std::map<ov::DiscreteTypeInfo, param_callback>;
 ///
 /// Following this logic inside your transformations you will guaranty that transformations
 /// will be executed in a right way.
+/// \ingroup ov_pass_cpp_api
 class OPENVINO_API PassConfig {
 public:
     /// \brief Disable transformation by its type_info

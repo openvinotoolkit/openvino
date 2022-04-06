@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,10 @@
 
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertTileToSeqTiles, "ConvertTileToSeqTiles", 0);
+#include "itt.hpp"
 
-MKLDNNPlugin::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
+ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
+    MATCHER_SCOPE(ConvertTileToSeqTiles);
     auto tile = ngraph::pattern::wrap_type<ngraph::opset1::Tile>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                                                   ngraph::pattern::wrap_type<ngraph::opset1::Constant>()});
 
@@ -90,6 +91,6 @@ MKLDNNPlugin::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "ConvertTileToSeqTiles");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, matcher_name);
     this->register_matcher(m, callback);
 }

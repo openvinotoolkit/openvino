@@ -1,23 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "cpu_types.h"
 
 #include <ie_layouts.h>
 #include <ie_blob.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MemoryDesc;
 class DnnlMemoryDesc;
 class BlockedMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class CpuBlockedMemoryDesc;
-class MKLDNNMemory;
+class Memory;
 
 class MemoryDescUtils {
 public:
@@ -59,11 +60,11 @@ public:
     static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
 
     /**
-     * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse
-     * @param desc MKLDNNMemory from which will be created InferenceEngine::Blob
+     * @brief Creates InferenceEngine::Blob from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
      * @return pointer to InferenceEngine::Blob
      */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const MKLDNNMemory& mem);
+    static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
@@ -72,13 +73,15 @@ public:
      */
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
 
+    static constexpr Dim DEFAULT_DUMMY_VAL = 64;
+
     /**
      * @brief Makes a dummy descriptor where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
      * @param desc MemoryDesc from which the new descriptor is generated
      * @param dummyVal Dim value to replace undefined dimensions
      * @return a new MemoryDesc with dummy values instead of undefined dims
      */
-     static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
+    static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = DEFAULT_DUMMY_VAL);
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
@@ -86,7 +89,7 @@ public:
     * @param dummyVal Dim value to replace undefined dimensions
     * @return a new Shape with dummy values instead of undefined dims
     */
-    static Shape makeDummyShape(const Shape& shape, Dim dummyVal = 64);
+    static Shape makeDummyShape(const Shape& shape, Dim dummyVal = DEFAULT_DUMMY_VAL);
 
     /**
      * @brief Converts dim to string, undefined dim represented as ?
@@ -103,4 +106,5 @@ public:
     static std::string dims2str(const VectorDims& dims);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

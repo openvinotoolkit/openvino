@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
  */
 class EnumerateNodes : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EnumerateNodes", "0");
     EnumerateNodes() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
@@ -59,7 +59,7 @@ public:
  */
 class TokenizeSnippets: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TokenizeSnippets", "0");
     explicit TokenizeSnippets();
 };
 

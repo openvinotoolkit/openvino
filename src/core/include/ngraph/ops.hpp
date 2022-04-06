@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,7 @@
 #include "ngraph/op/idft.hpp"
 #include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
+#include "ngraph/op/irdft.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/log.hpp"
@@ -119,6 +120,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/random_uniform.hpp"
 #include "ngraph/op/range.hpp"
+#include "ngraph/op/rdft.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"
 #include "ngraph/op/reduce_l2.hpp"

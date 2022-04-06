@@ -1,14 +1,14 @@
-# Step 2. Markup Transformations {#openvino_docs_IE_DG_lpt_step2_markup}
+# Step 2. Markup Transformations {#openvino_docs_OV_UG_lpt_step2_markup}
 
 This step defines the optimal `FakeQuantize` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
-1. [MarkupCanBeQuantized](@ref openvino_docs_IE_DG_lpt_MarkupCanBeQuantized)
-2. [MarkupPrecisions](@ref openvino_docs_IE_DG_lpt_MarkupPrecisions)
-3. [MarkupPerTensorQuantization](@ref openvino_docs_IE_DG_lpt_MarkupPerTensorQuantization)
-4. [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_MarkupAvgPoolPrecisionPreserved)
-5. [PropagatePrecisions](@ref openvino_docs_IE_DG_lpt_PropagatePrecisions)
-6. [AlignQuantizationIntervals](@ref openvino_docs_IE_DG_lpt_AlignQuantizationIntervals)
-7. [AlignQuantizationParameters](@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters)
+1. [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized)
+2. [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions)
+3. [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization)
+4. [MarkupAvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved)
+5. [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions)
+6. [AlignQuantizationIntervals](@ref openvino_docs_OV_UG_lpt_AlignQuantizationIntervals)
+7. [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters)
 
 The table of transformations and used attributes:
 
@@ -25,11 +25,11 @@ The table of transformations and used attributes:
 > **Note:** the same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different
 
 Common markup transformations can be decomposed into simpler utility markup transformations. The order of Markup utility transformations is not important:
-* [CreateAttribute](@ref openvino_docs_IE_DG_lpt_CreateAttribute)
-* [CreatePrecisionsDependentAttribute](@ref openvino_docs_IE_DG_lpt_CreatePrecisionsDependentAttribute)
-* [PropagateThroughPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_PropagateThroughPrecisionPreserved)
-* [PropagateToInput](@ref openvino_docs_IE_DG_lpt_PropagateToInput)
-* [UpdateSharedPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_UpdateSharedPrecisionPreserved)
+* [CreateAttribute](@ref openvino_docs_OV_UG_lpt_CreateAttribute)
+* [CreatePrecisionsDependentAttribute](@ref openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute)
+* [PropagateThroughPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved)
+* [PropagateToInput](@ref openvino_docs_OV_UG_lpt_PropagateToInput)
+* [UpdateSharedPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved)
 
 Let's explore all transformations and their relations in detail, using one and the same model:
 
@@ -44,7 +44,7 @@ The original model key features:
 
 Transformations are run with the following parameters:
 
-@snippet snippets/lpt_mkldnn_plugin.cpp lpt_markup_pipeline
+@snippet snippets/lpt_intel_cpu_plugin.cpp lpt_markup_pipeline
 
 ## 1. MarkupCanBeQuantized
 The transformation marks operations that cannot be quantized. No attributes are required before the transformation.

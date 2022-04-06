@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,19 +9,11 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/type.hpp"
+#include "openvino/core/rt_info.hpp"
 
 namespace ngraph {
-NGRAPH_API
-void copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to);
-
-NGRAPH_API
-void copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to);
-
-NGRAPH_API
-void copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to);
-
-NGRAPH_API
-void copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to);
+using ov::copy_output_runtime_info;
+using ov::copy_runtime_info;
 }  // namespace ngraph
 
 using ngraph::copy_runtime_info;

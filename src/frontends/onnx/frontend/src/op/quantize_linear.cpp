@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,7 +158,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
 
     if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
-        x_shape[axis].is_static()) {
+        x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_scale_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization scale elements ",
@@ -173,7 +173,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
     }
 
     if (y_zero_point_shape.rank().is_static() && y_zero_point_shape.rank().get_length() == 1 &&
-        x_shape.rank().is_static() && x_shape[axis].is_static()) {
+        x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
         CHECK_VALID_NODE(node,
                          y_zero_point_shape[0].same_scheme(x_shape[axis]),
                          "The number of quantization zero point elements ",

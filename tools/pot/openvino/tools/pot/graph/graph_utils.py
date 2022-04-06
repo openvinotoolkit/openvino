@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,10 +9,7 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.runtime import Core  # pylint: disable=E0401,E0611
 from openvino.runtime.passes import Manager # pylint: disable=E0401,E0611
-try:
-    from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
-except ImportError:
-    from openvino.offline_transformations_pybind import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
+from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
@@ -37,6 +34,7 @@ def load_graph(model_config, target_device='ANY'):
         apply_pot_transformations(model, target_device.encode('utf-8'))
         bin_path = serialized_bin_path
         xml_path = serialized_xml_path
+        # TODO: replace by openvino.runtime.serialize
         pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
         pass_manager.run_passes(model)
 
@@ -47,11 +45,17 @@ def load_graph(model_config, target_device='ANY'):
         raise RuntimeError('Input model bin should link to an existing file. Please, provide a correct path.')
 
     graph_from_ir, meta_data = stdout_redirect(restore_graph_from_ir, xml_path, bin_path)
+
+    if graph_from_ir.graph['ir_version'] == 10:
+        raise AssertionError(
+            'POT does not support version 10 of IR.'
+            'Please convert the model with the newer version of OpenVINO '
+            'or use the POT from OpenVINO 2021.4.2 to work with version 10 of IR.')
+
     orig_graph_from_ir, meta_data = stdout_redirect(restore_graph_from_ir, model_config.model, model_config.weights)
 
     meta_data['quantization_parameters'] = model_config.quantization_info
     graph_from_ir.meta_data = meta_data
-    graph_from_ir.ir_v10 = True
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
     remove_converts(graph_from_ir)
     model_preprocessing(graph_from_ir)
@@ -62,7 +66,7 @@ def load_graph(model_config, target_device='ANY'):
     return graph_from_ir
 
 
-def save_graph(graph: Graph, save_path, model_name=None):
+def save_graph(graph: Graph, save_path, model_name=None, rename_results=False):
     """ Save model as IR in specified path
     :param graph: NetworkX model to save
     :param save_path: path to save the model
@@ -81,7 +85,7 @@ def save_graph(graph: Graph, save_path, model_name=None):
     graph_copy = deepcopy(graph)
     add_removed_converts(graph_copy)
     save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
-                        name=model_name)
+                        name=model_name, rename_results=rename_results)
 
 
 def model_preprocessing(model):

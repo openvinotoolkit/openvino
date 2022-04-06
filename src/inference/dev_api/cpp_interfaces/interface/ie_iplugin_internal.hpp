@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,10 +24,11 @@
 
 namespace ov {
 class Function;
+class ICore;
 }  // namespace ov
 namespace InferenceEngine {
 
-class ICore;
+class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
 class IExtension;
@@ -255,13 +256,19 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(std::weak_ptr<ICore> core);
+    virtual void SetCore(std::weak_ptr<ov::ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual std::shared_ptr<ICore> GetCore() const noexcept;
+    virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
+
+    /**
+     * @brief Gets reference to tasks execution manager
+     * @return Reference to ExecutorManager interface
+     */
+    const std::shared_ptr<ExecutorManager>& executorManager() const;
 
     /**
      * @brief      Queries a plugin about supported layers in network
@@ -273,6 +280,7 @@ public:
                                             const std::map<std::string, std::string>& config) const;
 
 protected:
+    IInferencePlugin();
     ~IInferencePlugin() = default;
 
     /**
@@ -327,9 +335,21 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
 
-    std::string _pluginName;                     //!< A device name that plugins enables
-    std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
+    /**
+     * @brief Returns set of nodes which were removed after transformation.
+     * If originalFunction contains node1 and transformedFunction does not
+     * contains node1 in ops list, node1 will be returned.
+     * @param originalFunction Original network
+     * @param transformedFunction Transformed network
+     * @return Set of strings which contains removed node names
+     */
+    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                    const std::shared_ptr<const ov::Model>& transformedFunction) const;
+
+    std::string _pluginName;                            //!< A device name that plugins enables
+    std::map<std::string, std::string> _config;         //!< A map config keys -> values
+    std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
+    std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
 };
 
 /**

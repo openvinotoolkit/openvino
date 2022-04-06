@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_generate_proposals_single_image.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
@@ -26,7 +26,7 @@ std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestC
         const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj) {
     std::vector<InputShape> inputShapes;
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(
@@ -57,7 +57,7 @@ std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestC
 void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
     std::vector<InputShape> inputShapes;
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(

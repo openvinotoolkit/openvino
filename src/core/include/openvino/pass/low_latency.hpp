@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ namespace pass {
  *                                                                       ->...
  * After applying the transformation, the resulting network can be inferred
  * step by step, the states will store between inferences.
+ * @ingroup ov_pass_cpp_api
  */
 class OPENVINO_API LowLatency2 : public ModelPass {
 public:

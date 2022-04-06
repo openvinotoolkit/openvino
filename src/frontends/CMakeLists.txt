@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,10 @@ if(ENABLE_LTO)
 endif()
 
 add_subdirectory(common)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
 
 if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)

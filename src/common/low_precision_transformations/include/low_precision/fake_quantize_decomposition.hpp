@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -19,12 +18,12 @@ namespace low_precision {
  * (FakeQuantize with changes output intervals and low precision output type) and dequantize operations.
  *
  * For more details about the transformation, refer to
- * [FakeQuantizeDecompositionTransformation](@ref openvino_docs_IE_DG_lpt_FakeQuantizeDecompositionTransformation) page
+ * [FakeQuantizeDecompositionTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FakeQuantizeDecompositionTransformation", "0");
     FakeQuantizeDecompositionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

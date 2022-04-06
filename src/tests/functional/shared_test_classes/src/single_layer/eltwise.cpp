@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
@@ -19,7 +19,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
-    std::map<std::string, std::string> additional_config;
+    ov::AnyMap additional_config;
     std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
@@ -41,45 +41,10 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
     for (auto const& configItem : additional_config) {
-        results << "_configItem=" << configItem.first << "_" << configItem.second;
+        results << "_configItem=" << configItem.first << "_";
+        configItem.second.print(results);
     }
     return results.str();
-}
-
-void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto opType = std::get<1>(GetParam());
-    const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
-        const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
-        bool isReal = funcInput.get_element_type().is_real();
-        switch (opType) {
-            case ngraph::helpers::EltwiseTypes::POWER:
-            case ngraph::helpers::EltwiseTypes::MOD:
-            case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
-                tensor = isReal ?
-                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 4, 2);
-                break;
-            case ngraph::helpers::EltwiseTypes::DIVIDE:
-                tensor = isReal ?
-                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 100, 101);
-                break;
-            case ngraph::helpers::EltwiseTypes::ERF:
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 6, -3);
-                break;
-            default:
-                if (funcInput.get_element_type().is_real()) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
-                } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                }
-                break;
-        }
-        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-    }
 }
 
 void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialShape& secondInputShape) {
@@ -103,6 +68,7 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
+    // TODO: Remove it after fixing issue 69529
     // w/a for myriad (cann't store 2 caches simultaneously)
     PluginCache::get().reset();
 
@@ -113,7 +79,7 @@ void EltwiseLayerTest::SetUp() {
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
-        this->GetParam();
+            this->GetParam();
 
     init_input_shapes(shapes);
 
@@ -164,6 +130,7 @@ void EltwiseLayerTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+
+} //  namespace subgraph
+} //  namespace test
+} //  namespace ov

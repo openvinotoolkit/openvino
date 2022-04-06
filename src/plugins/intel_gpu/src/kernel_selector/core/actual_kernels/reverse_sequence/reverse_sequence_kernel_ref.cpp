@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,14 +33,14 @@ CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_p
                                                         const optional_params&) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
 
-    dispatchData.gws = { params.output.Batch().v,
-                         params.output.Feature().v,
-                         params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.outputs[0].Batch().v,
+                         params.outputs[0].Feature().v,
+                         params.outputs[0].Y().v * params.outputs[0].X().v };
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 

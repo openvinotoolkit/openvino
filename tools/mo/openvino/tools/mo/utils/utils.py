@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -22,7 +22,7 @@ def refer_to_faq_msg(question_num: int):
     t.send_event('mo', 'error_info', "faq:" + str(question_num))
 
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
-           '(https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+           '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
 
 

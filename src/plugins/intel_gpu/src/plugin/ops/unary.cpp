@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -256,8 +256,15 @@ static void CreateMishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Mish>
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::mish, {});
 }
 
-static void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::gelu, {});
+static void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gelu>& op) {
+    cldnn::activation_func activationFunc =
+            op->get_approximation_mode() == op::GeluApproximationMode::ERF ? cldnn::activation_func::gelu
+                                                                           : cldnn::activation_func::gelu_tanh;
+    CreateUnaryEltwiseOp(p, op, activationFunc, {});
+}
+
+static void CreateGeluOp(Program &p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
+    CreateUnaryEltwiseOp(p, op,  cldnn::activation_func::gelu, {});
 }
 
 static void CreateSignOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sign>& op) {
@@ -311,6 +318,7 @@ REGISTER_FACTORY_IMPL(v4, Swish);
 REGISTER_FACTORY_IMPL(v4, HSwish);
 REGISTER_FACTORY_IMPL(v4, Mish);
 REGISTER_FACTORY_IMPL(v0, Gelu);
+REGISTER_FACTORY_IMPL(v7, Gelu);
 REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);

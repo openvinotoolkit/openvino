@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,14 @@ namespace GNAPluginNS {
 // @brief Splits convolution with large input buffer
 class SplitConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolution", "0");
   SplitConvolution();
 };
 
 // @brief Splits convolution with large input buffer, move add with bias to each convolution before concat
 class SplitConvolutionWithBias : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolutionWithBias", "0");
   SplitConvolutionWithBias();
 };
 
@@ -27,7 +27,7 @@ public:
  */
 class SplitConvolutionWithFq : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolutionWithFq", "0");
   SplitConvolutionWithFq();
 };
 

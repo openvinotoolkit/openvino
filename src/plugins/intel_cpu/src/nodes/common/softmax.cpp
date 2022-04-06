@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <ie_parallel.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
+#include <onednn/dnnl.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 
@@ -16,13 +16,15 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace MKLDNNPlugin;
-using namespace mkldnn;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
+
+namespace ov {
+namespace intel_cpu {
 
 struct jit_args_softmax {
     const void* src;
@@ -61,7 +63,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
@@ -325,3 +327,6 @@ void SoftmaxGeneric::execute(const uint8_t *src_data, uint8_t *dst_data, int B, 
         IE_THROW() << "Unsupported input precision: " << input_prec.name();
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

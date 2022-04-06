@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 using namespace GNAPluginNS;
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(DecomposeMVN, "DecomposeMVN", 0);
 
 struct MVNData {
     size_t N;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceSqueeze, "ngraph::pass::StridedSliceSqueeze", 0);
 
 ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
@@ -106,16 +104,11 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask,
             ellipsis_mask);
 
-        replace_node(squeeze, new_slice);
-        new_slice->set_friendly_name(slice->get_friendly_name());
-        copy_runtime_info(slice, new_slice);
-        return true;
+        return replace_output_update_name(squeeze->output(0), new_slice->output(squeeze->input_value(0).get_index()));
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SqueezeStridedSlice, "ngraph::pass::SqueezeStridedSlice", 0);
-
 ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
@@ -127,10 +120,12 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(m.get_match_root());
+        if (!slice)
+            return false;
         auto squeeze = slice->get_input_node_shared_ptr(0);
         const auto& const_axes =
             std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
-        if (!const_axes || !slice)
+        if (!const_axes)
             return false;
 
         auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
@@ -197,8 +192,6 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedSqueeze, "ngraph::pass::SharedSqueeze", 0);
 
 namespace {
 

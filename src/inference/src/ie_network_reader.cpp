@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,10 @@ public:
         return node->outputs();
     }
 
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
 private:
     InferenceEngine::IExtensionPtr m_ext;
     std::string m_opset_name;
@@ -83,7 +87,7 @@ class Reader : public IReader {
 #    ifdef OPENVINO_STATIC_LIBRARY
     using ReaderPtr = std::shared_ptr<IReader>;
 #    else
-    using ReaderPtr = ov::runtime::SoPtr<IReader>;
+    using ReaderPtr = ov::SoPtr<IReader>;
 #    endif
     ReaderPtr ptr;
     std::once_flag readFlag;
@@ -289,7 +293,8 @@ namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
-                                 bool newAPI) {
+                                 bool newAPI,
+                                 bool frontendMode = false) {
     auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     const bool is_ir = it != rt_info.end();
@@ -302,31 +307,35 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
-            std::unordered_set<std::string> leaf_names;
+            std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
-                const auto ngraph_type = inputs[i].get_element_type();
-                const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(i).tensor().set_element_type(legacy_type);
+                if (!frontendMode) {
+                    const auto ngraph_type = inputs[i].get_element_type();
+                    const auto legacy_type = details::toLegacyType(ngraph_type, true);
+                    prepost.input(i).tensor().set_element_type(legacy_type);
+                }
                 for (const auto& name : inputs[i].get_names()) {
                     OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
                                     "Model tensor names have collisions.",
                                     " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(name);
+                    leaf_names.emplace(name, inputs[i].get_tensor_ptr());
                 }
             }
 
             const auto outputs = function->outputs();
             for (size_t i = 0; i < outputs.size(); ++i) {
-                const auto ngraph_type = outputs[i].get_element_type();
-                const auto legacy_type = details::toLegacyType(ngraph_type, false);
-
-                prepost.output(i).tensor().set_element_type(legacy_type);
+                if (!frontendMode) {
+                    const auto ngraph_type = outputs[i].get_element_type();
+                    const auto legacy_type = details::toLegacyType(ngraph_type, false);
+                    prepost.output(i).tensor().set_element_type(legacy_type);
+                }
                 for (const auto& name : outputs[i].get_names()) {
-                    OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
+                    auto tensor_it = leaf_names.find(name);
+                    OPENVINO_ASSERT(tensor_it == leaf_names.end() || tensor_it->second == outputs[i].get_tensor_ptr(),
                                     "Model tensor names have collisions.",
                                     " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(name);
+                    leaf_names.emplace(name, outputs[i].get_tensor_ptr());
                 }
             }
 
@@ -345,7 +354,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                             result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                         "Model operation names have collisions with tensor names.",
                         " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(res_name);
+                    leaf_names.emplace(res_name, nullptr);
                     result->output(0).get_tensor().add_names({res_name});
                 }
                 for (const auto& param : function->get_parameters()) {
@@ -355,7 +364,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                             param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                         "Model operation names have collisions with tensor names.",
                         " Please use MO to generate new IR version, it should allow to avoid the issue");
-                    leaf_names.insert(param_name);
+                    leaf_names.emplace(param_name, nullptr);
                     param->output(0).get_tensor().add_names({param_name});
                 }
             }
@@ -521,7 +530,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
@@ -566,7 +576,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

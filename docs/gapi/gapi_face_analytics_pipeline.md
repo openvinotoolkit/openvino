@@ -41,7 +41,7 @@ Constructing a G-API graph for a video streaming case does not differ much from 
 
 ### Declare Deep Learning topologies {#gapi_ifd_declaring_nets}
 
-In contrast with traditional CV functions (see [core](https://docs.opencv.org/4.5.0/df/d1f/group__gapi__core.html) and [imgproc](https://docs.opencv.org/4.5.0/d2/d00/group__gapi__imgproc.html)) where G-API declares distinct operations for every function, inference in G-API is a single generic operation `cv::gapi::infer<>`. As usual, it is just an interface and it can be implemented in a number of ways under the hood. In OpenCV 4.2, only OpenVINO™ Inference Engine-based backend is available, and OpenCV's own DNN module-based backend is to come.
+In contrast with traditional CV functions (see [core](https://docs.opencv.org/4.5.0/df/d1f/group__gapi__core.html) and [imgproc](https://docs.opencv.org/4.5.0/d2/d00/group__gapi__imgproc.html)) where G-API declares distinct operations for every function, inference in G-API is a single generic operation `cv::gapi::infer<>`. As usual, it is just an interface and it can be implemented in a number of ways under the hood. In OpenCV 4.2, only OpenVINO™ Runtime-based backend is available, and OpenCV's own DNN module-based backend is to come.
 
 `cv::gapi::infer<>` is _parametrized_ by the details of a topology we are going to execute. Like operations, topologies in G-API are strongly typed and are defined with a special macro `G_API_NET()`:
 
@@ -126,7 +126,7 @@ G-API strictly separates construction from configuration -- with the idea to kee
 
 Platform-specific details arise when the pipeline is *compiled* -- i.e. is turned from a declarative to an executable form. The way *how* to run stuff is specified via compilation arguments, and new inference/streaming features are no exception from this rule. 
 
-G-API is built on backends which implement interfaces (see [Architecture](https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html) and [Kernels](kernel_api.md) for details) -- thus `cv::gapi::infer<>` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Inference Engine backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters -- and in this case, it is `cv::gapi::ie::Params`:
+G-API is built on backends which implement interfaces (see [Architecture](https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html) and [Kernels](kernel_api.md) for details) -- thus `cv::gapi::infer<>` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Runtime backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters -- and in this case, it is `cv::gapi::ie::Params`:
 
 ```cpp
 auto det_net = cv::gapi::ie::Params<custom::Faces> {
@@ -148,7 +148,7 @@ auto emo_net = cv::gapi::ie::Params<custom::Emotions> {
 
 Here we define three parameter objects: `det_net`, `age_net`, and `emo_net`. Every object is a `cv::gapi::ie::Params` structure parametrization for each particular network we use. On a compilation stage, G-API automatically matches network parameters with their `cv::gapi::infer<>` calls in graph using this information.
 
-Regardless of the topology, every parameter structure is constructed with three string arguments – specific to the OpenVINO™ Inference Engine:
+Regardless of the topology, every parameter structure is constructed with three string arguments – specific to the OpenVINO™ Runtime:
 
 * Path to the topology's intermediate representation (.xml file);
 * Path to the topology's model weights (.bin file);

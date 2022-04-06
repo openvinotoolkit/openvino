@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ov_intel_gpu_kernels")
+set(TARGET_NAME "openvino_intel_gpu_kernels")
 
 find_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ void register_implementations() {
     REGISTER_OCL(detection_output);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_roi_feature_extractor);
+    REGISTER_OCL(experimental_detectron_topk_rois);
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
     REGISTER_OCL(gather);
@@ -63,6 +64,7 @@ void register_implementations() {
     REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(scatter_elements_update);
     REGISTER_OCL(select);
+    REGISTER_OCL(shape_of);
     REGISTER_OCL(shuffle_channels);
     REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);

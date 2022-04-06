@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@ namespace kernel_selector {
 
 constexpr size_t local_work_size = 16;
 
-ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
@@ -37,13 +37,13 @@ size_t GetOfmPerWorkitem(size_t filter_ofm_num, size_t localWorkSize) {
 }
 }  // namespace
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::SetDefault(
+ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::SetDefault(
     const convolution_params& arg,
     int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
 
     const auto filter_ofm_num = arg.weights.OFM().v;
-    const auto batch_size = arg.output.Batch().v;
+    const auto batch_size = arg.outputs[0].Batch().v;
 
     dispatchData.lws[0] = local_work_size;
 
@@ -73,11 +73,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitpl
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetJitConstants(const convolution_params& params,
                                                                               const DispatchData& dispatchData) const {
     auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
@@ -98,7 +98,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(co
     return cldnn_jit;
 }
 
-bool ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::Validate(const Params& p, const optional_params& o) const {
+bool ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::Validate(const Params& p, const optional_params& o) const {
     if (!ConvolutionKernelBase::Validate(p, o)) {
         return false;
     }
@@ -110,13 +110,13 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::Validate(const Params& p, 
     }
 
     const auto filter_ofm_num = params.weights.OFM().v;
-    const auto batch_size = params.output.Batch().v;
+    const auto batch_size = params.outputs[0].Batch().v;
 
     const bool bInputValidated = (filter_ofm_num > 0) &&
                                  (batch_size == 1) &&  // current implementation doesn't support batching
                                                        // (subgorup is along batch*ofm and trying to block read
                                                        // filter/bias along batch and filter doesn't contain batching).
-                                 (params.output.Feature().v == filter_ofm_num);
+                                 (params.outputs[0].Feature().v == filter_ofm_num);
 
     if (!bInputValidated) {
         return false;
@@ -129,7 +129,7 @@ bool ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::Validate(const Params& p, 
     return true;
 }
 
-KernelsData ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsData(const Params& params,
+KernelsData ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::GetKernelsData(const Params& params,
                                                                             const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
 }

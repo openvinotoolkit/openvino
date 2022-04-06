@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
+#include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
@@ -182,7 +183,14 @@ TEST_F(I16QuantisationTest, EltwiseToMemory_ActivationInsertion) {
 
 
 TEST_F(I16QuantisationTest, SplitFollowedByActivation_DummyDiagonalAffineInsertion) {
-    assert_that().onInferModel(activationAfterSplitModel())
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 20});
+    const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
+    auto split = std::make_shared<ngraph::opset8::Split>(input_params, axis_node, 2);
+    auto tanh = std::make_shared<ngraph::opset8::Tanh>(split->outputs()[0]);
+    auto add = std::make_shared<ngraph::opset8::Add>(split->outputs()[1], tanh);
+    auto result = std::make_shared<ngraph::opset8::Result>(add);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
+    assert_that().onInferNgraphModel(function)
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
@@ -249,13 +257,31 @@ TEST_F(I16QuantisationTest, ScaleShift_Affine_WillResultInIdentityInsertion) {
 }
 
 TEST_F(I16QuantisationTest, ClampFollowedByTanh_ResultInDiagonalInsertion) {
-    assert_that().onInferModel(clampFollowedByTanhModel())
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 10});
+    auto clamp = std::make_shared<ngraph::opset8::Clamp>(input_params, -50, 50);
+    auto tanh = std::make_shared<ngraph::opset8::Tanh>(clamp);
+    auto result = std::make_shared<ngraph::opset8::Result>(tanh);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
+    assert_that().onInferNgraphModel(function)
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
 }
 
 TEST_F(I16QuantisationTest, EltwiseWithMemoryAndActivationInput_ResultInTwoDiagonalsInsertion) {
-    assert_that().onInferModel(eltwiseWithMemoryAndActivationInputModel())
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 10});
+    const auto constant = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{10, 10}, {1});
+    auto matmul = std::make_shared<ngraph::opset8::MatMul>(input_params, constant);
+    auto mem_i = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{1, 10}, 0);
+    auto mem_r = std::make_shared<ngraph::op::v3::ReadValue>(mem_i, "r_27-28");
+    auto tanh = std::make_shared<ngraph::opset8::Tanh>(matmul);
+    auto add = std::make_shared<ngraph::opset8::Add>(tanh, mem_r);
+    tanh->add_control_dependency(mem_r);
+    auto mem_w = std::make_shared<ngraph::op::v3::Assign>(tanh, "r_27-28");
+    auto result = std::make_shared<ngraph::opset8::Result>(add);
+    mem_w->add_control_dependency(mem_r);
+    result->add_control_dependency(mem_w);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
+    assert_that().onInferNgraphModel(function)
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
 }
@@ -335,17 +361,35 @@ TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     q.quantize(network, 1000);
 }
 
-
 TEST_F(I16QuantisationTest, MultipleActivationsAfterAffineWithIdentityActivation_MultipleDiagonalLayersWithActivaitons) {
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 10});
+    const auto constant = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{10, 10}, {1});
+    auto matmul1 = std::make_shared<ngraph::opset8::MatMul>(input_params, constant);
+    auto matmul2 = std::make_shared<ngraph::opset8::MatMul>(input_params, constant);
+    auto add = std::make_shared<ngraph::opset8::Add>(matmul2, matmul1);
+    auto sigmoid = std::make_shared<ngraph::opset8::Sigmoid>(matmul2);
+    auto relu = std::make_shared<ngraph::opset8::Relu>(matmul2);
+    auto mul = std::make_shared<ngraph::opset8::Multiply>(sigmoid, relu);
+    auto add2 = std::make_shared<ngraph::opset8::Add>(add, mul);
+    auto result = std::make_shared<ngraph::opset8::Result>(add);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
     // identiy came from automatic insertion due to
-    assert_that().onInferModel(AffineWithReluSigmoidAndIdentity())
+    assert_that().onInferNgraphModel(function)
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid, kActRelu, kActIdentity, kActIdentity});
 }
 
 TEST_F(I16QuantisationTest, MultipleActivationsAfterAffine_ResultInMultipleDiagonalLayersWithActivaitons) {
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 10});
+    const auto constant = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{10, 10}, {1});
+    auto matmul = std::make_shared<ngraph::opset8::MatMul>(input_params, constant);
+    auto sigmoid = std::make_shared<ngraph::opset8::Sigmoid>(matmul);
+    auto relu = std::make_shared<ngraph::opset8::Relu>(matmul);
+    auto mul = std::make_shared<ngraph::opset8::Multiply>(sigmoid, relu);
+    auto result = std::make_shared<ngraph::opset8::Result>(mul);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
     // extra identity inserted for affine
-    assert_that().onInferModel(AffineWithReluSigmoid())
+    assert_that().onInferNgraphModel(function)
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with()
          // 1 diag for second activation, 1 for eltwise
@@ -398,7 +442,15 @@ TEST_F(I16QuantisationTest, PowerWithScaleFactorPropagateForward) {
 }
 
 TEST_F(I16QuantisationTest, ConcatWithDifferentInputScaleFactorsPropagateForward) {
-    assert_that().onInferModel(ConcatWithDiffScaleFactor())
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 20});
+    const auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
+    auto split = std::make_shared<ngraph::opset8::Split>(input_params, axis_node, 2);
+    auto sigmoid = std::make_shared<ngraph::opset8::Sigmoid>(split->outputs()[0]);
+    auto tanh = std::make_shared<ngraph::opset8::Tanh>(split->outputs()[1]);
+    auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{sigmoid, tanh}, 1);
+    auto result = std::make_shared<ngraph::opset8::Result>(concat);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
+    assert_that().onInferNgraphModel(function)
             .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
             .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity});
 }
@@ -417,8 +469,55 @@ TEST_F(I16QuantisationTest, TI_quantize) {
 }
 
 TEST_F(I16QuantisationTest, TI_PropagateForward) {
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 10 });
+    auto mul = std::make_shared<ngraph::opset8::Multiply>(input_params,
+        std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 10 }));
+    auto add = std::make_shared<ngraph::opset8::Add>(mul,
+        std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 10 }));
+    auto reshape = std::make_shared<ngraph::opset8::Reshape>(add,
+        std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 3 }, std::vector<size_t>{ 1, 1, 10 }), false);
 
-    assert_that().onInferModel(TIModelWithLSTMCell1()).withWeigthsPattern({0.1f})
+    auto reshape_shape = reshape->output(0).get_shape();
+    const size_t batch_size = 1;
+    const size_t hiddenSize = 10;
+
+    auto H_init = ngraph::builder::makeConstant<float>(ngraph::element::f32, { batch_size, hiddenSize }, {}, true);
+    auto C_init = ngraph::builder::makeConstant<float>(ngraph::element::f32, { batch_size, hiddenSize }, {}, true);
+
+    auto H_t = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ batch_size, hiddenSize });
+    auto C_t = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ batch_size, hiddenSize });
+
+    //Body
+    auto X = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ batch_size, 1, reshape_shape[2] });
+    auto weightsNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, { 4 * hiddenSize, reshape_shape[2] }, {}, true);
+    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, { 4 * hiddenSize, hiddenSize }, {}, true);
+
+    // lstm
+    auto constantX = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { batch_size, reshape_shape[2] });
+    auto lstm1 = std::make_shared<ngraph::opset8::LSTMCell>(std::make_shared<ngraph::opset8::Reshape>(X, constantX, false),
+        H_t, C_t,
+        weightsNode, reccurrenceWeightsNode, hiddenSize);
+
+    auto H_o = lstm1->output(0);
+    auto C_o = lstm1->output(1);
+
+    auto body = std::make_shared<ngraph::Function>(
+        ngraph::OutputVector{ H_o, C_o }, ngraph::ParameterVector{ X, H_t, C_t });
+
+    auto tensor_iterator = std::make_shared<ngraph::opset8::TensorIterator>();
+    tensor_iterator->set_body(body);
+
+    tensor_iterator->set_sliced_input(X, reshape, 0, 1, 1, -1, 1);
+    tensor_iterator->set_merged_input(H_t, H_init, H_o);
+    tensor_iterator->set_merged_input(C_t, C_init, C_o);
+
+    auto out0 = tensor_iterator->get_iter_value(H_o, -1);
+
+    const size_t output_size = 12;
+    auto fc = ngraph::builder::makeFullyConnected(out0, ngraph::element::f32, output_size, true, { hiddenSize, output_size }, { 1 }, { 1 });
+    auto result = std::make_shared<ngraph::opset8::Result>(fc);
+    auto function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
+    assert_that().onInferNgraphModel(function).withWeigthsPattern({0.1f})
         .inNotCompactMode().gna().propagate_forward()
         .called_with().pwls_inserted_into_nnet({kActIdentity});
 }

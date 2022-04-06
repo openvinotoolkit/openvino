@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,13 +55,13 @@ namespace kernel_selector {
 
 Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
 Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
-    size_t max_block_width = getOutBlock_X(params.output.X().v, params.stride.x, params.filterSize.x, params.dilation.x);
+    size_t max_block_width = getOutBlock_X(params.outputs[0].X().v, params.stride.x, params.filterSize.x, params.dilation.x);
     size_t max_in_block_width = (max_block_width - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
 
     size_t block_width = max_block_width;
     if (max_block_width > 1) {
         for (size_t w = max_block_width; w >= CeilDiv(max_block_width, 2); w -= 1) {
-            if (params.output.X().v % w == 0) {
+            if (params.outputs[0].X().v % w == 0) {
                 block_width = w;
                 break;
             }
@@ -91,10 +91,14 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 
     // TGLU exceptions related to SLM usage
     if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.computeUnitsCount == 96) {
-        bool split_exception_1 = params.output.X().v == 3 && params.output.Y().v == 3 && params.output.Z().v == 1 && params.output.Feature().v == 512;
-        bool split_exception_2 = params.output.X().v == 5 && params.output.Y().v == 5 && params.output.Z().v == 1 && params.output.Feature().v == 256;
-        bool split_exception_3 = params.output.X().v == 9 && params.output.Y().v == 9 && params.output.Z().v == 1 && params.output.Feature().v == 128;
-        bool split_exception_4 = params.output.X().v == 18 && params.output.Y().v == 18 && params.output.Z().v == 1 && params.output.Feature().v == 64;
+        bool split_exception_1 = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].Z().v == 1
+                                 && params.outputs[0].Feature().v == 512;
+        bool split_exception_2 = params.outputs[0].X().v == 5 && params.outputs[0].Y().v == 5 && params.outputs[0].Z().v == 1
+                                 && params.outputs[0].Feature().v == 256;
+        bool split_exception_3 = params.outputs[0].X().v == 9 && params.outputs[0].Y().v == 9 && params.outputs[0].Z().v == 1
+                                 && params.outputs[0].Feature().v == 128;
+        bool split_exception_4 = params.outputs[0].X().v == 18 && params.outputs[0].Y().v == 18 && params.outputs[0].Z().v == 1
+                                 && params.outputs[0].Feature().v == 64;
 
         if (split_exception_1 || split_exception_2 || split_exception_3 || split_exception_4)
             max_slm_split = 2;
@@ -117,10 +121,10 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < 16; ++d) {
-                    if (params.output.Z().v % d)
+                    if (params.outputs[0].Z().v % d)
                         continue;
                     for (size_t h = 1; h < 16; ++h) {
-                        if (params.output.Y().v % h)
+                        if (params.outputs[0].Y().v % h)
                             continue;
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
@@ -170,7 +174,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const {
-    float occupancy_by_logic_size = static_cast<float>(params.output.LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
+    float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
     bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
     bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
     float max_reg_pressure = twice_increase_max_reg_pressure ? 0.785f : increase_max_reg_pressure ? 0.75f : 0.7f;
@@ -184,7 +188,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     float reg_pressure = EstimateRegPressure(params, block);
 
     // Estimate fb32 usage factor
-    auto& output = params.output;
+    auto& output = params.outputs[0];
     float feature_block_32 = static_cast<float>(block.output_block_features == 32);
     float fb32_factor = -5.f;
     if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.bIMADSupport) {
@@ -277,11 +281,11 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolut
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolution_params& params, const BlockParams& block) const {
-    size_t blocks_w = CeilDiv(params.output.X().v, block.output_block_width);
-    size_t blocks_h = CeilDiv(params.output.Y().v, block.output_block_height);
-    size_t blocks_d = CeilDiv(params.output.Z().v, block.output_block_depth);
+    size_t blocks_w = CeilDiv(params.outputs[0].X().v, block.output_block_width);
+    size_t blocks_h = CeilDiv(params.outputs[0].Y().v, block.output_block_height);
+    size_t blocks_d = CeilDiv(params.outputs[0].Z().v, block.output_block_depth);
     size_t blocks_f = CeilDiv(params.weights.OFM().v, block.output_block_features) * params.groups * block.feature_slm_split;
-    size_t block_b = params.output.Batch().v;
+    size_t block_b = params.outputs[0].Batch().v;
 
     auto threads = blocks_w * blocks_h * blocks_d * blocks_f * block_b;
 
@@ -302,7 +306,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
         return 0.f;
 
     // Estimate work groups number
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     size_t work_groups_number = CeilDiv(output.X().v, block.output_block_width) *
                                 CeilDiv(output.Y().v, block.output_block_height) *
                                 CeilDiv(output.Z().v, block.output_block_depth) *
@@ -406,13 +410,13 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)" };
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = { "out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)" };
         }
 
         std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
 
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             if (block_params.output_block_depth != 1) {
                 loop_axes.push_back(Tensor::DataChannelName::Z);
             } else {
@@ -444,7 +448,7 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
                                                                                        int) const {
     DispatchData dispatchData;
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto& weights = params.weights;
     auto block_params = GetBlockParams(params);
 

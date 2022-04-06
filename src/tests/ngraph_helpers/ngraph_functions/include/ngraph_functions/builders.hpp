@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,22 +41,16 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
         case TYPE: \
             weightsNode = std::make_shared<ngraph::opset1::Constant>( \
                     type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom, seed) : \
-                             NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>( \
+                                ngraph::shape_size(shape), \
+                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(upTo), \
+                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(startFrom), \
+                                seed) \
+                           : NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
             break;
     switch (type) {
-        case ngraph::element::Type_t::bf16:
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(
-                    type, shape,
-                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
-                    NGraphFunctions::Utils::castVector<T, ngraph::bfloat16>(data));
-            break;
-        case ngraph::element::Type_t::f16:
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(
-                    type, shape,
-                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
-                    NGraphFunctions::Utils::castVector<T, ngraph::float16>(data));
-            break;
+        makeNode(ngraph::element::Type_t::bf16);
+        makeNode(ngraph::element::Type_t::f16);
         makeNode(ngraph::element::Type_t::f32);
         makeNode(ngraph::element::Type_t::f64);
         makeNode(ngraph::element::Type_t::i8);

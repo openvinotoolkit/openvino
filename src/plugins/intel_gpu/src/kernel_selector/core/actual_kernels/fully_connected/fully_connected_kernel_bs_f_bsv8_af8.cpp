@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefa
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
     dispatchData.gws[0] =
-        Align(arg.output.LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches),
+        Align(arg.outputs[0].LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches),
               8);
     dispatchData.gws[1] = groups_per_batches;
     dispatchData.lws[0] = 8;
@@ -70,7 +70,7 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
     const bool bProperBatch = params.inputs[0].Batch().v >= 8 && params.inputs[0].Batch().v % 8 == 0;
     const bool bProperFeature = params.inputs[0].Feature().v >= 8 && params.inputs[0].Feature().v % 8 == 0;
     const bool bProperInput = check_input_layout(params.inputs[0]);
-    const bool bProperOutput = check_output_layout(params.output);
+    const bool bProperOutput = check_output_layout(params.outputs[0]);
     const bool bSupportedLayout = optParams.allowInputReordering || bProperInput;
 
     if (!bProperBatch || !bProperFeature || !bSupportedLayout || !bProperOutput) {

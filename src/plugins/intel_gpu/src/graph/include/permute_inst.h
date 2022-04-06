@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,19 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
+    std::vector<uint16_t> get_permute_order() const { return get_primitive()->permute_order; }
+    bool is_rotating_except_batch() const {
+        // Target transform: Rotate feature dim to back to be taken as inner-most axis
+        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+        // ex) 0(b), 3(f), 1(y), 2(x)
+        auto& order = get_primitive()->permute_order;
+        if ((int32_t) order[1] != order.size() - 1) return false;
+        if ((int32_t) order[0] != 0) return false;
+        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+            if ((int32_t)order[i] !=  (i - 1)) return false;
+        }
+        return true;
+    }
 };
 
 using permute_node = typed_program_node<permute>;

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 2;
-    dispatchData.gws[1] = cp.output.Y().v;
+    dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, sub_group_size) / 2;
+    dispatchData.gws[1] = cp.outputs[0].Y().v;
     dispatchData.gws[2] = sub_group_size;
 
     dispatchData.lws[0] = 1;
@@ -52,14 +52,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    if (p.output.X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5)
+    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5)
         return FORCE_PRIORITY_2;
     else
         return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
@@ -73,7 +73,7 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const option
 
     bool bStride = (params.stride.x == 1 && params.stride.y == 1);
 
-    if (!bFilterSize || !bStride || (params.output.Feature().v % 4) != 0 || (params.output.Batch().v != 1)) {
+    if (!bFilterSize || !bStride || (params.outputs[0].Feature().v % 4) != 0 || (params.outputs[0].Batch().v != 1)) {
         return false;
     }
 

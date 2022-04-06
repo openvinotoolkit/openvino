@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ namespace v4 {
 /// specified for the normalisation.
 ///
 /// Reduces the tensor, eliminating the specified reduction axes by taking the L1-norm.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceL1 : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceL1", "opset4", util::ArithmeticReductionKeepDims, 4);

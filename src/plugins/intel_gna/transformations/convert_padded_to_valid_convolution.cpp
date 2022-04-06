@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(ConvertPaddedToValidConv, "ConvertPaddedToValidConv", 0);
 
 static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);

@@ -16,20 +16,22 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "licensing"
+        "docs/licensing"
       ]
     },
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libov_runtime.so",
-        "runtime/lib/intel64/libinference_engine_preproc.so",
-        "runtime/lib/intel64/libinference_engine_c_api.so",
-        "runtime/lib/intel64/libov_hetero_plugin.so",
-        "runtime/lib/intel64/libov_auto_plugin.so",
-        "runtime/lib/intel64/libov_ir_frontend.so",
-        "runtime/lib/intel64/libov_onnx_frontend.so",
-        "runtime/lib/intel64/libov_paddle_frontend.so",
+        "runtime/lib/intel64/libopenvino.so",
+        "runtime/lib/intel64/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/libopenvino_c.so",
+        "runtime/lib/intel64/libopenvino_hetero_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_plugin.so",
+        "runtime/lib/intel64/libopenvino_auto_batch_plugin.so",
+        "runtime/lib/intel64/libopenvino_ir_frontend.so",
+        "runtime/lib/intel64/libopenvino_onnx_frontend.so",
+        "runtime/lib/intel64/libopenvino_paddle_frontend.so",
+        "runtime/lib/intel64/libopenvino_tensorflow_fe.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -39,7 +41,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
+        "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so"
       ]
     },
     "gpu": {
@@ -48,7 +50,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/cache.json",
-        "runtime/lib/intel64/libov_intel_gpu_plugin.so",
+        "runtime/lib/intel64/libopenvino_intel_gpu_plugin.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
     },
@@ -60,7 +62,7 @@
         "runtime/3rdparty/97-myriad-usbboot.rules",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
-        "runtime/lib/intel64/libov_intel_vpu_plugin.so",
+        "runtime/lib/intel64/libopenvino_intel_myriad_plugin.so",
         "runtime/lib/intel64/vpu_custom_kernels",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]
@@ -73,7 +75,7 @@
         "runtime/lib/intel64/libgna.so",
         "runtime/lib/intel64/libgna.so.2",
         "runtime/lib/intel64/libgna.so.3.0.0.1377",
-        "runtime/lib/intel64/libov_intel_gna_plugin.so"
+        "runtime/lib/intel64/libopenvino_intel_gna_plugin.so"
       ]
     },
     "hddl": {
@@ -81,7 +83,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libHDDLPlugin.so",
+        "runtime/lib/intel64/libopenvino_intel_hddl_plugin.so",
         "runtime/3rdparty/hddl"
       ]
     },

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,9 +73,9 @@ namespace {
 
         Run();
         if (this->GetParam() == Precision::BF16)
-            CheckNodeOfTypeCount(executableNetwork, "Reorder", 4);
+            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
         else
-            CheckNodeOfTypeCount(executableNetwork, "Reorder", 3);
+            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
     }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,

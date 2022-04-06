@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,27 +9,22 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class NodeContext;
-
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tensorflow::NodeContext&)>;
-    using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
-
-private:
-    TranslatorDictionaryType m_op_translators;
-
-public:
+    using Ptr = std::shared_ptr<FrontEnd>;
     FrontEnd();
 
     /// \brief Completely convert the model
@@ -72,15 +67,17 @@ protected:
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
-private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,
                          std::shared_ptr<ov::Model>& ng_function) const;
 
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
+    TelemetryExtension::Ptr m_telemetry;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace tensorflow

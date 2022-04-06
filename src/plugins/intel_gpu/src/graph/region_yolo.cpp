@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
         return cldnn::layout(
             input_layout.data_type,
             input_layout.format,
-            tensor(input_layout.size.batch[0],
-                   input_layout.size.feature[0] * input_layout.size.spatial[0] * input_layout.size.spatial[1],
+            tensor(input_layout.batch(),
+                   input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1),
                    1,
                    1));
     } else {
@@ -33,7 +33,7 @@ layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
         return cldnn::layout(
             input_layout.data_type,
             input_layout.format,
-            tensor(input_layout.size.batch[0], features, input_layout.size.spatial[0], input_layout.size.spatial[1]));
+            tensor(input_layout.batch(), features, input_layout.spatial(0), input_layout.spatial(1)));
     }
 }
 

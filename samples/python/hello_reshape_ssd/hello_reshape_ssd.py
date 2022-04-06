@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -18,7 +18,7 @@ def main():
 
     # Parsing and validation of input arguments
     if len(sys.argv) != 4:
-        log.info('Usage: <path_to_model> <path_to_image> <device_name>')
+        log.info(f'Usage: {sys.argv[0]} <path_to_model> <path_to_image> <device_name>')
         return 1
 
     model_path = sys.argv[1]
@@ -30,7 +30,7 @@ def main():
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {model_path}')
+    log.info(f'Reading the model: {model_path}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(model_path)
 
@@ -48,7 +48,7 @@ def main():
     # Add N dimension
     input_tensor = np.expand_dims(image, 0)
 
-    log.info('Reshaping the network to the height and width of the input image')
+    log.info('Reshaping the model to the height and width of the input image')
     n, h, w, c = input_tensor.shape
     model.reshape({model.input().get_any_name(): PartialShape((n, c, h, w))})
 

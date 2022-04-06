@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ size_t getTileXY(const concatenation_params& params) {
 
     auto tileXYMultiple = input.X().v;
     bool noInputPad = input.X().pad.Total() == 0;
-    bool noOutputPad = params.output.X().pad.Total() == 0;
+    bool noOutputPad = params.outputs[0].X().pad.Total() == 0;
     if (noInputPad && noOutputPad)
         tileXYMultiple = input.X().v * input.Y().v;
 

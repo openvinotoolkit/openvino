@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,10 +41,10 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDefault(const deconvolution_params& params) const {
     DispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
-    bool ver_bsv16_fsv16 = params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
-        || params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
+        || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -120,14 +120,14 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
     }
     auto& deconv_params = static_cast<const deconvolution_params&>(p);
 
-    if (deconv_params.output.GetLayout() != deconv_params.inputs[0].GetLayout())
+    if (deconv_params.outputs[0].GetLayout() != deconv_params.inputs[0].GetLayout())
         return false;
 
     const auto& params = static_cast<const deconvolution_params&>(p);
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;
@@ -135,11 +135,11 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
 
 JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolution_params& params) const {
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params);
 
-    bool ver_bsv16_fsv16 = params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
-        || params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
+        || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
 
     if (ver_bsv16_fsv16) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
@@ -220,10 +220,10 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     jit.AddConstant(MakeJitConstant("OH_FULL", params.inputs[0].Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("OW_FULL", params.inputs[0].X().LogicalDimPadded()));
 
-    jit.AddConstant(MakeJitConstant("IC_FULL", Align(params.output.Feature().LogicalDimPadded(), 16)));
-    jit.AddConstant(MakeJitConstant("ID_FULL", params.output.Z().LogicalDimPadded()));
-    jit.AddConstant(MakeJitConstant("IH_FULL", params.output.Y().LogicalDimPadded()));
-    jit.AddConstant(MakeJitConstant("IW_FULL", params.output.X().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("IC_FULL", Align(params.outputs[0].Feature().LogicalDimPadded(), 16)));
+    jit.AddConstant(MakeJitConstant("ID_FULL", params.outputs[0].Z().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("IH_FULL", params.outputs[0].Y().LogicalDimPadded()));
+    jit.AddConstant(MakeJitConstant("IW_FULL", params.outputs[0].X().LogicalDimPadded()));
 
 
     DispatchData dispatchData = SetDefault(params);
@@ -237,7 +237,7 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
         std::vector<std::string> idx_order_block_c01;
         std::vector<std::string> idx_order_block_ci;
 
-        if (params.output.Dimentions() <= 4) {
+        if (params.outputs[0].Dimentions() <= 4) {
             idx_order_block_c00 = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
             idx_order_block_c01 = { "(mb + 8)", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
             idx_order_block_ci = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "(iw + i)" };

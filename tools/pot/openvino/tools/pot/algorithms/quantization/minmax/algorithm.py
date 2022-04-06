@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -67,7 +67,7 @@ class MinMaxQuantization(Algorithm):
     def __get_activations_statistics_layout(self, model):
         """
         Compute statistics layout for activations
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :return: statistics layout in format {node_name: [stat_1, stat_2] .. }
         """
         fake_quantize_config = fqut.compute_stats_layouts(self._config, model)
@@ -81,7 +81,7 @@ class MinMaxQuantization(Algorithm):
     def create_stats_layout(fake_quantize_config, model, for_weights=True, inplace_statistics=True):
         """ Creates weights layout based on model and config dictionary
         :param fake_quantize_config: dictionary with fake quantize names as a key and its settings as values
-        :param model: NXModel instance
+        :param model: CompressedModel instance
         :param for_weights: whether statistic layout is calculated for weights or for activations.
         :return weights or activations statistics layout. Layout is a dictionary with layer name as
          key and dictionary with statistics {stats_name: stats_fn} as values

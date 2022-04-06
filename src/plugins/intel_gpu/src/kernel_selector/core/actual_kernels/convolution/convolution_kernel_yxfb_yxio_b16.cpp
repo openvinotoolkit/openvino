@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;
-    const auto batch_size = arg.output.Batch().v;
+    const auto batch_size = arg.outputs[0].Batch().v;
     const uint32_t min_lws = 16;
 
     const size_t batchesPerWorkItem = GetBatchesPerWorkItem(batch_size, arg.inputs[0].GetDType());
@@ -95,11 +95,11 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_p
 
     const auto filter_ofm_num = params.weights.OFM().v;
     const auto filter_groups_num = params.weights.G().v;
-    const auto batch_size = params.output.Batch().v;
+    const auto batch_size = params.outputs[0].Batch().v;
     const uint32_t min_lws = 16;
 
     const bool bInputValidated =
-        (filter_ofm_num > 0) && (batch_size > 0) && (params.output.Feature().v == filter_ofm_num * filter_groups_num);
+        (filter_ofm_num > 0) && (batch_size > 0) && (params.outputs[0].Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
         return false;
@@ -133,7 +133,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto local_work_group_size = dispatchData.lws[0];
-    const auto batch_size = params.output.Batch().v;
+    const auto batch_size = params.outputs[0].Batch().v;
 
     if (params.inputs[0].GetDType() == Datatype::F32) {
         // A LITTLE HACK, for convolutions with low number of input features don't use block reads, and it will speed up
@@ -143,8 +143,8 @@ JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_
             jit.AddConstant(MakeJitConstant("USE_BLOCK_READ_2", ""));
         }
     } else {
-        const auto batch_pad_before = params.output.Batch().pad.before;
-        const auto feature_pitch = params.output.Feature().pitch;
+        const auto batch_pad_before = params.outputs[0].Batch().pad.before;
+        const auto feature_pitch = params.outputs[0].Feature().pitch;
 
         if (batch_size >= 64 && (feature_pitch % 2 == 0) && (batch_pad_before % 2 == 0)) {
             jit.AddConstant(MakeJitConstant("USE_BLOCK_READ_2", ""));

@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_precision.hpp>
+
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @brief Copy size elements from buffer specified srcPtr pointer to buffer specified dstPtr.
@@ -48,3 +51,6 @@ void cpu_convert(const void *srcPtr,
                  InferenceEngine::Precision interimPrc,
                  InferenceEngine::Precision dstPrc,
                  const size_t size);
+
+}   // namespace intel_cpu
+}   // namespace ov

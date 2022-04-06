@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ struct ScoreErrorT {
  * @brief struct to store infer request data per frame
  */
 struct InferRequestStruct {
-    ov::runtime::InferRequest inferRequest;
+    ov::InferRequest inferRequest;
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
@@ -211,7 +211,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
  */
-float get_gna_frequency_mHz() {
+float get_gna_frequency_mhz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
     uint32_t ecx = 0;
@@ -223,7 +223,8 @@ float get_gna_frequency_mHz() {
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
     const uint8_t tgl_model = 140;
-    const uint8_t next_model = 151;
+    const uint8_t adl_s_model = 151;
+    const uint8_t adl_p_model = 154;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -242,7 +243,8 @@ float get_gna_frequency_mHz() {
         case cannon_lake_model:
         case ice_lake_model:
         case tgl_model:
-        case next_model:
+        case adl_s_model:
+        case adl_p_model:
             return 400;
         case gemini_lake_model:
             return 200;
@@ -282,13 +284,14 @@ void print_reference_compare_results(ScoreErrorT const& totalError, size_t frame
  * @param FLAGS_d flag of device
  * @return none.
  */
-void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
+void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& utterancePerfMap,
                                 size_t numberOfFrames,
                                 std::ostream& stream,
                                 std::string fullDeviceName,
                                 const uint64_t numberOfFramesOnHw,
                                 std::string FLAGS_d) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+    std::ios::fmtflags fmt(std::cout.flags());
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
            << "Counter descriptions";
@@ -301,11 +304,16 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
     stream << std::endl;
     // if GNA HW counters
     // get frequency of GNA module
-    float freq = get_gna_frequency_mHz();
+    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
-        float call_units_us = current_units_us / numberOfFrames;
+        float call_units_us = 0;
+        if (numberOfFrames == 0) {
+            throw std::logic_error("Number off frames = 0,  division by zero.");
+        } else {
+            call_units_us = current_units_us / numberOfFrames;
+        }
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
@@ -322,6 +330,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
     stream << "Number of frames delivered to GNA HW: " << numberOfFramesOnHw;
     stream << "/" << numberOfFrames;
     stream << std::endl;
+    std::cout.flags(fmt);
 #endif
 }
 
@@ -331,8 +340,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void get_performance_counters(ov::runtime::InferRequest& request,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::InferRequest& request, std::map<std::string, ov::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {
@@ -347,8 +355,8 @@ void get_performance_counters(ov::runtime::InferRequest& request,
  * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
-void sum_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
+void sum_performance_counters(std::map<std::string, ov::ProfilingInfo> const& perfCounters,
+                              std::map<std::string, ov::ProfilingInfo>& totalPerfCounters,
                               uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
@@ -360,30 +368,112 @@ void sum_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> 
 }
 
 /**
- * @brief Parse scale factors
- * @param str reference to user-specified input scale factor for quantization, can be separated by comma
- * @return vector scale factors
+ * @brief Split string by delimeter
+ * @param s input string
+ * @param delim delimeter
+ * @return vector of chunks
  */
-std::vector<std::string> parse_scale_factors(const std::string& str) {
-    std::vector<std::string> scaleFactorInput;
+std::vector<std::string> split(const std::string& s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
 
-    if (!str.empty()) {
-        std::string outStr;
-        std::istringstream stream(str);
-        int i = 0;
-        while (getline(stream, outStr, ',')) {
-            auto floatScaleFactor = std::stof(outStr);
-            if (floatScaleFactor <= 0.0f) {
-                throw std::logic_error("Scale factor for input #" + std::to_string(i) +
-                                       " (counting from zero) is out of range (must be positive).");
-            }
-            scaleFactorInput.push_back(outStr);
-            i++;
-        }
-    } else {
-        throw std::logic_error("Scale factor need to be specified via -sf option if you are using -q user");
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
     }
-    return scaleFactorInput;
+    return result;
+}
+
+/**
+ * @brief Concat strings using delimeter
+ * @param chunks input chunks
+ * @param delim delimeter
+ * @return concatenated string
+ */
+std::string concat(const std::vector<std::string>& chunks, char delim) {
+    std::stringstream ss;
+    for (auto&& chunk : chunks) {
+        if (!ss.str().empty()) {
+            ss << delim;
+        }
+        ss << chunk;
+    }
+    return ss.str();
+}
+
+/**
+ * @brief Check whether name is present in node vector
+ * @param nodes nodes
+ * @param node_name name
+ * @return false or true
+ */
+bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
+    std::vector<std::string> any_names;
+    bool count = false;
+    for (auto& node : nodes) {
+        any_names.push_back(node.get_any_name());
+        auto names = node.get_names();
+        count = std::count(names.begin(), names.end(), node_name);
+        if (count)
+            break;
+    }
+    if (!count) {
+        std::stringstream ss;
+        ss << "Incorrect node name '" + node_name << "'! ";
+        ss << "Try one of the following names: [ ";
+        for (auto&& name : any_names) {
+            ss << name << " ";
+        }
+        ss << "]";
+        throw std::logic_error(ss.str());
+    }
+    return count;
+}
+
+/**
+ * @brief Parse scale factors per input
+ * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
+ * @param inputs model inputs
+ * @param values_string values_string input string
+ * @return map of scale factors per input
+ */
+std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs, const std::string& values_string) {
+    auto get_sf = [&](const std::string& sf_string, const std::string& input_name = "") -> float {
+        float sf;
+        try {
+            sf = std::stof(sf_string);
+        } catch (...) {
+            throw std::logic_error("Can't get float scale factor from: " + sf_string);
+        }
+        if (sf <= 0.0f) {
+            throw std::logic_error("Scale factor for input '" + input_name +
+                                   "' (counting from zero) is out of range (must be positive).");
+        }
+        return sf;
+    };
+    std::map<std::string, float> result;
+    auto scale_factor_strings = split(values_string, ',');
+    for (auto& scale_factor_string : scale_factor_strings) {
+        auto values = split(scale_factor_string, '=');
+        if (values.size() == 1) {
+            if (scale_factor_strings.size() != 1) {
+                throw std::logic_error("Unrecognized scale factor format! "
+                                       "Please specify <input_name1>=<sf1>,<input_name2>=<sf2> or "
+                                       "just <sf> to be applied to all inputs");
+            }
+            auto scale_factor = get_sf(values.at(0));
+            for (auto& input : inputs) {
+                result[input.get_any_name()] = scale_factor;
+            }
+        } else if (values.size() > 0) {
+            auto sf_sting = values.back();
+            values.pop_back();
+            auto input_name = values.back();
+            check_name(inputs, input_name);
+            result[input_name] = get_sf(sf_sting, input_name);
+        }
+    }
+    return result;
 }
 
 /**
@@ -403,4 +493,78 @@ std::vector<std::string> convert_str_to_vector(std::string str) {
         blobName.push_back(str.substr(pos_last));
     }
     return blobName;
+}
+
+/**
+ * @brief Parse layout string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
+ * @param layout_string input names with layout values
+ * @param input_info reference to vector of inputs
+ * @return map of inputs with layout values
+ */
+std::map<std::string, std::string> parse_input_layouts(const std::string& layout_string,
+                                                       const std::vector<ov::Output<ov::Node>>& input_info) {
+    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
+    // inputs)
+    std::map<std::string, std::string> return_value;
+    std::string search_string = layout_string;
+    auto start_pos = search_string.find_first_of('[');
+    auto input_name = search_string.substr(0, start_pos);
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        if (start_pos)
+            input_name = search_string.substr(0, start_pos);
+        auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        if (!input_name.empty()) {
+            return_value[input_name] = input_value;
+        } else {
+            for (auto& item : input_info) {
+                return_value[item.get_any_name()] = input_value;
+            }
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || (search_string.front() != ',' && search_string.front() != '['))
+            break;
+        if (search_string.front() == ',')
+            search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + layout_string);
+    return return_value;
+}
+
+/**
+ * @brief Parse parameters for inputs/outputs like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output
+ * @param file_paths_string input/output path
+ * @return pair of filename and vector of tensor_names
+ */
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string file_paths_string) {
+    auto search_string = file_paths_string;
+    char comma_delim = ',';
+    char equal_delim = '=';
+    std::string filename = "";
+    std::vector<std::string> tensor_names;
+    std::vector<std::string> filenames;
+    if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
+        !std::count(search_string.begin(), search_string.end(), equal_delim)) {
+        return {search_string, tensor_names};
+    }
+    search_string += comma_delim;
+    std::vector<std::string> splitted = split(search_string, comma_delim);
+    for (size_t j = 0; j < splitted.size(); j++) {
+        auto semicolon_pos = splitted[j].find_first_of(equal_delim);
+        if (semicolon_pos != std::string::npos) {
+            tensor_names.push_back(splitted[j].substr(0, semicolon_pos));
+            filenames.push_back(splitted[j].substr(semicolon_pos + 1, std::string::npos));
+        }
+    }
+    for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
+        filename += *name;
+        if (name != filenames.end() - 1)
+            filename += comma_delim;
+    }
+    return {filename, tensor_names};
 }

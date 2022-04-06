@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: task 32568, enable after supporting constants outputs in plugins
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
         // azure is failing after #6199
-        ".*/NmsLayerTest.*",
-        // Issue 74365: azure is failing after #7351
-        ".*DetectionOutput8ToDetectionOutput1",
-        // TODO: Snpippets rewrite this test
-        ".*TransformationTests\\.DontStartSubgraphSingleOutput.*",
-        // TODO: Move this test to CPU-specific
-        ".*TransformationTests\\.DoNotStartSubgraphAfterInputs.*"
+        ".*/NmsLayerTest.*"
     };
 }

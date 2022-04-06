@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,13 +156,13 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_f_offset(instance.node.input().get_output_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_f_offset(instance.node.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
@@ -209,14 +209,6 @@ protected:
         if (profiling) {
             stream.finish();
             event->set();
-        } else {
-            // Create and set user event as complete
-            event = stream.create_user_event(true);
-        }
-
-        if (!event) {
-            std::string error_msg = "Event was not created properly for " + instance.id();
-            throw std::runtime_error(error_msg);
         }
 
         return event;

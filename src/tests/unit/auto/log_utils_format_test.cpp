@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,116 +18,330 @@ public:
     void TearDown() override {
         MockLog::Release();
     }
+
+    void traceCallStacksTest(){
+        TraceCallStacks("test");
+    }
 };
 
-TEST_F(LogUtilsFormatTest, format_s) {
+TEST_F(LogUtilsFormatTest, callStacksTest) {
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s", "DEBUG"));
+    ASSERT_NO_THROW(traceCallStacksTest());
+}
+
+TEST_F(LogUtilsFormatTest, format_s) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%sabc", "DEBUG");
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 TEST_F(LogUtilsFormatTest, format_d) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%d", -1));
+    LOG_DEBUG("%dabc", -1);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_ld) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%ld", -3));
+    LOG_DEBUG("%ldabc", -3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_u) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%u", 1));
+    LOG_DEBUG("%uabc", 1);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_lu) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%lu", 3));
+    LOG_DEBUG("%luabc", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s,%d,%ld,%u,%lu", "DEBUG", -1, -3, 1, 3));
+    LOG_DEBUG("%s,%d,%ld,%u,%lu,abc", "DEBUG", -1, -3, 1, 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu2) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(LOG_DEBUG("%s%d%ld%u%lu", "DEBUG", -1, -3, 1, 3));
+    LOG_DEBUG("%s%d%ld%u%luabc", "DEBUG", -1, -3, 1, 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
+}
+
+TEST_F(LogUtilsFormatTest, format_lf) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult = stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%lfabc", 1.33);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_p) {
-    ASSERT_THROW(LOG_DEBUG("%p", MockLog::_mockLog),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%p", MockLog::_mockLog);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_x) {
-    ASSERT_THROW(LOG_DEBUG("%x", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%x", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_X) {
-    ASSERT_THROW(LOG_DEBUG("%X", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%X", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_o) {
-    ASSERT_THROW(LOG_DEBUG("%o", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%o", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_e) {
-    ASSERT_THROW(LOG_DEBUG("%e", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%e", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_E) {
-    ASSERT_THROW(LOG_DEBUG("%E", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%E", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_f) {
-    ASSERT_THROW(LOG_DEBUG("%f", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%f", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_F) {
-    ASSERT_THROW(LOG_DEBUG("%F", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%F", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_g) {
-    ASSERT_THROW(LOG_DEBUG("%g", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%g", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_G) {
-    ASSERT_THROW(LOG_DEBUG("%G", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%G", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 
 TEST_F(LogUtilsFormatTest, format_a) {
-    ASSERT_THROW(LOG_DEBUG("%a", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%a", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_A) {
-    ASSERT_THROW(LOG_DEBUG("%A", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%A", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_c) {
-    ASSERT_THROW(LOG_DEBUG("%c", 3),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%c", 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_n) {
     int num = 0;
-    ASSERT_THROW(LOG_DEBUG("%n", &num),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%n", &num);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format__) {
-    ASSERT_THROW(LOG_DEBUG("%%"),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%%");
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_s__) {
-    ASSERT_THROW(LOG_DEBUG("%s%%", "DEBUG"),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%s%%", "DEBUG");
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_dn) {
     int num = 0;
-    ASSERT_THROW(LOG_DEBUG("%d%n", num, &num),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%d%n", num, &num);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, format_ccccdn) {
     int num = 0;
-    ASSERT_THROW(LOG_DEBUG("cccc%d%n", num, &num),  std::exception);
+    std::string printResult = "";
+    std::string pattern{"not valid"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult =  stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("cccc%d%n", num, &num);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
 TEST_F(LogUtilsFormatTest, logPrintFormat_error) {

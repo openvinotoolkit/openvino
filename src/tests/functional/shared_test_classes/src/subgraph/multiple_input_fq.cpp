@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,15 +27,33 @@ void MultipleInputTest::SetUp() {
     std::tie(targetDevice, netPrecision, inputSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+    const float minInput = -10.0;
+    const float maxInput = 10.0;
     auto input = ngraph::builder::makeParams(ngPrc, {{1, inputSize}, {1, inputSize}, {1, inputSize}});
-    auto fake1 = ngraph::builder::makeFakeQuantize(input[0], ngPrc, 255, { 1 }, { -0.5 }, { 0.5 }, { -0.5 }, { 0.5 });
-    auto mul1 = ngraph::builder::makeEltwise(input[0], fake1, ngraph::helpers::EltwiseTypes::ADD);
-    auto fake2 = ngraph::builder::makeFakeQuantize(input[1], ngPrc, 255, { 1 }, { -0.5 }, { 0.5 }, { -0.5 }, { 0.5 });
-    auto mul2 = ngraph::builder::makeEltwise(input[1], fake2, ngraph::helpers::EltwiseTypes::ADD);
-    auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
-    auto fake3 = ngraph::builder::makeFakeQuantize(input[2], ngPrc, 255, { 1 }, { -0.5 }, { 0.5 }, { -0.5 }, { 0.5 });
-    auto mul4 = ngraph::builder::makeEltwise(fake3, mul3, ngraph::helpers::EltwiseTypes::ADD);
-    auto result = std::make_shared<ngraph::opset7::Result>(mul4);
+    auto fake1 = ngraph::builder::makeFakeQuantize(input[0], ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { minInput }, { maxInput }, { minInput }, { maxInput });
+    auto add1 = ngraph::builder::makeEltwise(input[0], fake1, ngraph::helpers::EltwiseTypes::ADD);
+    auto fake_add1 = ngraph::builder::makeFakeQuantize(add1, ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { 2 * minInput }, { 2 * maxInput }, { 2 * minInput }, { 2 * maxInput });
+
+    auto fake2 = ngraph::builder::makeFakeQuantize(input[1], ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { minInput }, { maxInput }, { minInput }, { maxInput });
+    auto add2 = ngraph::builder::makeEltwise(input[1], fake2, ngraph::helpers::EltwiseTypes::ADD);
+    auto fake_add2 = ngraph::builder::makeFakeQuantize(add2, ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { 2 * minInput }, { 2 * maxInput }, { 2 * minInput }, { 2 * maxInput });
+
+    auto add3 = ngraph::builder::makeEltwise(fake_add1, fake_add2, ngraph::helpers::EltwiseTypes::ADD);
+    auto fake_add3 = ngraph::builder::makeFakeQuantize(add3, ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { 4 * minInput }, { 4 * maxInput }, { 4 * minInput }, { 4 * maxInput });
+
+    auto fake3 = ngraph::builder::makeFakeQuantize(input[2], ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { minInput }, { maxInput }, { minInput }, { maxInput });
+    auto add4 = ngraph::builder::makeEltwise(fake3, fake_add3, ngraph::helpers::EltwiseTypes::ADD);
+    auto fake_add4 = ngraph::builder::makeFakeQuantize(add4, ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
+        { 5 * minInput }, { 5 * maxInput }, { 5 * minInput }, { 5 * maxInput });
+
+    auto result = std::make_shared<ngraph::opset7::Result>(fake_add4);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
 }
 

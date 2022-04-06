@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,11 @@ JitConstants BorderKernelBase::GetJitConstants(const border_params& params) cons
 }
 
 BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Z },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::W },
                                                                      { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};

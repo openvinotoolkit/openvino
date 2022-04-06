@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
             get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
 
         const auto format = arg.get_output_layout().format;
-        size_t max_axes_num;
-        if (format == format::bfzyx)
-            max_axes_num = 5;
-        else
-            max_axes_num = 4;
+        size_t max_axes_num = format.dimension();
 
         const auto& broadcast_axes = arg.get_primitive()->broadcast_axes;
         uint16_t index = (uint16_t)0;
@@ -71,12 +67,20 @@ attach_broadcast_impl::attach_broadcast_impl() {
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i64, format::bfyx),
+
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i64, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::i8, format::bfwzyx),
+        std::make_tuple(data_types::u8, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+        std::make_tuple(data_types::i64, format::bfwzyx),
     });
 }
 

@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import ngraph as ng
 import numpy as np
 
-from tests_compatibility import xfail_issue_54630
 from tests_compatibility.test_ngraph.util import run_op_node
 
 
@@ -55,7 +54,6 @@ def test_gather_batch_dims_1():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_54630
 def test_gather_negative_indices():
     input_data = np.array(
         [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32
@@ -71,7 +69,6 @@ def test_gather_negative_indices():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_54630
 def test_gather_batch_dims_1_negative_indices():
 
     input_data = np.array([[1, 2, 3, 4, 5],

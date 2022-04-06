@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ using namespace ov;
 
 
 void AvgPoolPrecisionPreservedAttribute::merge(std::vector<ov::Any>& attributes) {
+}
+
+bool AvgPoolPrecisionPreservedAttribute::is_skipped() const {
+    return false;
 }
 
 std::string AvgPoolPrecisionPreservedAttribute::to_string() const {

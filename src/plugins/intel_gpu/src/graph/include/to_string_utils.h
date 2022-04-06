@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "program_node.h"
@@ -72,6 +73,58 @@ inline std::string allocation_type_to_str(allocation_type type) {
     case allocation_type::usm_shared: return "usm_shared";
     case allocation_type::usm_device: return "usm_device";
     default: return "unknown";
+    }
+}
+
+inline std::string activation_type_to_str(activation_func activation) {
+    switch (activation) {
+    case activation_func::none: return "none";
+    case activation_func::logistic: return "logistic";
+    case activation_func::hyperbolic_tan: return "hyperbolic_tan";
+    case activation_func::relu: return "relu";
+    case activation_func::relu_negative_slope: return "relu_negative_slope";
+    case activation_func::clamp: return "clamp";
+    case activation_func::softrelu: return "softrelu";
+    case activation_func::abs: return "abs";
+    case activation_func::linear: return "linear";
+    case activation_func::square: return "square";
+    case activation_func::sqrt: return "sqrt";
+    case activation_func::elu: return "elu";
+    case activation_func::sin: return "sin";
+    case activation_func::asin: return "asin";
+    case activation_func::sinh: return "sinh";
+    case activation_func::asinh: return "asinh";
+    case activation_func::cos: return "cos";
+    case activation_func::acos: return "acos";
+    case activation_func::cosh: return "cosh";
+    case activation_func::acosh: return "acosh";
+    case activation_func::log: return "log";
+    case activation_func::log2: return "log2";
+    case activation_func::exp: return "exp";
+    case activation_func::tan: return "tan";
+    case activation_func::atan: return "atan";
+    case activation_func::atanh: return "atanh";
+    case activation_func::floor: return "floor";
+    case activation_func::ceil: return "ceil";
+    case activation_func::negative: return "negative";
+    case activation_func::negation: return "negation";
+    case activation_func::pow: return "pow";
+    case activation_func::reciprocal: return "reciprocal";
+    case activation_func::erf: return "erf";
+    case activation_func::hard_sigmoid: return "hard_sigmoid";
+    case activation_func::hsigmoid: return "hsigmoid";
+    case activation_func::selu: return "selu";
+    case activation_func::sign: return "sign";
+    case activation_func::softplus: return "softplus";
+    case activation_func::softsign: return "softsign";
+    case activation_func::swish: return "swish";
+    case activation_func::hswish: return "hswish";
+    case activation_func::mish: return "mish";
+    case activation_func::gelu: return "gelu";
+    case activation_func::gelu_tanh: return "gelu_tanh";
+    case activation_func::round_half_to_even: return "round_half_to_even";
+    case activation_func::round_half_away_from_zero: return "round_half_away_from_zero";
+    default: return "unknown activation";
     }
 }
 

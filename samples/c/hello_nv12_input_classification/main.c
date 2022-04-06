@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,7 @@ void print_classify_res(struct classify_res* cls, size_t n, const char* img_path
  * doesn't equal to size param
  */
 size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
-    FILE* fp = fopen(img_path, "rb+");
+    FILE* fp = fopen(img_path, "rb");
     size_t read_size = 0;
 
     if (fp) {

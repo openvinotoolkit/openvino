@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ protected:
 public:
     static primitive_impl* create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.size;
 
         const auto& split = primitive->split();
@@ -96,7 +96,7 @@ public:
         const auto& input_layout = arg.input().get_output_layout();
         const auto& kernel_size = primitive->kernel_size;
 
-        const auto& stride = primitive->stride;
+        auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
@@ -118,19 +118,25 @@ public:
         conv_params.bilinear_interpolation_pad = primitive->bilinear_interpolation_pad;
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
-                               (uint32_t)std::max(pad.spatial[1], 0),
-                               (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
 
-        conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+        conv_params.padding = {pad_x, pad_y, pad_z};
+
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        conv_params.stride = {stride_x, stride_y, stride_z};
+
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         conv_params.kernelSize = { (uint32_t)kernel_size.spatial[0],
                                    (uint32_t)kernel_size.spatial[1],
                                    (uint32_t)kernel_size.spatial[2] };
-
-        conv_params.dilation = {(uint32_t)dilation.spatial[0],
-                                (uint32_t)dilation.spatial[1],
-                                (uint32_t)dilation.spatial[2]};
 
         auto& kernel_selector = kernel_selector::deformable_interp_kernel_selector::Instance();
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);

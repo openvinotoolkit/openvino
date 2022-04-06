@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <tuple>
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include "myriad_layers_reference_functions.hpp"
 #include "xml_net_builder.hpp"
@@ -125,12 +124,6 @@ public:
         _kernel_val   = std::get<1>(params);
         _pad_val      = std::get<2>(params);
         _stride_val   = std::get<3>(params);
-
-#if 0 // 4DGP
-        // TODO: make it the test argument
-        _config[VPU_CONFIG_KEY(COMPUTE_LAYOUT)] = VPU_CONFIG_VALUE(NCHW);
-//        _config[VPU_CONFIG_KEY(COMPUTE_LAYOUT)] = VPU_CONFIG_VALUE(NHWC);
-#endif
 
         _params["kernel-x"] = std::to_string(_kernel_val.x);
         _params["kernel-y"] = std::to_string(_kernel_val.y);

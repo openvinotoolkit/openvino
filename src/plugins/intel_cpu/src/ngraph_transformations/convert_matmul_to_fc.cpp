@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
+#include "itt.hpp"
 
-MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
+ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
+    MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
@@ -156,7 +157,7 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto output_rank = matmul->get_output_partial_shape(0).rank();
         // Create FullyConnected
-        auto fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank, matmul->get_output_element_type(0));
+        auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank, matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ngraph::copy_runtime_info(matmul, new_ops);
@@ -164,6 +165,6 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, "ConvertMatMulToFC");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, matcher_name);
     this->register_matcher(m, callback);
 }

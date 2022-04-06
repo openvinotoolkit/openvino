@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,10 +70,14 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
 {
     const uint global_id = get_global_id(0);
     const uint group_id = get_group_id(0);
-    const uint batch_group_id = get_global_id(1); // which part of batches we are computing, for example for batch 64 we compute batches 0..31 for batch_group_id == 0 and batches 32..65 for batch_group_id == 1
+    const uint batch_group_id = get_global_id(1); // which part of batches we are computing,
+                                                  // for example for batch 64 we compute batches 0..31 for batch_group_id == 0
+                                                  // and batches 32..65 for batch_group_id == 1
     const uint id_in_sub_group = get_sub_group_local_id();
 
-    const uint out_id = (id_in_sub_group * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1)) / SUB_GROUP_SIZE + group_id * BATCHES_PER_WORK_ITEM * NEURONS_PER_WORK_ITEM * (uint)get_global_size(1) + (BATCHES_PER_WORK_ITEM * batch_group_id) / SUB_GROUP_SIZE;
+    const uint out_id = (id_in_sub_group * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1)) / SUB_GROUP_SIZE +
+                        group_id * BATCHES_PER_WORK_ITEM * NEURONS_PER_WORK_ITEM * (uint)get_global_size(1) +
+                        (BATCHES_PER_WORK_ITEM * batch_group_id) / SUB_GROUP_SIZE;
 
     uint neuronIdx = id_in_sub_group + group_id * SUB_GROUP_SIZE * NEURONS_PER_WORK_ITEM;
 
@@ -104,10 +108,10 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
         // read input data in blocks ( 8 batch * 8 x )
         MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA00 = ALIGNED_BLOCK_READ8(input, input_idx);
 #if BATCHES_PER_WORK_ITEM >= 16
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA01 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT*8));
+        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA01 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT * 8));
 #if BATCHES_PER_WORK_ITEM >= 32
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA02 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT*16));
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA03 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT*24));
+        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA02 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT * 16));
+        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA03 = ALIGNED_BLOCK_READ8(input, input_idx + (INPUT0_ELEMENTS_COUNT * 24));
 #endif
 #endif
 
@@ -151,12 +155,12 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
 
 #if NEURONS_PER_WORK_ITEM > 1
 
-    blockC10 += bias[neuronIdx+8];
+    blockC10 += bias[neuronIdx + 8];
 #if BATCHES_PER_WORK_ITEM >= 16
-    blockC11 += bias[neuronIdx+8];
+    blockC11 += bias[neuronIdx + 8];
 #if BATCHES_PER_WORK_ITEM >= 32
-    blockC12 += bias[neuronIdx+8];
-    blockC13 += bias[neuronIdx+8];
+    blockC12 += bias[neuronIdx + 8];
+    blockC13 += bias[neuronIdx + 8];
 #endif
 #endif
 
@@ -184,7 +188,7 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
 
 #endif // #if NEURONS_PER_WORK_ITEM > 1
 
-    if(neuronIdx >= OUTPUT_ELEMENTS_COUNT)
+    if (neuronIdx >= OUTPUT_ELEMENTS_COUNT)
         return;
 
     vstore8(blockC00, out_id, output);
@@ -201,12 +205,12 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
     if(neuronIdx + 8 >= OUTPUT_ELEMENTS_COUNT)
         return;
 
-    vstore8(blockC10, out_id+INPUT0_BATCH_NUM, output);
+    vstore8(blockC10, out_id + INPUT0_BATCH_NUM, output);
 #if BATCHES_PER_WORK_ITEM >= 16
-    vstore8(blockC11, out_id+INPUT0_BATCH_NUM+1, output);
+    vstore8(blockC11, out_id + INPUT0_BATCH_NUM + 1, output);
 #if BATCHES_PER_WORK_ITEM >= 32
-    vstore8(blockC12, out_id+INPUT0_BATCH_NUM+2, output);
-    vstore8(blockC13, out_id+INPUT0_BATCH_NUM+3, output);
+    vstore8(blockC12, out_id + INPUT0_BATCH_NUM + 2, output);
+    vstore8(blockC13, out_id + INPUT0_BATCH_NUM + 3, output);
 #endif
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::util::FFTBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
+void ov::op::util::FFTBase::validate_types() {
+    NGRAPH_OP_SCOPE(util_FFTBase_validate_types);
 
     size_t num_of_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
@@ -46,6 +46,12 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "FFT op signal_size element type must be i32 or i64");
     }
+}
+
+void ov::op::util::FFTBase::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
+
+    validate_types();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;

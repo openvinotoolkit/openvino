@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 namespace ov {
 namespace op {
 namespace v5 {
+/// \brief RNNSequence operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API RNNSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase, 4);

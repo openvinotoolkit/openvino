@@ -1,27 +1,22 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_blocked_memory_desc.h"
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "dnnl_blocked_memory_desc.h"
 
-using namespace MKLDNNPlugin;
+namespace ov {
+namespace intel_cpu {
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) : MemoryDesc(shape, Blocked), precision(prc) {
-    auto& dims = shape.getDims();
-    order.resize(dims.size());
-    std::iota(order.begin(), order.end(), 0);
-    blockedDims = dims;
-    offsetPadding = 0;
-    offsetPaddingToData.resize(dims.size(), 0);
-    strides.resize(order.size());
-    // for empty tensor case we fill all strides with 0 values
-    strides[strides.size() - 1] = shape.hasZeroDims() ? 0 : 1;
-    for (size_t i = 2; i <= order.size(); i++) {
-        strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
-    }
+static VectorDims makeRange(size_t size) {
+    VectorDims retVec(size, 0);
+    std::iota(retVec.begin(), retVec.end(), 0);
+    return retVec;
 }
+
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) :
+    CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
 CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
@@ -99,12 +94,23 @@ bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs) const {
-    return BlockedMemoryDesc::isCompatible(rhs);
+bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+    return BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs) const {
-    return rhs.isCompatible(*this);
+bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+    return rhs.isCompatible(*this, cmpMask);
+}
+
+bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+    const BlockedMemoryDesc* pRhs = &rhs;
+    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*cpuBlkDesc, cmpMask);
+    } else if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*dnnlBlkDesc, cmpMask);
+    } else {
+        return false;
+    }
 }
 
 bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
@@ -298,22 +304,11 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
-    const auto orderSize = getOrder().size();
-    CpuBlockedMemoryDescPtr newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
-    newDesc->strides = VectorDims(orderSize, Shape::UNDEFINED_DIM);
-    newDesc->offsetPadding = Shape::UNDEFINED_DIM;
-    newDesc->offsetPaddingToData =  VectorDims(orderSize, 0);
-    newDesc->status = descStatus::Undefined;
-    return newDesc;
-}
-
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
-    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder());
-}
-
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
     auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,16 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPrecisions, "MarkupPrecisions", 0);
-
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions) {
+ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
+    const std::vector<PrecisionsRestriction>& restrictions,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
             r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPort);
@@ -31,6 +33,7 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vecto
         } else {
             it->second.add(restriction.operationType.version, restriction.precisionsByPort);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -63,6 +66,7 @@ void setRestriction(
 } // namespace
 
 bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupPrecisions);
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
             continue;
@@ -75,7 +79,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
-        if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
+        if (!supported || !LayerTransformation::canBeTransformedStatic(node, defaultPrecisions)) {
             setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
             continue;
         }
@@ -93,7 +97,9 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         if (it != restrictionsByOperation.end()) {
             const Restriction& r = it->second;
             if (r.versionIsRequired) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto it2 = r.precisionsByVersion.find(typeInfo.version);
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (it2 == r.precisionsByVersion.end()) {
                     continue;
                 }

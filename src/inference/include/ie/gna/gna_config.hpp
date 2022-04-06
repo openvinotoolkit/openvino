@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ namespace GNAConfigParams {
  * @brief Scale factor that is calculated by user, in order to use static quantisation feature
  * This option should be used with floating point value serialized to string with decimal separator equals to . (dot)
  * @details For multiple input case, individual scale factors can be passed, using
- * KEY_GNA_SCALE_FACTOR[_input_layer_name] where input_layer can be obtained from from CNNNetwork::GetInputsInfo
+ * KEY_GNA_SCALE_FACTOR[_input_layer_name] where input_layer can be obtained from CNNNetwork::GetInputsInfo
  */
 DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 
@@ -61,23 +61,57 @@ INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 
 /**
- * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW, GNA_SW_EXACT
+ * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_EXACT
  */
 DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);
 
+/**
+ * @brief Specific software acceleration mode.
+ * Uses Intel GNA if available, otherwise uses software execution mode on CPU.
+ */
 DECLARE_GNA_CONFIG_VALUE(AUTO);
+
+/**
+ * @brief Specific software acceleration mode.
+ * Uses Intel GNA if available, otherwise raises an error.
+ */
 DECLARE_GNA_CONFIG_VALUE(HW);
+
+/**
+ * @brief Specific software acceleration mode.
+ * Uses Intel GNA if available, otherwise raises an error.
+ * If the hardware queue is not empty, automatically falls back to CPU in the bit-exact mode.
+ */
 DECLARE_GNA_CONFIG_VALUE(HW_WITH_SW_FBACK);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in a future release.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
+ */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(SW);
+
+/**
+ * @brief Specific software acceleration mode.
+ * Executes the GNA-compiled graph on CPU performing calculations
+ * in the same precision as the Intel GNA in the bit-exact mode.
+ */
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
+
+/**
+ * @brief Specific software acceleration mode.
+ * Executes the GNA-compiled graph on CPU but substitutes parameters and calculations
+ * from low precision to floating point
+ */
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
 
 /**
  * @brief Specific software acceleration mode.
  * @deprecated Mode is deprecated and will be removed in a future release.
- * Use InferenceEngine::GNAConfigParams::SW instead.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(GEN);
 
 /**
@@ -91,9 +125,9 @@ DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
 /**
  * @brief Specific software acceleration mode.
  * @deprecated Mode is deprecated and will be removed in a future release.
- * Use InferenceEngine::GNAConfigParams::SW instead.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(SSE);
 
 /**
@@ -107,9 +141,9 @@ DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
 /**
  * @brief Specific software acceleration mode.
  * @deprecated Mode is deprecated and will be removed in a future release.
- * Use InferenceEngine::GNAConfigParams::SW instead.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX1);
 
 /**
@@ -123,9 +157,9 @@ DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
 /**
  * @brief Specific software acceleration mode.
  * @deprecated Mode is deprecated and will be removed in a future release.
- * Use InferenceEngine::GNAConfigParams::SW instead.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX2);
 
 /**

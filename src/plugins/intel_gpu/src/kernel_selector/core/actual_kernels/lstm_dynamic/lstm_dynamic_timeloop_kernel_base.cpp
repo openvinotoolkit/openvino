@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace kernel_selector {
 JitConstants LSTM_DynamicTimeloopKernelBase::GetJitConstants(const lstm_dynamic_timeloop_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     size_t hidden_size = out.X().v;
 
     // [1] Certainties
@@ -75,7 +75,7 @@ JitConstants LSTM_DynamicTimeloopKernelBase::GetJitConstants(const lstm_dynamic_
 LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::SetDefault(
     const lstm_dynamic_timeloop_params& params) {
     DispatchData dispatchData;
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto out_x_size = out.X().v;
     auto gws0 = out_x_size > 256 ? 256 : out_x_size;

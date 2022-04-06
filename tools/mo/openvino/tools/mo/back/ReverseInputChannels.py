@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -7,7 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.layout import get_dim_from_layout, get_features_dim
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, compatible_dims
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
@@ -16,6 +16,7 @@ from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.utils.error import Error
 
 
 class ReverseChannels(Op):
@@ -53,7 +54,10 @@ class InsertReverseChannels(BackReplacementPattern):
     enabled = False
 
     @staticmethod
-    def get_channel_index(node: Node) -> int:
+    def get_suitable_channel_index(node: Node, shape):
+        if len(shape) != 4:
+            return None
+
         guessed_layout = 'NCHW'
         if node.has_valid('rt_info'):
             rt_info = node.rt_info
@@ -66,25 +70,30 @@ class InsertReverseChannels(BackReplacementPattern):
                     guessed_layout = np.array(list(guessed_layout))[order]
                     guessed_layout = ''.join(guessed_layout)
         idx, has_layout = get_dim_from_layout(node, 'C')
-        if has_layout:
+        if not has_layout:
+            idx = get_features_dim(guessed_layout, len(node.shape))
+        if compatible_dims(shape[idx], 3):
             return idx
         else:
-            return get_features_dim(guessed_layout, len(node.shape))
+            return None
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
                       for p in graph.get_op_nodes(type='Parameter')]
         suitable_params = []
         for name, p, shape in all_params:
-            if len(shape) == 4:
-                idx = self.get_channel_index(p)
-                if idx is not None and shape[idx] == 3:
-                    suitable_params.append((name, p, shape, idx))
-
+            idx = self.get_suitable_channel_index(p, shape)
+            if idx is not None:
+                suitable_params.append((name, p, shape, idx))
 
         log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
         log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape, _ in suitable_params}))
-        if len(suitable_params) < len(all_params):
+        if not len(suitable_params):
+            raise Error('Network has {} inputs overall, but none of them are suitable for input channels reversing.\n'
+                        'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of '
+                        'dynamic dimensions C channel must be provided in a layout for this input)\n'
+                        'All inputs: {}'.format(len(all_params), all_params))
+        elif len(suitable_params) < len(all_params):
             log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
                       'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
                       'Suitable inputs {}'.format(len(all_params), len(suitable_params),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,322 +24,331 @@ class IInferRequestInternal;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 class CompiledModel;
 
 /**
- * @brief This is a class of infer request which can be run in asynchronous or synchronous manners.
+ * @brief This is a class of infer request that can be run in asynchronous or synchronous manners.
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API InferRequest {
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
     std::shared_ptr<void> _so;
 
     /**
-     * @brief Constructs InferRequest from the initialized std::shared_ptr
-     * @param impl Initialized shared pointer
-     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
-     * destroyed.
+     * @brief Constructs InferRequest from the initialized std::shared_ptr.
+     * @param impl Initialized shared pointer.
+     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if a plugin object
+     * is destroyed.
      */
     InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
-    friend class ov::runtime::CompiledModel;
+    friend class ov::CompiledModel;
 
 public:
     /**
-     * @brief Default constructor
+     * @brief Default constructor.
      */
     InferRequest() = default;
 
     /**
-     * @brief Default copy constructor
-     * @param other other InferRequest object
+     * @brief Default copy constructor.
+     * @param other Another InferRequest object.
      */
     InferRequest(const InferRequest& other) = default;
 
     /**
-     * @brief Default copy assignment operator
-     * @param other Another InferRequest object
-     * @return A reference to the current object
+     * @brief Default copy assignment operator.
+     * @param other Another InferRequest object.
+     * @return Reference to the current object.
      */
     InferRequest& operator=(const InferRequest& other) = default;
 
     /**
-     * @brief Default move constructor
-     * @param other other InferRequest object
+     * @brief Default move constructor.
+     * @param other Another InferRequest object.
      */
     InferRequest(InferRequest&& other) = default;
 
     /**
-     * @brief Default move assignment operator
-     * @param other other InferRequest object
-     * @return reference to the current object
+     * @brief Default move assignment operator.
+     * @param other Another InferRequest object.
+     * @return Reference to the current object.
      */
     InferRequest& operator=(InferRequest&& other) = default;
 
     /**
-     * @brief Destructor preserves unloading order of implementation object and reference to library
-     * @note To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
-     *       And use destructor to remove implementation object before reference to library explicitly
+     * @brief Destructor that preserves unloading order of implementation object and reference to the library.
+     * @note To preserve destruction order inside the default generated assignment operator, `_impl` is stored before
+     *       `_so`. Use the destructor to remove implementation object before referencing to the library explicitly.
      */
     ~InferRequest();
 
     /**
-     * @brief Sets input/output tensor to infer on
+     * @brief Sets an input/output tensor to infer on.
      *
-     * @param tensor_name Name of input or output tensor.
-     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * @param tensor_name Name of the input or output tensor.
+     * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
      * the model's input/output element_type and size.
      */
     void set_tensor(const std::string& tensor_name, const Tensor& tensor);
 
     /**
-     * @brief Sets input/output tensor to infer
-     * @param port Port of input or output tensor. Note, that the ports get from the following methods can be used:
+     * @brief Sets an input/output tensor to infer.
+     * @param port Port of the input or output tensor. Use the following methods to get the ports:
      * - ov::Model::input()
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
     void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
 
     /**
-     * @brief Sets input/output tensor to infer
-     * @param port Port of input or output tensor. Note, that the ports get from the following methods can be used:
+     * @brief Sets an input/output tensor to infer.
+     * @param port Port of the input or output tensor. Use the following methods to get the ports:
      * - ov::Model::input()
      * - ov::Model::inputs()
      * - ov::Model::outputs()
      * - ov::Model::outputs()
-     * - ov::runtime::CompiledModel::input()
-     * - ov::runtime::CompiledModel::inputs()
-     * - ov::runtime::CompiledModel::outputs()
-     * - ov::runtime::CompiledModel::outputs()
+     * - ov::CompiledModel::input()
+     * - ov::CompiledModel::inputs()
+     * - ov::CompiledModel::outputs()
+     * - ov::CompiledModel::outputs()
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
 
     /**
-     * @brief Sets batch of tensors for input data to infer by tensor name
-     * Model input shall have batch dimension and number of @p tensors shall match with batch size
-     * Current version supports set tensors to model inputs only. In case if @p tensor_name is associated
-     * with output (or any other non-input node) - an exception will be thrown
+     * @brief Sets a batch of tensors for input data to infer by tensor name.
+     * Model input must have batch dimension, and the number of @p tensors must match the batch size.
+     * The current version supports setting tensors to model inputs only. If @p tensor_name is associated
+     * with output (or any other non-input node), an exception is thrown.
      *
-     * @param tensor_name Name of input tensor.
+     * @param tensor_name Name of the input tensor.
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
     void set_tensors(const std::string& tensor_name, const std::vector<Tensor>& tensors);
 
     /**
-     * @brief Sets batch of tensors for input data to infer by input port
-     * Model input shall have batch dimension and number of @p tensors shall match with batch size
-     * Current version supports set tensors to model inputs only. In case if @p port is associated
-     * with output (or any other non-input node) - an exception will be thrown
+     * @brief Sets a batch of tensors for input data to infer by input port.
+     * Model input must have batch dimension, and the number of @p tensors must match the batch size.
+     * The current version supports setting tensors to model inputs only. If @p port is associated
+     * with output (or any other non-input node), an exception is thrown.
      *
-     * @param port Port of input tensor.
+     * @param port Port of the input tensor.
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors);
 
     /**
-     * @brief Sets input tensor to infer
+     * @brief Sets an input tensor to infer.
      *
-     * @param idx Index of input tensor. If @p idx is greater than number of model inputs, an exception is thrown
-     * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
+     * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception
+     * is thrown.
+     * @param tensor Reference to the tensor. The element_type and shape of the tensor must match
      * the model's input/output element_type and size.
      */
     void set_input_tensor(size_t idx, const Tensor& tensor);
 
     /**
-     * @brief Sets input tensor to infer models with single input
-     * @note If model has several inputs, an exception is thrown
-     * @param tensor Reference to input tensor.
+     * @brief Sets an input tensor to infer models with single input.
+     * @note If model has several inputs, an exception is thrown.
+     * @param tensor Reference to the input tensor.
      */
     void set_input_tensor(const Tensor& tensor);
 
     /**
-     * @brief Sets batch of tensors for single input data
-     * Model input shall have batch dimension and number of @p tensors shall match with batch size
+     * @brief Sets a batch of tensors for single input data.
+     * Model input must have batch dimension, and the number of @p tensors must match the batch size.
      *
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
     void set_input_tensors(const std::vector<Tensor>& tensors);
 
     /**
-     * @brief Sets batch of tensors for input data to infer by input name
-     * Model input shall have batch dimension and number of @p tensors shall match with batch size
+     * @brief Sets a batch of tensors for input data to infer by input name.
+     * Model input must have batch dimension, and number of @p tensors must match the batch size.
      *
-     * @param idx Name of input tensor.
+     * @param idx Name of the input tensor.
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
-     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
     void set_input_tensors(size_t idx, const std::vector<Tensor>& tensors);
 
     /**
-     * @brief Sets output tensor to infer
-     * @note An index of input preserved accross ov::Model, ov::runtime::CompiledModel and ov::runtime::InferRequest
-     * @param idx Index of output tensor.
-     * @param tensor Reference to output tensor. The type of a tensor must match the model output element type and
+     * @brief Sets an output tensor to infer.
+     * @note Index of the input preserved accross ov::Model, ov::CompiledModel, and ov::InferRequest.
+     * @param idx Index of the output tensor.
+     * @param tensor Reference to the output tensor. The type of the tensor must match the model output element type and
      * shape.
      */
     void set_output_tensor(size_t idx, const Tensor& tensor);
 
     /**
-     * @brief Sets output tensor to infer models with single output
+     * @brief Sets an output tensor to infer models with single output.
      * @note If model has several outputs, an exception is thrown.
-     * @param tensor Reference to output tensor.
+     * @param tensor Reference to the output tensor.
      */
     void set_output_tensor(const Tensor& tensor);
 
     /**
-     * @brief Gets input/output tensor for inference by tensor name
-     * @param tensor_name A name of tensor to get
-     * @return A Tensor with a name @p tensor_name. If a tensor is not found, an exception is thrown.
+     * @brief Gets an input/output tensor for inference by tensor name.
+     * @param tensor_name Name of a tensor to get.
+     * @return The tensor with name @p tensor_name. If the tensor is not found, an exception is thrown.
      */
     Tensor get_tensor(const std::string& tensor_name);
 
     /**
-     * @brief Gets input/output tensor for inference
-     * @note If a tensor with specified @p port is not found, an exception is thrown
-     * @param port Port of tensor to get
-     * @return A Tensor for the port @p port.
+     * @brief Gets an input/output tensor for inference.
+     * @note If the tensor with the specified @p port is not found, an exception is thrown.
+     * @param port Port of the tensor to get.
+     * @return Tensor for the port @p port.
      */
     Tensor get_tensor(const ov::Output<const ov::Node>& port);
 
     /**
-     * @brief Gets input/output tensor for inference
-     * @note If a tensor with specified @p port is not found, an exception is thrown
-     * @param port Port of tensor to get
-     * @return A Tensor for the port @p port.
+     * @brief Gets an input/output tensor for inference.
+     * @note If the tensor with the specified @p port is not found, an exception is thrown.
+     * @param port Port of the tensor to get.
+     * @return Tensor for the port @p port.
      */
     Tensor get_tensor(const ov::Output<ov::Node>& port);
 
     /**
-     * @brief Gets input tensor for inference
+     * @brief Gets an input tensor for inference.
      *
-     * @param idx An index of tensor to get
-     * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is
-     * thrown.
+     * @param idx Index of the tensor to get.
+     * @return Tensor with the input index @p idx. If the tensor with the specified @p idx is not found, an exception
+     * is thrown.
      */
     Tensor get_input_tensor(size_t idx);
 
     /**
-     * @brief Gets input tensor for inference
+     * @brief Gets an input tensor for inference.
      *
-     * @return An input Tensor for the model. If model has several inputs, an exception is thrown.
+     * @return The input tensor for the model. If model has several inputs, an exception is thrown.
      */
     Tensor get_input_tensor();
 
     /**
-     * @brief Gets output tensor for inference
+     * @brief Gets an output tensor for inference.
      *
-     * @param idx An index of tensor to get
-     * @return A Tensor with an output index @p idx. If a tensor with specified @p idx is not found, an exception is
-     * thrown.
+     * @param idx Index of the tensor to get.
+     * @return Tensor with the output index @p idx. If the tensor with the specified @p idx is not found, an exception
+     * is thrown.
      */
     Tensor get_output_tensor(size_t idx);
 
     /**
-     * @brief Gets output tensor for inference
+     * @brief Gets an output tensor for inference.
      *
-     * @return An output Tensor for the model. If model has several outputs, an exception is thrown.
+     * @return Output tensor for the model. If model has several outputs, an exception is thrown.
      */
     Tensor get_output_tensor();
 
     /**
-     * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)
-     *       Calling any method will lead to throwning ov::runtime::Busy exception
+     * @brief Infers specified input(s) in synchronous mode.
+     * @note It blocks all methods of InferRequest while request is ongoing (running or waiting in a queue).
+     *       Calling any method leads to throwning the ov::Busy exception.
      */
     void infer();
 
     /**
-     * @brief Cancels inference request
+     * @brief Cancels inference request.
      */
     void cancel();
 
     /**
-     * @brief Queries performance measures per layer to get feedback of what is the most time consuming operation
-     * @note not all plugins provide meaningful data
-     * @return Vector of profiling information for operations in model
+     * @brief Queries performance measures per layer to identify the most time consuming operation.
+     * @note Not all plugins provide meaningful data.
+     * @return Vector of profiling information for operations in a model.
      */
     std::vector<ProfilingInfo> get_profiling_info() const;
 
     /**
-     * @brief Starts inference of specified input(s) in asynchronous mode
+     * @brief Starts inference of specified input(s) in asynchronous mode.
      * @note It returns immediately. Inference starts also immediately.
-     *       Calling any method while the request in a running state will lead to throwning ov::runtime::Busy exception
+     *       Calling any method while the request in a running state leads to throwning the ov::Busy exception.
      */
     void start_async();
 
     /**
      * @brief Waits for the result to become available. Blocks until the result
-     * becomes available
+     * becomes available.
      */
     void wait();
 
     /**
-     * @brief Waits for the result to become available. Blocks until specified timeout has elapsed or the result
+     * @brief Waits for the result to become available. Blocks until the specified timeout has elapsed or the result
      * becomes available, whichever comes first.
      *
-     * @param timeout Maximum duration in milliseconds to block for
-     * @return true if inference request is ready and false otherwise
+     * @param timeout Maximum duration, in milliseconds, to block for.
+     * @return True if inference request is ready and false, otherwise.
      */
     bool wait_for(const std::chrono::milliseconds timeout);
 
     /**
-     * @brief Sets a callback std::function that will be called on success or failure of asynchronous request
+     * @brief Sets a callback std::function that is called on success or failure of an asynchronous request.
      * @param callback callback object which will be called on when inference finish.
+     * @warning Do not capture strong references to OpenVINO runtime objects into callback.
+     * Following objects should not be captured like:
+     *  - ov::InferRequest
+     *  - ov::ExecutableNetwork
+     *  - ov::Core
+     * As specified objects implement shared reference concept do not capture this objects by value.
+     * It can lead to memory leaks or undefined behaviour!
+     * Try to use weak references or pointers.
      */
     void set_callback(std::function<void(std::exception_ptr)> callback);
 
     /**
-     * @brief Gets state control interface for given infer request.
+     * @brief Gets state control interface for the given infer request.
      *
-     * State control essential for recurrent models
-     * @return A vector of Variable State objects
+     * State control essential for recurrent models.
+     * @return Vector of Variable State objects.
      */
     std::vector<VariableState> query_state();
 
     /**
-     * @brief Returns compiled model that creates this inference request
-     * @return Compiled model object
+     * @brief Returns a compiled model that creates this inference request.
+     * @return Compiled model object.
      */
     CompiledModel get_compiled_model();
 
     /**
-     * @brief Checks if current InferRequest object is not initialized
-     * @return true if current InferRequest object is not initialized, false - otherwise
+     * @brief Checks if the current InferRequest object is not initialized.
+     * @return True if the current InferRequest object is not initialized; false, otherwise.
      */
     bool operator!() const noexcept;
 
     /**
-     * @brief Checks if current InferRequest object is initialized
-     * @return true if current InferRequest object is initialized, false - otherwise
+     * @brief Checks if the current InferRequest object is initialized.
+     * @return True if the current InferRequest object is initialized; false, otherwise.
      */
     explicit operator bool() const noexcept;
 
     /**
-     * @brief Compares whether this request wraps the same impl underneath
-     * @param other Another inference request
-     * @return true if current InferRequest object doesn't wrap the same impl as the operator's arg
+     * @brief Compares whether this request wraps the same impl underneath.
+     * @param other Another inference request.
+     * @return True if the current InferRequest object does not wrap the same impl as the operator's arg.
      */
     bool operator!=(const InferRequest& other) const noexcept;
 
     /**
-     * @brief Compares whether this request wraps the same impl underneath
-     * @param other Another inference request
-     * @return true if current InferRequest object wraps the same impl as the operator's arg
+     * @brief Compares whether this request wraps the same impl underneath.
+     * @param other Another inference request.
+     * @return True if the current InferRequest object wraps the same impl as the operator's arg.
      */
     bool operator==(const InferRequest& other) const noexcept;
 };
-}  // namespace runtime
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ bool kernel_selector::LSTM_DynamicInputKernelBfyxOpt::Validate(const Params & p,
     const auto weights_x = weights.X().v;
     const auto weights_y = weights.Y().v;
     const auto& input = params.inputs[0];
-    const auto& out   = params.output;
+    const auto& out   = params.outputs[0];
 
     bool input_X_div_by_8 = input.X().v % 8 == 0;
     bool weights_X_div_by_8 = weights_x % 8 == 0;
@@ -69,12 +69,12 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     lstm_dynamic_input_params& dlstm_params = *static_cast<lstm_dynamic_input_params*>(kd.params.get());
 
     auto in_layout = dlstm_params.inputs[0].GetLayout();
-    auto out_layout = dlstm_params.output.GetLayout();
+    auto out_layout = dlstm_params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::FEATURE }};
 
-    const auto& out = dlstm_params.output;
+    const auto& out = dlstm_params.outputs[0];
     auto hidden_size = out.X().v;
 
     dispatchData.gws = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };

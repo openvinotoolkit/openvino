@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_cnn_test.hpp"
@@ -67,8 +67,8 @@ void ReferenceCNNTest::FillInputs() {
         auto buf = mBlobHolder.as<float*>();
         ASSERT_EQ(mBlob->size(), elem_count);
 
-        ov::runtime::Tensor ov_blob;
-        ov_blob = ov::runtime::Tensor(param->get_element_type(), param->get_shape());
+        ov::Tensor ov_blob;
+        ov_blob = ov::Tensor(param->get_element_type(), param->get_shape());
         auto ov_buf = static_cast<float*>(ov_blob.data());
 
         for (size_t j = 0; j < elem_count; j++) {

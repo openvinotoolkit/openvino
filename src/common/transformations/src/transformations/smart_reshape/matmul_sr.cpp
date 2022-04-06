@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,8 +55,6 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
 
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeAMatMul, "ReshapeAMatMul", 0);
-
 ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(ReshapeAMatMul);
@@ -79,8 +77,6 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeBMatMul, "ReshapeBMatMul", 0);
-
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(ReshapeBMatMul);
@@ -102,8 +98,6 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeMatMul, "TransposeMatMul", 0);
 
 ngraph::pass::TransposeMatMul::TransposeMatMul() {
     // TODO: enable conditional compile

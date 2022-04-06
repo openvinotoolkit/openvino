@@ -1,24 +1,25 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn_node.h"
+#include <node.h>
 
 #include <memory>
 #include <vector>
 
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class TileBroadcastCommon {
 protected:
     static VectorDims calculateDenseStrides(const VectorDims &dims);
-    std::vector<NodeDesc> getSupportedConfigs(const MKLDNNNode *node);
-    bool prepareOptimizedParams(const MKLDNNNode *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
+    std::vector<NodeDesc> getSupportedConfigs(const Node *node);
+    bool prepareOptimizedParams(const Node *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory);
+    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory);
 
     VectorDims repeats;
     bool optimizedCase = false;
@@ -41,4 +42,5 @@ private:
     } optimizedParams;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

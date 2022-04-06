@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,15 +94,11 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        // 3rd input type must be integer, thus it cannot be forced to BF16.
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-            if (inputDynamicShapes.size() > 2)
-                throw std::runtime_error("Invalid test case. Cannot enforce integer input to BF16.");
-            inType = outType = ElementType::bf16;
+            selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            outType = netPrecision;
+            selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
-        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
@@ -168,7 +164,7 @@ TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "RNNSeq");
+    CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
 
 namespace {
@@ -248,16 +244,16 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1},                                            // Dynamic shape 2
         { {10}, {3}, {5} } } },                          // Target shapes
     { { {-1, {0, 7}, 10},                                // #3. Dynamic shape 0
-        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },        // Target shapes
+        { {1, 2, 10}, {2, 3, 10}, {1, 6, 10} } },        // Target shapes
       { {-1, 1, 1},                                      // Dynamic shape 1
-        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },           // Target shapes
+        { {1, 1, 1}, {2, 1, 1}, {1, 1, 1} } },           // Target shapes
       { {-1},                                            // Dynamic shape 2
-        { {1}, {1}, {1} } } },                           // Target shapes
+        { {1}, {2}, {1} } } },                           // Target shapes
     { { {1, -1, 10},                                     // #4. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
       { {1, 1, 10},                                      // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },        // Target shapes
-      { {1},                                             // Dynamic shape 2
+      { {-1},                                             // Dynamic shape 2
         { {1}, {1}, {1} } } },                           // Target shapes
     { { {-1, -1, -1},                                    // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
@@ -282,7 +278,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2], dynamicShapes[3]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyTransformation, "MultiplyTransformation", 0);
-
 MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
+    MATCHER_SCOPE(MultiplyTransformation);
     auto matcher = pattern::wrap_type<opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -34,7 +34,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -44,10 +44,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         return false;
     }
 
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 1));
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 0));
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 1));
 
-    multiply = NetworkHelper::separateInStandaloneBranch(multiply);
+    multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
@@ -67,13 +67,13 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
         if (multiplyBranch.first != -1) {
-            NetworkHelper::foldDequantization(multiply, multiplyBranch.first == 0 ? 1 : 0);
+            NetworkHelper::foldDequantization(multiply, multiplyBranch.first == 0 ? 1 : 0, defaultPrecisions);
         }
 
         if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
             // constant folding on dequantization ops (for example: Convert on Subtract)
-            NetworkHelper::foldDequantization(multiply, 0);
-            NetworkHelper::foldDequantization(multiply, 1);
+            NetworkHelper::foldDequantization(multiply, 0, defaultPrecisions);
+            NetworkHelper::foldDequantization(multiply, 1, defaultPrecisions);
             return false;
         }
 
@@ -98,13 +98,13 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
         if (updatePrecisions) {
-            const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, emptyPathIndex);
+            const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, defaultPrecisions, emptyPathIndex);
             if (!dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
                 return false;
             }
         }
 
-        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
+        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex, defaultPrecisions);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
         std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
@@ -114,7 +114,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
-        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
+        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex, defaultPrecisions);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
         std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);
@@ -145,15 +145,15 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     updateOutput(context, newMultiply, multiply);
 
     if (fullPathIndex != -1) {
-        NetworkHelper::foldDequantization(newMultiply, fullPathIndex);
+        NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);
     }
 
     return true;
 }
 
 bool MultiplyTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 1ul);
 
     if (dequantization1.data.get_node() == nullptr || dequantization2.data.get_node() == nullptr) {
         return false;

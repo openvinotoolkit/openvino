@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,13 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
+#include "eltwise_inst.h"
+#include "convolution_inst.h"
 
 #include <string>
 #include <vector>
 #include <utility>
+#include <iostream>
 
 namespace cldnn {
 struct program_helpers {
@@ -124,9 +127,34 @@ struct program_helpers {
         }
     }
     static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
-
-    static bool are_layouts_identical_for_onednn_sum_post_op(layout input_layout, layout output_layout);
 };
+
+struct onednn_add_fusing_helpers {
+    enum class add_fusing_type {
+        sum,
+        binary_per_tensor,
+        binary_per_oc,
+        not_supported,
+    };
+
+    static bool is_full_tensor(const layout& layout);
+    static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
+    static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
+                            std::function<void(const program_node&, const eltwise_node&, const fused_primitive_desc&)> func);
+    static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
+};
+
+using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
+
+static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
+    switch (t) {
+        case add_fusing_type::sum: os << "sum"; break;
+        case add_fusing_type::binary_per_tensor: os << "binary_per_tensor"; break;
+        case add_fusing_type::binary_per_oc: os << "binary_per_oc"; break;
+        default: os << "not_supported"; break;
+    }
+    return os;
+}
 
 // Base class for performing pattern match style optimizations.
 // Uses CRTP idiom, implementing class should be passed as template parameter `Impl`,
@@ -219,7 +247,7 @@ void run_node_optimizations(program& p, Opts&&... opts) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
         auto node = *it++;
-        run_node_optimizations(*node, std::forward<Opts>(opts)...);
+        run_node_optimizations(*node, opts...);
     }
 }
 

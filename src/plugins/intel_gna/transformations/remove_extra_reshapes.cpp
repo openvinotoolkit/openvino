@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 #include <ngraph/pattern/op/or.hpp>
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(RemoveExtraReshapes, "RemoveExtraReshapes", 0);
 
 RemoveExtraReshapes::RemoveExtraReshapes() {
     MATCHER_SCOPE(RemoveExtraReshapes);

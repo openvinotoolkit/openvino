@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionKernel_b_fs_yx_fsv16() : Convolution
 ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16::GetAutoTuneOptions(const Params& params,
                                                                                                     int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
-    auto x = cp.output.X().v;
-    auto f = cp.output.Feature().v;
+    auto x = cp.outputs[0].X().v;
+    auto f = cp.outputs[0].Feature().v;
     if (x * f <= 256) {
         if (x <= 8 || x * f <= 128)
             return { 2, DEFAULT };
@@ -48,10 +48,10 @@ float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_param
     auto tuneOptions = GetAutoTuneOptions(params, 0);
     auto blockWidth = tuneOptions.blockWidth;
 
-    auto x = params.output.X().v;
-    auto y = params.output.Y().v;
-    auto f = params.output.Feature().v;
-    auto b = params.output.Batch().v;
+    auto x = params.outputs[0].X().v;
+    auto y = params.outputs[0].Y().v;
+    auto f = params.outputs[0].Feature().v;
+    auto b = params.outputs[0].Batch().v;
 
     auto threads = CeilDiv(x, blockWidth) * y * CeilDiv(f, tuning_data.feature_block_size) * tuning_data.slm_div_factor * b;
 
@@ -67,7 +67,8 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx
 
     size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
 
-    bool slm_exception = params.output.X().v == 3 && params.output.Y().v == 3 && params.output.ElementSize() == 4 && params.output.Feature().v <= 512;
+    bool slm_exception = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].ElementSize() == 4
+                         && params.outputs[0].Feature().v <= 512;
 
     if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.bIMADSupport && !slm_exception)
         while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
@@ -120,7 +121,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
@@ -144,11 +145,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 :  FORCE_PRIORITY_7;
+    return p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 :  FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
@@ -157,7 +158,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     if (params.groups > 1) {
         auto outFeaturesPerGroup = output.Feature().v / params.groups;
@@ -204,7 +205,7 @@ bool post_reorder_fused(const convolution_params& params) {
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
                                                               const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
@@ -265,7 +266,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
     jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(inFeaturesPerGroup, tuning_data.feature_block_size)));
-    if (params.output.Feature().v % tuning_data.feature_block_size != 0) {
+    if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
     if (inFeaturesPerGroup % tuning_data.feature_block_size != 0 && !multipleGroupsInputPreload) {

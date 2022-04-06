@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@ using NodeInput = ngraph::Input<ngraph::Node>;
 using NodeOutput = ngraph::Output<ngraph::Node>;
 
 namespace GNAPluginNS {
-    NGRAPH_RTTI_DEFINITION(RemoveSingleInputConcat, "RemoveSingleInputConcat", 0);
-
     RemoveSingleInputConcat::RemoveSingleInputConcat() {
         MATCHER_SCOPE(RemoveSingleInputConcat);
 

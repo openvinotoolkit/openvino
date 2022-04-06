@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ CommonDispatchData LRNKernelAcrossChannelRef::SetDefault(const lrn_params& param
     CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
     if (params.inputs[0].GetLayout() == DataLayout::bfyx) {
-        const auto& out = params.output;
+        const auto& out = params.outputs[0];
         dispatchData.gws[0] = Align(out.X().v, 32);
         dispatchData.gws[1] = out.Y().v;
         dispatchData.gws[2] = out.Feature().v * out.Batch().v;

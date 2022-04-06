@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 using namespace BehaviorTestsDefinitions;
 using namespace ov::test::conformance;
+
 
 namespace {
     #if (defined(__APPLE__) || defined(_WIN32))
@@ -43,23 +44,35 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, CorrectConfigTests,
             ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::ValuesIn(pluginConfigs)),
             CorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
+INSTANTIATE_TEST_SUITE_P(ie_plugin_Hetero, CorrectConfigTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO, pluginConfigs))),
+                         CorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Multi, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiConfigs))),
+                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Auto, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiConfigs))),
+                ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_AutoBatch, CorrectConfigTests,
+                ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                    ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_BATCH, pluginConfigs))),
+                CorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> inPluginConfigs = {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
@@ -79,41 +92,65 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, IncorrectConfigTests,
             ::testing::Combine(
-                ::testing::Values(ConformanceTests::targetDevice),
+                ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Hetero, IncorrectConfigTests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                     ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO, inPluginConfigs))),
+             IncorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Multi, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Auto, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_AutoBatch, IncorrectConfigTests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                     ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_BATCH, pluginMultiInConfigs))),
+             IncorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, IncorrectConfigAPITests,
             ::testing::Combine(
-            ::testing::Values(ConformanceTests::targetDevice),
+            ::testing::Values(ov::test::conformance::targetDevice),
             ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Hetero, IncorrectConfigAPITests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                     ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_HETERO, inPluginConfigs))),
+             IncorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Multi, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_Auto, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
+            ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(ie_plugin_AutoBatch, IncorrectConfigAPITests,
+             ::testing::Combine(
+                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                     ::testing::ValuesIn(generate_configs(CommonTestUtils::DEVICE_BATCH, inPluginConfigs))),
+             IncorrectConfigAPITests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> pluginConfigsCheck = {
             {},
@@ -126,7 +163,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigCheck,
                              ::testing::Combine(
-                                     ::testing::Values(ConformanceTests::targetDevice),
+                                     ::testing::ValuesIn(return_all_possible_device_combination()),
                                      ::testing::ValuesIn(pluginConfigsCheck)),
                              CorrectConfigCheck::getTestCaseName);
 } // namespace

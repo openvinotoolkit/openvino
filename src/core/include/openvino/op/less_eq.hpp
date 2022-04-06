@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise less-than-or-equal operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LessEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("LessEqual", "opset1", op::util::BinaryElementwiseComparison, 1);

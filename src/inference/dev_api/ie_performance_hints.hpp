@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,11 +72,13 @@ struct PerfHintsConfig {
      * @return configuration value
      */
     static std::string CheckPerformanceHintValue(const std::string& val) {
-        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT || val == "")
+        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT ||
+            val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == "")
             return val;
         else
             IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
-                       << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT;
+                       << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT
+                       << "/" << PluginConfigParams::CUMULATIVE_THROUGHPUT;
     }
 
     /**

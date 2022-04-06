@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,14 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PadTransformation, "PadTransformation", 0);
-
 PadTransformation::PadTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(PadTransformation);
     auto mul = pattern::wrap_type<opset1::Multiply>();
     auto padsBegin = pattern::wrap_type<opset1::Constant>();
     auto padsEnd = pattern::wrap_type<opset1::Constant>();
@@ -31,7 +31,7 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "PadTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -40,7 +40,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
         return false;
     }
 
-    const auto pad = ov::as_type_ptr<opset1::Pad>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
+    const auto pad = ov::as_type_ptr<opset1::Pad>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     const auto padConstant = ov::as_type_ptr<opset1::Constant>(pad->get_input_node_shared_ptr(3));
     const auto padConstantValue = padConstant->cast_vector<float>()[0];
 
@@ -48,7 +48,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
     const auto padsEnd = pad->get_pads_end();
     const auto padMode = pad->get_pad_mode();
 
-    auto dequantization = NetworkHelper::getDequantization(pad);
+    auto dequantization = NetworkHelper::getDequantization(pad, defaultPrecisions);
 
     if (padMode == op::PadMode::CONSTANT) {
         auto bcastConstant = [&](const std::shared_ptr<opset1::Constant> &constant) {
@@ -162,7 +162,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,8 +37,8 @@ struct DFTParams {
     Shape m_expected_shape;
     element::Type_t m_input_type;
     element::Type_t m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
     std::shared_ptr<op::v0::Constant> m_axes;
     std::shared_ptr<op::v0::Constant> m_signal;
 };

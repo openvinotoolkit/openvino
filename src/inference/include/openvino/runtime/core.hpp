@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief This is a header file for the OpenVINO Runtime Core class C++ API
+ * @brief A header file for the OpenVINO Runtime Core class C++ API.
  *
  * @file openvino/runtime/core.hpp
  */
@@ -32,10 +32,9 @@ class IExtension;
 
 namespace ov {
 
-namespace runtime {
-
 /**
- * @brief This class represents OpenVINO runtime Core entity.
+ * @brief This class represents an OpenVINO runtime Core entity.
+ * @ingroup ov_runtime_cpp_api
  * User applications can create several Core class instances, but in this case the underlying plugins
  * are created multiple times and not shared between several Core instances. The recommended way is to have
  * a single Core instance per application.
@@ -45,70 +44,87 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
-    /** @brief Constructs OpenVINO Core instance using XML configuration file with
-     * devices and their plugins description.
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
      *
-     * See Core::register_plugins for more details.
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default OpenVINO Runtime plugins are loaded from the default `plugin.xml` file located in the same folder
-     * as OpenVINO runtime shared library.
+     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * specified, default OpenVINO Runtime plugins are loaded from:
+     * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
+     * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
 
     /**
-     * @brief Returns device plugins version information
-     * Device name can be complex and identify multiple devices at once like `HETERO:CPU,GPU`
-     * and in this case a std::map contains multiple entries each per device.
+     * @brief Returns device plugins version information.
+     * Device name can be complex and identify multiple devices at once like `HETERO:CPU,GPU`;
+     * in this case, std::map contains multiple entries, each per device.
      *
-     * @param device_name Device name to identify a plugin
-     * @return A vector of versions
+     * @param device_name Device name to identify a plugin.
+     * @return A vector of versions.
      */
     std::map<std::string, Version> get_versions(const std::string& device_name) const;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Reads models from IR / ONNX / PDPD formats
-     * @param model_path A path to a model
-     * @param bin_path A path to a data file
+     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @param model_path Path to a model.
+     * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read bin file with the same name as xml and
-     *  * if bin file with the same name was not found, will load IR without weights.
+     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if the bin file with the same name is not found, will load IR without weights.
      * For ONNX format (*.onnx):
-     *  * bin_path parameter is not used.
+     *  * the bin_path parameter is not used.
      * For PDPD format (*.pdmodel)
-     *  * bin_path parameter is not used.
-     * @return A model
+     *  * the bin_path parameter is not used.
+     * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
 #endif
 
     /**
-     * @brief Reads models from IR / ONNX / PDPD formats
-     * @param model_path A path to a model
-     * @param bin_path A path to a data file
+     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @param model_path Path to a model.
+     * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read bin file with the same name as xml and
-     *  * if bin file with the same name was not found, will load IR without weights.
+     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if the bin file with the same name is not found, will load IR without weights.
      * For ONNX format (*.onnx):
-     *  * bin_path parameter is not used.
+     *  * the bin_path parameter is not used.
      * For PDPD format (*.pdmodel)
-     *  * bin_path parameter is not used.
-     * @return A model
+     *  * the bin_path parameter is not used.
+     * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
 
     /**
-     * @brief Reads models from IR / ONNX / PDPD formats
-     * @param model A string with model in IR / ONNX / PDPD format
-     * @param weights A shared pointer to constant tensor with weights
-     * Reading ONNX / PDPD models doesn't support loading weights from @p weights tensors.
-     * @note Created model object shares the weights with @p weights object.
-     * So, do not create @p weights on temporary data which can be later freed, since the model
-     * constant data becomes point to an invalid memory.
-     * @return A model
+     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
+
+    /**
+     * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by the AUTO
+     * plugin.
+     *
+     * Users can create as many compiled models as they need and use
+     * them simultaneously (up to the limitation of the hardware resources).
+     *
+     * @param model Model object acquired from Core::read_model.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& properties = {});
 
     /**
      * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
@@ -117,110 +133,195 @@ public:
      * Users can create as many compiled models as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
      *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model Model object acquired from Core::read_model
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     *
      * @return A compiled model
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const ConfigMap& config = {});
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        Properties&&... properties) {
+        return compile_model(model, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Creates a compiled model from a source model object.
+     *
+     * Users can create as many compiled models as they need and use
+     * them simultaneously (up to the limitation of the hardware resources).
+     *
+     * @param model Model object acquired from Core::read_model.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
 
     /**
      * @brief Creates a compiled model from a source model object.
      *
      * Users can create as many compiled models as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
-     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model Model object acquired from Core::read_model
      * @param device_name Name of device to load model to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
      * @return A compiled model
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
-                                const std::string& device_name,
-                                const ConfigMap& config = {});
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::string& device_name,
+        Properties&&... properties) {
+        return compile_model(model, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Reads and loads a compiled model from the IR/ONNX/PDPD file to the default OpenVINO device selected by the
+     * AUTO plugin.
+     *
+     * This can be more efficient than using the Core::read_model + Core::compile_model(model_in_memory_object) flow,
+     * especially for cases when caching is enabled and a cached model is available.
+     *
+     * @param model_path Path to a model.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     *
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
     /**
      * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
      * AUTO plugin.
      *
-     * This can be more efficient than using Core::read_model + Core::compile_model(model_in_memory_object) flow
+     * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
      *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model_path path to model
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation/
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
      *
      * @return A compiled model
      */
-    CompiledModel compile_model(const std::string& model_path, const ConfigMap& config = {});
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+    }
 
     /**
-     * @brief Reads model and creates a compiled model from IR / ONNX / PDPD file
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
      *
-     * This can be more efficient than using Core::read_model + Core::compile_model(model_in_memory_object) flow
-     * especially for cases when caching is enabled and cached model is available
+     * This can be more efficient than using the Core::read_model + Core::compile_model(model_in_memory_object) flow,
+     * especially for cases when caching is enabled and a cached model is available.
      *
-     * @param model_path Path to a model
-     * @param device_name Name of device to load a model to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation/
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
      *
-     * @return A compiled model
+     * @return A compiled model.
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
-                                const ConfigMap& config = {});
+                                const AnyMap& properties = {});
+
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available.
+     *
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     *
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
 
     /**
      * @brief Creates a compiled model from a source model within a specified remote context.
-     * @param model Model object acquired from Core::read_model
-     * @param context A reference to a RemoteContext object
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return A compiled model object
+     * @param model Model object acquired from Core::read_model.
+     * @param context A reference to a RemoteContext object.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model object.
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const RemoteContext& context,
-                                const ConfigMap& config = {});
+                                const AnyMap& properties = {});
 
     /**
-     * @deprecated This method is deprecated. Please use other Core::add_extension methods
-     * @brief Registers OpenVINO 1.0 extension to a Core object
-     * @param extension Pointer to already loaded extension
+     * @brief Creates a compiled model from a source model within a specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model Model object acquired from Core::read_model
+     * @param context Pointer to RemoteContext object
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     * @return A compiled model object
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const RemoteContext& context,
+        Properties&&... properties) {
+        return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @deprecated This method is deprecated. Please use other Core::add_extension methods.
+     * @brief Registers OpenVINO 1.0 extension to a Core object.
+     * @param extension Pointer to the already loaded extension.
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
     /**
-     * @brief Registers an extension to a Core object
-     * @param library_path Path to library with ov::Extension
+     * @brief Registers an extension to a Core object.
+     * @param library_path Path to the library with ov::Extension.
      */
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Registers an extension to a Core object
-     * @param library_path Unicode path to library with ov::Extension
+     * @brief Registers an extension to a Core object.
+     * @param library_path Unicode path to the library with ov::Extension.
      */
     void add_extension(const std::wstring& library_path);
 #endif
 
     /**
-     * @brief Registers an extension to a Core object
-     * @param extension Pointer to extension
+     * @brief Registers an extension to a Core object.
+     * @param extension Pointer to the extension.
      */
     void add_extension(const std::shared_ptr<ov::Extension>& extension);
 
     /**
-     * @brief Registers extensions to a Core object
-     * @param extensions Vector of loaded extensions
+     * @brief Registers extensions to a Core object.
+     * @param extensions Vector of loaded extensions.
      */
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
 
     /**
-     * @brief Registers an extension to a Core object
-     * @param extension Extension class which is inherited from ov::Extension class
+     * @brief Registers an extension to a Core object.
+     * @param extension Extension class that is inherited from the ov::Extension class.
      */
     template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
     void add_extension(const T& extension) {
@@ -229,9 +330,9 @@ public:
     }
 
     /**
-     * @brief Registers extensions to a Core object
-     * @param extension Extension class which is inherited from ov::Extension class
-     * @param args A list of extensions
+     * @brief Registers extensions to a Core object.
+     * @param extension Extension class that is inherited from the ov::Extension class.
+     * @param args A list of extensions.
      */
     template <class T,
               class... Targs,
@@ -243,7 +344,7 @@ public:
     }
 
     /**
-     * @brief Registers a custom operation inherited from ov::op::Op
+     * @brief Registers a custom operation inherited from ov::op::Op.
      */
     template <class T, typename std::enable_if<std::is_base_of<ov::op::Op, T>::value, bool>::type = true>
     void add_extension() {
@@ -252,7 +353,7 @@ public:
     }
 
     /**
-     * @brief Registers custom operations inherited from ov::op::Op
+     * @brief Registers custom operations inherited from ov::op::Op.
      */
     template <class T,
               class... Targs,
@@ -265,114 +366,254 @@ public:
     }
 
     /**
-     * @brief Imports a compiled model from a previously exported one
-     * @param model_stream std::istream input stream containing a model previously exported using
-     * ov::runtime::CompiledModel::export_model method
-     * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
-     * compile the original mode, an exception is thrown
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation*
-     * @return A compiled model
+     * @brief Imports a compiled model from the previously exported one.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
      */
     CompiledModel import_model(std::istream& model_stream,
                                const std::string& device_name,
-                               const ConfigMap& config = {});
+                               const AnyMap& properties = {});
 
     /**
-     * @brief Imports a compiled model from a previously exported one with a specified remote context.
-     * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::runtime::CompiledModel::export_model
-     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
-     * the original mode, an exception is thrown
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return A compiled model
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_stream Model stream.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
      */
-    CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const ConfigMap& config = {});
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(model_stream, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
 
     /**
-     * @brief Query device if it supports specified model with specified configuration
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @param model_stream std::istream input stream containing a model previously exported from
+     * ov::CompiledModel::export_model
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_stream Model stream.
+     * @param context Pointer to a RemoteContext object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(std::istream& model_stream,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Query device if it supports the specified model with specified properties.
      *
-     * @param device_name A name of a device to query
-     * @param model Model object to query
-     * @param config Optional map of pairs: (config parameter name, config parameter value)
-     * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
+     * @param device_name Name of a device to query.
+     * @param model Model object to query.
+     * @param properties Optional map of pairs: (property name, property value).
+     * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
      */
     SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
-                                const ConfigMap& config = {}) const;
+                                const AnyMap& properties = {}) const;
 
     /**
-     * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
+     * @brief Queries a device if it supports the specified model with specified properties.
      *
-     * @param device_name An optional name of a device. If device name is not specified, the config is set for all the
-     * registered devices.
-     *
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param device_name Name of a device to query.
+     * @param model Model object to query.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * query operation.
+     * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
      */
-    void set_config(const ConfigMap& config, const std::string& device_name = {});
+    template <typename... Properties>
+    util::EnableIfAllStringAny<SupportedOpsMap, Properties...> query_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::string& device_name,
+        Properties&&... properties) const {
+        return query_model(model, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
 
     /**
-     * @brief Gets configuration dedicated to device behaviour.
-     * The method is targeted to extract information which can be set via Core::set_config method.
+     * @brief Sets properties for all the
+     * registered devices, acceptable keys can be found in openvino/runtime/properties.hpp.
      *
-     * @param device_name A name of a device to get a configuration value.
-     * @param config_key_name A config key name.
-     * @return Value of config corresponding to config key.
+     * @param properties Map of pairs: (property name, property value).
      */
-    Any get_config(const std::string& device_name, const std::string& config_key_name) const;
+    void set_property(const AnyMap& properties);
 
     /**
-     * @brief Gets general runtime metric for dedicated hardware.
+     * @brief Sets properties for all the
+     * registered devices, acceptable keys can be found in openvino/runtime/properties.hpp.
+     *
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @param properties Optional pack of pairs: property name, property value.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
+        set_property(AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
+     *
+     * @param device_name Name of a device.
+     *
+     * @param properties Map of pairs: (property name, property value).
+     */
+    void set_property(const std::string& device_name, const AnyMap& properties);
+
+    /**
+     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param device_name Name of a device.
+     * @param properties Optional pack of pairs: (property name, property value).
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<void, Properties...> set_property(const std::string& device_name,
+                                                                 Properties&&... properties) {
+        set_property(device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param device_name  Name of a device to get a property value.
+     * @param name  Property name.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& device_name, const std::string& name) const;
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param device_name  Name of a device to get a property value.
+     * @param name  Property name.
+     * @param arguments  Additional arguments to get a property.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
+     * The method is needed to request common device or system properties.
+     * It can be device name, temperature, and other devices-specific values.
+     *
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
+        return get_property(deviceName, property.name(), {}).template as<T>();
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour.
      *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *
-     * @param device_name A name of a device to get a metric value.
-     * @param metric_key_name A metric name to request.
-     * @return Metric value corresponding to metric key.
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @param arguments  Additional arguments to get a property.
+     * @return Property value.
      */
-    Any get_metric(const std::string& device_name, const std::string& metric_key_name) const;
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(deviceName, property.name(), arguments).template as<T>();
+    }
 
     /**
-     * @brief Returns devices available for inference
-     * Core objects goes over all registered plugins and asks about available devices.
+     * @brief Gets properties related to device behaviour.
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
-     * If there more than one device of specific type, they are enumerated with .# suffix.
+     * The method is needed to request common device or system properties.
+     * It can be device name, temperature, other devices-specific values.
+     *
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @tparam Args Set of additional arguments ended with property object variable.
+     * @param deviceName  Name of a device to get a property value.
+     * @param property  Property object.
+     * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M, typename... Args>
+    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
+                                                        const ov::Property<T, M>& property,
+                                                        Args&&... args) const {
+        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+    }
+
+    /**
+     * @brief Returns devices available for inference.
+     * Core objects go over all registered plugins and ask about available devices.
+     *
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }.
+     * If there is more than one device of a specific type, they are enumerated with the .# suffix.
      * Such enumerated device can later be used as a device name in all Core methods like Core::compile_model,
-     * Core::query_model, Core::set_config and so on.
+     * Core::query_model, Core::set_property and so on.
      */
     std::vector<std::string> get_available_devices() const;
 
     /**
-     * @brief Register a new device and plugin which enable this device inside OpenVINO Runtime.
+     * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
-     * @param plugin_name A name of plugin. Depending on platform `plugin_name` is wrapped with shared library suffix
-     * and prefix to identify library full name
-     * E.g. on Linux platform plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
+     * @param plugin_name Name of a plugin. Depending on platform, `plugin_name` is wrapped with shared library suffix
+     * and prefix to identify library full name.
+     * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
      * Plugin search algorithm:
-     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used
-     * - If no, plugin is tried to be loaded from paths pointed by PATH / LD_LIBRARY_PATH / DYLD_LIBRARY_PATH
+     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used.
+     * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
      *
-     * @param device_name A device name to register plugin for.
+     * @param device_name Device name to register a plugin for.
      */
     void register_plugin(const std::string& plugin_name, const std::string& device_name);
 
     /**
-     * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime
+     * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
      * The method is needed to remove loaded plugin instance and free its resources. If plugin for a
      * specified device has not been created before, the method throws an exception.
      * @note This method does not remove plugin from the plugins known to OpenVINO Core object.
-     * @param device_name A device name identifying plugin to remove from OpenVINO Runtime
+     * @param device_name Device name identifying plugin to remove from OpenVINO Runtime.
      */
     void unload_plugin(const std::string& device_name);
 
-    /** @brief Registers a device plugin to OpenVINO Runtime Core instance using XML configuration file with
+    /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
-     *  XML file has the following structure:
+     *  The XML file has the following structure:
      *
      * ```xml
      * <ie>
@@ -389,32 +630,46 @@ public:
      * </ie>
      * ```
      *
-     * - `name` identifies name of device enabled by a plugin
+     * - `name` identifies name of a device enabled by a plugin.
      * - `location` specifies absolute path to dynamic library with a plugin.
-     *    A path can also be relative to inference engine shared library. It allows to have common config
+     *    The path can also be relative to inference engine shared library. It allows having common config
      *    for different systems with different configurations.
-     * - `properties` are set to a plugin via the ov::runtime::Core::set_config method.
-     * - `extensions` are set to a plugin via the ov::runtime::Core::add_extension method.
+     * - `properties` are set to a plugin via the ov::Core::set_property method.
+     * - `extensions` are set to a plugin via the ov::Core::add_extension method.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
 
     /**
-     * @brief Create a new remote shared context object on specified accelerator device
-     * using specified plugin-specific low level device API parameters (device handle, pointer, context, etc.)
-     * @param device_name A name of a device to create a new shared context on.
-     * @param params A map of device-specific shared context parameters.
-     * @return A reference to a created remote context.
+     * @brief Creates a new remote shared context object on the specified accelerator device
+     * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
+     * @param device_name Name of a device to create a new shared context on.
+     * @param remote_properties Map of device-specific shared context remote properties.
+     * @return Reference to a created remote context.
      */
-    RemoteContext create_context(const std::string& device_name, const ParamMap& params);
+    RemoteContext create_context(const std::string& device_name, const AnyMap& remote_properties);
 
     /**
-     * @brief Get a pointer to default (plugin-supplied) shared context object for specified accelerator device.
-     * @param device_name A name of a device to get a default shared context from.
-     * @return A reference to a default remote context.
+     * @brief Creates a new shared context object on specified accelerator device
+     * using specified plugin-specific low level device API properties (device handle, pointer, etc.)
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param device_name Name of a device to create new shared context on.
+     * @param remote_properties Pack of device-specific shared context remote properties.
+     * @return A shared pointer to a created remote context.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<RemoteContext, Properties...> create_context(const std::string& device_name,
+                                                                            Properties&&... remote_properties) {
+        return create_context(device_name, AnyMap{std::forward<Properties>(remote_properties)...});
+    }
+
+    /**
+     * @brief Gets a pointer to default (plugin-supplied) shared context object for the specified accelerator device.
+     * @param device_name Name of a device to get a default shared context from.
+     * @return Reference to a default remote context.
      */
     RemoteContext get_default_context(const std::string& device_name);
 };
-}  // namespace runtime
+
 }  // namespace ov

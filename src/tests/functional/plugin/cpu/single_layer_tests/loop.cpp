@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <shared_test_classes/single_layer/loop.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace ov;
@@ -22,6 +22,7 @@ enum LOOP_IN_TYPE {
 using LoopParams = typename std::tuple<
         InputLayerType,                                                    // TripCount is a constant?
         int64_t,                                                           // TripCount, -1 means infinity
+        bool,                                                              // Execution condition
         std::vector<InputShape>,                                           // InputShapes
         std::vector<LOOP_IN_TYPE>,                                         // Type
         ElementType>;                                                      // Input element type
@@ -33,10 +34,11 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<LoopParams> obj) {
         InputLayerType trip_count_type;
         int64_t trip_count;
+        bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
         ElementType netType;
-        std::tie(trip_count_type, trip_count, shapes, types, netType) = obj.param;
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = obj.param;
 
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
@@ -52,6 +54,7 @@ public:
             result << type << "_";
         result << "trip_count_type=" << trip_count_type << "_";
         result << "trip_count=" << trip_count << "_";
+        result << "exec_cond=" << exec_cond << "_";
         result << "netType=" << netType;
         return result.str();
 }
@@ -65,7 +68,7 @@ protected:
         int i = 0;
         if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                                  funcInput.get_shape(), 10, 1);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             i++;
@@ -74,7 +77,7 @@ protected:
         // parameters for body
         for (; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                                  targetInputStaticShapes[i], 15, 0, 32768);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -83,10 +86,11 @@ protected:
     void SetUp() override {
         InputLayerType trip_count_type;
         int64_t trip_count;
+        bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
         ElementType netType;
-        std::tie(trip_count_type, trip_count, shapes, types, netType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
@@ -102,7 +106,7 @@ protected:
         }
 
         auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, exec_cond);
         std::shared_ptr<ngraph::Node> trip_count_input;
         int shift = 0;
         if (trip_count_type == InputLayerType::PARAMETER) {
@@ -163,9 +167,10 @@ protected:
     void SetUp() override {
         InputLayerType trip_count_type;
         int64_t trip_count;
+        bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, shapes, types, inType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
@@ -181,7 +186,7 @@ protected:
             body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType, pshape));
         }
 
-        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, exec_cond);
         auto trip_count_input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, ngraph::Shape{});
         trip_count_input->set_friendly_name("trip_count");
         params.insert(params.begin(), trip_count_input);
@@ -233,9 +238,10 @@ protected:
     void SetUp() override {
         InputLayerType trip_count_type;
         int64_t trip_count;
+        bool exec_cond;
         std::vector<InputShape> shapes;
         std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, shapes, types, inType) = this->GetParam();
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
@@ -251,7 +257,7 @@ protected:
         }
 
         auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
-        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, exec_cond);
         std::shared_ptr<ngraph::Node> trip_count_input;
         int shift = 0;
         if (trip_count_type == InputLayerType::PARAMETER) {
@@ -320,10 +326,11 @@ const std::vector<ElementType> inputPrecisions = {
 };
 
 std::vector<InputLayerType> trip_count_type { InputLayerType::CONSTANT, InputLayerType::PARAMETER };
-std::vector<int64_t> trip_count { 1, 5 }; // works only if trip_count_type is constant
+std::vector<int64_t> trip_count { 0, 1, 5 };
+std::vector<bool> exec_cond { true, false };
 
 // dim[axis] = 1 because loop supports concatenation only with stride = part_size = 1
-// first loop suit test is with output concatenation
+// the first loop suit test is with output concatenation
 std::vector<std::vector<InputShape>> inputs = {
     {  //first test suit
         {   //dynamic shape for first input
@@ -393,6 +400,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForCommon, LoopLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(trip_count_type),
                                  ::testing::ValuesIn(trip_count),
+                                 ::testing::ValuesIn(exec_cond),
                                  ::testing::ValuesIn(inputs),
                                  ::testing::Values(types),
                                  ::testing::ValuesIn(inputPrecisions)),
@@ -428,6 +436,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopWhileCommon, LoopWhileLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Values(trip_count_type[0]),
                                  ::testing::Values(-1),
+                                 ::testing::Values(true),
                                  ::testing::ValuesIn(inputs_2),
                                  ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
                                  ::testing::ValuesIn(inputPrecisions)),
@@ -462,6 +471,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat, LoopForDiffShapesLayerCP
                          ::testing::Combine(
                                  ::testing::ValuesIn(trip_count_type),
                                  ::testing::ValuesIn(trip_count),
+                                 ::testing::ValuesIn(exec_cond),
                                  ::testing::ValuesIn(inputs_3),
                                  ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
                                  ::testing::ValuesIn(inputPrecisions)),

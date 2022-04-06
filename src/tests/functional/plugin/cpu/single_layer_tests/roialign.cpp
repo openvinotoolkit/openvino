@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -83,13 +83,13 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        ov::runtime::Tensor data_tensor;
+        ov::Tensor data_tensor;
         const auto& dataPrecision = funcInputs[0].get_element_type();
         const auto& dataShape = targetInputStaticShapes.front();
         data_tensor = ov::test::utils::create_and_fill_tensor(dataPrecision, dataShape, 10, 0, 1000);
 
         const auto& coordsET = funcInputs[1].get_element_type();
-        auto coordsTensor = ov::runtime::Tensor{ coordsET, targetInputStaticShapes[1] };
+        auto coordsTensor = ov::Tensor{ coordsET, targetInputStaticShapes[1] };
         if (coordsET == ElementType::f32) {
             auto coordsTensorData = static_cast<float*>(coordsTensor.data());
             for (size_t i = 0; i < coordsTensor.get_size(); i += 4) {
@@ -110,7 +110,7 @@ protected:
             IE_THROW() << "roi align. Unsupported precision: " << coordsET;
         }
 
-        auto roisIdxTensor = ov::runtime::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
+        auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
         std::int32_t batchIdx = 0;
         for (int i = 0; i < roisIdxTensor.get_size(); i++) {
@@ -149,7 +149,7 @@ protected:
         auto roialign = std::make_shared<ngraph::opset3::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
                                                                    samplingRatio, spatialScale, mode);
 
-        selectedType = makeSelectedTypeStr("ref", inputPrecision);
+        selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
         if (inputPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
         }
@@ -162,7 +162,7 @@ protected:
 TEST_P(ROIAlignLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "ROIAlign");
+    CheckPluginRelatedResults(compiledModel, "ROIAlign");
 }
 
 namespace {
@@ -170,12 +170,20 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
-    resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {}, {}});
-    resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {}, {}});
-    if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc, x}, {nChw16c}, {}, {}});
-    } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {}, {}});
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_avx512"}, {"jit_avx512"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_avx512"}, {"jit_avx512"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc, x}, {nChw16c}, {"jit_avx512"}, {"jit_avx512"}});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_avx2"}, {"jit_avx2"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_avx2"}, {"jit_avx2"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_avx2"}, {"jit_avx2"}});
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_sse42"}, {"jit_sse42"}});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_sse42"}, {"jit_sse42"}});
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_sse42"}, {"jit_sse42"}});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"ref"}, {"ref"}});
     }
     return resCPUParams;
 }
@@ -199,6 +207,7 @@ const std::vector<std::string> modeVector = {
 };
 
 const std::vector<ROIAlignShapes> inputShapeVector = {
+    ROIAlignShapes{{{}, {{ 2, 22, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 18, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 4, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 4, 20, 40 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},

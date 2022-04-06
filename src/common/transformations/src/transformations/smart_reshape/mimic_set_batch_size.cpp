@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
 bool ngraph::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // TODO: enable conditional compile

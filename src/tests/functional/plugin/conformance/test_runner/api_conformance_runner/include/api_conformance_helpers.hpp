@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,86 +7,85 @@
 #include "conformance.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-// TODO: fix namespaces
-using namespace ConformanceTests;
-
 namespace ov {
 namespace test {
 namespace conformance {
 
-inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
+inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
-            { "AUTO", "AutoPlugin" },
-            { "HDDL", "HDDLPlugin" },
-            { "VPUX", "VPUXPlugin" },
-            { "AUTO", "ov_auto_plugin" },
-            { "CPU", "ov_intel_cpu_plugin" },
-            { "GNA", "ov_intel_gna_plugin" },
-            { "GPU", "ov_intel_gpu_plugin" },
-            { "HETERO", "ov_hetero_plugin" },
-            { "BATCH", "ov_auto_batch_plugin" },
-            { "MULTI", "ov_multi_plugin" },
-            { "MYRIAD", "ov_intel_vpu_plugin" },
-            { "TEMPLATE", "ov_template_plugin" },
+            { "AUTO", "openvino_auto_plugin" },
+            { "HETERO", "openvino_hetero_plugin" },
+            { "BATCH", "openvino_auto_batch_plugin" },
+            { "MULTI", "openvino_auto_plugin" },
+            { "HDDL", "openvino_intel_hddl_plugin" },
+            { "VPUX", "openvino_intel_vpux_plugin" },
+            { "CPU", "openvino_intel_cpu_plugin" },
+            { "GNA", "openvino_intel_gna_plugin" },
+            { "GPU", "openvino_intel_gpu_plugin" },
+            { "MYRIAD", "openvino_intel_myriad_plugin" },
+            { "TEMPLATE", "openvino_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
+        if (std::string(targetPluginName) != "") {
+            return targetPluginName;
+        }
         throw std::runtime_error("Incorrect device name");
     }
     return devices.at(deviceName);
 }
 
-inline const std::pair<std::string, std::string> generateDefaultMultiConfig() {
-    return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ConformanceTests::targetDevice};
+inline const std::pair<std::string, std::string> generate_default_multi_config() {
+    return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::conformance::targetDevice};
 }
 
-inline const std::pair<std::string, std::string> generateDefaultHeteroConfig() {
-    return { "TARGET_FALLBACK" , ConformanceTests::targetDevice };
+inline const std::pair<std::string, std::string> generate_default_hetero_config() {
+    return { "TARGET_FALLBACK" , ov::test::conformance::targetDevice };
 }
 
-inline const std::pair<std::string, std::string> generateDefaultBatchConfig() {
+inline const std::pair<std::string, std::string> generate_default_batch_config() {
     // auto-batching with batch 1 (no real batching in fact, but full machinery is in action)
-    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ConformanceTests::targetDevice)};
+    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , ov::test::conformance::targetDevice };
 }
 
-inline const std::vector<std::map<std::string, std::string>> generateConfigs(const std::string& targetDevice,
-                                                                             const std::vector<std::map<std::string, std::string>>& config = {}) {
-    std::pair<std::string, std::string> defaultConfig;
-    if (targetDevice ==  std::string(CommonTestUtils::DEVICE_MULTI) || targetDevice ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
-        defaultConfig = generateDefaultMultiConfig();
-    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        defaultConfig = generateDefaultHeteroConfig();
-    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
-        defaultConfig = generateDefaultBatchConfig();
+inline const std::vector<std::map<std::string, std::string>> generate_configs(const std::string& target_plugin,
+                                                                              const std::vector<std::map<std::string, std::string>>& config = {}) {
+    std::pair<std::string, std::string> default_config;
+    if (target_plugin ==  std::string(CommonTestUtils::DEVICE_MULTI) || target_plugin ==  std::string(CommonTestUtils::DEVICE_AUTO)) {
+        default_config = generate_default_multi_config();
+    } else if (target_plugin ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
+        default_config = generate_default_hetero_config();
+    } else if (target_plugin ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
+        default_config = generate_default_batch_config();
     } else {
-        throw std::runtime_error("Incorrect target device: " + targetDevice);
+        throw std::runtime_error("Incorrect target device: " + target_plugin);
     }
 
     std::vector<std::map<std::string, std::string>> resultConfig;
     if (config.empty()) {
-        return {{defaultConfig}};
+        return {{default_config}};
     }
     for (auto configItem : config) {
-        configItem.insert(defaultConfig);
+        configItem.insert(default_config);
         resultConfig.push_back(configItem);
     }
     return resultConfig;
 }
 
-inline const std::string generateComplexDeviceName(const std::string& deviceName) {
-    return deviceName + ":" + ConformanceTests::targetDevice;
+inline const std::string generate_complex_device_name(const std::string& deviceName) {
+    return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
-inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
-    std::vector<std::string> res{ConformanceTests::targetDevice};
+inline const std::vector<std::string> return_all_possible_device_combination() {
+    std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
                                      CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
-        res.emplace_back(generateComplexDeviceName(device));
+        res.emplace_back(generate_complex_device_name(device));
     }
     return res;
 }
 
-const std::vector<std::map<std::string, std::string>> emptyConfig = {
+const std::vector<std::map<std::string, std::string>> empty_config = {
         {},
 };
 

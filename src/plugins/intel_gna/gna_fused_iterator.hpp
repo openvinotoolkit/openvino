@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <list>
 #include <string>
 #include "gna_graph_tools.hpp"
+#include "layers/gna_layer_helpers.hpp"
 
 namespace GNAPluginNS {
 /**

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     std::shared_ptr<InferenceEngine::Core> core = PluginCache::get().ie();
     auto availableDevices = core->GetAvailableDevices();
-    std::string targetDevice = std::string(ConformanceTests::targetDevice);
+    std::string targetDevice = std::string(ov::test::conformance::targetDevice);
     if (std::find(availableDevices.begin(), availableDevices.end(), targetDevice) == availableDevices.end()) {
-        core->RegisterPlugin(ConformanceTests::targetPluginName,
-                             ConformanceTests::targetDevice);
+        core->RegisterPlugin(ov::test::conformance::targetPluginName,
+                             ov::test::conformance::targetDevice);
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,14 +10,14 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::GroupConvolutionTransformation, "GroupConvolutionTransformation", 0);
-
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
+    MATCHER_SCOPE(GroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -28,12 +28,13 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "GroupConvolutionTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
-    return GroupConvolutionTransformation::isQuantizedStatic(layer);
+bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    return GroupConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
@@ -47,8 +48,16 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
     return true;
 }
 
-bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
-    return WeightableLayerTransformation::isQuantizedStatic(layer, true);
+bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
+    const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, true, defaultPrecisions);
+}
+
+size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+    const auto groups = conv->get_input_partial_shape(1)[0];
+    const auto channels = conv->get_input_partial_shape(1)[2];
+    assert(channels.is_static() && groups.is_static());
+    return channels.get_length() * groups.get_length();
 }
 
 } // namespace low_precision

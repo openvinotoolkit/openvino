@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
 import platform
-import subprocess
+import subprocess # nosec
 
 lib_env_key = "PATH" if platform.system() == "Windows" else "LD_LIBRARY_PATH"
 if lib_env_key not in os.environ:

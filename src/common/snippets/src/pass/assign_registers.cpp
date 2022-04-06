@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // #include <openvino/cc/selective_build.h>
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/snippets_isa.hpp"

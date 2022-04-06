@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox8To0, "ConvertPriorBox8To0", 0);
 
 ngraph::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);
@@ -41,7 +39,9 @@ ngraph::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         attrs_v0.variance = attrs_v8.variance;
         attrs_v0.scale_all_sizes = attrs_v8.scale_all_sizes;
 
-        auto prior_box_v0 = std::make_shared<ngraph::opset1::PriorBox>(prior_box_v8_node->input_value(0), prior_box_v8_node->input_value(1), attrs_v0);
+        auto prior_box_v0 = std::make_shared<ngraph::opset1::PriorBox>(prior_box_v8_node->input_value(0),
+                                                                       prior_box_v8_node->input_value(1),
+                                                                       attrs_v0);
         prior_box_v0->set_friendly_name(prior_box_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(prior_box_v8_node, prior_box_v0);
         ngraph::replace_node(prior_box_v8_node, prior_box_v0);

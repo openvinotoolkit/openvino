@@ -1,16 +1,16 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax8ToSoftMax1, "ConvertSoftMax8ToSoftMax1", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);

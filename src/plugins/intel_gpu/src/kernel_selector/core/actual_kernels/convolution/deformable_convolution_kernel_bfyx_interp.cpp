@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
 CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const convolution_params& params) const {
     CommonDispatchData dispatchData;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;

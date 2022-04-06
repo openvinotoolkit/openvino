@@ -1,32 +1,30 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
-#include "itt.hpp"
 
 #include <memory>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/matcher.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset8.hpp>
-
-#include <transformations/utils/utils.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionFusion, "MultiplyConvolutionFusion", 0);
+#include "itt.hpp"
 
 ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern =
+        ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
     auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::Convolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -58,8 +56,7 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
         new_conv->set_friendly_name(conv->get_friendly_name());
-        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()},
-                          {new_weights, new_conv});
+        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()}, {new_weights, new_conv});
         replace_node(conv, new_conv);
 
         return true;
@@ -69,17 +66,16 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyGroupConvolutionFusion, "MultiplyGroupConvolutionFusion", 0);
-
 ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern =
+        ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
     auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::GroupConvolution>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -109,7 +105,10 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<opset8::Reshape>(mul_const, op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape), false);
+            mul_const = std::make_shared<opset8::Reshape>(
+                mul_const,
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
@@ -122,8 +121,7 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
         new_conv->set_friendly_name(conv->get_friendly_name());
-        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()},
-                          {new_weights, new_conv});
+        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()}, {new_weights, new_conv});
         replace_node(conv, new_conv);
 
         return true;
@@ -133,17 +131,16 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionBackpropDataFusion, "MultiplyConvolutionBackpropDataFusion", 0);
-
 ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern =
+        ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
     auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<opset8::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -165,7 +162,7 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
             // In backprop, weights pixels are applied to input differently than in fprop convolution
             for (size_t i = 0; i < mul_const_shape.size(); i++) {
                 if (i == 1)
-                   continue;
+                    continue;
                 if (mul_const_shape[i] != 1)
                     return false;
             }
@@ -175,7 +172,10 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<opset8::Reshape>(mul_const, op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape), false);
+            mul_const = std::make_shared<opset8::Reshape>(
+                mul_const,
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
@@ -188,8 +188,7 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
         new_conv->set_friendly_name(conv->get_friendly_name());
-        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()},
-                          {new_weights, new_conv});
+        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()}, {new_weights, new_conv});
         replace_node(conv, new_conv);
 
         return true;
@@ -199,17 +198,17 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion, "MultiplyGroupConvolutionBackpropDataFusion", 0);
-
 ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern =
+        ngraph::pattern::wrap_type<opset8::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
     auto weights_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern = ngraph::pattern::wrap_type<opset8::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
+    auto conv_pattern =
+        ngraph::pattern::wrap_type<opset8::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
@@ -230,11 +229,12 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
             // In backprop, weights pixels are applied to input differently than in fprop convolution
             for (size_t i = 0; i < mul_const_shape.size(); i++) {
                 if (i == 1)
-                   continue;
+                    continue;
                 if (mul_const_shape[i] != 1)
                     return false;
             }
-            // Reshape mul_const from shape (1, C, 1, 1) to (G, C / G, 1, 1, 1) to match GroupConvolutionBackpropData weights format
+            // Reshape mul_const from shape (1, C, 1, 1) to (G, C / G, 1, 1, 1) to match GroupConvolutionBackpropData
+            // weights format
             auto G = mul_const_shape[1] > 1 ? weights_shape[0] : 1;
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
@@ -242,7 +242,10 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
-            mul_const = std::make_shared<opset8::Reshape>(mul_const, op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape), false);
+            mul_const = std::make_shared<opset8::Reshape>(
+                mul_const,
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                false);
         }
 
         auto weights_multiply = std::make_shared<opset8::Multiply>(weights, mul_const);
@@ -255,8 +258,7 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
 
         auto new_conv = conv->clone_with_new_inputs({input, new_weights});
         new_conv->set_friendly_name(conv->get_friendly_name());
-        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()},
-                          {new_weights, new_conv});
+        copy_runtime_info({conv, pattern_to_output.at(mul_pattern).get_node_shared_ptr()}, {new_weights, new_conv});
         replace_node(conv, new_conv);
 
         return true;

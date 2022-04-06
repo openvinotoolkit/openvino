@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ namespace v8 {
 ///        B = 1.164 * (Y - 16) + 2.018 * (U - 128)
 ///        Then R, G, B values are clipped to range (0, 255)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API I420toBGR : public util::ConvertColorI420Base {
 public:
     OPENVINO_OP("I420toBGR", "opset8", util::ConvertColorI420Base);

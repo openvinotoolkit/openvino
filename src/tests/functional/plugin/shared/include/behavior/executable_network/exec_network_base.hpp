@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         ie = PluginCache::get().ie(targetDevice);
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -297,7 +297,7 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
-    compare_functions(referenceNetwork, cnnNet.getFunction());
+    compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
 using ExecNetSetPrecision = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -320,7 +320,7 @@ TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
 TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
@@ -343,7 +343,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {

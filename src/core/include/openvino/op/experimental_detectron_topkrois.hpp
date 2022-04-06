@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
 /// is TopK operation applied to probabilities of input ROIs.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);

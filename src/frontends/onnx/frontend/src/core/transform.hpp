@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,13 +20,8 @@ namespace transform {
 /// \param model_path Filesystem path to the ONNX model file.
 void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path);
 
-static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
-                                                                  "Celu",
-                                                                  "DynamicQuantizeLinear",
-                                                                  "GreaterOrEqual",
-                                                                  "LessOrEqual",
-                                                                  "NegativeLogLikelihoodLoss",
-                                                                  "SoftmaxCrossEntropyLoss"};
+static const std::vector<std::string> onnx_functions_to_expand =
+    {"Bernoulli", "Celu", "GreaterOrEqual", "LessOrEqual", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///

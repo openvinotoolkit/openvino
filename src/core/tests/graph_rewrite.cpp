@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
+#include <common_test_utils/ngraph_test_utils.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <util/test_tools.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

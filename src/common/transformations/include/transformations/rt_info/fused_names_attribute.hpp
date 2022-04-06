@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,17 +10,17 @@
 #pragma once
 
 #include <assert.h>
+
 #include <functional>
 #include <memory>
-#include <string>
-#include <set>
-
+#include <ngraph/attribute_visitor.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <openvino/core/rtti.hpp>
-#include <ngraph/attribute_visitor.hpp>
-#include "openvino/core/runtime_attribute.hpp"
+#include <set>
+#include <string>
 
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ngraph {
 
@@ -44,7 +44,7 @@ public:
      * @brief      Constructs a new object consisting of a single name     *
      * @param[in]  name  The name
      */
-    explicit FusedNames(const std::string &name) {
+    explicit FusedNames(const std::string& name) {
         fused_names.insert(name);
     }
 
@@ -52,7 +52,7 @@ public:
      * @brief Unites current set of already fused names with another FusedNames object
      * @param[in] names Another object to fuse with
      */
-    void fuseWith(const FusedNames &names);
+    void fuseWith(const FusedNames& names);
 
     /**
      * @brief return string with operation names separated by coma in alphabetical order
@@ -79,7 +79,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -87,6 +87,6 @@ NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node)
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace ngraph

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2017-2022 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ namespace ov {
 namespace op {
 namespace v7 {
 /// \brief An operation DFT that computes the discrete Fourier transformation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DFT : public util::FFTBase {
 public:
     OPENVINO_OP("DFT", "opset7", util::FFTBase, 7);

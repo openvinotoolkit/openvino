@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "cpu_blocked_memory_desc.h"
-#include "mkldnn_extension_utils.h"
+#include <dnnl_extension_utils.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlMemoryDesc;
 
@@ -16,8 +17,8 @@ using DnnlMemoryDescCPtr = std::shared_ptr<const DnnlMemoryDesc>;
 
 class DnnlMemoryDesc : public virtual MemoryDesc {
 public:
-    mkldnn::memory::data_type getDataType() const {
-        return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
+    dnnl::memory::data_type getDataType() const {
+        return static_cast<dnnl::memory::data_type>(desc.data.data_type);
     }
 
     dnnl_format_kind_t getFormatKind() const {
@@ -36,13 +37,13 @@ public:
 
     size_t getMaxMemSize() const override;
 
-    const mkldnn::memory::desc& getDnnlDesc() const {
+    const dnnl::memory::desc& getDnnlDesc() const {
         return desc;
     }
 
     bool hasLayoutType(LayoutType layoutType) const override { return false; }
 
-    virtual bool isSame(mkldnn::memory::format_tag fmt) const { return false; }
+    virtual bool isSame(dnnl::memory::format_tag fmt) const { return false; }
 
     bool hasEmptyExtraData() const { return desc.data.extra.flags == dnnl_memory_extra_flag_none; }
 
@@ -52,14 +53,14 @@ protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
 
-    mkldnn::memory::desc desc;
+    dnnl::memory::desc desc;
 
     void setPrecision(InferenceEngine::Precision prc) override {
-        desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+        desc.data.data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(prc));
     }
 
 private:
-    explicit DnnlMemoryDesc(const mkldnn::memory::desc& desc);
+    explicit DnnlMemoryDesc(const dnnl::memory::desc& desc);
 
     size_t getElementOffset(size_t elemNumber) const override;
 
@@ -68,7 +69,9 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

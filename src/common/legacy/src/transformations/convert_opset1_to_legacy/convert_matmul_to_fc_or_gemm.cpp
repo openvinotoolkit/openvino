@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFCorGemm, "ConvertMatMulToFCorGemm", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
@@ -112,7 +110,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         // we replace MatMul with FullyConnected operation.
         // Otherwise we replace MatMul with Gemm.
         auto fq_after_const = std::dynamic_pointer_cast<opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr());
-        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  || fq_after_const) &&
+        bool is_fq_after_const = fq_after_const &&
+            std::dynamic_pointer_cast<opset1::Constant>(fc_input_b.get_node_shared_ptr()->input_value(0).get_node_shared_ptr());
+        if ((std::dynamic_pointer_cast<opset1::Constant>    (fc_input_b.get_node_shared_ptr())  || is_fq_after_const) &&
              std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
                 return x != 1;
             }) <= 2) {
@@ -176,8 +176,6 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFC");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),

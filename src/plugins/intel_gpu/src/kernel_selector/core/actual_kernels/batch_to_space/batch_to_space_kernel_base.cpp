@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
 }
 
 CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params, const optional_params&) const {
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     CommonDispatchData dispatchData;
     if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {

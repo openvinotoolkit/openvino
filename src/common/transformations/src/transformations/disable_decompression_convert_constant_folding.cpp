@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 
+#include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "itt.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 
 ov::pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConvertConstantFolding() {
     MATCHER_SCOPE(DisableDecompressionConvertConstantFolding);

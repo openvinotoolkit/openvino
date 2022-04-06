@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,8 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
         f -> batch
         y -> beam
     */
-    dispatchData.gws = { params.output.Y().v,        // beam
-                         params.output.Feature().v,  // batch
+    dispatchData.gws = { params.outputs[0].Y().v,        // beam
+                         params.outputs[0].Feature().v,  // batch
                          1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;

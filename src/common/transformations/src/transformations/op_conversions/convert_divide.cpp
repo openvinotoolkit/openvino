@@ -1,37 +1,32 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
-#include "transformations/utils/utils.hpp"
-
 
 #include <memory>
+#include <ngraph/log.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
-#include <ngraph/log.hpp>
-
+#include "itt.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivideWithConstant, "ConvertDivideWithConstant", 0);
+#include "transformations/utils/utils.hpp"
 
 namespace {
 bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide>(node);
     // We can not apply this transformation in case with integer input data type
-    if (!div || ov::divide_is_nonconvertible(div)
-             || div->get_input_element_type(0).is_integral()) {
+    if (!div || ov::divide_is_nonconvertible(div) || div->get_input_element_type(0).is_integral()) {
         return false;
     }
 
-    std::shared_ptr<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input_value(1),
-                                                       ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
+    std::shared_ptr<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(
+        div->input_value(1),
+        ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
     if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
@@ -56,7 +51,7 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     }
     return true;
 }
-} // namespace
+}  // namespace
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
     MATCHER_SCOPE(ConvertDivide);
@@ -72,8 +67,8 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
 
 ngraph::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
-    auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>(
-            {pattern::any_input(), pattern::wrap_type<op::Constant>()});
+    auto div =
+        ngraph::pattern::wrap_type<ngraph::opset1::Divide>({pattern::any_input(), pattern::wrap_type<op::Constant>()});
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         return convert_divide(m.get_match_root());

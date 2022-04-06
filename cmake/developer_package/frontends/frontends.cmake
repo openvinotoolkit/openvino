@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
-set(FRONTEND_NAME_PREFIX "ov_")
+set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
@@ -35,7 +35,7 @@ function(ov_generate_frontends_hpp)
     endif()
 
     # add frontends to libraries including ov_frontends.hpp
-    ov_target_link_frontends(ov_runtime)
+    ov_target_link_frontends(openvino)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
@@ -82,10 +82,11 @@ unset(protobuf_installed CACHE)
 
 #
 # ov_add_frontend(NAME <IR|ONNX|...>
-#                 FILEDESCRIPTION <description>
-#                 [LINKABLE_FRONTEND]
-#                 [SKIP_INSTALL]
-#                 [PROTOBUF_LITE]
+#                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
+#                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
+#                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [PROTOBUF_LITE] # requires only libprotobuf-lite
+#                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
@@ -106,6 +107,17 @@ macro(ov_add_frontend)
     set(FRONTEND_NAMES "${FRONTEND_NAMES}" CACHE INTERNAL "" FORCE)
 
     file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+    if (WIN32)
+        # Remove linux specific files
+        file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+        list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
+    else()
+        # Remove windows specific files
+        file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+        list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
+    endif()
     file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
     file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
@@ -182,7 +194,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs
@@ -230,7 +243,7 @@ macro(ov_add_frontend)
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
-            # install -dev part
+            # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
                     COMPONENT core_dev

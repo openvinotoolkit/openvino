@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,15 @@ void runtime::reference::strided_slice(const char* arg,
                                        const Shape& arg_shape,
                                        const SlicePlan& sp,
                                        size_t elem_type) {
+    auto hasZeroDims = [](const ov::Shape& shape) -> bool {
+        return std::any_of(shape.begin(), shape.end(), [](const size_t& dim) {
+            return dim == 0;
+        });
+    };
+    if (hasZeroDims(sp.reshape_in_shape) || hasZeroDims(sp.reshape_out_shape)) {
+        return;
+    }
+
     runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
     slice(reinterpret_cast<const char*>(arg),
           slice_out_buffer.get_ptr<char>(),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,22 +12,22 @@ using namespace ov;
 
 namespace {
 struct ScatterElementsUpdateParams {
-    ScatterElementsUpdateParams(const Tensor& paramData,
-                                const Tensor& paramIndices,
-                                const Tensor& paramUpdates,
-                                const Tensor& paramAxis,
-                                const Tensor& paramExpected)
+    ScatterElementsUpdateParams(const reference_tests::Tensor& paramData,
+                                const reference_tests::Tensor& paramIndices,
+                                const reference_tests::Tensor& paramUpdates,
+                                const reference_tests::Tensor& paramAxis,
+                                const reference_tests::Tensor& paramExpected)
         : input(paramData),
           indices(paramIndices),
           updates(paramUpdates),
           axis(paramAxis),
           expected(paramExpected) {}
 
-    Tensor input;
-    Tensor indices;
-    Tensor updates;
-    Tensor axis;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor indices;
+    reference_tests::Tensor updates;
+    reference_tests::Tensor axis;
+    reference_tests::Tensor expected;
 };
 
 class ReferenceScatterElementsUpdateLayerTest : public testing::TestWithParam<ScatterElementsUpdateParams>,
@@ -76,17 +76,17 @@ std::vector<ScatterElementsUpdateParams> generateScatterParams() {
     using T_INT = typename element_type_traits<ET_IND>::value_type;
     std::vector<ScatterElementsUpdateParams> scatterParams{
         // axis = 0
-        ScatterElementsUpdateParams(Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
-                                    Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}), // indices
-                                    Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),     // updates
-                                    Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),             // axis
-                                    Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),    // expected
+        ScatterElementsUpdateParams(reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
+                                    reference_tests::Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}), // indices
+                                    reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),     // updates
+                                    reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),             // axis
+                                    reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),    // expected
         // axis = 1
-        ScatterElementsUpdateParams(Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
-                                    Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}), // indices
-                                    Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),       // updates
-                                    Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),       // axis
-                                    Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20})),      // expected
+        ScatterElementsUpdateParams(reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
+                                    reference_tests::Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}), // indices
+                                    reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),       // updates
+                                    reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),       // axis
+                                    reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20})),      // expected
     };
     return scatterParams;
 }

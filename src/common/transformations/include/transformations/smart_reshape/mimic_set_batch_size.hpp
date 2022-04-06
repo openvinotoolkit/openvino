@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,8 @@
 
 #include <functional>
 #include <memory>
-#include <numeric>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <numeric>
 
 namespace ngraph {
 namespace pass {
@@ -32,6 +31,6 @@ class NGRAPH_API MimicSetBatchSize;
 
 class ngraph::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MimicSetBatchSize", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

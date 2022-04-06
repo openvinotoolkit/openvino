@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,8 +85,8 @@ public:
         ngraph::pass::low_precision::TypeRelaxedReplacer pass;
         pass.run_on_function(actualFunction);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
@@ -152,7 +152,7 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
     ASSERT_TRUE(checkIfAttributesAreTheSame<AvgPoolPrecisionPreservedAttribute>(precisionPreserved)) <<
         "AvgPoolPrecisionPreservedAttribute are not the same";
 
-    //auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    //auto res = compare_functions(actualFunction, referenceFunction, true, true);
     //ASSERT_TRUE(res.first) << res.second;
 }
 

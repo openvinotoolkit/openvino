@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ public:
      * @brief Returns the size of the current Blob in bytes.
      * @return Blob's size in bytes
      */
-    virtual size_t byteSize() const noexcept {
+    virtual size_t byteSize() const {
         return size() * element_size();
     }
 
@@ -169,7 +169,7 @@ public:
      *
      * @return Returns the number of bytes per element
      */
-    virtual size_t element_size() const noexcept = 0;
+    virtual size_t element_size() const = 0;
 
     /**
      * @brief Allocates memory to store the data.
@@ -364,11 +364,11 @@ public:
      * @brief Returns the size of the current Blob in bytes calculated as `size() * element_size()`.
      * @return Blob's size in bytes
      */
-    size_t byteSize() const noexcept override {
+    size_t byteSize() const override {
         return (size() * tensorDesc.getPrecision().bitsSize() + 7) >> 3;
     }
 
-    size_t element_size() const noexcept override {
+    size_t element_size() const override {
         return tensorDesc.getPrecision().size();
     }
 
@@ -508,7 +508,7 @@ using BlobMap = std::map<std::string, Blob::Ptr>;
 /**
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
  */
-template <typename T, typename = std::enable_if<std::is_pod<T>::value>>
+template <typename T, typename = std::enable_if<std::is_standard_layout<T>::value && std::is_trivial<T>::value>>
 class TBlob : public MemoryBlob {
     template <typename, typename>
     friend class TBlob;
@@ -599,7 +599,9 @@ public:
     /**
      *@brief Virtual destructor.
      */
-    virtual ~TBlob();
+    virtual ~TBlob() {
+        deallocate();
+    }
 
     /**
      * @brief Creates an new empty rvalue LockedMemory object.
@@ -806,7 +808,8 @@ protected:
     }
 };
 
-#ifdef __clang__
+// These should not be exported for WIN32 to avoid usage of '_handle' and '_allocator' across CRT bounaries
+#ifndef WIN32
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -821,7 +824,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
-#endif  // __clang__
+#endif
 
 /**
  * @brief Creates a blob with the given tensor descriptor.

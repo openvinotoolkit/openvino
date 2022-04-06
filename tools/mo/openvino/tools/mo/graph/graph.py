@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import collections
@@ -566,6 +566,8 @@ class Graph(nx.MultiDiGraph):
 
     unique_id_count = 0
     op_names_statistic = collections.Counter()
+    inputs_order = []
+    outputs_order = []
 
     # SAFE API DESCRIPTION
     # all provided methods below are designed to be more safe and convenient
@@ -1001,6 +1003,46 @@ class Graph(nx.MultiDiGraph):
         # Add Const op for constant data nodes
         add_constant_operations(self)
 
+    def get_tensor_names_set(self):
+        """
+        Get set of tensor names of the graph.
+        """
+        tensor_names_set = set()
+        for node in self.get_op_nodes():
+            if self.stage is None:
+                for out_edge_idx in node.out_edges():
+                    out_edge = node.out_edge(out_edge_idx)
+                    if "fw_tensor_debug_info" in out_edge:
+                        for _, tensor_name in out_edge["fw_tensor_debug_info"]:
+                            tensor_names_set.add(tensor_name)
+            else:
+                for _, port in node.out_ports().items():
+                    tensor_names = port.get_tensor_names()
+                    tensor_names_set = tensor_names_set.union(set(tensor_names))
+        return tensor_names_set
+
+    def has_tensor_name(self, tensor_name: str):
+        """
+        Checks if graph has tensor name.
+        """
+        # TODO: This can be optimized. Tensor names can be stored as set, which is initialized after model loading.
+        names = self.get_tensor_names_set()
+        return tensor_name in names
+
+
+    def topological_sort(self, reverse: bool = False):
+        sorted_node_ids = nx.topological_sort(self)
+
+        sorted_nodes = [Node(self, node_id) for node_id in sorted_node_ids]
+
+        if not reverse:
+            return sorted_nodes
+        else:
+            return list(reversed(sorted_nodes))
+
+    def set_node_attributes(self, name: str, values):
+        return nx.set_node_attributes(self, values=values, name=name)
+
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):
     """
@@ -1036,7 +1078,8 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False,
+                 user_defined_name=None):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
@@ -1044,6 +1087,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
     :param keep_output_port: special attribute determines if this operation is saved in IR or not
+    :param user_defined_name: User defined operation name, which should be added to tensor names list
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from openvino.tools.mo.ops.result import Result
@@ -1055,6 +1099,24 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port),
                                                                    'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
+
+    if user_defined_name is not None and (graph.stage == 'front' or graph.stage is None):
+        # Following code adds user_defined_name to tensor names list
+        # Not applicable for middle stage
+        prev_op_tensor_names = set()
+        in_edge_attrs = opoutput_node.in_edge()
+        if 'fw_tensor_debug_info' in in_edge_attrs:
+            for _, tensor_name in opoutput_node.in_edge()['fw_tensor_debug_info']:
+                prev_op_tensor_names.add(tensor_name)
+        if user_defined_name not in prev_op_tensor_names:
+            if graph.has_tensor_name(user_defined_name):
+                log.warning('Could not add user defined output name {} to tensor names list of {} node as '
+                            'graph contains tensor name with same name.'.format(user_defined_name,
+                                                                                opoutput_node.soft_get('name')))
+            else:
+                if 'fw_tensor_debug_info' not in in_edge_attrs:
+                    in_edge_attrs['fw_tensor_debug_info'] = []
+                in_edge_attrs['fw_tensor_debug_info'].append([user_defined_name, user_defined_name])
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))

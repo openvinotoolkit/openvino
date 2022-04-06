@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,12 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitMasks, "InitMasks", 0);
-
 namespace ngraph {
 namespace pass {
 namespace init_masks {
 
 class InitConvMask;
+class InitMatMulMask;
 
 } // namespace init_masks
 } // namespace pass
@@ -58,7 +57,56 @@ public:
 };
 
 
+class ngraph::pass::init_masks::InitMatMulMask : public MatcherPass {
+public:
+    InitMatMulMask() {
+        auto a = pattern::any_input();
+        auto b = pattern::any_input();
+        auto matmul_pattern = pattern::wrap_type<opset6::MatMul>({a, b});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto & matmul = std::dynamic_pointer_cast<opset6::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
+            if (!matmul) return false;
+
+            // Assume constant always in the first input port.
+            // Initializing weights mask:
+            // 1. Looking for Const node with weights
+            NodeVector weights_calculation_nodes;
+            auto cur_node = matmul->get_input_node_shared_ptr(1);
+
+            while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
+                weights_calculation_nodes.push_back(cur_node);
+                cur_node = cur_node->get_input_node_shared_ptr(0);
+            }
+            if (!ngraph::is_type<opset6::Constant>(cur_node)) {
+                NGRAPH_DEBUG << "Can't find Constant weights for MatMul: " <<
+                matmul->get_friendly_name() << std::endl;
+                return false;
+            }
+            // 2. Get constant rank to set mask on last dimension
+            const auto const_op = std::dynamic_pointer_cast<opset6::Constant>(cur_node);
+            const auto shape_rank = const_op->get_shape().size();
+            const auto shift = (matmul->get_transpose_b())? 2 : 1;
+            if (shape_rank < shift) {
+                NGRAPH_DEBUG << "Can't init mask for MatMul: " <<
+                matmul->get_friendly_name() << std::endl;
+                return false;
+            }
+            const size_t outer_dim  = shape_rank - shift;
+            // 3. Init mask for Const node
+            InitConstMask({outer_dim}/* check only outer dim */).apply(cur_node);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_pattern, "MatMulInitMask");
+        register_matcher(m, callback);
+    }
+};
+
+
 ngraph::pass::InitMasks::InitMasks() {
     add_matcher<init_masks::InitConvMask>();
+    add_matcher<init_masks::InitMatMulMask>();
 }
 

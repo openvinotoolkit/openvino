@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,8 @@ class NGRAPH_API PreprocessingAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("preprocessing", "0");
     PreprocessingAttribute() = default;
-    bool visit_attributes(AttributeVisitor& visitor) override { return true; };
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        return true;
+    };
 };
-} // namespace ov
+}  // namespace ov

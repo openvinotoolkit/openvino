@@ -1,10 +1,9 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
-import subprocess
-from multiprocessing import Process, Queue
+import subprocess # nosec
 import sys
 
 
@@ -38,8 +37,15 @@ def setup_env():
     mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
 
     # Check that MO root directory already set to the PYTHONPATH
-    status = subprocess.run([sys.executable, "-c", "try: import openvino.tools.mo \nexcept: exit(1)"], env=os.environ)
-    if status.returncode != 0:
+    def is_mo_imported():
+        try:
+            status = subprocess.run([sys.executable, os.path.join(mo_root_path, 'openvino/tools/mo/utils/check_mo_import.py')],
+                                    env=os.environ)
+            return status.returncode == 0
+        except:
+            return False
+
+    if not is_mo_imported():
         # If no, we try to set it manually based on relative path
         python_path_key = 'PYTHONPATH'
         if python_path_key not in os.environ:
@@ -49,8 +55,7 @@ def setup_env():
 
         sys.path.append(mo_root_path)
 
-        status = subprocess.run([sys.executable, "-c", "try: import openvino.tools.mo \nexcept: exit(1)"], env=os.environ)
-        if status.returncode != 0:
+        if not is_mo_imported():
             log_mo_root_dir_not_found()
             sys.exit(1)
 

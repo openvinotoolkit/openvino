@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ConvertDetectionOutput8ToDetectionOutput1;
  */
 class ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDetectionOutput8ToDetectionOutput1", "0");
     ConvertDetectionOutput8ToDetectionOutput1();
 };

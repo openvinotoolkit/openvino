@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
 }
 
 size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_params& params) const {
-    auto batch_size = params.output.Batch().v;
+    auto batch_size = params.outputs[0].Batch().v;
 
     if (batch_size % 32 == 0)
         return std::min(batch_size, static_cast<size_t>(32U));
@@ -39,7 +39,7 @@ FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(
                                                                                 int) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
-    const auto& output = arg.output;
+    const auto& output = arg.outputs[0];
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
     dispatchData.gws[0] =
@@ -61,7 +61,7 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto batches = output.Batch().v;
     const auto x_size = output.LogicalSize() / batches;
 
@@ -99,7 +99,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, con
 KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
 
-    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+    return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3
                                                                                : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

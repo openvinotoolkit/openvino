@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <string>
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <ie_icore.hpp>
 
 class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;

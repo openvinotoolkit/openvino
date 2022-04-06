@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
+from openvino.runtime import serialize
 from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
-    compress_model_transformation, serialize
+    compress_model_transformation
 
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
@@ -13,8 +14,10 @@ import openvino.runtime as ov
 
 def get_test_function():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
     relu = ov.opset8.relu(param)
     res = ov.opset8.result(relu, name="result")
+    res.get_output_tensor(0).set_names({"result"})
     return Model([res], [param], "test")
 
 
@@ -62,26 +65,6 @@ def test_make_stateful_transformations():
     assert function is not None
     assert len(function.get_parameters()) == 0
     assert len(function.get_results()) == 0
-
-
-def test_serialize_pass():
-    core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
-
-    func = get_test_function()
-
-    serialize(func, xml_path, bin_path)
-
-    assert func is not None
-
-    res_func = core.read_model(model=xml_path, weights=bin_path)
-
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
-
-    os.remove(xml_path)
-    os.remove(bin_path)
 
 
 def test_serialize_pass_v2():
@@ -134,6 +117,16 @@ def test_Version_default():
     assert func.get_parameters() == res_func.get_parameters()
     assert func.get_ordered_ops() == res_func.get_ordered_ops()
 
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_serialize_default_bin():
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    model = get_test_function()
+    serialize(model, xml_path)
+    assert os.path.exists(bin_path)
     os.remove(xml_path)
     os.remove(bin_path)
 

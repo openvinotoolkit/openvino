@@ -1,21 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
-#include "transformations/utils/utils.hpp"
 
-#include <memory>
-#include <vector>
 #include <algorithm>
-
-#include <openvino/opsets/opset8.hpp>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include <memory>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <vector>
+
 #include "itt.hpp"
-
-
-NGRAPH_RTTI_DEFINITION(ov::pass::RemoveConcatZeroDimInput, "RemoveConcatZeroDimInput", 0);
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
@@ -23,18 +20,23 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         auto concat_inputs = concat->input_values();
-        concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
-            [](const Output<Node>& input) {
-                const auto& in_shape = input.get_partial_shape();
-                if (in_shape.rank().is_static()) {
-                    return std::any_of(std::begin(in_shape), std::end(in_shape), [](const ov::Dimension& dim) {
-                        if (dim.is_static() && dim.get_length() == 0) {
-                            return true;
-                        }
-                        return false;
-                    });}
+        concat_inputs.erase(
+            std::remove_if(
+                concat_inputs.begin(),
+                concat_inputs.end(),
+                [](const Output<Node>& input) {
+                    const auto& in_shape = input.get_partial_shape();
+                    if (in_shape.rank().is_static()) {
+                        return std::any_of(std::begin(in_shape), std::end(in_shape), [](const ov::Dimension& dim) {
+                            if (dim.is_static() && dim.get_length() == 0) {
+                                return true;
+                            }
+                            return false;
+                        });
+                    }
                     return false;
-                }), concat_inputs.end());
+                }),
+            concat_inputs.end());
 
         bool inputs_removed = concat->get_input_size() > concat_inputs.size();
         if (inputs_removed) {

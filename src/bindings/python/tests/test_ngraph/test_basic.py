@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -9,29 +9,29 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import OVAny
-
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
-from openvino.runtime import Tensor
+from openvino.runtime import Tensor, OVAny
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
+from openvino.runtime.utils.types import get_dtype
 from tests.test_ngraph.util import run_op_node
 
 
 def test_ngraph_function_api():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+    parameter_b = ops.parameter(shape, dtype=Type.f32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
     model = (parameter_a + parameter_b) * parameter_c
 
     assert parameter_a.element_type == Type.f32
+    assert parameter_b.element_type == Type.f32
     assert parameter_a.partial_shape == PartialShape([2, 2])
-    parameter_a.layout = ov.Layout("NCWH")
-    assert parameter_a.layout == ov.Layout("NCWH")
+    parameter_a.layout = ov.Layout("NC")
+    assert parameter_a.layout == ov.Layout("NC")
     function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
@@ -74,6 +74,17 @@ def test_ngraph_function_api():
         np.uint16,
         np.uint32,
         np.uint64,
+        Type.f16,
+        Type.f32,
+        Type.f64,
+        Type.i8,
+        Type.i16,
+        Type.i32,
+        Type.i64,
+        Type.u8,
+        Type.u16,
+        Type.u32,
+        Type.u64,
     ],
 )
 def test_simple_computation_on_ndarrays(dtype):
@@ -86,17 +97,19 @@ def test_simple_computation_on_ndarrays(dtype):
     model = (parameter_a + parameter_b) * parameter_c
     computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
 
-    value_a = np.array([[1, 2], [3, 4]], dtype=dtype)
-    value_b = np.array([[5, 6], [7, 8]], dtype=dtype)
-    value_c = np.array([[2, 3], [4, 5]], dtype=dtype)
-    result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[12, 24], [40, 60]], dtype=dtype))
+    np_dtype = get_dtype(dtype) if isinstance(dtype, Type) else dtype
 
-    value_a = np.array([[9, 10], [11, 12]], dtype=dtype)
-    value_b = np.array([[13, 14], [15, 16]], dtype=dtype)
-    value_c = np.array([[5, 4], [3, 2]], dtype=dtype)
+    value_a = np.array([[1, 2], [3, 4]], dtype=np_dtype)
+    value_b = np.array([[5, 6], [7, 8]], dtype=np_dtype)
+    value_c = np.array([[2, 3], [4, 5]], dtype=np_dtype)
     result = computation(value_a, value_b, value_c)
-    assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=dtype))
+    assert np.allclose(result, np.array([[12, 24], [40, 60]], dtype=np_dtype))
+
+    value_a = np.array([[9, 10], [11, 12]], dtype=np_dtype)
+    value_b = np.array([[13, 14], [15, 16]], dtype=np_dtype)
+    value_c = np.array([[5, 4], [3, 2]], dtype=np_dtype)
+    result = computation(value_a, value_b, value_c)
+    assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=np_dtype))
 
 
 def test_serialization():
@@ -310,6 +323,30 @@ def test_set_argument():
     node_add.set_arguments([node1, node2])
     output = computation()
     assert np.allclose(data1 + data2, output)
+
+
+def test_clone_model():
+    # Create an original model
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    # Make copies of it
+    model_copy1 = ov.utils.clone_model(model_original)
+    model_copy2 = model_original.clone()
+
+    # Make changes to the copied models' inputs
+    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
+    model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
+
+    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
+    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
+    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
+
+    assert original_model_shapes != model_copy1_shapes
+    assert original_model_shapes != model_copy2_shapes
+    assert model_copy1_shapes == model_copy2_shapes
 
 
 def test_result():

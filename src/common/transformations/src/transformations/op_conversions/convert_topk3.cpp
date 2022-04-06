@@ -1,28 +1,25 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);
     auto topk = pattern::wrap_type<opset3::TopK>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
+        auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK>(m.get_match_root());
         if (!topk) {
             return false;
         }
@@ -30,8 +27,12 @@ ngraph::pass::ConvertTopK3::ConvertTopK3() {
         Output<Node> last1;
         ngraph::NodeVector new_ops;
 
-        auto new_topk = std::make_shared<ngraph::opset2::TopK>(topk->input_value(0), topk->input_value(1),
-                topk->get_axis(), topk->get_mode(), topk->get_sort_type(), element::i32);
+        auto new_topk = std::make_shared<ngraph::opset2::TopK>(topk->input_value(0),
+                                                               topk->input_value(1),
+                                                               topk->get_axis(),
+                                                               topk->get_mode(),
+                                                               topk->get_sort_type(),
+                                                               element::i32);
         new_ops.push_back(new_topk);
         // if the output is the i32 or output #1 has no consumers
         // then it matches behavior of the v1::TopK otherwise need to insert Convert

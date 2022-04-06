@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include <util/type_prop.hpp>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -527,10 +527,10 @@ TEST(build_graph, build_graph_unregistred_variables) {
     auto crop = make_shared<Split>(pattern, axis, 3);
     auto res2 = make_shared<Result>(crop);
 
-    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2},
-                                           SinkVector{assign, assign_2},
-                                           ParameterVector{arg, arg2},
-                                           VariableVector{variable}));
+    EXPECT_ANY_THROW(const auto unused = make_shared<Function>(OutputVector{res, res2},
+                                                               SinkVector{assign, assign_2},
+                                                               ParameterVector{arg, arg2},
+                                                               VariableVector{variable}));
 }
 
 TEST(build_graph, build_graph_with_sinks_compare) {

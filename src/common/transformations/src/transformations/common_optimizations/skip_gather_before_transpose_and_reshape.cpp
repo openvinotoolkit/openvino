@@ -3,18 +3,15 @@
 //
 
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
-#include "itt.hpp"
 
 #include <memory>
-#include <vector>
-
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <vector>
 
+#include "itt.hpp"
 #include "transformations/utils/utils.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SkipGatherBeforeTransposeAndReshape, "SkipGatherBeforeTransposeAndReshape", 0);
 
 ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
     MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape);
@@ -52,18 +49,22 @@ ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndR
         }
 
         const auto transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
-        const auto transpose_const = as_type_ptr<ngraph::opset8::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
+        const auto transpose_const =
+            as_type_ptr<ngraph::opset8::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
         if (!transpose_const) {
             return false;
         }
 
-        const auto reshape_const = as_type_ptr<ngraph::opset8::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
+        const auto reshape_const =
+            as_type_ptr<ngraph::opset8::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
         if (!reshape_const) {
             return false;
         }
 
         const auto reshape_vals = reshape_const->cast_vector<std::int64_t>();
-        if (std::any_of(reshape_vals.begin(), reshape_vals.end(), [](const std::int64_t x) { return x == 0; })) {
+        if (std::any_of(reshape_vals.begin(), reshape_vals.end(), [](const std::int64_t x) {
+                return x == 0;
+            })) {
             return false;
         }
 

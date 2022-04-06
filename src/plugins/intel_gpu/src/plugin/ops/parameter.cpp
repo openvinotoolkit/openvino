@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,13 +178,26 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         break;
     }
 
-    bool is_convert_color_input = false;
-    for (auto& node : op->get_users()) {
-        is_convert_color_input |= ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
-    }
+    auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
+        return ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
+               ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
+    };
+
+    std::function<bool(const std::shared_ptr<ov::Node>&, size_t)> recursive_search_convert_color =
+        [&](const std::shared_ptr<ov::Node> &node, size_t curr_depth) -> bool {
+        bool convert_color_found = is_convert_color_type(node);
+        if (curr_depth != 0) {
+            for (auto& user : node->get_users()) {
+                convert_color_found |= recursive_search_convert_color(user, curr_depth - 1);
+            }
+        }
+        return convert_color_found;
+    };
+
+    size_t search_depth = 3;
+    bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
 
     if (is_convert_color_input) {
         networkInputLayout.format = cldnn::format::byxf;
@@ -280,7 +293,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
             if (inputDims[0] > 1) {
                 auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-                p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, cldnn::concatenation::along_b, op->get_friendly_name()));
+                p.AddPrimitive(cldnn::concatenation(concatPrimID, reorders, 0, op->get_friendly_name()));
                 p.primitiveIDs[inputName] = concatPrimID;
             }
         } else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace v0 {
 ///
 /// Compute the cumulative sum of the input tensor along the axis specified.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CumSum : public Op {
 public:
     OPENVINO_OP("CumSum", "opset3");

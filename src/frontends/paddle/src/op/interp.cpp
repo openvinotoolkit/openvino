@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -62,7 +61,7 @@ static std::shared_ptr<ov::Node> extract_out_sizes(const Output<ov::Node>& data,
 static NamedOutputs interpolate(const NodeContext& node,
                                 const Interpolate::InterpolateMode& mode,
                                 const int space_dim) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     using InterpolateMode = Interpolate::InterpolateMode;
     using CoordinateTransformMode = Interpolate::CoordinateTransformMode;
     using Nearest_mode = Interpolate::NearestMode;
@@ -86,9 +85,9 @@ static NamedOutputs interpolate(const NodeContext& node,
         out_flag |= out_h <= 0 || out_d <= 0;
     }
 
-    if (node.has_ng_input("OutSize")) {
+    if (node.has_input("OutSize")) {
         attrs.shape_calculation_mode = ShapeCalcMode::SIZES;
-        const auto hw_shape = node.get_ng_input("OutSize");
+        const auto hw_shape = node.get_input("OutSize");
         const auto shape_of_x = std::make_shared<ShapeOf>(x);
         const auto shape_begin = Constant::create(element::i64, {1}, {0});
         const auto shape_end = Constant::create(element::i64, Shape{1}, {-space_dim});

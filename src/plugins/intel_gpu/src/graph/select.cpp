@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,9 @@ layout select_inst::calc_output_layout(select_node const& node) {
     auto output_layout = node.input(1).get_non_padded_output_layout();
 
     if (node.get_primitive()->broadcast_type == "numpy") {
-        output_layout.size = tensor::max(node.input(1).get_output_layout().size, node.input(2).get_output_layout().size);
+        auto input1_size = node.input(1).get_output_layout().size;
+        auto input2_size = node.input(2).get_output_layout().size;
+        output_layout.size = tensor::max(input1_size, input2_size);
     }
 
     return output_layout;
@@ -101,7 +103,9 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 deps[2]->get_output_layout().data_type,
                                 "");
 
-        cldnn::tensor output_tensor = tensor::max(deps[1]->get_output_layout().size, deps[2]->get_output_layout().size);
+        auto dep1_size = deps[1]->get_output_layout().size;
+        auto dep2_size = deps[2]->get_output_layout().size;
+        cldnn::tensor output_tensor = tensor::max(dep1_size, dep2_size);
         auto max_dim_count = output_tensor.raw.size();
 
         for (size_t i = 0; i < deps.size(); i++) {

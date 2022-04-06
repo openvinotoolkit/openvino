@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -641,7 +641,7 @@ TEST_F(NGraphReaderTests, ReadMatMul1DNetwork) {
 			</blobs>
 		</layer>
 		<layer name="fc/Reshape" type="Reshape" precision="FP32" id="2">
-			<data dim="" originalLayersNames="fc" />
+			<data dim="" originalLayersNames="embedded_input__const,fc" />
 			<input>
 				<port id="0">
 					<dim>2048</dim>
@@ -658,7 +658,7 @@ TEST_F(NGraphReaderTests, ReadMatMul1DNetwork) {
 			</output>
 		</layer>
 		<layer name="FullyConnected_737" type="FullyConnected" precision="FP32" id="3">
-			<data originalLayersNames="fc" out-size="1000" />
+			<data originalLayersNames="embedded_input__const,fc" out-size="1000" />
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -687,7 +687,7 @@ TEST_F(NGraphReaderTests, ReadMatMul1DNetwork) {
 			</blobs>
 		</layer>
 		<layer name="fc" type="Reshape" precision="FP32" id="5">
-			<data dim="" originalLayersNames="fc" />
+			<data dim="" originalLayersNames="embedded_input__const,fc" />
 			<input>
 				<port id="0">
 					<dim>1</dim>

@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -24,8 +24,8 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
  * are equal neighboring input shape of ElementWise.
  */
 
-class ngraph::pass::BroadcastElementwiseFusion: public ngraph::pass::MatcherPass {
+class ngraph::pass::BroadcastElementwiseFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BroadcastElementwiseFusion", "0");
     BroadcastElementwiseFusion();
 };

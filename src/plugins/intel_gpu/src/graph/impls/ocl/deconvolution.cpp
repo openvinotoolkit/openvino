@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,16 +53,14 @@ protected:
 public:
     static primitive_impl* create(const deconvolution_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
-
-        const auto& weights_size = weights_layout.size;
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(primitive->grouped_weights_shape);
 
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
 #if 0  // TODO: support dilation
         const auto& dilation = primitive->dilation;
 #else
-        const tensor dilation = {0, 0, 1, 1, 1};
+        const ov::Strides dilation(arg.get_output_layout().get_spatial_rank(), 1);
 #endif
         const auto actual_split = split;
 
@@ -80,21 +78,26 @@ public:
         deconv_params.split = split;
         deconv_params.groups = groups;
 
-        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
-        uint32_t kx = weights_size.spatial[0];
-        uint32_t ky = weights_size.spatial[1];
-        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        uint32_t kx = weights_layout.spatial(0);
+        uint32_t ky = weights_layout.spatial(1);
+        uint32_t kz = weights_layout.spatial(2);
+
         deconv_params.filterSize = { kx, ky, kz };
 
-        deconv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
-                                 (uint32_t)std::max(pad.spatial[1], 0),
-                                 (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        deconv_params.padding = {pad_x, pad_y, pad_z};
 
-        deconv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        deconv_params.stride = {stride_x, stride_y, stride_z};
 
-        deconv_params.dilation = {(uint32_t)dilation.spatial[0],
-                                  (uint32_t)dilation.spatial[1],
-                                  (uint32_t)dilation.spatial[2]};
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);

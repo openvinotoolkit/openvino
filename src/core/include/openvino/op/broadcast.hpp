@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace op {
 namespace v3 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
@@ -78,6 +79,7 @@ private:
 namespace v1 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);

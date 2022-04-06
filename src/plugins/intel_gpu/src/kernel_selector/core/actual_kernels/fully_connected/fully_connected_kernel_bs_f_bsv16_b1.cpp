@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefa
         16;  // Must match batch slice size of weights format (bs_x_bsv16).
              // Number of response groups. Each group (except last) writes responses_per_sg_exec responses
              // for at least one input data set from batch.
-    const auto response_size = arg.output.Feature().v;
+    const auto response_size = arg.outputs[0].Feature().v;
     auto rg_count = CeilDiv(response_size, responses_per_sg_exec);
 
     dispatchData.lws[0] = sub_group_size;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@ using namespace InferenceEngine;
 
 namespace CPULayerTestsDefinitions {
 
-class ParameterResultCustomBlobTest : public ParameterResultSubgraphTest {
+class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyApi {
  protected:
     void Infer() override {
         constexpr size_t inferIterations = 10lu;
@@ -34,7 +34,7 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTest {
 
             inferRequest.Infer();
 
-            ParameterResultSubgraphTest::Validate();
+            ParameterResultSubgraphTestLegacyApi::Validate();
         }
     }
     void Validate() override {
@@ -54,18 +54,20 @@ TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
 }
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                            ParameterResultSubgraphTest::getTestCaseName);
+                            ::testing::Combine(
+                                ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ParameterResultSubgraphTestBase::getTestCaseName);
 } // namespace
 
-class ParameterResultSameBlobTest : public ParameterResultSubgraphTest {
+class ParameterResultSameBlobTest : public ParameterResultSubgraphTestLegacyApi {
 protected:
     void Infer() override {
         constexpr size_t inferIterations = 10lu;
 
         for (size_t i = 0; i < inferIterations; ++i) {
-            ParameterResultSubgraphTest::Infer();
-            ParameterResultSubgraphTest::Validate();
+            ParameterResultSubgraphTestLegacyApi::Infer();
+            ParameterResultSubgraphTestLegacyApi::Validate();
         }
     }
     void Validate() override {
@@ -80,7 +82,9 @@ TEST_P(ParameterResultSameBlobTest, CompareWithRefs) {
 }
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                            ParameterResultSubgraphTest::getTestCaseName);
+                            ::testing::Combine(
+                                ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ParameterResultSubgraphTestBase::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

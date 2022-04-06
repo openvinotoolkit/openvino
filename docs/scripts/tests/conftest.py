@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Configuration for tests.
@@ -15,20 +15,28 @@ Usage:
 pytest --doxygen doxygen.log --html doc-generation.html test_doc-generation.py
 """
 
-import re
-import copy
 import pytest
-from utils.log import parse
+from utils.log import LogParser
 
 
 def pytest_addoption(parser):
     """ Define extra options for pytest options
     """
     parser.addoption('--doxygen', help='Doxygen log path to run tests for')
+    parser.addoption('--sphinx', help='Sphinx log path to run tests for')
     parser.addoption(
         '--doxygen-strip',
         default='tmp_docs/',
         help='Path to strip from paths found in doxygen log')
+    parser.addoption(
+        '--sphinx-strip',
+        default='tmp_docs/',
+        help='Path to strip from paths found in sphinx log')
+    parser.addoption(
+        '--suppress-warnings',
+        action='append',
+        default=[],
+        help='A list of warning patterns to suppress')
     parser.addoption(
         '--doxygen-xfail',
         action='append',
@@ -41,34 +49,34 @@ def pytest_addoption(parser):
         help='A file with relative paths to a files to exclude from validation')
     parser.addoption(
         '--include_omz',
-        type=str,
-        required=False,
-        default='',
+        action="store_true",
+        default=False,
         help='Include link check for omz docs')
     parser.addoption(
         '--include_wb',
-        type=str,
-        required=False,
-        default='',
+        action="store_true",
+        default=False,
         help='Include link check for workbench docs')
     parser.addoption(
         '--include_pot',
-        type=str,
-        required=False,
-        default='',
+        action="store_true",
+        default=False,
         help='Include link check for pot docs')
     parser.addoption(
         '--include_gst',
-        type=str,
-        required=False,
-        default='',
+        action="store_true",
+        default=False,
         help='Include link check for gst docs')
     parser.addoption(
         '--include_ovms',
-        type=str,
-        required=False,
-        default='',
+        action="store_true",
+        default=False,
         help='Include link check for ovms')
+    parser.addoption(
+        '--include_ote',
+        action="store_true",
+        default=False,
+        help='Include link check for ote')
 
 
 def read_lists(configs):
@@ -77,7 +85,7 @@ def read_lists(configs):
     files = set()
     for config_path in configs:
         try:
-            with open(config_path, 'r') as config:
+            with open(config_path, 'r', encoding='utf-8') as config:
                 files.update(map(str.strip, config.readlines()))
         except OSError:
             pass
@@ -87,12 +95,9 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-    # read log
-    with open(metafunc.config.getoption('doxygen'), 'r') as log:
-        all_files = parse(log.read(), metafunc.config.getoption('doxygen_strip'))
-
-    exclude_links = {'open_model_zoo', 'workbench', 'pot',  'gst', 'omz', 'ovms'}
+    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms', 'ote'}
     if metafunc.config.getoption('include_omz'):
+        exclude_links.remove('open_model_zoo')
         exclude_links.remove('omz')
     if metafunc.config.getoption('include_wb'):
         exclude_links.remove('workbench')
@@ -102,17 +107,44 @@ def pytest_generate_tests(metafunc):
         exclude_links.remove('gst')
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
+    if metafunc.config.getoption('include_ote'):
+        exclude_links.remove('ote')
 
-    filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_files)
-    files_with_errors = {key: all_files[key] for key in filtered_keys}
-    ref_pattern = "unable to resolve reference to '{}"
-    for file, errors in copy.deepcopy(files_with_errors).items():
-        for error in errors:
-            for ex_link in exclude_links:
-                if re.match(re.compile(ref_pattern.format(ex_link)), error):
-                    files_with_errors[file].remove(error)
-            if not len(errors):
-                files_with_errors.pop(file)
+    # warnings to ignore
+    suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
+    for link in exclude_links:
+        doxy_ref_pattern = "unable to resolve reference to '{}".format(link)
+        sphinx_ref_pattern = "toctree contains reference to nonexisting document '{}".format(link)
+        sphinx_ref_pattern2 = "unknown document: {}".format(link)
+        suppress_warnings.append(doxy_ref_pattern)
+        suppress_warnings.append(sphinx_ref_pattern)
+        suppress_warnings.append(sphinx_ref_pattern2)
+
+    xfail_list = [xfail.lower() for xfail in read_lists(metafunc.config.getoption('doxygen_xfail'))]
+
+    # read doxygen log
+    doxy_parser = LogParser(metafunc.config.getoption('doxygen'),
+                            strip=metafunc.config.getoption('doxygen_strip'),
+                            xfail_list=xfail_list,
+                            suppress_warnings=suppress_warnings)
+    doxy_parser.parse()
+    doxygen_warnings = doxy_parser.filter()
+
+    # read sphinx log
+    sphinx_parser = LogParser(metafunc.config.getoption('sphinx'),
+                              strip=metafunc.config.getoption('sphinx_strip'),
+                              xfail_list=xfail_list,
+                              suppress_warnings=suppress_warnings
+                              )
+    sphinx_parser.parse()
+    sphinx_warnings = sphinx_parser.filter()
+
+    all_warnings = dict()
+    all_warnings.update(doxygen_warnings)
+    all_warnings.update(sphinx_warnings)
+
+    filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
+    files_with_errors = {key: all_warnings[key] for key in filtered_keys}
 
     # read mute lists
     marks = dict()

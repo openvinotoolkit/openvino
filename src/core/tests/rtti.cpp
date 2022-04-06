@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,7 @@ public:
     }
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(rtti, op_with_type) {
     auto op = OpType();
     auto type_info = op.get_type_info();

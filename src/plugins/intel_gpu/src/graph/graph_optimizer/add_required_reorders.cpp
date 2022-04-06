@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "mutable_data_inst.h"
-#include "concatenation_inst.h"
 #include "tensor_type.h"
 #include <memory>
 #include <vector>
@@ -30,6 +29,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
 
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
@@ -169,6 +169,8 @@ void add_required_reorders::run(program& p) {
             std::vector<cldnn::format> preffered_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
+                if (format::is_weights_format(node->get_output_layout().format))
+                    continue;
                 max_in_dims = std::max(cldnn::format::dimension(node->get_output_layout().format), max_in_dims);
             }
             // This list of preffered layouts has been selected arbitrary due to developers' experience

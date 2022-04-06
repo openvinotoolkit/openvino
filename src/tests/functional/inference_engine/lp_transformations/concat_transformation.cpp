@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,9 @@
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
 #include <low_precision/rt_info/intervals_alignment_attribute.hpp>
 #include <low_precision/rt_info/quantization_alignment_attribute.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
+#include <low_precision/common/quantization_granularity_restriction.hpp>
 
-#include <low_precision/common/operation_precision_restriction.hpp>
-#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
@@ -146,14 +146,14 @@ public:
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::AvgPool>()
             });
 
         const auto params = TestTransformationParams::toParams(testValues.params);
@@ -225,7 +225,7 @@ public:
 
 TEST_P(ConcatTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";

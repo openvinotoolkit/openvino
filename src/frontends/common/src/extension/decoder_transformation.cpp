@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,5 +43,7 @@ DecoderTransformationExtension::DecoderTransformationExtension(
       }) {}
 
 void DecoderTransformationExtension::register_pass(ov::pass::Manager& manager) const {
-    m_registration(manager);
+    if (m_registration) {
+        m_registration(manager);
+    }
 }

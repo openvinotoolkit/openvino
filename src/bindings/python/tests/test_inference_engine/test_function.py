@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -87,7 +87,8 @@ def test_function_add_output_incorrect_tensor_name():
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs("relu_t")
-    assert "Tensor name relu_t was not found." in str(e.value)
+    # Verify that absent output name is present in error message
+    assert "relu_t" in str(e.value)
 
 
 def test_function_add_output_incorrect_idx():
@@ -99,10 +100,10 @@ def test_function_add_output_incorrect_idx():
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
-        function.add_outputs(("relu1", 10))
-    assert "Cannot add output to port 10 operation relu1 has only 1 outputs." in str(
-        e.value
-    )
+        function.add_outputs(("relu1", 1234))
+    # Verify that op name and port number are present in error message
+    assert "relu1" in str(e.value)
+    assert "1234" in str(e.value)
 
 
 def test_function_add_output_incorrect_name():
@@ -115,7 +116,8 @@ def test_function_add_output_incorrect_name():
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs(("relu_1", 0))
-    assert "Port 0 for operation with name relu_1 was not found." in str(e.value)
+    # Verify that absent op name is present in error message
+    assert "relu_1" in str(e.value)
 
 
 def test_add_outputs_several_tensors():
@@ -361,3 +363,76 @@ def test_reshape(device):
     core = Core()
     compiled = core.compile_model(model, device)
     assert compiled.input().partial_shape == ref_shape
+
+
+def test_reshape_with_python_types(device):
+    model = create_test_model()
+
+    def check_shape(new_shape):
+        for input in model.inputs:
+            assert input.partial_shape == new_shape
+
+    shape1 = [1, 4]
+    new_shapes = {input: shape1 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape1))
+
+    shape2 = [1, 6]
+    new_shapes = {input.any_name: shape2 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape2))
+
+    shape3 = [1, 8]
+    new_shapes = {i: shape3 for i, input in enumerate(model.inputs)}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape3))
+
+    shape4 = [1, -1]
+    new_shapes = {input: shape4 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1), Dimension(-1)]))
+
+    shape5 = [1, (1, 10)]
+    new_shapes = {input: shape5 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1), Dimension(1, 10)]))
+
+    shape6 = [Dimension(3), Dimension(3, 10)]
+    new_shapes = {input: shape6 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape6))
+
+    shape7 = "1..10, ?"
+    new_shapes = {input: shape7 for input in model.inputs}
+    model.reshape(new_shapes)
+    check_shape(PartialShape(shape7))
+
+    # reshape mixed keys
+    shape8 = [(1, 20), -1]
+    new_shapes = {"data1": shape8, 1: shape8}
+    model.reshape(new_shapes)
+    check_shape(PartialShape([Dimension(1, 20), Dimension(-1)]))
+
+    # reshape with one input
+    param = ops.parameter([1, 3, 28, 28])
+    model = Model(ops.relu(param), [param])
+
+    shape9 = [-1, 3, (28, 56), (28, 56)]
+    model.reshape(shape9)
+    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
+
+    shape10 = "?,3,..224,..224"
+    model.reshape(shape10)
+    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
+
+    # check exceptions
+    shape10 = [1, 1, 1, 1]
+    with pytest.raises(TypeError) as e:
+        model.reshape({model.input().node: shape10})
+    assert "Incorrect key type <class 'openvino.pyopenvino.op.Parameter'> to reshape a model, " \
+           "expected keys as openvino.runtime.Output, int or str." in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        model.reshape({0: range(1, 9)})
+    assert "Incorrect value type <class 'range'> to reshape a model, " \
+           "expected values as openvino.runtime.PartialShape, str, list or tuple." in str(e.value)

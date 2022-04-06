@@ -1,4 +1,4 @@
-# Convert PyTorch* QuartzNet to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
+# Convert PyTorch* QuartzNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
 
 [NeMo project](https://github.com/NVIDIA/NeMo) provides the QuartzNet model.
 

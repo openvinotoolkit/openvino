@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,5 +17,14 @@ protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     static ParamsKey GetDefaultSupportedKey();
     static std::vector<size_t> GetSoftmaxDimGlobalSizes(SoftmaxDim dim, const DataTensor& output);
+    Datatype GetAccumulatorType(const softmax_params& params) const {
+        if (params.inputs[0].GetDType() == Datatype::F16)
+            return Datatype::F16;
+        else
+            return Datatype::F32;
+    }
+    std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE };
+    }
 };
 }  // namespace kernel_selector

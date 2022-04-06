@@ -1,7 +1,8 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
+import re
 import numpy as np
 
 from ..statistics.statistics import compute_statistic, Statistic, TensorStatistic
@@ -39,6 +40,10 @@ def parse_sequential_stats(value_sequential, stats_layout):
 
     for layer, act_seq in activation_seq.items():
         seq_len = len(act_seq[0].shape)
+        if isinstance(stat_names_by_layer[layer], Statistic) and \
+                stat_names_by_layer[layer].kwargs.get('shape_for_inference', False):
+            activation_seq[layer] = act_seq[0]
+            continue
         if not isinstance(stat_names_by_layer[layer], Statistic) or \
                 not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
             axis = 1 if seq_len == 2 else 2
@@ -102,7 +107,8 @@ def get_sequential_activations(activations, layer, activation_seq, stats_layout,
     elif old_names_mapping.get(layer, None) in stats_layout and hasattr(stat_names_by_layer[layer], 'kwargs') \
             and not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
         activation_seq[layer].append(activations)
-    elif old_names_mapping.get(layer, None) in stats_layout and callable(stat_names_by_layer[layer]):
+    elif old_names_mapping.get(layer, None) in stats_layout and (callable(stat_names_by_layer[layer]) \
+            or callable(stats_layout[layer][stat_names_by_layer[layer]])):
         activation_seq[layer].append(activations)
 
 
@@ -144,7 +150,7 @@ def process_raw_output(raw_output):
     result = {}
     for result_node, result_data in raw_output.items():
         for name in result_node.get_tensor().get_names():
-            result_name = name.replace('/sink_port_0', '')
+            result_name = get_clean_name(name)
             result[result_name] = result_data
     return result
 
@@ -172,3 +178,6 @@ def collect_model_outputs(ng_model):
     for ng_output in ng_model.outputs:
         model_output_names.extend(list(ng_output.get_tensor().get_names()))
     return model_output_names
+
+def get_clean_name(name):
+    return re.sub(r'/sink_port_\d+', '', name)

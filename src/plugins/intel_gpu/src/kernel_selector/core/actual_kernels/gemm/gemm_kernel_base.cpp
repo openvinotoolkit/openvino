@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
 }
 
 GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
 

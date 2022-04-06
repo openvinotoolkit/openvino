@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,8 @@ using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const ngraph::element::Type inputPrecision,
-    const std::vector<ngraph::PartialShape>& inputShape,
-    const size_t number_of_operations,
+    const std::vector<ngraph::PartialShape>& inputShapes,
+    const size_t concatInputsCount,
     const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDataBefore,
     const DequantizationOperations::Convert& convertBefore,
     const DequantizationOperations& dequantizationBefore,
@@ -32,41 +32,73 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const DequantizationOperations& dequantizationAfter,
     const std::vector<ov::Any>& concatAttributes,
     const ngraph::element::Type precisionAfterOperation,
-    const std::int64_t& axis) {
-
-    std::vector <std::shared_ptr<ngraph::opset1::Parameter>> inputs(number_of_operations);
-    std::vector <std::shared_ptr<ngraph::Node>> parents(number_of_operations);
-    for (size_t i = 0; i < number_of_operations; i++) {
-        auto ind = 0;
-        if (inputShape.size() != 1) {
-            ind = i;
+    const std::int64_t& axis,
+    const bool oneInputWithSplit) {
+    std::vector<std::shared_ptr<ngraph::opset1::Parameter>> inputs(oneInputWithSplit ? 1 : concatInputsCount);
+    std::vector<ov::Output<ov::Node>> concatParents(concatInputsCount);
+    if (oneInputWithSplit) {
+        auto newInputShape = inputShapes[0];
+        int channels = 0;
+        bool channelsWasIdentified = false;
+        for (const auto inputShape : inputShapes) {
+            if (inputShape[axis].is_static()) {
+                channels += inputShape[axis].get_length();
+                channelsWasIdentified = true;
+            }
         }
-        inputs[i] = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape[ind]);
-        inputs[i]->set_friendly_name(std::string("input") + "_" + std::to_string(i + 1));
-        parents[i] = inputs[i];
+
+        if (channelsWasIdentified) {
+            newInputShape[axis] = channels;
+        }
+
+        inputs[0] = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, newInputShape);
+        inputs[0]->set_friendly_name("input");
+
+        const auto axis_constant = std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{}, std::vector<int64_t>({axis}));
+        std::vector<int> split_lengths_values(inputShapes.size(), 1);
+        split_lengths_values[split_lengths_values.size() - 1] = channels - (split_lengths_values.size() - 1);
+        const auto split_lengths = std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{split_lengths_values.size()}, split_lengths_values);
+        const auto split = std::make_shared<ngraph::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
+        for (size_t i = 0; i < concatInputsCount; i++) {
+            concatParents[i] = split->output(i);
+        }
+    } else {
+        for (size_t i = 0; i < concatInputsCount; i++) {
+            auto ind = 0;
+            if (inputShapes.size() != 1) {
+                ind = i;
+            }
+            inputs[i] = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShapes[ind]);
+            inputs[i]->set_friendly_name(std::string("input") + "_" + std::to_string(i + 1));
+            concatParents[i] = inputs[i];
+        }
     }
+
     if (!fqOnDataBefore.empty()) {
-        for (size_t i = 0; i < number_of_operations; i++) {
+        for (size_t i = 0; i < concatInputsCount; i++) {
             size_t ind = i;
             if (fqOnDataBefore.size() == 1) {
                 ind = 0;
             }
             if (operation == "relu") {
-                auto relu = std::make_shared<ngraph::opset1::Relu>(parents[i]->output(0));
-                parents[i] = makeFakeQuantize(relu, inputPrecision, fqOnDataBefore[ind]);
+                auto relu = std::make_shared<ngraph::opset1::Relu>(concatParents[i]);
+                concatParents[i] = makeFakeQuantize(relu, inputPrecision, fqOnDataBefore[ind]);
             } else {
-                parents[i] = makeFakeQuantize(parents[i], inputPrecision, fqOnDataBefore[ind]);
+                concatParents[i] = makeFakeQuantize(concatParents[i], inputPrecision, fqOnDataBefore[ind]);
             }
-            parents[i]->set_friendly_name(std::string("concat_fq") + "_" + std::to_string(i + 1));
+            concatParents[i].get_node()->set_friendly_name(std::string("concat_fq") + "_" + std::to_string(i + 1));
             if (!convertBefore.empty()) {
-                parents[i] = std::make_shared<opset1::Convert>(parents[i], convertBefore.outPrecision);
+                concatParents[i] = std::make_shared<opset1::Convert>(concatParents[i], convertBefore.outPrecision);
             }
             if (!dequantizationBefore.empty()) {
-                parents[i] = makeDequantization(parents[i], dequantizationBefore);
+                concatParents[i] = makeDequantization(concatParents[i], dequantizationBefore);
             }
         }
     }
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector(parents.begin(), parents.end()), axis);
+
+    const auto concat = std::make_shared<ngraph::opset1::Concat>(
+        ngraph::OutputVector(concatParents.begin(), concatParents.end()),
+        axis);
     concat->set_friendly_name("concat");
     std::shared_ptr<ngraph::Node> parent = concat;
     addAttributes({ parent }, concatAttributes);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,14 +68,14 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
     auto old_ptr = old_weights_memory_lock.data();
     auto new_ptr = new_weights_memory_lock.data();
-    for (int32_t ofi = 0; ofi < wei_layout.size.batch[0]; ++ofi) {
+    for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
             for (int32_t ifi = range.first; ifi < range.second; ++ifi, ++new_ifi) {
-                for (int32_t wi = 0; wi < wei_layout.size.spatial[3]; ++wi) {
-                    for (int32_t zi = 0; zi < wei_layout.size.spatial[2]; ++zi) {
-                        for (int32_t yi = 0; yi < wei_layout.size.spatial[1]; ++yi) {
-                            for (int32_t xi = 0; xi < wei_layout.size.spatial[0]; ++xi) {
+                for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
+                    for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
+                        for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
+                            for (int32_t xi = 0; xi < wei_layout.spatial(0); ++xi) {
                                 auto old_coords = tensor(batch(ofi), feature(ifi), spatial(xi, yi, zi, wi));
                                 auto new_coords = tensor(batch(ofi), feature(new_ifi), spatial(xi, yi, zi, wi));
                                 auto old_offset = wei_layout.get_linear_offset(old_coords);
@@ -126,15 +126,17 @@ void concat_input_order::run(program& p) {
         auto& concat_node = node->as<concatenation>();
         auto prim = concat_node.get_primitive();
 
-        bool along_f = prim->axis == concatenation::along_f;
+        bool along_f = prim->axis == 1;
         size_t inputs_count = prim->input_size();
         bool no_fusing = !concat_node.has_fused_primitives() && concat_node.get_dependencies().size() == inputs_count;
 
         auto out_format = concat_node.get_output_layout().format;
-        bool correct_format = out_format == format::b_fs_yx_fsv16;
+        bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
         tensor::value_type alignment = 1;
         if (out_format == format::b_fs_yx_fsv16)
             alignment = 16;
+        else if (out_format == format::b_fs_yx_fsv32)
+            alignment = 32;
 
         bool single_format = true;
         std::vector<tensor::value_type> feature_sizes;
@@ -143,7 +145,7 @@ void concat_input_order::run(program& p) {
             auto& dep = concat_node.get_dependency(input_idx);
             auto dep_layout = dep.get_output_layout();
             single_format &= dep_layout.format == out_format;
-            feature_sizes.push_back(dep_layout.size.feature[0]);
+            feature_sizes.push_back(dep_layout.feature());
         }
         // Alignment is not optimal if aligned input follows unaligned one
         bool already_aligned = true;

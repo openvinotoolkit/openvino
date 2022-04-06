@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "ie_remote_context.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -30,17 +31,20 @@ public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
+                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
+                                     InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     explicit MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
+                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
+                                     InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
 
 private:
-    void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with);
+    void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
+                            InferenceEngine::RemoteContext::Ptr ctx);
 };
 
 }  // namespace MultiDevicePlugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,11 +34,11 @@ ParamsKey PoolingKerneGPU_fs_b_yx_fsv32::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKerneGPU_fs_b_yx_fsv32::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    dispatchData.gws[0] = params.output.X().v;  // X output blocks
-    dispatchData.gws[1] = params.output.Y().v;  // Y output clocks
+    dispatchData.gws[0] = params.outputs[0].X().v;  // X output blocks
+    dispatchData.gws[1] = params.outputs[0].Y().v;  // Y output clocks
     // in fs_b_yx_fsv32 format we will process 2 features per work item, so reads/writes are done in full writes for
     // fp16
-    dispatchData.gws[2] = RoundUp(params.output.Feature().v, 32) * params.output.Batch().v / 2;
+    dispatchData.gws[2] = RoundUp(params.outputs[0].Feature().v, 32) * params.outputs[0].Batch().v / 2;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -54,7 +54,7 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_par
     auto pp = static_cast<const pooling_params&>(p);
 
     // Feature padding before must be aligned to 32 to keep slices aligned
-    if (pp.output.Feature().pad.before % 32 != 0)
+    if (pp.outputs[0].Feature().pad.before % 32 != 0)
         return false;
 
     if (pp.inputs[0].Feature().pad.before % 32 != 0)
@@ -78,7 +78,7 @@ JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "fs", "out_y", "out_x"},
+                                     {"b", "((fs * 32) + sglid)", "out_y", "out_x"},
                                      "pool_result",
                                      input_dt,
                                      2,

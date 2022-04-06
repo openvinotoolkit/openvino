@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ public:
      * @brief Returns the original nGraph op
      * @return A smart pointer to nGraph op
      */
-    std::shared_ptr<ngraph::Node> getNode() {
+    std::shared_ptr<ngraph::Node> getNode() const {
         return node;
     }
 

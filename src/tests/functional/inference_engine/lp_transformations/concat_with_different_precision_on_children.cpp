@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@
 #include "lpt_ngraph_functions/concat_function.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "low_precision/common/operation_per_tensor_quantization_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
 
 
 using namespace testing;
@@ -92,9 +92,9 @@ public:
             testValues.actual.fakeQuantize2);
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::AvgPool>()
             });
 
         SimpleLowPrecisionTransformer transform({}, quantizationRestrictions);
@@ -135,7 +135,7 @@ public:
 
 TEST_P(ConcatWithDifferentChildrenTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

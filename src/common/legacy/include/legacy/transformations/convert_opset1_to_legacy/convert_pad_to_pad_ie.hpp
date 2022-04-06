@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,6 @@ class ConvertPadToLegacyMatcher;
 
 class ngraph::pass::ConvertPadToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPadToLegacyMatcher", "0");
     ConvertPadToLegacyMatcher();
 };

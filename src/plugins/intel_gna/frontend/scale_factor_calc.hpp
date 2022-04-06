@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,6 +208,86 @@ static double calculateWeightsReducerFromDstStats(Quantization dst_quant) {
 }
 
 /**
+ * @brief Tries to re-quantize an input to reach the desired output scale factor value.
+ * This function searches for layers above which output scale factors can be changed:
+ * - activations,
+ * - constants,
+ * - weightable layers (output scale factor is modified by modification of weights scale factor).
+ * @param input input to be re-quantized
+ * @param newOutputScale the desired output scale factor value
+ * @param result information about the restarted layer
+ * @return true if the input can be re-quantized
+ */
+static bool requantizeInput(InferenceEngine::CNNLayerPtr input, float newOutputScale, ScaleFactorUpdateResult &result) {
+    auto layer = input;
+    while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy()) {
+        size_t prevInputIdx = 0;
+        auto info = LayerInfo(layer);
+        auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
+        if (quantDataForInputLayer->_dst_quant.IsStatsSet()) {
+            auto levels = LayerInfo(layer).has32BOutput() ? (std::numeric_limits<uint32_t>::max() + 1ul) :
+                (std::numeric_limits<uint16_t>::max() + 1ul);
+            auto maxSF = CalculateScaleFactorFromStats(levels, quantDataForInputLayer->_dst_quant.GetMinValues().front(),
+                quantDataForInputLayer->_dst_quant.GetMaxValues().front());
+            if (newOutputScale > maxSF) {
+                gnalog() << layer->name << ": Scale factor " << newOutputScale << " is too large. The maximum scale factor: "
+                    << maxSF << " levels=" << levels << " min=" << quantDataForInputLayer->_dst_quant.GetMinValues().front()
+                    << " max=" << quantDataForInputLayer->_dst_quant.GetMaxValues().front() << "\n";
+                return false;
+            }
+        }
+        if (info.isActivation() || info.isConst()) {
+            gnawarn() << "[WARNING] requantize " << layer->name
+                        << ". Layer new output scale: " << newOutputScale
+                        << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
+            quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
+            result = ScaleFactorUpdateResult(layer.get());
+            return true;
+        }
+
+        if (info.isWeightableIdentity() && !fp32eq(quantDataForInputLayer->_weights_quant.GetScale(), 1.0f)) {
+            auto reducer = std::max(1.0f, quantDataForInputLayer->_dst_quant.GetScale() / newOutputScale);
+            auto newWeightsScale = std::max(1.0f, quantDataForInputLayer->_weights_quant.GetScale() / reducer);
+            quantDataForInputLayer->_weights_quant.SetScale(static_cast<int32_t>(newWeightsScale));
+            quantDataForInputLayer->_dst_quant.SetScale(quantDataForInputLayer->_weights_quant.GetScale() *
+                quantDataForInputLayer->_src_quant.GetScale());
+
+            result = ScaleFactorUpdateResult(layer.get());
+            return true;
+        }
+
+        if (info.isFullyConnected() || info.isConvolution()) {
+            quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
+            quantDataForInputLayer->_weights_quant.SetScale(newOutputScale / quantDataForInputLayer->_src_quant.GetScale());
+            result = ScaleFactorUpdateResult(layer.get());
+            return true;
+        }
+
+        if (LayerInfo(layer).isEltwise()) {
+            // re-quantize bias branch for Eltwise layer
+            if (!LayerInfo(input).has32BOutput()) {
+                break;
+            }
+
+            for (uint8_t ix = 0; ix < 2; ++ix) {
+                if (LayerInfo(InferenceEngine::CNNNetPrevLayer(layer, ix)).has32BOutput()) {
+                    prevInputIdx = ix;
+                    break;
+                }
+            }
+            auto prevLayer = InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx);
+            auto prevQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+            newOutputScale *= prevQuantData->_dst_quant.GetScale() / quantDataForInputLayer->_dst_quant.GetScale();
+        }
+
+        layer = InferenceEngine::CNNNetHasPrevLayer(layer.get(), prevInputIdx) ?
+            InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx) : nullptr;
+    }
+
+    return false;
+}
+
+/**
  * @brief calculates output scale factor per layer
  * @tparam T
  */
@@ -340,23 +420,43 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                     result *= 0.5;
             }
         } else if (layer.isPower()) {
+            double exponent = 0;
+            double scale = 0;
+            double offset = 0;
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
-                IE_THROW() << "Incorrect Power Layer pointer \n";
+                std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+                if (!cnnLayer->getNode() ||
+                    !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(cnnLayer->getNode()))) {
+                    IE_THROW() << "Incorrect Power Layer pointer \n";
+                } else {
+                    auto powerIE = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
+                    if (!powerIE) {
+                        IE_THROW() << "Incorrect Power Layer pointer \n";
+                    } else {
+                        exponent = powerIE->power;
+                        scale = powerIE->scale;
+                        offset = powerIE->shift;
+                    }
+                }
+            } else {
+                exponent = powerLayer->power;
+                scale = powerLayer->scale;
+                offset = powerLayer->offset;
             }
 
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
             auto output_max_value = static_cast<double>((inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max());
 
-            auto x_min = fp32eq(fmod(powerLayer->power, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
+            auto x_min = fp32eq(fmod(exponent, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
             x_min = std::max(x_min, -pow_domain);
 
             auto x_max = input_max_value / quantizedParams->_src_quant.GetScale();
             x_max = std::min(x_max, pow_domain);
 
-            auto val1 = pow(x_min * powerLayer->scale + powerLayer->offset, powerLayer->power);
-            auto val2 = pow(x_max * powerLayer->scale + powerLayer->offset, powerLayer->power);
+            auto val1 = pow(x_min * scale + offset, exponent);
+            auto val2 = pow(x_max * scale + offset, exponent);
 
             auto abs_val = std::max(std::abs(val1), std::abs(val2));
             auto scale_val = output_max_value / abs_val;
@@ -438,7 +538,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            result = CalculateScaleFactorFromStats(quantizedParams->_dst_quant.GetLevels(), minOutValue, maxOutValue);
+            auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()) + 1);
+            result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -1292,22 +1393,16 @@ public:
         auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         quantData->_src_quant.SetScale(quantParams0->_dst_quant.GetScale());
         quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
-        if (quantData->_src_quant.IsStatsSet()) {
-            auto getScale = [&quantParams0](size_t i) {
-                return CalculateScaleFactorFromStats(quantParams0->_dst_quant.GetLevels(),
-                    quantParams0->_dst_quant.GetMinValues(false)[i], quantParams0->_dst_quant.GetMaxValues(false)[i]);
-            };
-            float min_channel_scale = getScale(0);
-            quantParams0->_dst_quant.SetScale(min_channel_scale);
-            quantData->_src_quant.SetScale(min_channel_scale);
-        }
         quantData->_dst_quant.SetScale(
                 quantData->_src_quant.GetScale() * quantData->_weights_quant.GetScale());
 
-        // If the first input is const it's possible to reduce its scale factor to avoid overflow
-        if (LayerInfo(in0).isConst() && quantData->_dst_quant.IsStatsSet()) {
-            // Adjust weights scale factor if output values exceed int32 maximum value
-           auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
+        if (!quantData->_dst_quant.IsStatsSet()) {
+            return true;
+        }
+
+        // Adjust weights scale factor if output values exceed int32 maximum value
+        auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
+        if (LayerInfo(in0).isConst()) {
             if (!fp32eq(weightsReducer, 1.0f)) {
                 quantParams0->_dst_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
                 quantData->_src_quant.SetScale(quantData->_src_quant.GetScale() / weightsReducer);
@@ -1318,6 +1413,18 @@ public:
             }
 
             quantData->_dst_quant.SetScale(quantData->_weights_quant.GetScale() * quantData->_src_quant.GetScale());
+        } else {
+            if (!fp32eq(weightsReducer, 1.0f)) {
+                for (int i = 0; i < 2; ++i) {
+                    auto input = InferenceEngine::CNNNetPrevLayer(gemmLayer, i);
+                    auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(input);
+                    float newOutputScale = quantParams->_dst_quant.GetScale() / weightsReducer;
+                    if (requantizeInput(input, newOutputScale, result)) {
+                        return true;
+                    }
+                }
+                THROW_GNA_EXCEPTION << "Unable to quantize " << gemmLayer->name;
+            }
         }
         return true;
     }

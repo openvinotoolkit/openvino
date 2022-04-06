@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,8 @@ const char *intel_dnn_activation_name[kActNumType] = {
         "kActNegHalfLog",
         "kActSoftSign",
         "kActPow",
-        "kActFakeQuantize"
+        "kActFakeQuantize",
+        "kActPwl"
 };
 
 const char *intel_dnn_softmax_name[kSoftmaxNumType] = {

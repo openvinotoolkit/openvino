@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -270,13 +270,13 @@ template<typename T>
 void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> args) {
     cldnn::mem_lock<T> mem_ptr(mem, get_test_stream());
     auto&& pitches = mem->get_layout().get_pitches();
-    auto&& size = mem->get_layout().size;
-    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
-        for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
-            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+    auto&& l = mem->get_layout();
+    for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+        for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
+            for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
                     unsigned int input_it = b*pitches.batch[0] + f*pitches.feature[0] + y*pitches.spatial[1] + x*pitches.spatial[0];
-                    mem_ptr[input_it] = args[b*size.feature[0] + f];
+                    mem_ptr[input_it] = args[b*l.feature() + f];
                 }
             }
         }
@@ -525,9 +525,9 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         str << "Norm region: " << norm_region << " Epsilon: " << normalize->epsilon << " Scale input id: " << normalize->scale_input;
     } else if (primitive->type == cldnn::convolution::type_id()) {
         auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
-        str << "Stride x: " << convolution->stride.spatial[0] << " Stride y: " << convolution->stride.spatial[1]
-            << " Dilation x: " << convolution->dilation.spatial[0] << " Dilation y: " << convolution->dilation.spatial[1]
-            << " Pad x: " << convolution->pad.spatial[0] << " Pad y: " << convolution->pad.spatial[1];
+        str << "Stride x: " << convolution->stride[1] << " Stride y: " << convolution->stride[0]
+            << " Dilation x: " << convolution->dilation[1] << " Dilation y: " << convolution->dilation[0]
+            << " Pad x: " << convolution->pad[1] << " Pad y: " << convolution->pad[0];
     } else if (primitive->type == cldnn::activation::type_id()) {
         auto activation = std::static_pointer_cast<cldnn::activation>(primitive);
         str << "Negative slope: " << activation->additional_params.a << " Negative slope input id: " << activation->additional_params_input;
@@ -535,9 +535,9 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
-            << " Pad x: " << pooling->pad.spatial[0] << " Pad y: " << pooling->pad.spatial[1]
-            << " Stride x: " << pooling->stride.spatial[0] << " Stride y: " << pooling->stride.spatial[1]
-            << " Size x: " << pooling->size.spatial[0] << " Size y: " << pooling->size.spatial[1];
+            << " Pad x: " << pooling->pad[1] << " Pad y: " << pooling->pad[0]
+            << " Stride x: " << pooling->stride[1] << " Stride y: " << pooling->stride[0]
+            << " Size x: " << pooling->size[1] << " Size y: " << pooling->size[0];
     } else {
         throw std::runtime_error("Not implemented yet for this primitive.");
     }

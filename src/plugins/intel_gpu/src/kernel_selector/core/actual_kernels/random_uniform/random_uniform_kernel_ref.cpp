@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@ namespace kernel_selector {
 namespace {
 
 int getStep(const random_uniform_params &params) {
-    return BytesPerElement(params.output.GetDType()) > 4 ? 2 : 4;
+    return BytesPerElement(params.outputs[0].GetDType()) > 4 ? 2 : 4;
 }
 
 size_t GetGwsSize(const random_uniform_params &params) {
-    size_t shapeSize = params.output.LogicalSize();
+    size_t shapeSize = params.outputs[0].LogicalSize();
     int step = getStep(params);
     return CeilDiv(shapeSize, step);
 }

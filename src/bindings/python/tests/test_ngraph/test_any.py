@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from openvino.runtime import OVAny
 
 
@@ -37,11 +40,6 @@ def test_any_float_list():
     assert isinstance(v.value, list)
     assert len(v) == 2
     assert isinstance(v[0], float)
-
-
-def test_any_tuple():
-    v = OVAny((2, 1))
-    assert isinstance(v.value, tuple)
 
 
 def test_any_bool():

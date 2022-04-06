@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::MoveEltwiseUpThroughDataMov, "MoveEltwiseUpThroughDataMov", 0);
 
 namespace {
     bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
@@ -39,7 +39,8 @@ namespace {
     }
 } // namespace
 
-MKLDNNPlugin::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ngraph::pattern::wrap_type<ngraph::op::util::UnaryElementwiseArithmetic,
                                                       ngraph::op::util::BinaryElementwiseArithmetic>(ngraph::pattern::has_static_rank());
 
@@ -95,8 +96,10 @@ MKLDNNPlugin::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         ngraph::OutputVector eltwiseInputs = eltwise->input_values();
         eltwiseInputs[0] = child->input_value(0);
         auto newEltwise = eltwise->clone_with_new_inputs(eltwiseInputs);
+        // WA: it's necessary to set empty friendly name here
+        // to avoid name duplication in TypeRelaxed cases
+        newEltwise->set_friendly_name("");
         ngraph::copy_runtime_info(eltwise, newEltwise);
-        newEltwise->set_friendly_name(eltwise->get_friendly_name());
 
         ngraph::OutputVector childInputs = child->input_values();
         childInputs[0] = newEltwise;
@@ -108,6 +111,6 @@ MKLDNNPlugin::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, "MoveEltwiseUpThroughDataMov");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

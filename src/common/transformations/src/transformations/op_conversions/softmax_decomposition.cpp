@@ -1,20 +1,17 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-#include <transformations/op_conversions/softmax_decomposition.hpp>
-
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <vector>
 
-#include <ngraph/rt_info.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftmaxDecomposition, "SoftmaxDecomposition", 0);
+#include "itt.hpp"
 
 ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);

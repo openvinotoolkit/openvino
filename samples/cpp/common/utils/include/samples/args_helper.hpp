@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,5 +45,66 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& function,
                                 const std::string& ioml);
 
 void printInputAndOutputsInfo(const ov::Model& network);
-void printInputAndOutputsInfoShort(const ov::Model& network);
 ov::element::Type getPrecision2(const std::string& value);
+
+template <class T>
+void printInputAndOutputsInfoShort(const T& network) {
+    std::cout << "Network inputs:" << std::endl;
+    for (auto&& input : network.inputs()) {
+        std::string in_name;
+        std::string node_name;
+
+        // Workaround for "tensor has no name" issue
+        try {
+            for (const auto& name : input.get_names()) {
+                in_name += name + " , ";
+            }
+            in_name = in_name.substr(0, in_name.size() - 3);
+        } catch (const ov::Exception&) {
+        }
+
+        try {
+            node_name = input.get_node()->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        if (in_name == "") {
+            in_name = "***NO_NAME***";
+        }
+        if (node_name == "") {
+            node_name = "***NO_NAME***";
+        }
+
+        std::cout << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
+                  << ov::layout::get_layout(input).to_string() << std::endl;
+    }
+
+    std::cout << "Network outputs:" << std::endl;
+    for (auto&& output : network.outputs()) {
+        std::string out_name;
+        std::string node_name;
+
+        // Workaround for "tensor has no name" issue
+        try {
+            for (const auto& name : output.get_names()) {
+                out_name += name + " , ";
+            }
+            out_name = out_name.substr(0, out_name.size() - 3);
+        } catch (const ov::Exception&) {
+        }
+        try {
+            node_name = output.get_node()->get_input_node_ptr(0)->get_friendly_name();
+        } catch (const ov::Exception&) {
+        }
+
+        if (out_name == "") {
+            out_name = "***NO_NAME***";
+        }
+        if (node_name == "") {
+            node_name = "***NO_NAME***";
+        }
+
+        std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
+                  << ov::layout::get_layout(output).to_string() << std::endl;
+    }
+}

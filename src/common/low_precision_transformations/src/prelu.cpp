@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PReluTransformation, "PReluTransformation", 0);
-
 PReluTransformation::PReluTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(PReluTransformation);
     auto matcher = pattern::wrap_type<opset1::PRelu>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -30,7 +30,7 @@ PReluTransformation::PReluTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "PReluTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -40,8 +40,8 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    prelu = NetworkHelper::separateInStandaloneBranch(prelu);
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
+    prelu = NetworkHelper::separateInStandaloneBranch(prelu, defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, defaultPrecisions, 0);
     moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;
 }
@@ -55,7 +55,7 @@ bool PReluTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions, 0);
     if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ OutputVector detection_output(const Node& node) {
     attrs.top_k = node.get_attribute_value<int64_t>("top_k", -1);
     attrs.variance_encoded_in_target = node.get_attribute_value<int64_t>("variance_encoded_in_target", 0);
     // spec says keep_top_k is an array of ints, but some models use a single int
-    // also mkldnn expects single integer
+    // also CPU plugin expects single integer
     attrs.keep_top_k = {static_cast<int>(node.get_attribute_value<int64_t>("keep_top_k", 1))};
 
     auto code_type = node.get_attribute_value<std::string>("code_type", std::string{"caffe.PriorBoxParameter.CORNER"});

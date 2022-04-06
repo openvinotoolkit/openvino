@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,22 +94,19 @@ ocl_queue_type command_queues_builder::build(const cl::Context& context, const c
 }
 
 void command_queues_builder::set_priority_mode(priority_mode_types priority, bool extension_support) {
-    if (priority != priority_mode_types::disabled && !extension_support) {
-        CLDNN_ERROR_MESSAGE("Command queues builders - priority_mode",
-                            std::string("The param priority_mode is set in engine_configuration, ")
-                            .append("but cl_khr_priority_hints or cl_khr_create_command_queue ")
-                            .append("is not supported by current OpenCL implementation."));
+    if (extension_support) {
+        _priority_mode = priority;
+    } else {
+        _priority_mode = priority_mode_types::disabled;
     }
-    _priority_mode = priority;
 }
 
 void command_queues_builder::set_throttle_mode(throttle_mode_types throttle, bool extension_support) {
-    if (throttle != throttle_mode_types::disabled && !extension_support) {
-        CLDNN_ERROR_MESSAGE("Command queues builders - throttle_mode",
-                            std::string("The param throttle_mode is set in engine_configuration, ")
-                            .append("but cl_khr_throttle_hints is not supported by current OpenCL implementation."));
+    if (extension_support) {
+        _throttle_mode = throttle;
+    } else {
+        _throttle_mode = throttle_mode_types::disabled;
     }
-    _throttle_mode = throttle;
 }
 
 void command_queues_builder::set_supports_queue_families(bool extension_support) {

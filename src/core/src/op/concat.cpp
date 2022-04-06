@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,4 +135,37 @@ bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const {
 
 bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
+    const auto& inputs = input_values();
+    bool has_labeled_input = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& out) {
+        const auto& labels = out.get_tensor().get_value_label();
+        return !labels.empty() && std::any_of(labels.begin(), labels.end(), [](const size_t& l) {
+            return l > 0;
+        });
+    });
+    if (!has_labeled_input)
+        return false;
+
+    HostTensorVector idx_inputs;
+    idx_inputs.reserve(inputs.size());
+    for (const auto& input : inputs) {
+        auto input_label = input.get_tensor().get_value_label();
+        if (input_label.empty()) {
+            const auto& shape = input.get_partial_shape();
+            // sanity check. at this point value propagation was successful
+            NGRAPH_CHECK(shape.is_static());
+            const auto& num_elements = shape_size(shape.to_shape());
+            input_label = TensorLabel(num_elements, 0);
+        }
+        const auto& constant = Constant::create(element::u64, input.get_shape(), input_label);
+        idx_inputs.push_back(std::make_shared<HostTensor>(constant));
+    }
+
+    const auto& output_tensor = std::make_shared<HostTensor>(element::u64, get_output_shape(0));
+    evaluate({output_tensor}, idx_inputs);
+    const auto& output_idxs = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
+    output_labels[0] = output_idxs;
+    return true;
 }

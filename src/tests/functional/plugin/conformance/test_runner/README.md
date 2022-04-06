@@ -35,8 +35,8 @@ Run the following commands:
 The target is able to take the following command-line arguments:
 * `-h` prints target command-line options with description.
 * `--device` specifies target device.
-* `--input_folders` specifies folders with IRs to run. The separator is `,`.
-* `--plugin_lib_name` is name of plugin library. The example is ov_intel_cpu_plugin. Use only with unregistered in IE Core devices.
+* `--input_folders` specifies the input folders with IRs or '.lst' file contains IRs path. Delimiter is `,` symbol.
+* `--plugin_lib_name` is name of plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices.
 * `--disable_test_config` allows to ignore all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows to specify paths to files contain regular expressions list to skip tests. [Examples](./op_conformance_runner/skip_configs)
 * `--config_path` allows to specify path to file contains plugin config. [Example](./op_conformance_runner/config/config_example.txt)
@@ -44,6 +44,10 @@ The target is able to take the following command-line arguments:
 * `--report_unique_name` allows to save report with unique name (report_pid_timestamp.xml). Mutually exclusive with --extend_report.
 * `--save_report_timeout` allows to try to save report in cycle using timeout (in seconds).
 * `--output_folder` Paths to the output folder to save report.
+* `--extract_body` allows to count extracted operation bodies to report.
+* `--shape_mode` Optional. Allows to run `static`, `dynamic` or both scenarios. Default value is empty string allows to run both scenarios. Possible values 
+  are `static`, `dynamic`, ``
+* `--test_timeout` Setup timeout for each test in seconds, default timeout 900seconds (15 minutes).
 * All `gtest` command-line parameters
 
 The result of execution is `report.xml` file. It demonstrates tests statistic like pass rate, passed, crashed, skipped failed tests and plugin implementation 

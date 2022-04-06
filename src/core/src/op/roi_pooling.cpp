@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,11 +92,11 @@ void op::ROIPooling::validate_and_infer_types() {
                                           Dimension{static_cast<int64_t>(m_output_size[0])},
                                           Dimension{static_cast<int64_t>(m_output_size[1])}}};
 
-    if (coords_ps.rank().is_static() && coords_ps[0].is_static()) {
+    if (coords_ps.rank().is_static()) {
         output_shape[0] = coords_ps[0];
     }
 
-    if (feat_maps_ps.rank().is_static() && feat_maps_ps[1].is_static()) {
+    if (feat_maps_ps.rank().is_static()) {
         output_shape[1] = feat_maps_ps[1];
     }
 

@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -33,8 +32,8 @@ class TRANSFORMATIONS_API WrapInterpolateIntoTransposes;
  *  with respect to spatial dimensions, but TensorFlow frontend gives Interpolate with
  *  axes {1, 2} for 4D tensors.
  */
-class ngraph::pass::WrapInterpolateIntoTransposes: public ngraph::pass::MatcherPass {
+class ngraph::pass::WrapInterpolateIntoTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("WrapInterpolateIntoTransposes", "0");
     WrapInterpolateIntoTransposes();
 };

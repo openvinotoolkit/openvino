@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(streamExecutorNumber, targetDevice, configuration) = this->GetParam();
         // Create CNNNetwork from ngrpah::Function
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32});
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -74,28 +74,28 @@ protected:
 };
 
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_EQ(0ul, InferenceEngine::executorManager()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
 
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+        ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
 
 TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+    ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+    ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
 
     {
         // Load config
@@ -111,13 +111,13 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
         execNet.CreateInferRequest();
         if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
-            ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) ||
                    (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
         } else {
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-            ASSERT_GE(2u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+            ASSERT_GE(2u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
         }
     }
 }

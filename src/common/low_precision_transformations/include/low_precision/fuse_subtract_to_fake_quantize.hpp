@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,12 @@ namespace low_precision {
  * @brief FuseSubtractToFakeQuantizeTransformation fuses Subtract operation to FakeQuantize.
  *
  * For more details about the transformation, refer to
- * [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FuseSubtractToFakeQuantizeTransformation) page
+ * [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FuseSubtractToFakeQuantizeTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FuseSubtractToFakeQuantizeTransformation", "0");
     FuseSubtractToFakeQuantizeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

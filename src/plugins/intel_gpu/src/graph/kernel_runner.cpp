@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,12 +49,16 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     }
     // Prepare output buffer
     if (output_buffers.empty()) {
-        int num_of_output_elements = static_cast<int>(base_params.output.PhysicalSize());
-        output_buffers.push_back(_engine.allocate_memory(
-            {from_data_type(base_params.output.GetDType()), format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));
+        for (auto i = 0; i < base_params.outputs.size(); ++i) {
+            int num_of_output_elements = static_cast<int>(base_params.outputs[i].PhysicalSize());
+            output_buffers.push_back(_engine.allocate_memory({from_data_type(base_params.outputs[0].GetDType()),
+                                                             format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));
+        }
+    }
+    for (const auto& output : output_buffers) {
+        args.outputs.push_back(output);
     }
 
-    args.output = output_buffers[0];
 
     if (weights_and_bias_exist) {
         // Prepare weight buffer
@@ -174,7 +178,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         batch_end = batch_start + current_compilation_batch;
 
         std::vector<kernel::ptr> kernels;
-        kernels_cache cache(_engine);
+        kernels_cache cache(_engine, program_id);
 
         for (auto it = batch_start; it < batch_end; it++) {
             auto kernel_id = cache.set_kernel_source(it->kernels[0].code.kernelString, false);

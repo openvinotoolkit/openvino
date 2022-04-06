@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,7 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
     jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", GetIndicesLastDim(params)));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf = { "", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ ParamsKey ConvolutionKernel_bfyx_1x1::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -62,7 +62,7 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p, const optional_params
     const auto& params = static_cast<const convolution_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v;
     const bool bPad = input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Feature().pad.Total() != 0 || input.Batch().pad.Total() != 0;
@@ -80,7 +80,7 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p, const optional_params
 JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.output.Feature().v % 16)
+    if (params.outputs[0].Feature().v % 16)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
 
     return jit;

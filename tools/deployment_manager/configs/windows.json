@@ -10,20 +10,22 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "licensing"
+        "docs/licensing"
       ]
     },
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/bin/intel64/Release/ov_runtime.dll",
-        "runtime/bin/intel64/Release/inference_engine_preproc.dll",
-        "runtime/bin/intel64/Release/inference_engine_c_api.dll",
-        "runtime/bin/intel64/Release/ov_hetero_plugin.dll",
-        "runtime/bin/intel64/Release/ov_auto_plugin.dll",
-        "runtime/bin/intel64/Release/ov_ir_frontend.dll",
-        "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
-        "runtime/bin/intel64/Release/ov_paddle_frontend.dll",
+        "runtime/bin/intel64/Release/openvino.dll",
+        "runtime/bin/intel64/Release/openvino_gapi_preproc.dll",
+        "runtime/bin/intel64/Release/openvino_c.dll",
+        "runtime/bin/intel64/Release/openvino_hetero_plugin.dll",
+        "runtime/bin/intel64/Release/openvino_auto_plugin.dll",
+        "runtime/bin/intel64/Release/openvino_auto_batch_plugin.dll",
+        "runtime/bin/intel64/Release/openvino_ir_frontend.dll",
+        "runtime/bin/intel64/Release/openvino_onnx_frontend.dll",
+        "runtime/bin/intel64/Release/openvino_paddle_frontend.dll",
+        "runtime/lib/intel64/Release/openvino_tensorflow_fe.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -33,7 +35,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll"
+        "runtime/bin/intel64/Release/openvino_intel_cpu_plugin.dll"
       ]
     },
     "gpu": {
@@ -42,7 +44,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/cache.json",
-        "runtime/bin/intel64/Release/ov_intel_gpu_plugin.dll"
+        "runtime/bin/intel64/Release/openvino_intel_gpu_plugin.dll"
       ]
     },
     "vpu": {
@@ -52,7 +54,7 @@
       "files": [
         "runtime/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "runtime/bin/intel64/Release/pcie-ma2x8x.elf",
-        "runtime/bin/intel64/Release/ov_intel_vpu_plugin.dll"
+        "runtime/bin/intel64/Release/openvino_intel_myriad_plugin.dll"
       ]
     },
     "gna": {
@@ -61,7 +63,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/gna.dll",
-        "runtime/bin/intel64/Release/ov_intel_gna_plugin.dll"
+        "runtime/bin/intel64/Release/openvino_intel_gna_plugin.dll"
       ]
     },
     "hddl": {
@@ -69,8 +71,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/HDDLPlugin.dll",
-        "runtime/3rdparty/MovidiusDriver",
+        "runtime/bin/intel64/Release/openvino_intel_hddl_plugin.dll",
         "runtime/3rdparty/hddl"
       ]
     },

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -76,8 +76,8 @@ function(addIeTarget)
 
     # remove unnecessary directories
     foreach(excludedDir ${ARG_EXCLUDED_SOURCE_PATHS})
-        list(FILTER includes EXCLUDE REGEX "${excludedDir}*")
-        list(FILTER sources EXCLUDE REGEX "${excludedDir}*")
+        list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
+        list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
     endforeach()
 
     source_group("include" FILES ${includes})
@@ -151,11 +151,15 @@ function(addIeTargetTest)
         NAME
         )
     set(oneValueOptionalArgs
+        COMPONENT
         )
     set(multiValueArgs
         LABELS
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
+    if (NOT DEFINED ARG_COMPONENT)
+        set(ARG_COMPONENT tests)
+    endif()
 
     addIeTarget(TYPE EXECUTABLE NAME ${ARG_NAME} ${ARG_UNPARSED_ARGUMENTS})
 
@@ -164,7 +168,7 @@ function(addIeTargetTest)
 
     install(TARGETS ${ARG_NAME}
             RUNTIME DESTINATION tests
-            COMPONENT tests
+            COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
 endfunction()
 

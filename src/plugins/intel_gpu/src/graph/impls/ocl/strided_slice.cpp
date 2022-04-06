@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,12 +52,28 @@ public:
             params.striding_params.push_back(sizes);
         }
 
-        params.end_mask = arg.get_primitive()->end_mask;
+        auto begin_mask_ = arg.get_primitive()->begin_mask;
+        auto end_mask_ = arg.get_primitive()->end_mask;
+        auto new_axis_mask_ = arg.get_primitive()->new_axis_mask;
+        auto shrink_axis_mask_ = arg.get_primitive()->shrink_axis_mask;
+
+        std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
+        std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
+        std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
+        std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
+        // Plugin requires inverted mask values. Consider changing primitive impl to be aligned with the spec.
+        for (auto& b : begin_mask) {
+            b = 1 - b;
+        }
+        for (auto& e : end_mask) {
+            e = 1 - e;
+        }
+        params.end_mask = end_mask;
         pad_vector_to_size(params.end_mask, dims_num, 1);
-        params.begin_mask = arg.get_primitive()->begin_mask;
+        params.begin_mask = begin_mask;
         pad_vector_to_size(params.begin_mask, dims_num, 1);
-        params.new_axis_mask = arg.get_primitive()->new_axis_mask;
-        params.shrink_axis_mask = arg.get_primitive()->shrink_axis_mask;
+        params.new_axis_mask = new_axis_mask;
+        params.shrink_axis_mask = shrink_axis_mask;
         pad_vector_to_size(params.shrink_axis_mask, dims_num, 0);
 
         std::vector<size_t> logical_dims = params.inputs[0].LogicalDims();

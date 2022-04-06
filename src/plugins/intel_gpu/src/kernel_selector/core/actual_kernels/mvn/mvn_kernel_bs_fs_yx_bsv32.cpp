@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,7 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
                                                                                                     bool has_enough_data) const {
     MultiDispatchData dispatchData;
 
-    auto items_num = params.output.X().v * params.output.Y().v;
+    auto items_num = params.outputs[0].X().v * params.outputs[0].Y().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -139,8 +139,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
 
     if (has_enough_data) {
         dispatchData.stage_1.gws[0] = stage1_lws * item_groups;
-        dispatchData.stage_1.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-        dispatchData.stage_1.gws[2] = params.output.Batch().v;
+        dispatchData.stage_1.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+        dispatchData.stage_1.gws[2] = params.outputs[0].Batch().v;
 
         dispatchData.stage_1.lws[0] = stage1_lws;
         dispatchData.stage_1.lws[1] = 1;
@@ -151,8 +151,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
         size_t stage2_lws = std::max(std::min(item_groups, max_lws) / simd, (size_t)1) * simd;
 
         dispatchData.stage_2.gws[0] = stage2_lws;
-        dispatchData.stage_2.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-        dispatchData.stage_2.gws[2] = params.output.Batch().v;
+        dispatchData.stage_2.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+        dispatchData.stage_2.gws[2] = params.outputs[0].Batch().v;
 
         dispatchData.stage_2.lws[0] = stage2_lws;
         dispatchData.stage_2.lws[1] = 1;
@@ -161,8 +161,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
         dispatchData.stage_2.itemsNum = item_groups;
     } else {
         dispatchData.stage_1.gws[0] = lws;
-        dispatchData.stage_1.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-        dispatchData.stage_1.gws[2] = params.output.Batch().v;
+        dispatchData.stage_1.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+        dispatchData.stage_1.gws[2] = params.outputs[0].Batch().v;
 
         dispatchData.stage_1.lws[0] = lws;
         dispatchData.stage_1.lws[1] = 1;
@@ -172,8 +172,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
     }
 
     dispatchData.stage_final.gws[0] = items_num;
-    dispatchData.stage_final.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-    dispatchData.stage_final.gws[2] = Align(params.output.Batch().v, simd);
+    dispatchData.stage_final.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+    dispatchData.stage_final.gws[2] = Align(params.outputs[0].Batch().v, simd);
 
     dispatchData.stage_final.lws = GetFinalKernelLws(dispatchData.stage_final.gws, max_wg);
     dispatchData.stage_final.itemsNum = 1;
@@ -219,7 +219,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-            kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             dispatchData.item_groups * intermediate_bytes);
         }
         {
@@ -243,7 +243,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-            kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
         }
         if (params.mvnNormalizeVariance) {
@@ -290,7 +290,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-            kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
         }
         {  // Final
@@ -341,11 +341,11 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-            kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+            kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
             if (params.mvnNormalizeVariance) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-                kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+                kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                             intermediate_bytes);
             }
         }
@@ -385,7 +385,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetKernelsData(const Params& params,
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto slm_per_sg = fsv * 4;
     auto max_lws = params.engineInfo.maxWorkGroupSize;
-    auto items_num = orgParams.output.X().v * orgParams.output.Y().v * orgParams.output.Z().v;
+    auto items_num = orgParams.outputs[0].X().v * orgParams.outputs[0].Y().v * orgParams.outputs[0].Z().v;
 
     auto enough_slm = max_lws / simd * simd * slm_per_sg <= max_slm;
     auto enough_lws = max_lws / simd >= 1;

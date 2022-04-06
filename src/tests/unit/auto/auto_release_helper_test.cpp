@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
+#include <thread>
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -48,9 +49,9 @@ public:
     std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
 
     //mock exeNetwork helper
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     //mock exeNetwork actual
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetworkActual;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkActual;
     // config for Auto device
     std::map<std::string, std::string>              config;
     std::vector<DeviceInformation>                  metaDevices;
@@ -118,6 +119,8 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
+       ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+           .WillByDefault(Return(12));
     }
 };
 

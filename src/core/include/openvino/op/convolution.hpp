@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ namespace op {
 namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convolution : public Op {
 public:
     OPENVINO_OP("Convolution", "opset1", op::Op, 1);
@@ -127,6 +128,7 @@ private:
 };
 
 /// \brief Data batch backprop for batched convolution operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvolutionBackpropData : public Op {
 public:
     OPENVINO_OP("ConvolutionBackpropData", "opset1", op::Op, 1);

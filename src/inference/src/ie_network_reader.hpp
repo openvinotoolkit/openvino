@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +36,15 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
  * @param exts vector with extensions
  * @param ov_exts vector with OpenVINO extensions
  * @param newAPI Whether this function is called from OpenVINO 2.0 API
+ * @param frontendMode read network without post-processing or other transformations
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& model,
                        const Blob::CPtr& weights,
                        const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
-                       bool newAPI);
+                       bool newAPI,
+                       bool frontendMode = false);
 
 }  // namespace details
 }  // namespace InferenceEngine

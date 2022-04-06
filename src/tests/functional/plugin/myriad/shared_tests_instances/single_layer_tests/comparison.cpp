@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
 std::vector<InferenceEngine::Precision> fpTypes = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
-};
-
-std::vector<InferenceEngine::Precision> intTypes = {
-        InferenceEngine::Precision::I32,
 };
 
 std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesFpToFp = {
@@ -72,6 +68,63 @@ INSTANTIATE_TEST_SUITE_P(smoke_ComparisonInt,
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::I32),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                        ComparisonLayerTest::getTestCaseName);
+
+std::vector<ngraph::helpers::ComparisonTypes> comparisonOpsInt = {
+        ngraph::helpers::ComparisonTypes::EQUAL,
+        ngraph::helpers::ComparisonTypes::GREATER_EQUAL,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonBOOL,
+                        ComparisonLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                                ::testing::Values(InferenceEngine::Precision::BOOL),
+                                ::testing::ValuesIn(comparisonOpsInt),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::Values(InferenceEngine::Precision::BOOL),
+                                ::testing::Values(InferenceEngine::Precision::BOOL),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                        ComparisonLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonU32,
+                        ComparisonLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::ValuesIn(comparisonOpsInt),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                        ComparisonLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonI64,
+                        ComparisonLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::ValuesIn(comparisonOpsInt),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                        ComparisonLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ComparisonU64,
+                        ComparisonLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                                ::testing::Values(InferenceEngine::Precision::U64),
+                                ::testing::ValuesIn(comparisonOpsInt),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::Values(InferenceEngine::Precision::U64),
+                                ::testing::Values(InferenceEngine::Precision::U64),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         ComparisonLayerTest::getTestCaseName);

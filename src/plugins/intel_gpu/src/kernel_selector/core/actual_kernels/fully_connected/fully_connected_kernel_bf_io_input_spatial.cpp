@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
     int) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
-    dispatchData.gws[0] = Align(arg.output.LogicalSize() / arg.inputs[0].Batch().v, 16);
+    dispatchData.gws[0] = Align(arg.outputs[0].LogicalSize() / arg.inputs[0].Batch().v, 16);
     dispatchData.gws[1] = arg.inputs[0].Batch().v;
     dispatchData.gws[2] = 1;
 
@@ -40,7 +40,7 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
 KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
     const auto& input = p.inputs[0];
-    const auto& output = p.output;
+    const auto& output = p.outputs[0];
 
     if (input.Batch().v == 1 && output.Batch().v == 1)
         if ((input.LogicalSize() / output.Batch().v >= 4096) && (output.Feature().v >= 4096))
@@ -57,9 +57,9 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optiona
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     if ((input.GetLayout() != DataLayout::bfyx && input.GetLayout() != DataLayout::bf) ||
-        (output.GetLayout() != DataLayout::bfyx && output.GetLayout() != DataLayout::bf)) {
+        (output.GetLayout() != DataLayout::bf)) {
         return false;
     }
 

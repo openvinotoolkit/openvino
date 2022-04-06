@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,6 @@
 #include <numeric>
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(BroadcastAddMultiplyConst, "BroadcastAddMultiplyConst", 0);
 
 using Node = std::shared_ptr<ngraph::Node>;
 using Nodes = std::vector<Node>;

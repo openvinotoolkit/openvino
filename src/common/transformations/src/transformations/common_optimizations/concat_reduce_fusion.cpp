@@ -1,29 +1,23 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
+
+#include <memory>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <vector>
+
+#include "itt.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <memory>
-#include <vector>
-
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include "itt.hpp"
-
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReplaceConcatReduceByMinOrMax, "ReplaceConcatReduceByMinOrMax", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PullSqueezeThroughEltwise, "PullSqueezeThroughEltwise", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatReduceFusion, "ConcatReduceFusion", 0);
-
-
 namespace {
-enum class ReduceType {NONE, MAX, MIN};
+enum class ReduceType { NONE, MAX, MIN };
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
     if (ov::is_type<ngraph::opset8::ReduceMax>(reduce_node)) {
@@ -34,7 +28,7 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
         return ReduceType::NONE;
     }
 }
-} // namespace
+}  // namespace
 
 ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     MATCHER_SCOPE(PullSqueezeThroughEltwise);
@@ -87,13 +81,15 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 
     auto concat_pattern = ngraph::pattern::wrap_type<opset8::Concat>({pattern::any_input(), pattern::any_input()});
     auto reduce_axes_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto reduce_pattern = ngraph::pattern::wrap_type<opset8::ReduceMin, opset8::ReduceMax>({concat_pattern, reduce_axes_pattern});
+    auto reduce_pattern =
+        ngraph::pattern::wrap_type<opset8::ReduceMin, opset8::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-        auto reduce = as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce =
+            as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
 
@@ -118,7 +114,8 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         copy_runtime_info({concat, reduce}, result_node);
 
         if (!reduce->get_keep_dims()) {
-            const auto squeeze_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
+            const auto squeeze_axis_node =
+                ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
             result_node = register_new_node<ngraph::opset8::Squeeze>(result_node, squeeze_axis_node);
             copy_runtime_info({concat, reduce}, result_node);
         }

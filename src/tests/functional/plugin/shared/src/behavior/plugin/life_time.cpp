@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "behavior/plugin/life_time.hpp"
+
+#include <setjmp.h>
 
 namespace BehaviorTestsDefinitions {
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
@@ -27,19 +29,8 @@ namespace BehaviorTestsDefinitions {
     void HoldersTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, order) = this->GetParam();
-        deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
-        if (deathTestStyle == "fast") {
-            ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
-        }
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
-
-    void HoldersTest::TearDown() {
-        ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
-    }
-
-#define EXPECT_NO_CRASH(_statement) \
-    EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
     void release_order_test(std::vector<int> order, const std::string &deviceName,
                             std::shared_ptr<ngraph::Function> function) {
@@ -78,13 +69,35 @@ namespace BehaviorTestsDefinitions {
     }
 
     TEST_P(HoldersTest, Orders) {
+        // in case of crash jump will be made and work will be continued
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+#ifdef _WIN32
+        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+#else
+        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+#endif
+            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+        } else {
+            IE_THROW() << "Crash happens";
+        }
     }
 
     TEST_P(HoldersTestImportNetwork, Orders) {
+        // in case of crash jump will be made and work will be continued
+        auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+#ifdef _WIN32
+        if (setjmp(CommonTestUtils::env) == CommonTestUtils::JMP_STATUS::ok) {
+#else
+        if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
+#endif
+            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+        } else {
+            IE_THROW() << "Crash happens";
+        }
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
@@ -94,15 +107,7 @@ namespace BehaviorTestsDefinitions {
     void HoldersTestOnImportedNetwork::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         targetDevice = this->GetParam();
-        deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
-        if (deathTestStyle == "fast") {
-            ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
-        }
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-
-    void HoldersTestOnImportedNetwork::TearDown() {
-        ::testing::GTEST_FLAG(death_test_style) = deathTestStyle;
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {

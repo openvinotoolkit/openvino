@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@ using namespace ov;
 
 namespace {
 struct BatchToSpaceParams {
-    BatchToSpaceParams(const Tensor& dataTensor, const Tensor& blockShapeTensor,
-                       const Tensor& cropsBeginTensor, const Tensor& cropsEndTensor,
-                       const Tensor& expectedTensor, const std::string& testcaseName = "") :
+    BatchToSpaceParams(const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& blockShapeTensor,
+                       const reference_tests::Tensor& cropsBeginTensor, const reference_tests::Tensor& cropsEndTensor,
+                       const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
                   dataTensor(dataTensor), blockShapeTensor(blockShapeTensor),
                   cropsBeginTensor(cropsBeginTensor), cropsEndTensor(cropsEndTensor),
                   expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
-    Tensor dataTensor;
-    Tensor blockShapeTensor;
-    Tensor cropsBeginTensor;
-    Tensor cropsEndTensor;
-    Tensor expectedTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor blockShapeTensor;
+    reference_tests::Tensor cropsBeginTensor;
+    reference_tests::Tensor cropsEndTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -79,76 +79,76 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
     std::vector<BatchToSpaceParams> batchToSpaceParams {
         // input_with_shape_4x3
         BatchToSpaceParams(
-            Tensor({4, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-            Tensor({2}, element::i64, std::vector<int64_t>{1, 2}),
-            Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
-            Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
-            Tensor({2, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
+            reference_tests::Tensor({4, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor({2}, element::i64, std::vector<int64_t>{1, 2}),
+            reference_tests::Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor({2, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
             "input_with_shape_4x3"),
 
         // input_with_shape_4x1x1x3
         BatchToSpaceParams(
-            Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
+            reference_tests::Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
             "input_with_shape_4x1x1x3"),
         // input_with_shape_4x1x1x3_1
         BatchToSpaceParams(
-            Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 2, 3}, IN_ET, std::vector<T>{1, 2, 3, 7, 8, 9, 4, 5, 6, 10, 11, 12}),
+            reference_tests::Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 1}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({2, 1, 2, 3}, IN_ET, std::vector<T>{1, 2, 3, 7, 8, 9, 4, 5, 6, 10, 11, 12}),
             "input_with_shape_4x1x1x3_1"),
         // input_with_shape_4x1x1x3_2
         BatchToSpaceParams(
-            Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6, 7, 10, 8, 11, 9, 12}),
+            reference_tests::Tensor({4, 1, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6, 7, 10, 8, 11, 9, 12}),
             "input_with_shape_4x1x1x3_2"),
 
         // input_with_shape_4x1x2x3
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 2, 6}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({2, 1, 2, 6}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15,
                                                        4, 16, 5, 17, 6, 18,
                                                        7, 19, 8, 20, 9, 21,
                                                        10, 22, 11, 23, 12, 24}),
             "input_with_shape_4x1x2x3"),
         // input_with_shape_4x1x2x3_1
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 1}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 4, 3}, IN_ET, std::vector<T>{1,  2,  3,  13, 14, 15,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 1}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({2, 1, 4, 3}, IN_ET, std::vector<T>{1,  2,  3,  13, 14, 15,
                                                        4,  5,  6,  16, 17, 18,
                                                        7,  8,  9,  19, 20, 21,
                                                        10, 11, 12, 22, 23, 24}),
             "input_with_shape_4x1x2x3_1"),
         // input_with_shape_4x1x2x3_2
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({1, 1, 4, 6}, IN_ET, std::vector<T>{1,  7,  2,  8,  3,  9,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({1, 1, 4, 6}, IN_ET, std::vector<T>{1,  7,  2,  8,  3,  9,
                                                        13, 19, 14, 20, 15, 21,
                                                        4,  10, 5,  11, 6,  12,
                                                        16, 22, 17, 23, 18, 24}),
@@ -156,38 +156,38 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
 
         // input_with_shape_with_crop_4x1x2x3
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 2}),
-            Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{1, 7,  2, 8,  13, 19, 14, 20,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 2}),
+            reference_tests::Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{1, 7,  2, 8,  13, 19, 14, 20,
                                                        4, 10, 5, 11, 16, 22, 17, 23}),
             "input_with_shape_with_crop_4x1x2x3"),
         // input_with_shape_with_crop_4x1x2x3_1
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{2, 8,  3, 9,  14, 20, 15, 21,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
+            reference_tests::Tensor({1, 1, 4, 4}, IN_ET, std::vector<T>{2, 8,  3, 9,  14, 20, 15, 21,
                                                        5, 11, 6, 12, 17, 23, 18, 24}),
             "input_with_shape_with_crop_4x1x2x3_1"),
         // input_with_shape_with_crop_4x1x2x3_2
         BatchToSpaceParams(
-            Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
+            reference_tests::Tensor({4, 1, 2, 3}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,
                                                        7,  8,  9,  10, 11, 12,
                                                        13, 14, 15, 16, 17, 18,
                                                        19, 20, 21, 22, 23, 24}),
-            Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
-            Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
-            Tensor({1, 1, 2, 6}, IN_ET, std::vector<T>{13, 19, 14, 20, 15, 21,
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
+            reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 1, 0}),
+            reference_tests::Tensor({1, 1, 2, 6}, IN_ET, std::vector<T>{13, 19, 14, 20, 15, 21,
                                                        4,  10, 5,  11, 6,  12}),
             "input_with_shape_with_crop_4x1x2x3_2"),
     };

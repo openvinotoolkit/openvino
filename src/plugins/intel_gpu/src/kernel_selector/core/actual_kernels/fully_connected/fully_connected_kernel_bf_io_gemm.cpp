@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ ParamsKey FullyConnected_bf_io_GEMM::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableAllInputLayout();
     k.EnableOutputLayout(DataLayout::bf);
-    k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     // bfyx -> bf layout transformation works incorrectly when tensor has paddings, so offset support is disabled for now.
@@ -33,7 +32,7 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     const uint32_t localWorkSizeX = 64;
     const uint32_t globalWorkSizeX = localWorkSizeX;
 
-    dispatchData.gws = { globalWorkSizeX, params.output.Feature().v, 1 };
+    dispatchData.gws = { globalWorkSizeX, params.outputs[0].Feature().v, 1 };
     dispatchData.lws = { localWorkSizeX, 1, 1 };
 
     return dispatchData;

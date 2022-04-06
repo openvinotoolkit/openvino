@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,13 +33,13 @@ class PropagateThroughPrecisionPreserved;
  * through precision preserved operations.
  *
  * For more details about the transformation, refer to
- * [PropagateThroughPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_PropagateThroughPrecisionPreserved) page
+ * [PropagateThroughPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>
 class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
-    PropagateThroughPrecisionPreserved() {
+    PropagateThroughPrecisionPreserved(const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support) {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
@@ -53,7 +53,7 @@ public:
                     return false;
                 }
 
-                const auto parentRestrictions = getParentInputRestrictions(node);
+                const auto parentRestrictions = getParentInputRestrictions(node, defaultPrecisions);
                 if (parentRestrictions.empty()) {
                     return false;
                 }
@@ -99,11 +99,11 @@ private:
     }
 
     // TODO: possible duplicate: PropagateToInput::getSourceOutputAttribute
-    std::vector<ov::Any> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
+    std::vector<ov::Any> getParentInputRestrictions(const std::shared_ptr<ngraph::Node> node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions) {
         std::vector<ov::Any> parentAttributes;
-        auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) -> Input<Node> {
-            const auto dequantization = NetworkHelper::getDequantization(node, index);
+        auto getInput = [&defaultPrecisions](const std::shared_ptr<ngraph::Node>& node, const size_t index) -> Input<Node> {
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, index);
             if (!dequantization.empty() &&
                 ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ void Blob::setShape(const SizeVector& dims) {
         }
     }
 
-    // 2. Blobs created on top of preallocated memory
-    if (std::dynamic_pointer_cast<InferenceEngine::details::PreAllocator>(getAllocator())) {
-        IE_THROW() << "Cannot call setShape for Blobs created on top of preallocated memory.";
-    }
-
     if (properProduct(dims) > properProduct(getTensorDesc().getDims())) {
+        // 2. Blobs created on top of preallocated memory
+        if (std::dynamic_pointer_cast<InferenceEngine::details::PreAllocator>(getAllocator())) {
+            IE_THROW()
+                << "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.";
+        }
         // New blob shape requires more memory than old one -- reallocate
         if (!deallocate()) {
             IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
@@ -85,24 +85,21 @@ Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob,
 Blob::~Blob() {}
 MemoryBlob::~MemoryBlob() {}
 
-template <typename T, typename U>
-TBlob<T, U>::~TBlob() {
-    free();
-}
-
-template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
+#ifndef WIN32
+template class TBlob<float>;
+template class TBlob<double>;
+template class TBlob<int8_t>;
+template class TBlob<uint8_t>;
+template class TBlob<int16_t>;
+template class TBlob<uint16_t>;
+template class TBlob<int32_t>;
+template class TBlob<uint32_t>;
+template class TBlob<long>;
+template class TBlob<long long>;
+template class TBlob<unsigned long>;
+template class TBlob<unsigned long long>;
+template class TBlob<bool>;
+template class TBlob<char>;
+#endif
 
 }  // namespace InferenceEngine

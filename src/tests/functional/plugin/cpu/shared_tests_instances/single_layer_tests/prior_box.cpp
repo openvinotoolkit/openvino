@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "single_layer_tests/prior_box.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestDefinitions;
+using namespace LayerTestsDefinitions;
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::I32,

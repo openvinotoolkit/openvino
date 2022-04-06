@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,6 +85,7 @@ struct format {
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv4_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 4)
         bs_fs_yx_bsv8_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 4)
+        bs_fs_yx_bsv8_fsv2,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 2)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -168,7 +169,7 @@ struct format {
         os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv8_isv4,                           ///< format used for convolution i8 weights
-        os_is_yx_osv8_isv2,                           ///< format used for convolution i8 weights
+        os_is_yx_osv8_isv2,                           ///< format used for convolution fp16 weights
         os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
@@ -215,6 +216,7 @@ struct format {
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
+        g_os_is_yx_osa2_isa8_osv8_isv2,
         g_os_is_yx_osa4_isa8_osv8_isv4,
         g_os_is_yx_osa4_isa8_osv8_isv2,
         g_os_is_yx_osa2_isa8_osv16_isv2,
@@ -278,6 +280,33 @@ struct format {
                 fmt == bfyx || fmt == fyxb ||
                 fmt == bfzyx || fmt == bfwzyx);
     }
+
+    static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false) {
+        auto default_fmt = cldnn::format::bfyx;
+        if (is_weights) {
+            if (is_grouped) {
+                if (rank == 5) {
+                    default_fmt = cldnn::format::goiyx;
+                } else if (rank == 6) {
+                    default_fmt = cldnn::format::goizyx;
+                }
+            } else {
+                if (rank == 4) {
+                    default_fmt = cldnn::format::oiyx;
+                } else if (rank == 5) {
+                    default_fmt = cldnn::format::oizyx;
+                }
+            }
+        } else {
+            if (rank == 5) {
+                default_fmt = cldnn::format::bfzyx;
+            } else if (rank == 6) {
+                default_fmt = cldnn::format::bfwzyx;
+            }
+        }
+       return default_fmt;
+    }
+
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type

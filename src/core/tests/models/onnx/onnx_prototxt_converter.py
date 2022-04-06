@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Converts protobuf files from binary message format into prototxt format and vice-versa.
@@ -26,6 +26,7 @@ from google.protobuf import text_format
 import onnx
 from onnx.external_data_helper import convert_model_to_external_data
 import os
+import sys
 
 ONNX_SUFFX = '.onnx'
 PROTOTXT_SUFFX = '.prototxt'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
-    static bool isBroadcasted(const PartialShape& shape) noexcept;
+    static bool isBroadcasted(const PartialShape& shape);
 protected:
     int getNotEmpty(const std::shared_ptr<Node>& eltwise) const;
     // Return indexes:

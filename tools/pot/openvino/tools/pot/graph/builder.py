@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -140,7 +140,6 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     nodes.append((result_name, 'Result', {}))
     edges.append((node.name, result_name, {'out': 0, 'in': 0}))
     graph = build_graph(*make_copy_graph_attrs(model, input_name, input_shape), nodes, edges)
-    graph.ir_v10 = True
 
     # Add the neccessary attribute to the new graph
     src_node = get_node_by_name(graph, node.name)

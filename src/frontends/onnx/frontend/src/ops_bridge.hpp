@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,10 @@ public:
         return instance()._is_operator_registered(name, version, domain);
     }
 
+    static void load_initial_state() {
+        return instance()._load_initial_state();
+    }
+
 private:
     // Registered operators structure
     // {
@@ -91,6 +95,7 @@ private:
 
     bool _is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
 
+    void _load_initial_state();
     std::mutex lock;
 };
 

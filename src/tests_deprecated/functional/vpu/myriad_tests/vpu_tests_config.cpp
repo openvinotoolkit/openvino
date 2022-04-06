@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 namespace vpu {
 namespace tests {
 
-const char* pluginName      () { return "ov_intel_vpu_plugin"; }
+const char* pluginName      () { return "openvino_intel_myriad_plugin"; }
 const char* pluginNameShort () { return "myriad"; }
 const char* deviceName      () { return "MYRIAD"; }
 bool        deviceForceReset() { return true; }

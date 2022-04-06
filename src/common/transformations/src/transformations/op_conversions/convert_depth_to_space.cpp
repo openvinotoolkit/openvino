@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
-    auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
+    auto dts_node =
+        ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
+        auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace>(m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
         }
@@ -52,12 +51,12 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         }
 
         switch (mode) {
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
-                shape_begin.push_back(C);
-                break;
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
-                shape_begin.insert(shape_begin.begin() + 1, C);
-                break;
+        case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            shape_begin.push_back(C);
+            break;
+        case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            shape_begin.insert(shape_begin.begin() + 1, C);
+            break;
         }
 
         for (size_t i = 0; i < spatial_dims; ++i) {
@@ -67,20 +66,20 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         // Calculate Transpose order
         std::vector<int64_t> order{0};
         switch (mode) {
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
-                order.push_back(spatial_dims + 1);
-                for (size_t i = 1; i <= spatial_dims; ++i) {
-                    order.push_back(spatial_dims + 1 + i);
-                    order.push_back(i);
-                }
-                break;
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
-                order.push_back(1);
-                for (size_t i = 1; i <= spatial_dims; ++i) {
-                    order.push_back(spatial_dims + 1 + i);
-                    order.push_back(i + 1);
-                }
-                break;
+        case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            order.push_back(spatial_dims + 1);
+            for (size_t i = 1; i <= spatial_dims; ++i) {
+                order.push_back(spatial_dims + 1 + i);
+                order.push_back(i);
+            }
+            break;
+        case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            order.push_back(1);
+            for (size_t i = 1; i <= spatial_dims; ++i) {
+                order.push_back(spatial_dims + 1 + i);
+                order.push_back(i + 1);
+            }
+            break;
         }
 
         // Calculate Reshape shape_end
@@ -89,7 +88,7 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
             shape_end.push_back(block_size * input_shape[2 + i]);
         }
 
-        auto create_constant = [](std::vector<int64_t > & v) -> std::shared_ptr<op::Constant> {
+        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<op::Constant> {
             return op::Constant::create(element::i64, Shape{v.size()}, v);
         };
 

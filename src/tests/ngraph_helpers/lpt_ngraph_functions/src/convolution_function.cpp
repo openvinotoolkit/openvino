@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -321,7 +322,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     const ngraph::element::Type precision,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& weightsValues,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
+    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -369,6 +371,14 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
+    convolution->set_friendly_name("convolution");
+
+    for (const auto& r : restrictions) {
+        for (const auto& restrictedPort : r.restrictions) {
+            auto& rt = convolution->input(restrictedPort.port).get_rt_info();
+            rt[QuantizationGranularityAttribute::get_type_info_static()] = QuantizationGranularityAttribute(restrictedPort.granularity);
+        }
+    }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionFunction");

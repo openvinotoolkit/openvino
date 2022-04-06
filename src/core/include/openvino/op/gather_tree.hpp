@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ namespace op {
 namespace v1 {
 /// \brief Generates the complete beams from the ids per each step and the parent beam
 /// ids.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherTree : public Op {
 public:
     OPENVINO_OP("GatherTree", "opset1", op::Op, 1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,8 @@
  * @attention This cache implementation IS NOT THREAD SAFE!
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 template<typename Key, typename Value>
 class LruCache {
@@ -31,20 +32,20 @@ public:
      * @param value
      */
 
-    void put(Key key, Value val) {
+    void put(const Key &key, const Value &val) {
         if (0 == _capacity) {
             return;
         }
         auto mapItr = _cacheMapper.find(key);
         if (mapItr != _cacheMapper.end()) {
             touch(mapItr->second);
-            mapItr->second->second = std::move(val);
+            mapItr->second->second = val;
         } else {
             if (_cacheMapper.size() == _capacity) {
                 evict(1);
             }
-            auto itr = _lruList.insert(_lruList.begin(), {key, std::move(val)});
-            _cacheMapper.insert({std::move(key), itr});
+            auto itr = _lruList.insert(_lruList.begin(), {key, val});
+            _cacheMapper.insert({key, itr});
         }
     }
 
@@ -103,4 +104,5 @@ private:
     size_t _capacity;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

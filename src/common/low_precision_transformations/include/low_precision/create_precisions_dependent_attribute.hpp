@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ class CreatePrecisionsDependentAttribute;
  * PrecisionPreservedAttribute and AttributeType attributes with the same shared part.
  *
  * For more details about the transformation, refer to
- * [CreatePrecisionsDependentAttribute](@ref openvino_docs_IE_DG_lpt_CreatePrecisionsDependentAttribute) page
+ * [CreatePrecisionsDependentAttribute](@ref openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename OperationType>

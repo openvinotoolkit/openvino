@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,9 @@ public:
 
     PadIE(const Output<ngraph::Node>& input, PadMode pad_mode, CoordinateDiff pads_begin, CoordinateDiff pads_end, Shape output_shape, float pad_value);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t get_version() const override { return 1; }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

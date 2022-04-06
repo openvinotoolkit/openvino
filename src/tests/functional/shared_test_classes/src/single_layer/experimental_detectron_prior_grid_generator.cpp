@@ -1,11 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_prior_grid_generator.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
@@ -27,7 +27,7 @@ std::ostream& operator <<(
 std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(param, inputTensors, netPrecision, targetName) = obj.param;
@@ -48,7 +48,7 @@ std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
 
 void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(param, inputTensors, netPrecision, targetName) = this->GetParam();
@@ -86,7 +86,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     }
 
     for (auto j = i; j < funcInputs.size(); ++j) {
-        ov::runtime::Tensor inputTensor = CommonTestUtils::create_tensor<float>(
+        ov::runtime::Tensor inputTensor = ov::test::utils::create_tensor<float>(
             ov::element::f32,
             targetInputStaticShapes[j],
             std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));

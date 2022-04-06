@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,7 +119,7 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const Ho
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), pads_begin_s, pads_end_s);
+    update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), pads_end_s, pads_begin_s);
     CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
     CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
     auto out_shape = infer_batched_pooling_forward(this,
@@ -345,7 +345,7 @@ bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
     const auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, get_dilations(), pads_begin_s, pads_end_s);
+    update_auto_padding(arg_shape, get_dilations(), pads_end_s, pads_begin_s);
     CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
     CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
     auto out_shape = infer_batched_pooling_forward(this,

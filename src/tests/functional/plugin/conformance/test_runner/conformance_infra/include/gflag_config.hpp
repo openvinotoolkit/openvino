@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,11 @@
 
 #include <gflags/gflags.h>
 #include <iostream>
+#include <limits.h>
+
+namespace ov {
+namespace test {
+namespace conformance {
 
 static const char help_message[] = "Print a usage message.";
 static const char disable_test_config_message[] = "Optional. Ignore tests skipping rules and run all the test (except those which are skipped with DISABLED "
@@ -16,9 +21,9 @@ static const char target_device_message[] = "Required. Specify the target device
                                             "(the list of available devices is shown below). Default value is CPU. "
                                             "Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. "
                                             "The application looks for a suitable plugin for the specified device.";
-static const char input_folders_message[] = "Required. Paths to the input folders with IRs. Delimiter is `,` symbol.";
+static const char input_folders_message[] = "Required. Paths to the input folders with IRs or '.lst' file contains IRs path. Delimiter is `,` symbol.";
 static const char target_plugin_message[] =
-    "Optional. Name of plugin library. The example is ov_intel_cpu_plugin. Use only with unregistered in IE Core devices";
+    "Optional. Name of plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices";
 static const char output_folder_message[] = "Optional. Paths to the output folder to save report.  Default value is \".\"";
 static const char report_unique_name_message[] = "Optional. Allow to save report with unique name (report_pid_timestamp.xml). "
                                                  "Mutually exclusive with --extend_report. Default value is false";
@@ -28,6 +33,10 @@ static const char skip_config_path_message[] = "Optional. Allows to specify path
                                                "Delimiter is `,` symbol. Default value is empty string.";
 static const char config_path_message[] = "Optional. Allows to specify path to file contains plugin config. "
                                           "Default value is empty string.";
+static const char extract_body_message[] = "Optional. Allows to count extracted operation bodies to report. Default value is false.";
+static const char shape_mode_message[] = "Optional. Allows to run `static`, `dynamic` or both scenarios. Default value is empty string allows to run both"
+                                         " scenarios. Possible values are `static`, `dynamic`, ``";
+static const char test_timeout_message[] = "Optional. Setup timeout for each test in seconds, default timeout 900seconds (15 minutes).";
 
 
 DEFINE_bool(h, false, help_message);
@@ -41,6 +50,9 @@ DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
 DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
 DEFINE_bool(report_unique_name, false, report_unique_name_message);
+DEFINE_bool(extract_body, false, extract_body_message);
+DEFINE_string(shape_mode, "", shape_mode_message);
+DEFINE_uint32(test_timeout, UINT_MAX, test_timeout_message);
 
 /**
 * @brief This function shows a help message
@@ -55,10 +67,17 @@ static void showUsage() {
     std::cout << "    --skip_config_path  \"<paths>\"    " << disable_test_config_message << std::endl;
     std::cout << "    --config_path  \"<paths\"          " << config_path_message << std::endl;
     std::cout << "    --extend_report                  " << extend_report_config_message << std::endl;
+    std::cout << "    --extract_body                   " << extend_report_config_message << std::endl;
     std::cout << "    --report_unique_name             " << extend_report_config_message << std::endl;
     std::cout << "    --save_report_timeout            " << extend_report_config_message << std::endl;
     std::cout << "    --device                         " << target_device_message << std::endl;
     std::cout << "    --input_folders \"<paths>\"        " << input_folders_message << std::endl;
     std::cout << "    --output_folder \"<path>\"         " << output_folder_message << std::endl;
     std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
+    std::cout << "    --shape_mode  \"<value>\"          " << shape_mode_message << std::endl;
+    std::cout << "    --test_timeout  \"<value>\"        " << test_timeout_message << std::endl;
 }
+
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

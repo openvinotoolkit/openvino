@@ -1,14 +1,15 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_common.h>
-#include <mkldnn_node.h>
+#include <node.h>
 #include <memory>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct PermuteParams {
     InferenceEngine::SizeVector src_block_dims;
@@ -75,4 +76,5 @@ private:
     PermuteParams params;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

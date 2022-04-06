@@ -34,6 +34,7 @@
                 <span class="red">F:0</span><span>Failed</span>
                 <span class="grey">S:2</span><span>Skipped</span>
                 <span class="dark">C:0</span><span>Crashed</span>
+                <span class="grey-red">H:0</span><span>Hanged</span>
             </div>
             <div>
                 <span><b>Plugin operation implementation status:</b></span>
@@ -75,6 +76,7 @@
                     <option value="f">Failed</option>
                     <option value="s">Skipped</option>
                     <option value="c">Crashed</option>
+                    <option value="h">Hanged</option>
                     <option value="ex">Existing tests</option>
                     <option value="na">No tests</option>
                     <option value="ns">No status</option>
@@ -137,28 +139,30 @@
                 <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
                     passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                     skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
+                    hanged="{{ results[d][op].hanged }}"
                     value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}---{% endif -%}"
                     title="{% if results[d][op].implemented == 'true' -%}
                             {{op}} is implemented in {{d}} plugin
                         {% else -%}
                             {{op}} is not implemented in {{d}} plugin
                         {% endif -%}">
-                    {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}
-                        {{ results[d][op].passrate }} %<br />
+                    <span class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></span>
+                    {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
+                        {{ results[d][op].passrate }} % <br />
                     {% else -%}
                         ---<br />
                     {% endif -%}
                     <div class="flex">
                         <div>
-                            {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}
+                            {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
                                 <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
                                 <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
                                 <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
                                 <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                                <span class="grey-red" title="Hanged">H:{{ results[d][op].hanged }}</span>
                             {% else -%}
                             {% endif -%}
                         </div>
-                        <div class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></div>
                     </div>
 
                 </td>

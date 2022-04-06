@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class TensorNameSerializationTest : public ov::test::TestsCommon {

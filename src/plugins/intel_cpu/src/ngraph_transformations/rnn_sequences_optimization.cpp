@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,14 +6,12 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeGRUSequenceTransposes, "OptimizeGRUSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeLSTMSequenceTransposes, "OptimizeLSTMSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeRNNSequenceTransposes, "OptimizeRNNSequenceTransposes", 0);
-NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::OptimizeSequenceTransposes, "OptimizeSequenceTransposes", 0);
+#include "itt.hpp"
 
 namespace {
     int64_t getSeqAxis(const std::shared_ptr<ngraph::Node>& sequenceOp) {
@@ -56,7 +54,7 @@ namespace {
             ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
 
             auto shapeBeforeTranspose = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(in_0);
-            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shapeBeforeTranspose,
+            auto newInShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(shapeBeforeTranspose,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 3 }, { 1, 0, 2 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(in_0, newInShape, false);
@@ -69,7 +67,7 @@ namespace {
             auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
             auto lstmOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(sequenceOp->output(0));
-            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(lstmOutShape,
+            auto newOutShape = ngraph::op::util::make_try_fold<ngraph::opset8::Gather>(lstmOutShape,
                 ngraph::opset1::Constant::create(ngraph::element::i32, { 4 }, { 2, 1, 0, 3 }),
                 ngraph::opset1::Constant::create(ngraph::element::i32, {}, { 0 }));
 
@@ -85,7 +83,8 @@ namespace {
     }
 } // namespace
 
-MKLDNNPlugin::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
+ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
+    MATCHER_SCOPE(OptimizeGRUSequenceTransposes);
     auto gruSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -100,11 +99,12 @@ MKLDNNPlugin::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
         return transform(gruSequence);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gruSequenceNgraph, "OptimizeGRUSequenceTransposes");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gruSequenceNgraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
+ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
+    MATCHER_SCOPE(OptimizeRNNSequenceTransposes);
     auto rnnSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -119,11 +119,12 @@ MKLDNNPlugin::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
         return transform(rnnSequence);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnnSequenceNgraph, "OptimizeRNNSequenceTransposes");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnnSequenceNgraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
+ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
+    MATCHER_SCOPE(OptimizeLSTMSequenceTransposes);
     auto lstmSequenceNgraph = ngraph::pattern::wrap_type<ngraph::opset1::LSTMSequence, ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
@@ -141,11 +142,11 @@ MKLDNNPlugin::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
         return checkSequence(lstmSequence) ? transform(lstmSequence) : false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstmSequenceNgraph, "OptimizeLSTMSequenceTransposes");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lstmSequenceNgraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
-MKLDNNPlugin::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
+ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     add_matcher<OptimizeLSTMSequenceTransposes>();
     add_matcher<OptimizeRNNSequenceTransposes>();
     add_matcher<OptimizeGRUSequenceTransposes>();

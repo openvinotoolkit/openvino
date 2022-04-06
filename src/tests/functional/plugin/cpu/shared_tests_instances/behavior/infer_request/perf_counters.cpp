@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,8 @@ TEST_P(InferRequestPerfCountersTest, CheckOperationInPerfMap) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
     ASSERT_NO_THROW(perfMap = req.GetPerformanceCounts());
     for (const auto& op : function->get_ops()) {
+        if (!strcmp(op->get_type_info().name, "Constant"))
+            continue;
         auto it = perfMap.begin();
         while (true) {
             if (it->first.find(op->get_friendly_name() + "_") != std::string::npos || it->first == op->get_friendly_name()) {

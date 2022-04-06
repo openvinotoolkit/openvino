@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 #include <legacy/ngraph_ops/tile_ie.hpp>
 #include <ngraph/rt_info.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTileToLegacyMatcher, "ConvertTileToLegacyMatcher", 0);
 
 ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
     auto tile = pattern::wrap_type<ngraph::opset1::Tile>({pattern::any_input(pattern::has_static_rank()),

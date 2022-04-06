@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2020-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,31 +32,31 @@ namespace GNAPluginNS {
  **/
 class SwapInputMatMul: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwapInputMatMul", "0");
     SwapInputMatMul();
 };
 
 class SwapInputMatMulWithBias: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwapInputMatMulWithBias", "0");
     SwapInputMatMulWithBias();
 };
 
 class SwapInputMatMulWithFq: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwapInputMatMulWithFq", "0");
     SwapInputMatMulWithFq();
 };
 
 class SwapInputMatMulWithAct: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwapInputMatMulWithAct", "0");
     SwapInputMatMulWithAct();
 };
 
 class SwapInputMatMulWithTrailingTranspose: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SwapInputMatMulWithTrailingTranspose", "0");
     SwapInputMatMulWithTrailingTranspose();
 };
 } // namespace GNAPluginNS

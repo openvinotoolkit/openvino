@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,7 @@ public:
     layout get_bias_layout(fully_connected_test_params& p) {
         if (p.out_shape.spatial[1] > 1) {
             // 3d case
-            return layout{ p.default_type, format::bfyx, tensor{ 1, p.out_shape.spatial[1], 1, 1 } };
+            return layout{ p.default_type, format::bfyx, tensor{ 1, 1, 1, p.out_shape.spatial[1] } };
         }
         else {
             return layout{ p.default_type, format::bfyx, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
@@ -207,7 +207,7 @@ TEST_P(fc_fp32_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", ""),
+        fully_connected("fc_prim", "input", "weights", "", "", padding(), get_output_dim_size(p)),
         eltwise("bias_add", { "fc_prim", "bias" }, eltwise_mode::sum),
         reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
     );
@@ -220,6 +220,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vec
     fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP32_2, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP32_3, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
 class fc_int8_scale : public FullyConnectedFusingTest {};

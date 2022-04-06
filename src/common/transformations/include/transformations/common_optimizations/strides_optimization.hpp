@@ -1,14 +1,14 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <transformations_visibility.hpp>
-#include <ngraph/util.hpp>
-#include <ngraph/pass/pass.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/pass.hpp>
+#include <ngraph/util.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -27,20 +27,21 @@ class TRANSFORMATIONS_API StridesOptimization;
  * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
  * Strides can be propagated if Convolution kernel is {1, 1, ...}
  */
-class ngraph::pass::ConvStridesPropagation: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvStridesPropagation : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvStridesPropagation", "0");
     ConvStridesPropagation();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SupportedNodesStridesPropagation either propagates stride (greater than 1) from current node up through the graph
- * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
+ * @brief SupportedNodesStridesPropagation either propagates stride (greater than 1) from current node up through the
+ * graph or inserts pooling between current node and its consumers if the consumers have different StridesProp
+ * attributes.
  */
-class ngraph::pass::SupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
+class ngraph::pass::SupportedNodesStridesPropagation : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SupportedNodesStridesPropagation", "0");
     SupportedNodesStridesPropagation();
 };
 
@@ -49,19 +50,20 @@ public:
  * @brief UnsupportedNodesStridesPropagation inserts pooling between current node and its consumers
  * if the consumers have different StridesProp attributes.
  */
-class ngraph::pass::UnsupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
+class ngraph::pass::UnsupportedNodesStridesPropagation : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("UnsupportedNodesStridesPropagation", "0");
     UnsupportedNodesStridesPropagation();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief StridesOptimization transformation works backward on function and propagates strides up through the graph if possible
+ * @brief StridesOptimization transformation works backward on function and propagates strides up through the graph if
+ * possible
  */
-class ngraph::pass::StridesOptimization: public ngraph::pass::BackwardGraphRewrite {
+class ngraph::pass::StridesOptimization : public ngraph::pass::BackwardGraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("StridesOptimization", "0");
     StridesOptimization() {
         add_matcher<ngraph::pass::ConvStridesPropagation>();
         add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();

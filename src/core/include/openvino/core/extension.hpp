@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ class Extension;
 
 /**
  * @brief The class provides the base interface for OpenVINO extensions
+ * @ingroup ov_model_cpp_api
  */
 class OPENVINO_API Extension {
 public:

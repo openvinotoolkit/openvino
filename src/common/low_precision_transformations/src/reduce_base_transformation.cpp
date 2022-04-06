@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph:
         return false;
     }
 
-    const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce));
+    const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);
@@ -31,12 +31,8 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph:
 }
 
 bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    const auto dequantization = NetworkHelper::getDequantization(reduce);
+    const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
-        return false;
-    }
-
-    if (NetworkHelper::isDQByDynamicDimension(reduce)) {
         return false;
     }
 

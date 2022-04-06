@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -118,6 +119,20 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo& set_shape(const ov::PartialShape& shape);
+
+    /// \brief Helper function to reuse element type and shape from user's created tensor. Use this only in case if
+    /// input tensor is already known and available before. Overwrites previously set element type & shape via
+    /// `set_element_type` and `set_shape`. Tensor's memory type is not reused, so if `runtime_tensor` represents remote
+    /// tensor with particular memory type - you should still specify appropriate memory type manually using
+    /// `set_memory_type`
+    ///
+    /// \note As for `InputTensorInfo::set_shape`, this method shall not be used together with methods
+    /// 'set_spatial_dynamic_shape' and 'set_spatial_static_shape', otherwise ov::AssertFailure exception will be thrown
+    ///
+    /// \param runtime_tensor User's created tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_from(const ov::Tensor& runtime_tensor);
 };
 
 }  // namespace preprocess

@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -23,7 +23,7 @@ class ModelStore:
         # load model description to self.models
         self._load_models_description()
 
-    def get(self, name, framework, tmp_path, model_precision='FP32'):
+    def get(self, name, framework, tmp_path, model_precision='FP32', custom_mo_config=None):
         for model in self.models:
             if framework != model.framework:
                 continue
@@ -38,7 +38,7 @@ class ModelStore:
                         'Couldn\'t load model {} from the framework {}'.format(model.name, model.framework))
                 assert omz_model_download(model) == 0,\
                     'Can not download model: {}'.format(model.name)
-                convert_value = omz_model_convert(model)
+                convert_value = omz_model_convert(model, custom_mo_config)
                 assert convert_value == 0, 'Can not convert model: {}'.format(model.name)
                 model_path = tmp_path.joinpath(
                     model.subdirectory.as_posix(), model.precision, model.name)

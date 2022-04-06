@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,30 +6,32 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class OptimizeGRUSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeGRUSequenceTransposes", "0");
     OptimizeGRUSequenceTransposes();
 };
 
 class OptimizeLSTMSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeLSTMSequenceTransposes", "0");
     OptimizeLSTMSequenceTransposes();
 };
 
 class OptimizeRNNSequenceTransposes : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeRNNSequenceTransposes", "0");
     OptimizeRNNSequenceTransposes();
 };
 
 class OptimizeSequenceTransposes : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("OptimizeSequenceTransposes", "0");
     OptimizeSequenceTransposes();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

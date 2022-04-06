@@ -1,11 +1,11 @@
-# Converting EfficientDet Models from TensorFlow {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models}
+# Convert TensorFlow EfficientDet Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models}
 
-This tutorial explains how to convert EfficientDet\* public object detection models to the Intermediate Representation (IR). 
+This tutorial explains how to convert EfficientDet\* public object detection models to the Intermediate Representation (IR).
 
 ## <a name="efficientdet-to-ir"></a>Convert EfficientDet Model to IR
 
-On GitHub*, you can find several public versions of EfficientDet model implementation. This tutorial explains how to 
-convert models from the [https://github.com/google/automl/tree/master/efficientdet](https://github.com/google/automl/tree/master/efficientdet) 
+On GitHub*, you can find several public versions of EfficientDet model implementation. This tutorial explains how to
+convert models from the [https://github.com/google/automl/tree/master/efficientdet](https://github.com/google/automl/tree/master/efficientdet)
 repository (commit 96e1fee) to IR.
 
 ### Get Frozen TensorFlow\* Model
@@ -60,15 +60,15 @@ dictionary in the [hparams_config.py](https://github.com/google/automl/blob/96e1
 The attribute `image_size` specifies the shape to be specified for the model conversion.
 
 The `transformations_config` command line parameter specifies the configuration json file containing hints
-to the Model Optimizer on how to convert the model and trigger transformations implemented in the 
+to the Model Optimizer on how to convert the model and trigger transformations implemented in the
 `<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf/AutomlEfficientDet.py`. The json file contains some parameters which must be changed if you
 train the model yourself and modified the `hparams_config` file or the parameters are different from the ones used for EfficientDet-D4.
 The attribute names are self-explanatory or match the name in the `hparams_config` file.
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
-OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to 
-[Open Model Zoo Demos](@ref omz_demos) and 
+OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to
+[Open Model Zoo Demos](@ref omz_demos) and
 
 ## <a name="efficientdet-ir-results-interpretation"></a>Interpreting Results of the TensorFlow Model and the IR
 
@@ -91,8 +91,3 @@ The output of the IR is a list of 7-element tuples: `[image_id, class_id, confid
 * `y_max` -- normalized `y` coordinate of the upper right corner of the detected object.
 
 The first element with `image_id = -1` means end of data.
-
----
-## See Also
-
-* [Sub-Graph Replacement in Model Optimizer](../../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)

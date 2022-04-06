@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,162 +10,120 @@
 #include <string>
 
 #include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
 
-using namespace InferenceEngine;
 
-std::function<void()> load_unload_plugin(const std::string &target_device) {
+std::function<void()> load_unload_plugin(const std::string &target_device, const int &api_version) {
     return [&] {
-        Core ie;
-        // GetVersions silently register plugin in `plugins` through `GetCPPPluginByName`
-        ie.GetVersions(target_device);
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        // get_versions silently register plugin in `plugins` through `GetCPPPluginByName`
+        ie_api_wrapper->load_plugin(target_device);
         // Remove plugin for target_device from `plugins`
-        ie.UnregisterPlugin(target_device);
+        ie_api_wrapper->unload_plugin(target_device);
     };
 }
 
-std::function<void()> read_cnnnetwork(const std::string &model) {
+std::function<void()> read_cnnnetwork(const std::string &model, const int &api_version) {
     return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
     };
 }
 
-std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model) {
+std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, const int &iter, const int &api_version) {
     return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-        ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
-        bool doReshape = false;
-        for (const InputsDataMap::value_type& input : inputInfo) {
-            int batchIndex = -1;
-            auto layout = input.second->getTensorDesc().getLayout();
-            if ((layout == Layout::NCHW) || (layout == Layout::NCDHW) ||
-                (layout == Layout::NHWC) || (layout == Layout::NDHWC) ||
-                (layout == Layout::NC)) {
-                batchIndex = 0;
-            } else if (layout == CN) {
-                batchIndex = 1;
-            }
-            if (batchIndex != -1) {
-                shapes[input.first][batchIndex] *= 2;
-                doReshape = true;
-            }
-        }
-        if (doReshape)
-            cnnNetwork.reshape(shapes);
-        else
-            throw std::logic_error("Reshape wasn't applied for a model.");
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->change_batch_size(2, iter);
     };
 }
 
-std::function<void()> set_input_params(const std::string &model) {
+std::function<void()> set_input_params(const std::string &model, const int &api_version) {
     return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-        for (auto &input : inputInfo) {
-            input.second->getPreProcess().setResizeAlgorithm(NO_RESIZE);
-            input.second->setPrecision(Precision::U8);
-            if (input.second->getInputData()->getTensorDesc().getDims().size() == 4)
-                input.second->setLayout(Layout::NCHW);
-            else if (input.second->getInputData()->getTensorDesc().getDims().size() == 2)
-                input.second->setLayout(Layout::NC);
-            else
-                throw std::logic_error("Setting of input parameters wasn't applied for a model.");
-        }
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->set_input_params(model);
     };
 }
 
-std::function<void()> create_exenetwork(const std::string &model, const std::string &target_device) {
+std::function<void()>
+create_compiled_model(const std::string &model, const std::string &target_device, const int &api_version) {
     return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(target_device);
     };
 }
 
-std::function<void()> recreate_exenetwork(Core &ie, const std::string &model, const std::string &target_device) {
+std::function<void()> recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper, const std::string &model,
+                                              const std::string &target_device, const int &api_version) {
     return [&] {
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-    };
-}
-
-std::function<void()> create_infer_request(const std::string &model, const std::string &target_device) {
-    return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-        InferRequest infer_request = exeNetwork.CreateInferRequest();
+        ie_wrapper->load_plugin(target_device);
+        ie_wrapper->read_network(model);
+        ie_wrapper->load_network(target_device);
     };
 }
 
 
-std::function<void()> recreate_infer_request(InferenceEngine::ExecutableNetwork& exeNetwork) {
+std::function<void()>
+create_infer_request(const std::string &model, const std::string &target_device, const int &api_version) {
     return [&] {
-        InferRequest infer_request = exeNetwork.CreateInferRequest();
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->create_infer_request();
     };
 }
 
-std::function<void()> infer_request_inference(const std::string &model, const std::string &target_device) {
+
+std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_wrapper) {
     return [&] {
-        Core ie;
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-        InferRequest infer_request = exeNetwork.CreateInferRequest();
-
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        fillBlobs(infer_request, inputsInfo, batchSize);
-
-        infer_request.Infer();
-        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-        for (auto &output : output_info)
-            Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
+        ie_wrapper->create_infer_request();
     };
 }
 
-std::function<void()> reinfer_request_inference(InferenceEngine::InferRequest& infer_request, InferenceEngine::OutputsDataMap& output_info) {
+
+std::function<void()>
+infer_request_inference(const std::string &model, const std::string &target_device, const int &api_version) {
     return [&] {
-        infer_request.Infer();
-        for (auto &output : output_info)
-            Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->create_infer_request();
+        ie_api_wrapper->prepare_input();
+        ie_api_wrapper->infer();
     };
 }
 
-std::function<void()> inference_with_streams(const std::string &model, const std::string &target_device, const int& nstreams) {
+
+std::function<void()> reinfer_request_inference(std::shared_ptr<InferApiBase> &ie_wrapper) {
     return [&] {
-        std::map<std::string, std::string> config;
-        config[target_device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
+        ie_wrapper->infer();
+    };
+}
 
-        Core ie;
-        ie.GetVersions(target_device);
-        ie.SetConfig(config, target_device);
 
-        InferRequest inferRequest;
-
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-
+std::function<void()>
+inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams,
+                       const int &api_version) {
+    return [&] {
         unsigned int nireq = nstreams;
+        auto ie_api_wrapper = create_infer_api_wrapper(api_version);
+        ie_api_wrapper->load_plugin(target_device);
+        ie_api_wrapper->set_config(target_device, "THROUGHPUT_STREAMS", nstreams);
+        ie_api_wrapper->read_network(model);
+        ie_api_wrapper->load_network(target_device);
         try {
-            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            nireq = ie_api_wrapper->get_property(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
         } catch (const std::exception &ex) {
             log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
         }
-        for (int counter = 0; counter < nireq; counter++) {
-            inferRequest = exeNetwork.CreateInferRequest();
-            fillBlobs(inferRequest, inputsInfo, batchSize);
 
-            inferRequest.Infer();
-            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-            for (auto &output : output_info)
-                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        for (int counter = 0; counter < nireq; counter++) {
+            ie_api_wrapper->create_infer_request();
+            ie_api_wrapper->prepare_input();
+
+            ie_api_wrapper->infer();
         }
     };
 }

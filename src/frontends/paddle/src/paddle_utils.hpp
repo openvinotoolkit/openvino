@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,14 +30,6 @@ inline std::basic_string<wchar_t> get_path_sep() {
     return std::basic_string<wchar_t>{WPATH_SEPARATOR};
 }
 #endif
-
-template <typename T>
-bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
-    if (str.length() >= suffix.length()) {
-        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-    }
-    return false;
-}
 
 std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order);
 }  // namespace paddle

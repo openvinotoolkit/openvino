@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -32,7 +32,7 @@ class Benchmark:
 
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
-            self.core.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
+            self.core.set_property(GPU_DEVICE_NAME, {'CONFIG_FILE': path_to_cldnn_config})
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
@@ -50,10 +50,10 @@ class Benchmark:
 
     def set_config(self, config = {}):
         for device in config.keys():
-            self.core.set_config(config[device], device)
+            self.core.set_property(device, config[device])
 
     def set_cache_dir(self, cache_dir: str):
-        self.core.set_config({'CACHE_DIR': cache_dir}, '')
+        self.core.set_property({'CACHE_DIR': cache_dir})
 
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)

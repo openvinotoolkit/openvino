@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -192,8 +192,8 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
         _result = FMA8(_blockB1.s7, TRANSPOSE_8(_blockA, 15), _result); \
     }
 
-                    INPUT_TYPE8 blockA0 = DT_INPUT_BLOCK_READ(diff_dst1, 0);
-                    INPUT_TYPE8 blockA1 = DT_INPUT_BLOCK_READ(diff_dst1, 8 * OC_BLOCK);
+                    INPUT_TYPE8 blockA0 = DT_INPUT_BLOCK_READ8(diff_dst1, 0);
+                    INPUT_TYPE8 blockA1 = DT_INPUT_BLOCK_READ8(diff_dst1, 8 * OC_BLOCK);
                     FILTER_TYPE8 blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
                     FILTER_TYPE8 blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
                     MULTIPLY_BLOCKS_8x8(blockC00, blockA0, blockB00, blockB01);

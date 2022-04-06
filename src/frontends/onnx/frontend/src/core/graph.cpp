@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,16 +51,6 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
-
-bool common_node_for_all_outputs(const OutputVector& outputs) {
-    const auto first_out_node = outputs.at(0).get_node();
-    bool ret = std::all_of(std::next(std::begin(outputs)),
-                           std::end(outputs),
-                           [first_out_node](const OutputVector::value_type& output) {
-                               return output.get_node() == first_out_node;
-                           });
-    return ret;
-};
 }  // namespace detail
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
@@ -85,13 +75,8 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
-            } catch (const ngraph::ngraph_error& exc) {
-                NGRAPH_WARN << "\nCould not create an nGraph Constant for initializer '" << initializer_tensor.name()
-                            << "'. Constant with a 0 value was created, make sure connected input is optional.\n"
-                            << "Otherwise verify if the initializer contains a correct number of "
-                               "elements matching the initializer's shape. \nDetailed error:\n"
-                            << exc.what();
-                ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
+            } catch (const ngraph::ngraph_error&) {
+                ng_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ng_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
@@ -144,7 +129,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     }
 
     NGRAPH_CHECK(unknown_operators.empty(),
-                 "nGraph does not support the following ONNX operations: ",
+                 "OpenVINO does not support the following ONNX operations: ",
                  detail::to_string(unknown_operators));
 }
 
@@ -201,34 +186,38 @@ std::shared_ptr<Function> Graph::convert() {
     return create_function();
 }
 
+OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
+    std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
+    if (onnx_node.has_subgraphs()) {
+        const auto& subgraphs = onnx_node.get_subgraphs();
+        auto inputs = onnx_node.get_ng_inputs();
+        std::vector<std::shared_ptr<Function>> functions;
+        for (const auto& kv : subgraphs) {
+            auto& subgraph = kv.second;
+            functions.push_back(subgraph->decode());
+            for (const auto& input : subgraph->get_inputs_from_parent()) {
+                const auto& name = input.get_node()->get_friendly_name();
+                if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
+                        return name == n.get_node()->get_friendly_name();
+                    }) == inputs.end()) {
+                    inputs.push_back(input);
+                }
+            }
+        }
+        framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(onnx_node, functions, inputs);
+    } else {
+        framework_node = std::make_shared<frontend::ONNXFrameworkNode>(onnx_node);
+    }
+    return framework_node->outputs();
+}
+
 void Graph::decode_to_framework_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
     // Process ONNX graph nodes, convert to nGraph nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
-        std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
-        if (node.has_subgraphs()) {
-            const auto& subgraphs = node.get_subgraphs();
-            auto inputs = node.get_ng_inputs();
-            std::vector<std::shared_ptr<Function>> functions;
-            for (const auto& kv : subgraphs) {
-                auto& subgraph = kv.second;
-                functions.push_back(subgraph->decode());
-                for (const auto& input : subgraph->get_inputs_from_parent()) {
-                    const auto& name = input.get_node()->get_friendly_name();
-                    if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
-                            return name == n.get_node()->get_friendly_name();
-                        }) == inputs.end()) {
-                        inputs.push_back(input);
-                    }
-                }
-            }
-            framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(node, functions, inputs);
-        } else {
-            framework_node = std::make_shared<frontend::ONNXFrameworkNode>(node);
-        }
-        OutputVector ng_nodes{framework_node->outputs()};
+        OutputVector ng_nodes{make_framework_nodes(node)};
         set_friendly_names(node, ng_nodes);
         // Iterate over the number of outputs for given node in graph.
         // Some of them may be optional and trimmed. See:
@@ -280,7 +269,7 @@ OutputVector Graph::get_ng_outputs() const {
     return results;
 }
 
-OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
+OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
     const auto ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
     // contains outputs of nG subgraph implementing a particular ONNX node (possibly a single output of a single node)
     OutputVector ng_subgraph_outputs;
@@ -314,12 +303,10 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
     if (onnx_node.op_type() == "Identity") {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
             ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
         }
         return;
     }
-
-    // indicates that all subgraph outputs come out of a single nG node (controls node naming below)
-    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
 
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
@@ -328,27 +315,14 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        const auto& onnx_node_name = onnx_node.get_name();
-        if (onnx_node_name.empty()) {
-            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
-            // this is because this setter is called in a loop and the last call is ultimate for a given node
-            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
-        } else {
-            if (common_node) {
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
-            } else {
-                // if different outputs are produced by different nodes, then those nodes need to be given
-                // unique friendly names
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
-            }
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
-            NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 }
@@ -379,78 +353,14 @@ Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) c
     return m_parent_graph->get_ng_node_from_cache(name);
 }
 
-void Subgraph::replace_input_from_parent_scope_with_parameter(const std::string& in_name,
-                                                              const Output<ngraph::Node>& from_parent_node,
-                                                              Input<ngraph::Node>&& node_to_replace_input) {
-    auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
-                                                             from_parent_node.get_partial_shape());
-    node_to_replace_input.replace_source_output(new_param);
-    m_parameter_to_parent_node_map.insert({new_param, in_name});
-    m_cache->emplace_node(in_name, new_param);
-    m_parameters.push_back(new_param);
-    m_inputs_from_parent.push_back(in_name);
-}
-
-void Subgraph::find_inputs_from_parent() {
-    // find all nodes on edge parent graph-subgraph
-    // (it means input of node from parent graph, output from subgraph)
-    for (const auto& node_proto : m_model->get_graph().node()) {
-        int input_index = 0;
-        for (const auto& in_name : node_proto.input()) {
-            if (m_parent_graph->is_ng_node_in_cache(in_name)) {
-                const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
-                // constants are skipped
-                if (!ngraph::is_type<ngraph::op::Constant>(from_parent_node.get_node_shared_ptr())) {
-                    for (const auto& out_name : node_proto.output()) {
-                        if (m_cache->contains(out_name)) {
-                            auto node_to_replace_input = m_cache->get_node(out_name);
-                            replace_input_from_parent_scope_with_parameter(
-                                in_name,
-                                from_parent_node,
-                                node_to_replace_input.get_node()->input(input_index));
-                        }
-                    }
-                }
-            }
-            ++input_index;
-        }
-        // Nodes with subgraphs (like Loop or If) can have implicit inputs (so their subgraphs depend on nodes from
-        // parent) Those implicit inputs are not present in `node_proto.input()` list so to get them, we need to fetch
-        // node's nGraph representation and then we can match those inputs with parent nodes
-        for (const auto& out_name : node_proto.output()) {
-            if (m_cache->contains(out_name)) {
-                auto node_to_replace_input = m_cache->get_node(out_name).get_node();
-                if (!ov::is_type<op::util::MultiSubGraphOp>(node_to_replace_input) &&
-                    !ov::is_type<frontend::ONNXSubgraphFrameworkNode>(node_to_replace_input))
-                    continue;
-                auto inputs = node_to_replace_input->input_values();
-                for (size_t i = 0; i < inputs.size(); i++) {
-                    const auto& input = inputs.at(i);
-                    auto input_node = input.get_node();
-                    if (op::is_constant(input_node))
-                        continue;
-                    const auto& in_name = input_node->get_friendly_name();
-                    if (m_parent_graph->is_ng_node_in_cache(in_name)) {
-                        const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
-                        replace_input_from_parent_scope_with_parameter(in_name,
-                                                                       from_parent_node,
-                                                                       node_to_replace_input->input(i));
-                    }
-                }
-            }
-        }
-    }
+OutputVector Subgraph::make_ng_nodes(const Node& onnx_node) {
+    replace_input_from_parent_scope_with_parameter(onnx_node);
+    return Graph::make_ng_nodes(onnx_node);
 }
 
 std::shared_ptr<Function> Subgraph::convert() {
     convert_to_ngraph_nodes();
-    find_inputs_from_parent();
     return create_function();
-}
-
-void Subgraph::decode_to_framework_nodes() {
-    Graph::decode_to_framework_nodes();
-    find_inputs_from_parent();
 }
 
 const std::vector<Output<ngraph::Node>> Subgraph::get_inputs_from_parent() const {
@@ -467,6 +377,30 @@ void Subgraph::infer_inputs_from_parent() {
         auto& parameter = it.first;
         parameter->set_element_type(node.get_element_type());
         parameter->set_partial_shape(node.get_partial_shape());
+    }
+}
+
+OutputVector Subgraph::make_framework_nodes(const Node& onnx_node) {
+    replace_input_from_parent_scope_with_parameter(onnx_node);
+    return Graph::make_framework_nodes(onnx_node);
+}
+
+void Subgraph::replace_input_from_parent_scope_with_parameter(const Node& onnx_node) {
+    for (std::size_t i = 0; i < onnx_node.get_inputs_size(); ++i) {
+        const auto& in_name = onnx_node.input(i);
+        if (m_parent_graph->is_ng_node_in_cache(in_name) &&
+            std::find(m_inputs_from_parent.begin(), m_inputs_from_parent.end(), in_name) ==
+                m_inputs_from_parent.end()) {
+            const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
+            if (op::is_constant(from_parent_node.get_node()))
+                continue;
+            auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
+                                                                     from_parent_node.get_partial_shape());
+            m_parameter_to_parent_node_map.insert({new_param, in_name});
+            m_cache->emplace_node(in_name, new_param);
+            m_parameters.push_back(new_param);
+            m_inputs_from_parent.push_back(in_name);
+        }
     }
 }
 

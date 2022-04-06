@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,12 +35,12 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
 CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const lrn_params& params) const {
     CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::X },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH }};
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     const unsigned int alignment = 16;
 
     dispatchData.gws = { Align(out.Feature().v, alignment),

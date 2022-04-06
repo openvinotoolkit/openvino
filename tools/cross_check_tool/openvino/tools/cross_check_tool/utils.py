@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -6,7 +6,10 @@ import logging as log
 import os
 import sys
 import traceback
-import xml
+from pathlib import Path
+
+from openvino.runtime import Layout, ProfilingInfo, Output
+from openvino.runtime.utils.types import get_dtype
 
 try:
     import cv2
@@ -137,7 +140,7 @@ def build_parser():
               '\n--device device_for_model                          \\'
               '\n--reference_device reference_device_for_model      \n'
               + '-' * 62 +
-              '\nFor dumping blob and performance counters run:'
+              '\nFor dumping tensors and performance counters run:'
               '\npython3 cross_check_tool.py                        \\'
               '\n--input path/to/file/describing/input              \\'
               '\n--model path/to/model/*.xml                        \\'
@@ -162,7 +165,7 @@ def build_parser():
     )
 
     model = parser.add_argument_group('Model specific arguments')
-    model.add_argument('--input', '-i', type=str, action=ExistingFileAction,
+    model.add_argument('--input', '-i', type=str,
                        help='Path to an input image file or multi-input file to infer. Generates input(s) from normal '
                             'distribution if empty')
     # model.add_argument('--batch', '-b', type=int, help='Overrides batch size. Default is inherited from model')
@@ -171,14 +174,13 @@ def build_parser():
     model.add_argument('--reference_model', '-ref_m', type=str, action=ExistingFileAction,
                        help='Path to an .xml file that represents the second IR to compare the metrics. '
                             'Uses --model if empty')
+    # TODO: allow to pass layer type
     model.add_argument('--layers', '-layers', type=str, default=None,
                        help='Defines layers to check. Options: all, None - for output layers check, list of '
                             'comma-separated layer names to check. Default value is None.')
-    model.add_argument('--mapping', '-map', type=str, action=ExistingFileAction,
-                       help='Model Optimizer provided mapping for --model/-m')
-    model.add_argument('--reference_mapping', '-ref_map', type=str, action=ExistingFileAction,
-                       help='Model Optimizer provided mapping for --reference_model/-ref_model')
-
+    model.add_argument('-ref_layers', '--reference_layers', type=str, default=None,
+                       help='Defines layers to check in referece model. Options: all, None - for output layers check, list of '
+                            'comma-separated layer names to check. If not specified the same layers will be processed as in --layers parameter.')
     plugin = parser.add_argument_group('Plugin specific arguments')
     plugin.add_argument('--plugin_path', '-pp', type=str, action=ExistingDirAction, help='Path to a plugin folder.')
     plugin.add_argument('--device', '-d', type=str, required=True,
@@ -192,13 +194,13 @@ def build_parser():
     plugin.add_argument('--reference_config', '-ref_conf', type=str, action=ExistingFileAction,
                         help='Path to config file for -ref_d or -reference_device device plugin')
     plugin.add_argument('-l', type=str, action=ExistingFileAction,
-                        help='Required for MKLDNN (CPU)-targeted custom layers. Comma separated paths to a shared'
+                        help='Required for (CPU)-targeted custom layers. Comma separated paths to a shared'
                              ' libraries with the kernels implementation.')
 
     modes = parser.add_argument_group('CCT mode arguments')
     # TODO eps? nobody uses it
-    modes.add_argument('--dump', help='Enables blobs statistics dumping', action='store_true', default=False)
-    modes.add_argument('--load', type=str, action=ExistingFileAction, help='Path to a file to load blobs from')
+    modes.add_argument('--dump', help='Enables tensors statistics dumping', action='store_true', default=False)
+    modes.add_argument('--load', type=str, action=ExistingFileAction, help='Path to a file to load tensors from')
     model.add_argument('--num_of_iterations', '-ni', type=int, default=50,
                        help='Number of iterations to collect all over the net performance')
     parser.add_argument('-v', '--verbosity', action='store_true', default=False,
@@ -219,10 +221,10 @@ def validate_args(args):
         args.model = args.reference_model
     if args.model == args.reference_model:
         args.reference_model = None
-    if args.model != args.reference_model and args.reference_model is not None and args.mapping is None and \
-            args.reference_mapping is None:
-        log.warning('Check over two different IRs was enabled. In case if layer names in this two IRs differ, '
-                    'please provide mapping files with --mapping/-map and --reference_mapping/-ref_map')
+    if args.model != args.reference_model and args.reference_model is not None and (args.layers is None or \
+            args.reference_layers is None):
+        log.warning('Check over two different IRs was enabled. In case if layer names in these two IRs are different, '
+                    'please provide both -layers and --reference_layers to compare against.')
     # device check
     if args.device is None and args.reference_device is None:
         raise Exception("Parameters -device/-d and -reference_device/-ref_d are not set. Can not proceed."
@@ -273,14 +275,13 @@ def find_out_cct_mode(args):
     raise Exception('Unknown Cross Check Tool CLI configuration.\nFor more details use -h option')
 
 
-def print_input_layers(inputs: list):
+def print_inputs(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
-    log.info(f"{len(inputs)} {word} detected: {', '.join(inputs)}")
+    log.info(f"{len(inputs)} {word} detected: {', '.join(input.any_name for input in inputs)}")
 
-
-def print_output_layers(outputs: list):
-    layers = 'layers' if len(outputs) > 1 else 'layer'
-    log.info(f"Statistics will be dumped for {len(outputs)} {layers}: {', '.join(outputs)}")
+def print_output_ops(output_ops: list):
+    layers = 'layers' if len(output_ops) > 1 else 'layer'
+    log.info(f"Statistics will be dumped for {len(output_ops)} {layers}: {', '.join(op.friendly_name for op in output_ops)}")
 
 
 ###
@@ -306,70 +307,132 @@ def get_config_dictionary(config_file):
 ###
 
 
-def read_multi_input_file(input_file: str, net_inputs: dict):
+def read_multi_input_file(input_file: str, model_inputs: list):
     npz = np.load(input_file, allow_pickle=True)
     files = npz.files
-    dump = {}
-    for net_input in net_inputs:
-        if net_input not in files:
-            raise Exception(f"Can not find input data for input {net_input} in multi-input file {input_file}.\n"
+    dump = []
+    for model_input in model_inputs:
+        if model_input.any_name not in files:
+            raise Exception(f"Can not find input data for input {model_input.any_name} in multi-input file {input_file}.\n"
                             f"Input data was provided for layers: {', '.join(files)}\n"
-                            f"Network inputs: {', '.join(net_inputs.keys())}")
-        if 'blob' in npz[net_input].item(0):
-            just_blob = npz[net_input].item(0)['blob']
-            network_shape = net_inputs[net_input].input_data.shape
-            log.info(f'Layer {net_input} shape = {network_shape}, input blob from multi-input file shape = {just_blob.shape}')
+                            f"Network inputs: {', '.join(input.any_name for input in model_inputs)}")
+        if 'tensor' in npz[model_input.any_name].item(0):
+            just_tensor = npz[model_input.any_name].item(0)['tensor']
+            input_shape = list(model_input.shape)
+            log.info(f'Layer {model_input.any_name} shape = {input_shape}, input tensor from multi-input file shape = {just_tensor.shape}')
             try:
-                reshaped_blob = np.reshape(just_blob, network_shape)
+                reshaped_tensor = np.reshape(just_tensor, input_shape)
             except:
-                raise Exception(f'Can not reshape input blob from multi-input file for layer {net_input} to shape {network_shape}')
-            dump[net_input] = reshaped_blob
+                raise Exception(f'Can not reshape input tensor from multi-input file for layer {model_input.any_name} to shape {input_shape}')
+            dump.append(reshaped_tensor)
         else:
             raise Exception(
-                f'Can not find \'blob\' parameter for input {net_input} in input file {input_file}')
+                f'Can not find \'tensor\' parameter for input {model_input.any_name} in input file {input_file}')
     return dump
+
+
+def is_chw_input(input):
+    if input.node.layout == Layout("NCHW") or input.node.layout == Layout("CHW"):
+        return True
+    shape = input.shape
+    if len(shape) == 4:
+        return shape[1] == 3
+    if len(shape) == 3:
+        return shape[0] == 3
+    return False
+
+
+def get_input_sizes(input):
+    if is_chw_input(input):
+        shape = input.shape
+        if len(shape) == 3:
+            return shape[1], shape[2]
+        else:
+            return shape[2], shape[3]
+    else:
+        shape = input.shape
+        if len(shape) < 3 or len(shape) > 4:
+            raise Exception('Can not interpret input shape as image')
+        if len(shape) == 3:
+            return shape[0], shape[1]
+        else:
+            return shape[1], shape[2]
 
 
 @error_handling('reading --input/-i by OpenCV python module. OpenCV version: {}. '
                 'It may happen due to wrong input image format'.format(cv2.__version__))
-def read_image_file(input_file: str, net_inputs: dict):
-    inputs = dict()
-    if len(net_inputs) == 1:
-        image = cv2.imread(input_file)
-        if image is None:
-            raise Exception('Can not read input image ' + input_file)
-        only_layer_name = list(net_inputs.keys())[0]
-        shape = net_inputs[only_layer_name].input_data.shape
-        if len(shape) != 4:
-            raise Exception('Can not interpret input shape as image')
-        n, c, h, w = shape
-        image = cv2.resize(image, (w, h))
+def read_image_file(image_file: str, model_input: Output):
+    image_file = str(image_file)
+    log.info(f'Prepare image {image_file}')
+    image = cv2.imread(image_file)
+    if image is None:
+        raise Exception('Can not read input image ' + image_file)
+    h, w = get_input_sizes(model_input)
+    image = cv2.resize(image, (w, h))
+    if is_chw_input(model_input):
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        image = image.reshape((n, c, h, w))
-        inputs[only_layer_name] = image
-    else:
-        raise Exception('Multi-input topology detected. Please provide multi-input file to --input key')
+    if len(model_input.shape) == 4:
+        image = np.expand_dims(image, 0) # Add batch dimension
+    return image
+
+
+def get_random_inputs(model_inputs, model_path):
+    inputs = [np.clip(np.random.normal(0.5, 0.1, size=list(input.shape)), 0, 1) for input in model_inputs]
+    dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'tensor': inputs[i]} for i in range(len(model_inputs))})
     return inputs
 
 
-def input_processing(model_path: str, net_inputs: dict, input_file: str, layers_map: dict = None):
-    inputs = dict()
+def read_binary_file(bin_file, model_input):
+    log.info(f"Prepare binary file {str(bin_file)}")
+    binary_file_size = os.path.getsize(bin_file)
+    tensor_size = model_input.tensor.size
+    if tensor_size != binary_file_size:
+        raise Exception(f"File {bin_file} contains {binary_file_size} bytes but model expects {tensor_size}")
+    return np.reshape(np.fromfile(bin_file, get_dtype(model_input.element_type)), list(model_input.shape))
+
+
+def input_processing(model_path: str, model_inputs: list, input_file: str):
     if input_file is None:
-        for net_input in net_inputs:
-            inputs[net_input] = np.clip(np.random.normal(0.5, 0.1, size=net_inputs[net_input].input_data.shape), 0, 1)
-        dump_output_file(model_path + '_random_input_dump.npz', {inp: {'blob': inputs[inp]} for inp in inputs})
-        return inputs
-    try:
-        inputs = read_multi_input_file(input_file=input_file, net_inputs=net_inputs)
-    except:
-        inputs = read_image_file(input_file=input_file, net_inputs=net_inputs)
-    return inputs
+        return get_random_inputs(model_inputs, model_path)
+    else:
+        inputs = input_file.split(',')
+        input_names = [input.any_name for input in model_inputs]
+        input_data = {}
+        for i in range(min(len(inputs), len(model_inputs))):
+            splited = inputs[i].rsplit(':', maxsplit=1)
+            if len(splited) == 0:
+                raise Exception(f"Can't parse {'input_file'} input parameter!")
+            tensor_name = None
+            if len(splited) == 1:
+                tensor_name = input_names[i]
+            else:
+                tensor_name = splited.pop(0)
+            if tensor_name not in input_names:
+                raise Exception(f"Input with name {tensor_name} doesn't exist in the model!")
+            path = Path(splited.pop())
+            if path.exists() and path.is_file():
+                IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
+                BINARY_EXTENSIONS = ['.bin']
+                NUMPY_EXTENSIONS = ['.npy', '.npz']
+                current_input = model_inputs[input_names.index(tensor_name)]
+                if path.suffix.lower() in IMAGE_EXTENSIONS:
+                    input_data[tensor_name] = read_image_file(path, current_input)
+                elif path.suffix.lower() in BINARY_EXTENSIONS:
+                    input_data[tensor_name] = read_binary_file(path, current_input)
+                elif path.suffix.lower() in NUMPY_EXTENSIONS:
+                    return read_multi_input_file(path, model_inputs)
+            elif path.is_dir():
+                raise Exception(f"Path `{path}` is a directory! Provide full path to an input file!")
+            elif not path.exists():
+                raise Exception(f"Input file `{path}` doesn't exist!")
+    return input_data
 
 
-def accuracy_metrics(out_blob, ref_out_blob):
-    if out_blob.size != ref_out_blob.size:
-        raise Exception(f'Different number of elements in blobs {out_blob.size} and {ref_out_blob.size}. Can not compare')
-    abs_diff = np.absolute(out_blob - ref_out_blob)
+def accuracy_metrics(tensor, ref_tensor):
+    if tensor.size != ref_tensor.size:
+        raise Exception(f'Different number of elements in tensors {tensor.size} and {ref_tensor.size}. Can not compare')
+    abs_diff = np.absolute(tensor - ref_tensor)
+    np.seterr(divide='ignore', invalid='ignore')
     rel_diff = np.divide(abs_diff, np.min(abs_diff) if np.min(abs_diff) != 0 else 1e-20)
 
     metrics = [
@@ -377,14 +440,14 @@ def accuracy_metrics(out_blob, ref_out_blob):
         ('Min absolute difference', np.min(abs_diff)),
         ('Max relative difference', np.max(rel_diff)),
         ('Min relative difference', np.min(rel_diff)),
-        ('Min reference value', np.min(ref_out_blob)),
-        ('Min absolute reference value', np.min(np.abs(ref_out_blob))),
-        ('Max reference value', np.max(ref_out_blob)),
-        ('Max absolute reference value', np.max(np.abs(ref_out_blob))),
-        ('Min actual value', np.min(out_blob)),
-        ('Min absolute actual value', np.min(np.abs(out_blob))),
-        ('Max actual value', np.max(out_blob)),
-        ('Max absolute actual value', np.max(np.abs(out_blob)))
+        ('Min reference value', np.min(ref_tensor)),
+        ('Min absolute reference value', np.min(np.abs(ref_tensor))),
+        ('Max reference value', np.max(ref_tensor)),
+        ('Max absolute reference value', np.max(np.abs(ref_tensor))),
+        ('Min actual value', np.min(tensor)),
+        ('Min absolute actual value', np.min(np.abs(tensor))),
+        ('Max actual value', np.max(tensor)),
+        ('Max absolute actual value', np.max(np.abs(tensor)))
     ]
 
     for key, value in metrics:
@@ -395,24 +458,24 @@ def accuracy_metrics(out_blob, ref_out_blob):
     return {metric: value for metric, value in metrics}
 
 
-def performance_metrics(pc, ref_pc):
+def performance_metrics(device, pc, ref_device, ref_pc):
     compare = [
-        ('Device', '-d ' + pc['device'], '-ref_d ' + ref_pc['device']),
-        ('Status', pc['status'], ref_pc['status']),
-        ('Layer type', pc['layer_type'], ref_pc['layer_type']),
-        ('Real time, microsec', pc['real_time'], ref_pc['real_time'])
+        ('Device', '-d ' + device, '-ref_d ' + ref_device),
+        ('Status', str(pc.status), str(ref_pc.status)),
+        ('Layer type', pc.node_type, ref_pc.node_type),
+        ('Real time, microsec', str(pc.real_time), str(ref_pc.real_time))
     ]
 
     for metric, actual, reference in compare:
         log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})
 
 
-def blob_counters(out_blob, ref_out_blob):
+def tensor_counters(tensor, ref_tensor):
     counters = [
-        ('Number of NAN', np.sum(np.isnan(out_blob)), np.sum(np.isnan(ref_out_blob))),
-        ('Number of INF', np.sum(np.isinf(out_blob)), np.sum(np.isinf(ref_out_blob))),
-        ('Number of ZERO', out_blob.size - np.count_nonzero(out_blob),
-         ref_out_blob.size - np.count_nonzero(ref_out_blob))
+        ('Number of NAN', np.sum(np.isnan(tensor)), np.sum(np.isnan(ref_tensor))),
+        ('Number of INF', np.sum(np.isinf(tensor)), np.sum(np.isinf(ref_tensor))),
+        ('Number of ZERO', tensor.size - np.count_nonzero(tensor),
+         ref_tensor.size - np.count_nonzero(ref_tensor))
     ]
     for metric, actual, reference in counters:
         log.info(f'{metric:>35}: {actual:>16} {reference:>16}', extra={'no_lvl': True})
@@ -435,7 +498,7 @@ def update_global_accuracy_matrics(global_accuracy: list, current_accuracy: dict
     return global_accuracy
 
 
-def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: list = None,
+def print_all_over_the_net_metrics(global_accuracy: list, global_times: list = None,
                                    ref_global_times: list = None):
     if global_times is not None and ref_global_times is not None and len(global_times) and len(ref_global_times):
         log.info('-' * 70, extra={'no_lvl': True})
@@ -453,74 +516,39 @@ def print_all_over_the_net_metrics(global_accuracy: (str, float), global_times: 
 ###
 
 
-def read_mapping(file_name: str):
-    # TODO check twice
-    mapping_dict = {}
-    xml_tree = xml.etree.ElementTree.parse(file_name)
-    xml_root = xml_tree.getroot()
-    for child in xml_root:
-        fw_info = child.find('.//framework')
-        ir_info = child.find('.//IR')
-        if fw_info is None:
-            continue
-        if ir_info is None:
-            continue
-        framework_name = fw_info.attrib['name'] + ':' + fw_info.attrib['out_port_id']
-        ir_name = ir_info.attrib['name'] if ir_info is not None else None
-        ir_layer_id = int(ir_info.attrib['id']) if ir_info is not None else None
-        mapping_dict[framework_name] = (ir_name, ir_layer_id)
-    return mapping_dict
-
-
-def map_layers(mapping_file: str = None, ref_mapping_file: str = None):
-    if mapping_file is not None and ref_mapping_file is not None:
-        mapping = read_mapping(mapping_file)
-        ref_mapping = read_mapping(ref_mapping_file)
-        mapping = {layer: ref_layer for layer in mapping for ref_layer in ref_mapping if layer == ref_layer}
-        return mapping
-
-
-def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
-    if mapping is not None and reference_mapping is not None:
-        layers_map = map_layers(mapping, reference_mapping)
-    else:
-        layers_map = {layer: layer for layer in user_layers}
-    for layer in user_layers:
-        if layer not in layers_map:
-            if mapping is not None and reference_mapping is not None:
-                log.warning(
-                    f'Can not map layer {layer} from --model/-m to any layer from --reference_model/-ref_m')
-            else:
-                log.warning(f'Can not find layer {layer} in --reference_model/-ref_m model')
-    for layer in layers_map:
-        if layer not in user_layers:
-            del layers_map[layer]
-    return layers_map
-
-
-def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
+def get_ops_list(all_ops: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return {layer.get_friendly_name(): layer for layer in all_layers \
-                    if layer.get_type_name() not in ['Constant', 'Result']}
+            return [op for op in all_ops if op.get_type_name() not in ['Constant', 'Result', 'Parameter']]
         else:
-            all_layers_names = {op.get_friendly_name() : op for op in all_layers}
-            user_layers = [layer.strip() for layer in layers.split(',')]
-            layers_to_check = []
-            for user_layer in user_layers:
-                if user_layer not in all_layers_names:
-                    raise Exception(f"Layer {user_layer} doesn't exist in the model")
-                if user_layer in inputs:
-                    raise Exception(f"Layer {user_layer} is input layer. Can not proceed")
-                if all_layers_names[user_layer].get_type_name() != 'Result':
-                    layers_to_check.append(user_layer)
+            all_ops_map = {op.friendly_name: op for op in all_ops}
+            user_ops = [layer.strip() for layer in layers.split(',')]
+            new_outputs = []
+            for user_op in user_ops:
+                if user_op not in all_ops_map:
+                    raise Exception(f"Operation with name `{user_op}` doesn't exist in the model")
                 else:
-                    # if layer type is Result - add previous layer
-                    prev_layer = all_layers[len(all_layers)-2]
-                    layers_to_check.append(prev_layer.get_friendly_name())
-            return layers_to_check
+                    new_outputs.append(all_ops_map[user_op])
+            return new_outputs
     else:
-        return outputs
+        return [output.node for output in outputs]
+
+
+def perf_counts_to_dump(prof_info):
+    perf_count = {}
+    perf_count["status"] = prof_info.status
+    perf_count["real_time"] = prof_info.real_time
+    perf_count["cpu_time"] = prof_info.cpu_time
+    perf_count["exec_type"] = prof_info.exec_type
+    perf_count["node_type"] = prof_info.node_type
+    return perf_count
+
+
+def load_profiling_info(pi_dumped):
+    prof_info = ProfilingInfo()
+    for property, value in pi_dumped.items():
+        setattr(prof_info, property, value)
+    return prof_info
 
 
 ###
@@ -534,5 +562,6 @@ def dump_output_file(output_file, dump_dict):
 
 def load_dump(file_to_load: str):
     npz = np.load(file_to_load, allow_pickle=True)
-    dump = {file: npz[file].item(0) for file in npz}
+    dump = {file: [npz[file].item(i).item(0)  for i in range(npz[file].size)] for file in npz if file != "device"}
+    dump["device"] = npz["device"].item(0)
     return dump

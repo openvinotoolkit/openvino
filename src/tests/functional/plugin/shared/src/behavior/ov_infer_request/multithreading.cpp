@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ std::string OVInferRequestMultithreadingTests::getTestCaseName(const testing::Te
 }
 
 TEST_P(OVInferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThreads) {
-    runtime::InferRequest req1, req2, req3;
+    ov::InferRequest req1, req2, req3;
     OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
@@ -34,7 +34,7 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThr
 }
 
 TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait) {
-    runtime::InferRequest req1, req2, req3;
+    ov::InferRequest req1, req2, req3;
     OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
@@ -57,7 +57,7 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromTh
 }
 
 TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyWithWait) {
-    runtime::InferRequest req1, req2, req3;
+    ov::InferRequest req1, req2, req3;
     OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
@@ -73,7 +73,7 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyWithWa
 }
 
 TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsParallelWithWait) {
-    runtime::InferRequest req1, req2, req3;
+    ov::InferRequest req1, req2, req3;
     OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());

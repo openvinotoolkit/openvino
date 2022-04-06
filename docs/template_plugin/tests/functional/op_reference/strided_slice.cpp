@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +14,16 @@ using namespace ov;
 namespace {
 struct StridedSliceParams {
     StridedSliceParams(const PartialShape& dynamicDataShape,
-                       const Tensor& dataTensor,
-                       const Tensor& beginTensor,
-                       const Tensor& endTensor,
-                       const Tensor& stridesTensor,
+                       const reference_tests::Tensor& dataTensor,
+                       const reference_tests::Tensor& beginTensor,
+                       const reference_tests::Tensor& endTensor,
+                       const reference_tests::Tensor& stridesTensor,
                        const std::vector<int64_t>& beginMask,
                        const std::vector<int64_t>& endMask,
                        const std::vector<int64_t>& newAxisMask,
                        const std::vector<int64_t>& shrinkAxisMask,
                        const std::vector<int64_t>& ellipsisMask,
-                       const Tensor& expectedTensor,
+                       const reference_tests::Tensor& expectedTensor,
                        const std::string& testcaseName = "") :
         dynamicDataShape(dynamicDataShape), dataTensor(dataTensor),
         beginTensor(beginTensor), endTensor(endTensor),
@@ -32,30 +32,30 @@ struct StridedSliceParams {
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
     PartialShape dynamicDataShape;
-    Tensor dataTensor;
-    Tensor beginTensor;
-    Tensor endTensor;
-    Tensor stridesTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor beginTensor;
+    reference_tests::Tensor endTensor;
+    reference_tests::Tensor stridesTensor;
     std::vector<int64_t> beginMask;
     std::vector<int64_t> endMask;
     std::vector<int64_t> newAxisMask;
     std::vector<int64_t> shrinkAxisMask;
     std::vector<int64_t> ellipsisMask;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
 struct StridedSliceStrideOptionalParams {
     StridedSliceStrideOptionalParams(const PartialShape& dynamicDataShape,
-                       const Tensor& dataTensor,
-                       const Tensor& beginTensor,
-                       const Tensor& endTensor,
+                       const reference_tests::Tensor& dataTensor,
+                       const reference_tests::Tensor& beginTensor,
+                       const reference_tests::Tensor& endTensor,
                        const std::vector<int64_t>& beginMask,
                        const std::vector<int64_t>& endMask,
                        const std::vector<int64_t>& newAxisMask,
                        const std::vector<int64_t>& shrinkAxisMask,
                        const std::vector<int64_t>& ellipsisMask,
-                       const Tensor& expectedTensor,
+                       const reference_tests::Tensor& expectedTensor,
                        const std::string& testcaseName = "") :
         dynamicDataShape(dynamicDataShape), dataTensor(dataTensor),
         beginTensor(beginTensor), endTensor(endTensor),
@@ -64,15 +64,15 @@ struct StridedSliceStrideOptionalParams {
         expectedTensor(expectedTensor), testcaseName(testcaseName) {}
 
     PartialShape dynamicDataShape;
-    Tensor dataTensor;
-    Tensor beginTensor;
-    Tensor endTensor;
+    reference_tests::Tensor dataTensor;
+    reference_tests::Tensor beginTensor;
+    reference_tests::Tensor endTensor;
     std::vector<int64_t> beginMask;
     std::vector<int64_t> endMask;
     std::vector<int64_t> newAxisMask;
     std::vector<int64_t> shrinkAxisMask;
     std::vector<int64_t> ellipsisMask;
-    Tensor expectedTensor;
+    reference_tests::Tensor expectedTensor;
     std::string testcaseName;
 };
 
@@ -221,32 +221,32 @@ std::vector<StridedSliceParams> generateSmallParams() {
         // strided_slice_0
         StridedSliceParams(
             {},
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 1, 0},
             std::vector<int64_t>{1, 0, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             "strided_slice_0"),
         // strided_slice_0_dynamic
         StridedSliceParams(
             PartialShape::dynamic(),
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 1, 0},
             std::vector<int64_t>{1, 0, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             "strided_slice_0_dynamic"),
     };
     return params;
@@ -259,46 +259,46 @@ std::vector<StridedSliceParams> generateParams() {
         // strided_slice_0
         StridedSliceParams(
             {},
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 1, 0},
             std::vector<int64_t>{1, 0, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             "strided_slice_0"),
         // strided_slice_0_dynamic
         StridedSliceParams(
             PartialShape::dynamic(),
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 1}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 1, 0},
             std::vector<int64_t>{1, 0, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 3, 4}, std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             "strided_slice_0_dynamic"),
         // strided_slice_1
         StridedSliceParams(
             {},
-            Tensor(IN_ET, {2, 4, 6, 8, 2, 2, 2}, generateInputValues<T>({2, 4, 6, 8, 2, 2, 2}, 0)),
-            Tensor(element::i64, {7}, std::vector<int64_t>{0, 0, 2, 7, 0, 0, 1}),
-            Tensor(element::i64, {7}, std::vector<int64_t>{0, 4, 6, 3, 0, 0, 0}),
-            Tensor(element::i64, {7}, std::vector<int64_t>{1, 1, 2, -2, 1, 1, 1}),
+            reference_tests::Tensor(IN_ET, {2, 4, 6, 8, 2, 2, 2}, generateInputValues<T>({2, 4, 6, 8, 2, 2, 2}, 0)),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{0, 0, 2, 7, 0, 0, 1}),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{0, 4, 6, 3, 0, 0, 0}),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{1, 1, 2, -2, 1, 1, 1}),
             std::vector<int64_t>{0, 1, 0, 0, 0, 0, 0},
             std::vector<int64_t>{1, 0, 0, 0, 0, 0, 0},
             std::vector<int64_t>{0, 0, 0, 0, 1, 0, 0},
             std::vector<int64_t>{0, 0, 0, 0, 0, 0, 1},
             std::vector<int64_t>{0, 0, 0, 0, 0, 1, 0},
-            Tensor(IN_ET, {2, 4, 2, 2, 1, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(IN_ET, {2, 4, 2, 2, 1, 2, 2}, std::vector<T>{
                 185,  187,  189,  191,  169,  171,  173,  175,  313,  315,  317,  319,  297,  299,  301,
                 303,  569,  571,  573,  575,  553,  555,  557,  559,  697,  699,  701,  703,  681,  683,
                 685,  687,  953,  955,  957,  959,  937,  939,  941,  943,  1081, 1083, 1085, 1087, 1065,
@@ -312,16 +312,16 @@ std::vector<StridedSliceParams> generateParams() {
         // strided_slice_1_dynamic
         StridedSliceParams(
             PartialShape::dynamic(),
-            Tensor(IN_ET, {2, 4, 6, 8, 2, 2, 2}, generateInputValues<T>({2, 4, 6, 8, 2, 2, 2}, 0)),
-            Tensor(element::i64, {7}, std::vector<int64_t>{0, 0, 2, 7, 0, 0, 1}),
-            Tensor(element::i64, {7}, std::vector<int64_t>{0, 4, 6, 3, 0, 0, 0}),
-            Tensor(element::i64, {7}, std::vector<int64_t>{1, 1, 2, -2, 1, 1, 1}),
+            reference_tests::Tensor(IN_ET, {2, 4, 6, 8, 2, 2, 2}, generateInputValues<T>({2, 4, 6, 8, 2, 2, 2}, 0)),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{0, 0, 2, 7, 0, 0, 1}),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{0, 4, 6, 3, 0, 0, 0}),
+            reference_tests::Tensor(element::i64, {7}, std::vector<int64_t>{1, 1, 2, -2, 1, 1, 1}),
             std::vector<int64_t>{0, 1, 0, 0, 0, 0, 0},
             std::vector<int64_t>{1, 0, 0, 0, 0, 0, 0},
             std::vector<int64_t>{0, 0, 0, 0, 1, 0, 0},
             std::vector<int64_t>{0, 0, 0, 0, 0, 0, 1},
             std::vector<int64_t>{0, 0, 0, 0, 0, 1, 0},
-            Tensor(IN_ET, {2, 4, 2, 2, 1, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(IN_ET, {2, 4, 2, 2, 1, 2, 2}, std::vector<T>{
                 185,  187,  189,  191,  169,  171,  173,  175,  313,  315,  317,  319,  297,  299,  301,
                 303,  569,  571,  573,  575,  553,  555,  557,  559,  697,  699,  701,  703,  681,  683,
                 685,  687,  953,  955,  957,  959,  937,  939,  941,  943,  1081, 1083, 1085, 1087, 1065,
@@ -343,31 +343,45 @@ std::vector<StridedSliceStrideOptionalParams> generateStrideOptionalParams() {
         // strided_slice_stride_optional
         StridedSliceStrideOptionalParams(
             {},
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {3}, std::vector<int64_t>{-1, -1, 0}),
-            Tensor(element::i64, {3}, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{-1, -1, 0}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{0, 0, 0}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 1},
             std::vector<int64_t>{1, 1, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 4}, std::vector<T>{20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 4}, std::vector<T>{20, 21, 22, 23}),
             "strided_slice_stride_optional"),
         // strided_slice_stride_optional_dynamic
         StridedSliceStrideOptionalParams(
             PartialShape::dynamic(),
-            Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                                     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
-            Tensor(element::i64, {3}, std::vector<int64_t>{-1, -1, 0}),
-            Tensor(element::i64, {3}, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{-1, -1, 0}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{0, 0, 0}),
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 0},
             std::vector<int64_t>{0, 0, 1},
             std::vector<int64_t>{1, 1, 0},
             std::vector<int64_t>{0, 0, 0},
-            Tensor(IN_ET, {1, 4}, std::vector<T>{20, 21, 22, 23}),
+            reference_tests::Tensor(IN_ET, {1, 4}, std::vector<T>{20, 21, 22, 23}),
             "strided_slice_stride_optional_dynamic"),
+        // strided_slice_stride_optional_dynamic_empty_output_tensor
+        StridedSliceStrideOptionalParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{-1, 0}),
+            std::vector<int64_t>{1, 0},
+            std::vector<int64_t>{1, 0},
+            std::vector<int64_t>{},
+            std::vector<int64_t>{},
+            std::vector<int64_t>{},
+            reference_tests::Tensor(IN_ET, {2, 0, 4}, std::vector<T>{}),
+            "strided_slice_stride_optional_dynamic_empty_output_tensor"),
     };
     return params;
 }

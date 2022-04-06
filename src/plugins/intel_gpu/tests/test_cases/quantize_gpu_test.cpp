@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -600,11 +600,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 {
     template <typename T>
     void fill_typed(memory::ptr src, memory::ptr dst) {
-        auto size = dst->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = dst->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         mem_lock<T> data{src, get_test_stream()};
         mem_lock<T> ptr{dst, get_test_stream()};
@@ -624,11 +624,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -670,10 +670,10 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {

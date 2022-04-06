@@ -1,37 +1,39 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dnnl_executor.h"
 
-using namespace mkldnn;
-using namespace MKLDNNPlugin;
+using namespace dnnl;
 
-DnnlExecutor::IntermReorder::IntermReorder(const mkldnn::memory::desc& descSrc,
-                                           const mkldnn::memory::desc& descDst,
-                                           const mkldnn::engine& engine) : m_descSrc(descSrc), m_descDst(descDst) {
-    auto reorderPd = mkldnn::reorder::primitive_desc(engine, descSrc, engine, descDst);
-    m_reorder = mkldnn::reorder(reorderPd);
+namespace ov {
+namespace intel_cpu {
+
+DnnlExecutor::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
+                                           const dnnl::memory::desc& descDst,
+                                           const dnnl::engine& engine) : m_descSrc(descSrc), m_descDst(descDst) {
+    auto reorderPd = dnnl::reorder::primitive_desc(engine, descSrc, engine, descDst);
+    m_reorder = dnnl::reorder(reorderPd);
 }
 
-void DnnlExecutor::IntermReorder::exec(mkldnn::memory& memSrc, mkldnn::memory& memDst, mkldnn::stream strm) {
+void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm) {
     m_reorder.execute(strm, memSrc, memDst);
 }
 
-void DnnlExecutor::exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm) {
+void DnnlExecutor::exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
     for (auto &inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
-            mkldnn::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
+            dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
             inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
             primArgs[inReorder.first] = memDst;
         } else {
             IE_THROW() << "DnnlExecutor has reorder for input " << inReorder.first << ", but doesn't have source memory";
         }
     }
-    std::unordered_map<int, mkldnn::memory> outputMem;
+    std::unordered_map<int, dnnl::memory> outputMem;
     for (auto &outReorder : outputReorders) {
         if (primArgs.count(outReorder.first)) {
-            mkldnn::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
+            dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
             outputMem[outReorder.first] = primArgs[outReorder.first];
             primArgs[outReorder.first] = memSrc;
         } else {
@@ -43,3 +45,10 @@ void DnnlExecutor::exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
 }
+
+bool DnnlExecutor::needReordering() const {
+    return !inputReorders.empty() || !outputReorders.empty();
+}
+
+}   // namespace intel_cpu
+}   // namespace ov

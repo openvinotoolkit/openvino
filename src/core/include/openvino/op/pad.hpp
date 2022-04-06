@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Generic padding operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Pad : public Op {
 public:
     OPENVINO_OP("Pad", "opset1", op::Op, 1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ Coordinate default_source_end_corner(const Shape& source_shape) {
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape) : m_source_shape(source_shape) {}
 
 // Compute the index of a source-space coordinate in the buffer.
-size_t CoordinateTransformBasic::index(const Coordinate& c) const noexcept {
+size_t CoordinateTransformBasic::index(const Coordinate& c) const {
     return coordinate_index(c, m_source_shape);
 }
 

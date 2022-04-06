@@ -47,7 +47,7 @@ jobs:
 
       - name: Build doc
         run: |
-          cmake --build . --target sphinx_docs
+          cmake --build . --target sphinx_docs -j8
         working-directory: build
       
       - name: Archive HTML
@@ -58,9 +58,13 @@ jobs:
       - name: Run Pytest
         run: |
           pytest --doxygen="./build/docs/doxygen.log" \
+                 --include_pot \
+                 --sphinx="./build/docs/sphinx.log" \
+                 --suppress-warnings="./docs/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
                  --doxygen-strip="$(pwd)" \
+                 --sphinx-strip="$(pwd)/build/docs/rst" \
                  --doxygen-xfail="./docs/doxygen-xfail.txt" \
                  --self-contained-html ./docs/scripts/tests/test_docs.py
 
@@ -70,9 +74,23 @@ jobs:
         with:
           name: openvino_doc_pytest
           path: build/docs/_artifacts/
+      
+      - name: 'Upload doxygen.log'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: doxygen_log
+          path: build/docs/doxygen.log
+
+      - name: 'Upload sphinx.log'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: sphinx_log
+          path: build/docs/sphinx.log
 
       - name: 'Upload html'
-        if: github.event_name == 'push'
+        if: always()
         uses: actions/upload-artifact@v2
         with:
           name: openvino_html

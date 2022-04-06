@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ namespace  {
     Parameter[FP32]     Constant[I8]
           \                 /
            \               /
-            \       Reorder[I32] (Is inserted by the MKLDNNGraph)
+            \       Reorder[I32] (Is inserted by the Graph)
              \           /
              Gather[FP32]
                   |
@@ -69,8 +69,8 @@ TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
 
     BuildGraph(ngraph::element::i8);
     Run();
-    CheckNodeOfTypeCount(executableNetwork, "Convert", 0);
-    CheckNodeOfTypeCount(executableNetwork, "Reorder", 1);
+    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 1);
 }
 } // namespace
 } // namespace LayerTestsDefinitions

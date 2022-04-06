@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -11,6 +11,8 @@ from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.versions_checker import get_environment_setup
 
+# do not print INFO and WARNING messages from TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
     # disable eager execution of TensorFlow 2 environment immediately
@@ -19,6 +21,9 @@ try:
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
+
+#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
 from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph
@@ -190,7 +195,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:
             # frozen graph
-            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf'
+            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf', None
         if graph_file_name and not meta_graph_file and checkpoint:
             # inference graph and checkpoint
             graph_def = read_file_to_graph_def(graph_def, graph_file_name, is_binary)
@@ -201,10 +206,16 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def, variables_values = freeze_checkpoints(graph_def=graph_def, checkpoint_dir=checkpoint,
                                                                  output_node_names=outputs)
             # we are sure that checkpoint is existing file or directory due to cli_parser configuration
-            return graph_def, variables_values, 'tf'
+            return graph_def, variables_values, 'tf', None
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
+            # Since version 2.2 TF can fail with internal error while loading graph from .meta file.
+            # It happens because some operation may has an _output_shapes attribute inconsistent with the GraphDef
+            # calculated value. To avoid this problem we must delete `_output_shapes` attributes from operations
+            for node in input_meta_graph_def.graph_def.node:
+                if '_output_shapes' in node.attr:
+                    del node.attr['_output_shapes']
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
@@ -212,16 +223,22 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)
-                return graph_def, variables_values, 'tf'
+                return graph_def, variables_values, 'tf', None
         if model_dir:
             # saved model directory
             try:
                 env_setup = get_environment_setup("tf")
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
-                # code to extract GraphDef for TF 2.0 SavedModel format
-                # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
-                imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+
+                try:
+                    # Code to extract Keras model.
+                    # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
+                    # for TF 1.x SavedModel format in case TF 1.x installed
+                    imported = tf.keras.models.load_model(model_dir, compile=False)
+                except:
+                    imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
+
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
                 # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
@@ -236,8 +253,22 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
-                return graph_def, variables_values, 'tf2'
-            except (TypeError, KeyError):
+
+                input_names = []
+                if hasattr(imported, 'inputs'):
+                    # Extract tensor names order from Keras model
+                    input_names = [tensor.name for tensor in imported.inputs]
+
+                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+                # order alignment.
+                output_names = [tensor.name for tensor in frozen_func.outputs]
+
+                inputs_outputs_order = (input_names, output_names)
+
+                return graph_def, variables_values, 'tf2', inputs_outputs_order
+            except:
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
                 # code to extract GraphDef for TF 1.0 SavedModel format
@@ -246,9 +277,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
                     outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                     graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
-                    return graph_def, variables_values, 'tf'
-            except Exception as e:
-                raise FrameworkError('SavedModel format load failure: {}', e) from e
+                    return graph_def, variables_values, 'tf', None
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")

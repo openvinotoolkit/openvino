@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,8 +40,8 @@
 //   from previous kernel and output using single work-group.
 //     This kernel will produce the results of the final detections form the result of previous kernel.
 //     If the total of detections per each batch is greater than KEEP_TOP_K, detections are sorted using
-//     iterative quick sort and it is stored as KEEP_TOP_K. Final detections contain information about 
-//     filetered detection described with 7 elements [batch_id, class_id, confidence, x_1, y_1, x_2, y_2].
+//     iterative quick sort and it is stored as KEEP_TOP_K. Final detections contain information about
+//     filtered detection described with 7 elements [batch_id, class_id, confidence, x_1, y_1, x_2, y_2].
 //
 // =================================================================================================================
 // Required jit constants:
@@ -109,11 +109,16 @@ inline void FUNC(bubbleSortIterative)(__global SCORES_INFO* arr, int l, int h) {
     }
 }
 
-inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp) {
+inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr,
+                                     int l, int h,
+#ifdef USE_LOCAL_MEMORY_FOR_STACK
+                                     __local int* stack,
+#endif
+                                     bool use_custom_comp) {
+#ifndef USE_LOCAL_MEMORY_FOR_STACK
     // Create an auxiliary stack
-    const int kStackSize = 100;
-    int stack[kStackSize];
-
+    int stack[QUICK_SORT_STACK_SIZE];
+#endif
     // initialize top of stack
     int top = -1;
 
@@ -134,7 +139,7 @@ inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bo
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {
-            if (top >= (kStackSize - 1)) {
+            if (top >= (QUICK_SORT_STACK_SIZE - 1)) {
                 FUNC_CALL(bubbleSortIterative)(arr, l, p - 1);
             } else {
                 stack[++top] = l;
@@ -145,7 +150,7 @@ inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bo
         // If there are elements on right side of pivot,
         // then push right side to stack
         if (p + 1 < h) {
-            if (top >= (kStackSize - 1)) {
+            if (top >= (QUICK_SORT_STACK_SIZE - 1)) {
                 FUNC_CALL(bubbleSortIterative)(arr, p + 1, h);
             } else {
                 stack[++top] = p + 1;
@@ -241,9 +246,10 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
     __local char4 bit_mask[NUM_BIT_MASK];
     __local int4 block_num[NUM_PRIOR_BLOCKS];
 
-    block_num[box_gid] = (int4)(0, 0, 0, 0);
-
     {
+        // to prevent access array out of range
+        if (start_bid < end_bid)
+            block_num[box_gid] = (int4)(0, 0, 0, 0);
         int mask_id = start_bid / 8;
         for (int i = start_bid; i < end_bid; i += 8) {
             bit_mask[mask_id] = (char4)(0, 0, 0, 0);
@@ -277,10 +283,12 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             }
         }
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
     {
-        int4 write_offsets = block_num[box_gid];
+        int4 write_offsets = (int4)(0, 0, 0, 0);
+        if (start_bid < end_bid)
+            write_offsets = block_num[box_gid];
         int mask_id = start_bid >> 3;
         for (int i = start_bid; i < end_bid; i += 8) {
             for (int bi = 0; bi < 8; bi++) {
@@ -319,9 +327,10 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
     __local char bit_mask[NUM_BIT_MASK];
     __local int block_num[NUM_PRIOR_BLOCKS];
 
-    block_num[box_gid] = 0;
-
     {
+        // to prevent access array out of range
+        if (start_bid < end_bid)
+            block_num[box_gid] = 0;
         int mask_id = start_bid / 8;
         for (int i = start_bid; i < end_bid; i += 8) {
             bit_mask[mask_id] = 0;
@@ -336,7 +345,6 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             mask_id++;
         }
     }
-
     barrier(CLK_LOCAL_MEM_FENCE);
 
     {
@@ -350,11 +358,12 @@ KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confi
             buffer1[batchId * NUM_CLASSES_ACC + classId] = acc_num;
         }
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
     {
-        int write_offset = block_num[box_gid];
+        int write_offset = 0;
+        if (start_bid < end_bid)
+            write_offset = block_num[box_gid];
         int mask_id = start_bid >> 3;
         for (int i = start_bid; i < end_bid; i += 8) {
             for (int bi = 0; bi < 8; bi++) {
@@ -411,6 +420,12 @@ KERNEL (detection_output_stage_1_sort_caffe)(__global uchar *buffer0,
     const int localClassId = get_local_id(1);
     __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 2];
 
+#ifdef USE_LOCAL_MEMORY_FOR_STACK
+    // Create an auxiliary stack for QuickSort
+    __local int stack[QUICK_SORT_STACK_SIZE * LOCAL_CLASS_NUM * LOCAL_WORK_NUM];
+    __local int *stack_pointer = stack + workItemId * QUICK_SORT_STACK_SIZE + localClassId * LOCAL_WORK_NUM * QUICK_SORT_STACK_SIZE;
+#endif
+
     const int scoresInfoNum = buffer1[batchId * NUM_CLASSES_ACC + classId];
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
@@ -444,7 +459,11 @@ KERNEL (detection_output_stage_1_sort_caffe)(__global uchar *buffer0,
     const int begin_id = __range[localClassId][first_id];
     const int end_id = __range[localClassId][first_id + 1];
     if (begin_id < end_id) {
+#ifdef USE_LOCAL_MEMORY_FOR_STACK
+        FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, stack_pointer, true);
+#else
         FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
+#endif
     }
     barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
@@ -465,6 +484,9 @@ KERNEL (detection_output_stage_1_sort_mxnet)(__global uchar *buffer0,
     const int batchId = get_global_id(0);
     const int workItemId = get_global_id(2);
     __local int __range[LOCAL_WORK_NUM * 2];
+
+    // Create an auxiliary stack for QuickSort
+    __local int stack[QUICK_SORT_STACK_SIZE];
 
     const int scoresInfoNum = buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES];
     if (scoresInfoNum < 2)
@@ -503,7 +525,7 @@ KERNEL (detection_output_stage_1_sort_mxnet)(__global uchar *buffer0,
     const int begin_id = __range[first_id];
     const int end_id = __range[first_id + 1];
     if (begin_id < end_id) {
-        FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, true);
+        FUNC_CALL(quickSortIterative)(scoresList, begin_id, end_id, stack, true);
     }
     barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
@@ -561,7 +583,11 @@ KERNEL (detection_output_stage_2_nms_caffe)(__global INPUT0_TYPE* input_location
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
     const int scoresInfoIdx = batchId * NUM_CLASSES_ACC + classId;
-    INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#ifdef USE_LOCAL_MEMORY
+    __local   INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#else
+    __private INPUT0_TYPE decoded_bboxes[TOP_K * 4];
+#endif
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
 
@@ -658,6 +684,12 @@ KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location
                                             __global int *buffer1) {
     const int batchId = get_global_id(0);
 
+#ifdef USE_LOCAL_MEMORY_FOR_STACK
+    // Create an auxiliary stack for QuickSort
+    __local int stack[QUICK_SORT_STACK_SIZE];
+    __local int *stack_pointer = stack + batchId * QUICK_SORT_STACK_SIZE;
+#endif
+
     const int total_det = FUNC_CALL(get_accumulated_detections)(buffer1, batchId);
     buffer1[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = total_det;
     // the total number of detections is also stored in the extra space of buffer
@@ -684,7 +716,11 @@ KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location
             buffer1[scores_size_offset + idx_class] = 0;
         }
 
+#ifdef USE_LOCAL_MEMORY_FOR_STACK
+        FUNC_CALL(quickSortIterative)(scoresList + scores_offset, 0, num_det - 1, stack_pointer, true);
+#else
         FUNC_CALL(quickSortIterative)(scoresList + scores_offset, 0, num_det - 1, true);
+#endif
 
         // recalculate valid items for each class
         for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++) {
@@ -780,6 +816,9 @@ KERNEL (detection_output_stage_final_mxnet)(__global INPUT0_TYPE* input_location
                                             __global uchar *buffer0,
                                             __global uchar *buffer1,
                                             __global int *buffer2) {
+    // Create an auxiliary stack for QuickSort
+    __local int stack[QUICK_SORT_STACK_SIZE];
+
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++) {
         __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[idx_image * BUFFER_STRIDE];
         const int total_det = buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES];
@@ -797,7 +836,7 @@ KERNEL (detection_output_stage_final_mxnet)(__global INPUT0_TYPE* input_location
                 num_det += acc_num;
                 buffer2[scores_size_offset] = 0;
             }
-            FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, true);
+            FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, stack, true);
 
             for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++) {
                 int scores_size_offset = idx_image * NUM_CLASSES_ACC + (int)scoresList[idx_num_det].classId;

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <shared_test_classes/single_layer/eltwise.hpp>
 #include <ngraph_functions/builders.hpp>
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -42,7 +42,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             bool isReal = funcInput.get_element_type().is_real();
             switch (eltwiseType) {
                 case ngraph::helpers::EltwiseTypes::POWER:
@@ -168,7 +168,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, "Eltwise");
 }
 
 namespace {
@@ -196,7 +196,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Differen
         // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
 
-std::map<std::string, std::string> additional_config;
+ov::AnyMap additional_config;
 
 std::vector<ElementType> netType = {ElementType::bf16, ElementType::f32};
 
@@ -434,54 +434,98 @@ std::vector<std::vector<ngraph::Shape>> inShapes_4D_1D = {
         {{1, 3, 3, 3}, {3}},
 };
 
-std::vector<CPUSpecificParams> cpuParams_4D_1D = {
-        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
-        CPUSpecificParams({nchw, x}, {nchw}, {}, {})
+std::vector<CPUSpecificParams> cpuParams_4D_1D_Constant_mode = {
+        CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
 };
 
-const auto params_4D_1D = ::testing::Combine(
+const auto params_4D_1D_constant_mode = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D)),
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode)),
         ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D, EltwiseLayerCPUTest, params_4D_1D, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTest, params_4D_1D_constant_mode, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<CPUSpecificParams> cpuParams_4D_1D_Parameter_mode = {
+        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
+        CPUSpecificParams({nchw, x}, {nchw}, {}, {})
+};
+
+const auto params_4D_1D_parameter_mode = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D)),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netType),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode)),
+        ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Parameter, EltwiseLayerCPUTest, params_4D_1D_parameter_mode, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<ngraph::Shape>> inShapes_5D_1D = {
         {{2, 17, 5, 4, 10}, {10}},
         {{1, 3, 3, 3, 3}, {3}},
 };
 
-std::vector<CPUSpecificParams> cpuParams_5D_1D = {
-        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
-        CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
+std::vector<CPUSpecificParams> cpuParams_5D_1D_constant = {
+        CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };
 
-const auto params_5D_1D = ::testing::Combine(
+const auto params_5D_1D_constant = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D)),
                 ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
-                ::testing::ValuesIn(secondaryInputTypes),
+                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
                 ::testing::ValuesIn(netType),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant)),
         ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D, EltwiseLayerCPUTest, params_5D_1D, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTest, params_5D_1D_constant, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<CPUSpecificParams> cpuParams_5D_1D_parameter = {
+        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
+        CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
+};
+
+const auto params_5D_1D_parameter = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D)),
+                ::testing::Values(ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::ValuesIn(netType),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter)),
+        ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Parameter, EltwiseLayerCPUTest, params_5D_1D_parameter, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
@@ -492,23 +536,37 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
 };
 
 //// ============================================ 4D ============================================
-std::vector<InputShape> inShapes_4D_dyn_const = {
+std::vector<std::vector<InputShape>> inShapes_4D_dyn_const = {
     {
-        // dynamic
-        {3, 2, -1, -1},
-        // target
         {
-            {3, 2, 1, 1},
-            {3, 2, 5, 1},
-            {3, 2, 1, 6},
-            {3, 2, 4, 11},
+            // dynamic
+            {3, 2, -1, -1},
+            // target
+            {
+                {3, 2, 1, 1},
+                {3, 2, 5, 1},
+                {3, 2, 1, 6},
+                {3, 2, 4, 11},
+            }
+        }
+    },
+    {
+        {
+           // dynamic
+           {{1, 10}, 2, 5, 6},
+           // target
+           {
+               {3, 2, 5, 6},
+               {1, 2, 5, 6},
+               {2, 2, 5, 6},
+           }
         }
     },
 };
 
 const auto params_4D_dyn_const = ::testing::Combine(
         ::testing::Combine(
-                ::testing::Values(inShapes_4D_dyn_const),
+                ::testing::ValuesIn(inShapes_4D_dyn_const),
                 ::testing::ValuesIn(eltwiseOpTypesBinInp),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),

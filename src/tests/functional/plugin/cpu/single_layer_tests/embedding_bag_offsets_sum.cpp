@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ public:
 TEST_P(EmbeddingBagOffsetsSumLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "embeddingBagOffsetsSum");
+    CheckPluginRelatedResults(compiledModel, "embeddingBagOffsetsSum");
 }
 
 namespace {

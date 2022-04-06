@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,13 +56,13 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p, con
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (params.inputs[0].Dimentions() != params.output.Dimentions())
+    if (params.inputs[0].Dimentions() != params.outputs[0].Dimentions())
         return false;
 
     if (params.inputs[0].Feature().v != 3 && params.inputs[0].Feature().v != 4)
         return false;
 
-    if (params.output.Feature().v % 2 != 0)
+    if (params.outputs[0].Feature().v % 2 != 0)
         return false;
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
@@ -82,7 +82,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_m
     AutoTuneOption option = {0, 0, 0, DEFAULT};
 
     auto &params = dynamic_cast<const convolution_params &>(p);
-    auto &output = params.output;
+    auto &output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;
@@ -153,9 +153,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
     const size_t max_lws = std::max((size_t)1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
-    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 2;
-    dispatchData.gws[1] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
-    dispatchData.gws[2] = cp.output.Batch().v * CeilDiv(cp.output.Y().v, dispatchData.cldnnStyle.blockHeight) * cp.output.Z().v;
+    dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 2;
+    dispatchData.gws[1] = CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth);
+    dispatchData.gws[2] = cp.outputs[0].Batch().v * CeilDiv(cp.outputs[0].Y().v, dispatchData.cldnnStyle.blockHeight) * cp.outputs[0].Z().v;
 
     dispatchData.lws[0] = sub_group_size;
     dispatchData.lws[1] = get_lws(cp, dispatchData.gws[1], tuneOptions.blockWidth, tuneOptions.blockHeight, max_lws);
@@ -179,7 +179,7 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
     jit.AddConstant(MakeJitConstant("OSV", 32));
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     auto blockHeight = dispatchData.cldnnStyle.blockHeight;
     size_t slm_line_size = params.stride.x * (dispatchData.lws[1] * blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
@@ -201,7 +201,7 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
     jit.AddConstant(MakeJitConstant("INPUT_Y_HEIGHT", input_y_height));
 
     jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
-    jit.Merge(MakeTypeJitConstants(GetPackedType(params.output.GetDType(), 2), "PACKED_OUT"));
+    jit.Merge(MakeTypeJitConstants(GetPackedType(params.outputs[0].GetDType(), 2), "PACKED_OUT"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,9 @@ public:
 
     explicit OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t get_version() const override { return 1; }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

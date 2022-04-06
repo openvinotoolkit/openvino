@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,8 @@ public:
         const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
         const bool broadcast2,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter);
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter,
+        const bool secondInputIsConstant = false);
 };
 
 }  // namespace subgraph

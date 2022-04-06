@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,10 +55,10 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !CheckInputsOutputNoPitchSameDims(params)) {
                 auto calc_dim = [&params](Tensor::DataChannelName channel) {
-                    size_t idx = DataTensor::Channelndex(params.output.GetLayout(), channel);
+                    size_t idx = DataTensor::Channelndex(params.outputs[0].GetLayout(), channel);
                     // We increment the index, because fusions dims ordering starts from one
                     return "d" + std::to_string(idx + 1);
                 };
@@ -70,9 +70,9 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             } else {
                 idx_order = {"d4", "d3", "d2", "d1"};
             }
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"d5", "d4", "d3", "d2", "d1"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 6) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
             idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
         }
 

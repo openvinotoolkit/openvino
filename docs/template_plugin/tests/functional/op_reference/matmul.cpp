@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,9 +77,9 @@ struct MatMulParams {
     element::Type_t m_input_type1;
     element::Type_t m_input_type2;
     element::Type_t m_expected_type;
-    runtime::Tensor m_input_value1;
-    runtime::Tensor m_input_value2;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value1;
+    ov::Tensor m_input_value2;
+    ov::Tensor m_expected_value;
     bool m_transpose1;
     bool m_transpose2;
     bool m_use_constant;

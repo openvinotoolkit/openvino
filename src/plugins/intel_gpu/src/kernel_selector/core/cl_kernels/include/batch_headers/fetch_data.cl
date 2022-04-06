@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,6 +243,19 @@ inline uint get_b_fs_yx_fsv_index_safe(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),            \
         CAT(prefix, _BATCH_NUM))
 
+#define GET_DATA_FS_B_YX_FSV32_INDEX_SAFE(prefix, b, f, y, x) \
+    get_fs_b_yx_fsv32_index_safe(                             \
+        b, f, y, x,                                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                      \
+        CAT(prefix, _SIZE_X),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_X),                       \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                      \
+        CAT(prefix, _SIZE_Y),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                       \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                 \
+        CAT(prefix, _FEATURE_NUM),                            \
+        CAT(prefix, _BATCH_NUM))
+
 inline uint get_fs_b_yx_fsv32_index(uint b, uint f, uint y, uint x,
                                           uint x_pad_before, uint x_size, uint x_pad_after,
                                           uint y_pad_before, uint y_size, uint y_pad_after,
@@ -265,6 +278,40 @@ inline uint get_fs_b_yx_fsv32_index(uint b, uint f, uint y, uint x,
 
     const uint feature_tile_number = real_f / feature_tile_size;        // number of tile which feature belongs to
     const uint feature_local_number = real_f % feature_tile_size;       // local number of feature in tile
+
+    size_t index = 0;
+
+    index += feature_tile_number * f_tile_pitch; // locate beginning of feature tile
+    index += b * b_pitch;                        // locate beginning of batch
+    index += real_y * y_pitch;                   // locate beginning of y with respect to padding
+    index += real_x * x_pitch;                   // locate beginning of x with respect to padding
+    index += feature_local_number;               // find requested index by adding feature location in tile
+
+    return index;
+}
+
+inline uint get_fs_b_yx_fsv32_index_safe(uint b, uint f, uint y, uint x,
+                                         uint x_pad_before, uint x_size, uint x_pad_after,
+                                         uint y_pad_before, uint y_size, uint y_pad_after,
+                                         uint f_pad_before, uint f_size,
+                                         uint size_b)
+{
+    const uint feature_tile_size = 32;                             // size of the feature tile (slice)
+
+    const uint x_total_size = x_pad_before + x_size + x_pad_after; // total size of x before padding
+    const uint y_total_size = y_pad_before + y_size + y_pad_after; // total size of y before padding
+
+    const uint real_x = (x % x_size) + x_pad_before;               // x before padding
+    const uint real_y = (y % y_size) + y_pad_before;               // y before padding
+    const uint real_f = (f % f_size) + f_pad_before;               // f before padding
+
+    const uint x_pitch = feature_tile_size;                        // difference in location between (x+1) and (x)
+    const uint y_pitch = x_pitch * x_total_size;                   // difference in location between (y+1) and (y)
+    const uint b_pitch = y_pitch * y_total_size;                   // difference in location between (b+1) and (b)
+    const uint f_tile_pitch = b_pitch * size_b;                    // difference in location between (fs+1) and (fs)
+
+    const uint feature_tile_number = real_f / feature_tile_size;   // number of tile which feature belongs to
+    const uint feature_local_number = real_f % feature_tile_size;  // local number of feature in tile
 
     size_t index = 0;
 
@@ -522,6 +569,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
 
+#define GET_DATA_BS_FS_YX_BSV8_FSV2_INDEX(prefix, b, f, y, x)       \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, 0, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 2)
+
 #define GET_DATA_BS_FS_YX_BSV4_FSV2_INDEX(prefix, b, f, y, x)       \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
         b, f, 0, y, x,                                              \
@@ -637,6 +700,23 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_Y),                              \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
         CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
+
+#define GET_DATA_BS_FS_YX_BSV8_FSV2_INDEX_SAFE(prefix, b, f, y, x)   \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                \
+        b, f, 0, y, x,                                               \
+        CAT(prefix, _SIZE_X),                                        \
+        CAT(prefix, _SIZE_Y),                                        \
+        CAT(prefix, _SIZE_Z),                                        \
+        CAT(prefix, _FEATURE_NUM),                                   \
+        CAT(prefix, _BATCH_NUM),                                     \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                         \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                             \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                              \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                             \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                              \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 2)
 
 #define GET_DATA_BS_FS_YX_BSV4_FSV2_INDEX_SAFE(prefix, b, f, y, x)   \
     get_bs_fs_zyx_bsv_fsv_index_safe(                                \

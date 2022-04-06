@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ const auto testCase4D = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsDFT_4d, DFTLayerTest, testCase4D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsDFT_1d, DFTLayerTest, testCase1D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsDFT_2d, DFTLayerTest, testCase2D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsDFT_3d, DFTLayerTest, testCase3D, DFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsDFT_4d, DFTLayerTest, testCase4D, DFTLayerTest::getTestCaseName);

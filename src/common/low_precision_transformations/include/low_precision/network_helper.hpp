@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 
 #include "rt_info/shared_value_attribute.hpp"
 #include "rt_info/precisions_attribute.hpp"
-#include "rt_info/per_tensor_quantization_attribute.hpp"
+#include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
@@ -87,7 +87,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected = false);
+    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected = false);
 
     static std::vector<size_t> updateReshapeValues(
         const Shape& elementwiseConstantShape,
@@ -99,7 +99,8 @@ public:
 
     static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
-    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -136,13 +137,18 @@ public:
         const bool updatePrecision,
         const element::Type deqPrecision = element::f32);
 
-    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
-    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& _defaultPrecisions = precision_set::int8_support);
 
     static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node,
+        const std::vector<ngraph::element::Type> _defaultPrecisions = precision_set::int8_support,
+        const size_t parentIndex = 0ul,
+        const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
@@ -171,7 +177,8 @@ public:
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
-        const bool moveSubtract);
+        const bool moveSubtract,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static InsertDequantizationResult moveDequantizationBefore(
         const std::shared_ptr<ngraph::Node>& operation,
@@ -199,19 +206,19 @@ public:
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
     static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
 
-    static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
+    static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node,
+        const size_t branchIndex,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support,
+        const bool inPlace = false);
 
-    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
+    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node,
+        const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
     static std::vector<element::Type> precisionIntersection(
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
-
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
-
-    static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
@@ -310,7 +317,7 @@ std::shared_ptr<Node> foldConvert(const Output<Node>& node, const element::Type 
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
-    std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
+    std::shared_ptr<Node> node = std::make_shared<T>(args...);
     if (node->get_output_size() == 1) {
         // issue #57985: remove fold_reshape & reuse nGraph implementation
         const auto values = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
@@ -318,7 +325,6 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
             return fold<opset1::Reshape>(std::forward<Args>(args)...);
         }
 
-        OutputVector folded;
         if (ov::is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
             ov::is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
             return std::make_shared<opset1::Constant>(

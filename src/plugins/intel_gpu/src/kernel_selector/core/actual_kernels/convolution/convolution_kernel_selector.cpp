@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_yxfb_Ref>();
     Attach<ConvolutionKernel_yxfb_yxio_b16>();
     Attach<ConvolutionKernel_yxfb_yxio_b8>();
-    Attach<ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x>();
+    Attach<ConvolutionKernel_yxfb_yxio_b1_block_multiple_x>();
 
     // Winograd
     Attach<ConvolutionKernel_Winograd_2x3_s1>();

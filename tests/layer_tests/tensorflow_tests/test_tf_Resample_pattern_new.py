@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -58,7 +58,8 @@ class TestResamplePattern(CommonTFLayerTest):
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Input'},
                 'input_data': {'shape': shape, 'kind': 'data'},
-                'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST', "factor": factor,
+                'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST',
+                             "factor": factor,
                              "height": 0, "width": 0, "antialias": 0},
                 'resample_data': {'shape': new_shape, 'kind': 'data'},
             }
@@ -78,6 +79,8 @@ class TestResamplePattern(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="*-22273")
-    def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      api_2):
         self._test(*self.create_resample_net(params['shape'], params['factor'], use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

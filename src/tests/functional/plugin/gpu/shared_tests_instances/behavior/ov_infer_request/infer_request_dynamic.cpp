@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,12 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-    CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}},
+const std::vector<ov::AnyMap> AutoConfigs = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
     {}
 };
-const std::vector<std::map<std::string, std::string>> AutoNotSupportConfigs = {
-    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
+const std::vector<ov::AnyMap> AutoNotSupportConfigs = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction2() {

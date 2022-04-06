@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassCommon, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("ov_intel_gpu_plugin", "GPU"))
+        ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU"))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -142,19 +142,18 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
     InferenceEngine::Parameter p;
 
     std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
     uint32_t t = p;
 
     std::cout << "GPU device max available batch size: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MAX_BATCH_SIZE));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(MAX_BATCH_SIZE));
 }
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT,
         ::testing::Values("GPU")
 );
-
 
 using IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
@@ -167,13 +166,13 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
     _options.insert(std::make_pair("GPU_THROUGHPUT_STREAMS", n_streams));
     _options.insert(std::make_pair("AVAILABLE_DEVICE_MEM_SIZE", available_device_mem_size));
 
-    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
 
     uint32_t t = p;
 
     std::cout << "GPU device max available batch size: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MAX_BATCH_SIZE));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(MAX_BATCH_SIZE));
 }
 
 INSTANTIATE_TEST_SUITE_P(

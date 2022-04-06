@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,11 @@ protected:
 };
 
 class FuseTransposeAndReorderTest2 : public FuseTransposeAndReorderTest {
+protected:
+    void CreateGraph() override;
+};
+
+class FuseTransposeAndReorderTest3 : public FuseTransposeAndReorderTest {
 protected:
     void CreateGraph() override;
 };

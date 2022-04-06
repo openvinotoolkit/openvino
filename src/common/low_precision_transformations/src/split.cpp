@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SplitTransformation, "SplitTransformation", 0);
-
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(SplitTransformation);
     auto matcher = pattern::wrap_type<opset1::Split>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -26,7 +26,7 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SplitTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -35,8 +35,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const auto dequantization = NetworkHelper::getDequantization(split);
+    const auto split = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(split, defaultPrecisions);
 
     OutputVector inputs = split->input_values();
     inputs[0] = dequantization.data;
@@ -153,7 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer).empty()) {
+    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
         return false;
     }
 

@@ -3,8 +3,14 @@
 	<layers>
 		<layer id="0" name="Parameter_69" type="Parameter" version="opset1">
 			<data shape="490, 608, 1, 1" element_type="f32" />
+			<rt_info>
+				<attribute name="custom_attr" version="0"/>
+			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
+					<rt_info>
+						<attribute name="another_custom_attr" version="0"/>
+					</rt_info>
 					<dim>490</dim>
 					<dim>608</dim>
 					<dim>1</dim>
@@ -24,7 +30,7 @@
 			</output>
 		</layer>
 		<layer id="2" name="Convolution_72" type="Convolution" version="opset1">
-			<data strides="1, 1" dilations="1, 1" pads_begin="0, 0" pads_end="0, 0" auto_pad="explicit" PrimitivesPriority="_IMPLS_"/>
+			<data strides="1, 1" dilations="1, 1" pads_begin="1, 1" pads_end="1, 1" auto_pad="SAME_LOWER" PrimitivesPriority="_IMPLS_"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>

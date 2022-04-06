@@ -1,8 +1,8 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -66,7 +66,7 @@ TEST_P(LRNLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "LRN");
+    CheckPluginRelatedResults(compiledModel, "LRN");
 }
 
 const std::vector<ElementType> inputPrecisions = {
@@ -98,6 +98,12 @@ const std::vector<InputShape> inputShapes = {
         {{1, 15}, {3, 10}, {3, 7}, {5, 8}},
         // static
         {{15, 5, 7, 8}, {10, 10, 3, 8}, {1, 3, 5, 5}, {10, 10, 3, 8}}
+    },
+    InputShape{
+        // dynamic
+        {{1, 15}, 3, 5, 5},
+        // static
+        {{2, 3, 5, 5}, {1, 3, 5, 5}, {3, 3, 5, 5}}
     },
 };
 

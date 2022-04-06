@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 namespace ov {
@@ -11,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs flatten_contiguous_range(const NodeContext& node) {
-    auto x_node = node.get_ng_input("X");
+    auto x_node = node.get_input("X");
     auto shape_of_x = std::make_shared<opset6::ShapeOf>(x_node);
     int dims = x_node.get_partial_shape().rank().get_length();
     auto start_axis = node.get_attribute<int32_t>("start_axis");

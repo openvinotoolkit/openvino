@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import PosixPath, WindowsPath
@@ -19,7 +19,8 @@ HARDWARE_AWARE_IGNORED_PATTERNS = {
     'CPU': get_cpu_ignored_patterns(),
     'GPU': get_gpu_ignored_patterns(),
     'VPU': get_vpu_ignored_patterns(),
-    'GNA': get_gna_ignored_patterns()
+    'GNA': get_gna_ignored_patterns(),
+    'CPU_SPR': get_cpu_ignored_patterns()
 }
 
 DEFAULT_PATH = 'PATH'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Batched max pooling operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
@@ -60,6 +61,7 @@ private:
 
 namespace v8 {
 /// \brief MaxPooling operation with values and indices calculated as individual outputs
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
     OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);

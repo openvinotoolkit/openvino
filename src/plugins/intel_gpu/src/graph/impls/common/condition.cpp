@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,13 +81,12 @@ private:
 
         auto function = instance.argument.function;
         auto& offset = instance.argument.offset;
-        auto& range = compare_layout.size;
 
-        for (auto b = 0; b < range.batch[0]; b++) {
-            for (auto f = 0; f < range.feature[0]; f++) {
-                for (auto z = 0; z < range.spatial[2]; z++) {
-                    for (auto y = 0; y < range.spatial[1]; y++) {
-                        for (auto x = 0; x < range.spatial[0]; x++) {
+        for (auto b = 0; b < compare_layout.batch(); b++) {
+            for (auto f = 0; f < compare_layout.feature(); f++) {
+                for (auto z = 0; z < compare_layout.spatial(2); z++) {
+                    for (auto y = 0; y < compare_layout.spatial(1); y++) {
+                        for (auto x = 0; x < compare_layout.spatial(0); x++) {
                             tensor input_tensor{
                                 batch(b + offset.batch[0]),
                                 feature(f + offset.feature[0]),

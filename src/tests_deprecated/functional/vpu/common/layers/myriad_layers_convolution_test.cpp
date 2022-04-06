@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -887,7 +887,7 @@ TEST_F(myriadLayersTests_nightly, SmallConv_CorruptInputBug) {
     {
         ie_fp16 *dst = input->buffer().as<ie_fp16 *>();
         for (int i = 0; i < input->size(); ++i) {
-            float val = static_cast<float>(std::rand()) / RAND_MAX;
+            float val = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
             dst[i] = PrecisionUtils::f32tof16(val);
         }
     }

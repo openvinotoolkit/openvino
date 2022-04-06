@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
     AutoTuneOption option = {0, 0, 0, DEFAULT};
 
     auto& params = dynamic_cast<const convolution_params&>(p);
-    auto& output = params.output;
+    auto& output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;
@@ -95,14 +95,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDef
 
     size_t ow_group = 8;
     while (ow_group > 1) {
-        if (CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
+        if (CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
             break;
         ow_group--;
     }
 
-    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 4;
-    dispatchData.gws[1] = Align(CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.output.Y().v * cp.output.Z().v;
-    dispatchData.gws[2] = cp.output.Batch().v;
+    dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 4;
+    dispatchData.gws[1] = Align(CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.outputs[0].Y().v * cp.outputs[0].Z().v;
+    dispatchData.gws[2] = cp.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 8;
     dispatchData.lws[1] = ow_group;
@@ -126,7 +126,7 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("IFM_BLOCKS", CeilDiv(params.inputs[0].Feature().v, 32)));
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1;
 
@@ -143,12 +143,12 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
         std::vector<std::string> idx_order1;
         std::vector<std::string> idx_order2;
         std::vector<std::string> idx_order3;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order0 = {"b", "(fg*32 + 4*lid+0)", "y", "(x+i)"};
             idx_order1 = {"b", "(fg*32 + 4*lid+1)", "y", "(x+i)"};
             idx_order2 = {"b", "(fg*32 + 4*lid+2)", "y", "(x+i)"};
             idx_order3 = {"b", "(fg*32 + 4*lid+3)", "y", "(x+i)"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order0 = {"b", "(fg*32 + 4*lid+0)", "z", "y", "(x+i)"};
             idx_order1 = {"b", "(fg*32 + 4*lid+1)", "z", "y", "(x+i)"};
             idx_order2 = {"b", "(fg*32 + 4*lid+2)", "z", "y", "(x+i)"};

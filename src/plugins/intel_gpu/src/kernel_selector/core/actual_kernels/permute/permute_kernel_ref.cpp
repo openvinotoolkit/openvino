@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
 CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
                                                                      {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                                                                      {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
@@ -95,18 +95,18 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.output.Y().v)
-                                 + " * " + toCodeString(params.output.Z().v) + ")"
-                                 + ", " + permute_out_idx.back() + "/" + toCodeString(params.output.Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Y().v)
+            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.outputs[0].Y().v)
+                                 + " * " + toCodeString(params.outputs[0].Z().v) + ")"
+                                 + ", " + permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Y().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Y().v)
                                  + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.output.Z().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.output.Z().v)
+            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Z().v)
+                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Z().v)
                                  + ", " + permute_out_idx[3]
                                  + ", " + permute_out_idx[2]);
         }
@@ -130,9 +130,9 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     std::pair<size_t, size_t> dim_change;
     bool reorder_to_different_dim = false;
     std::vector<std::string> reordered_out_idx;
-    if (DataTensor::ChannelsCount(params.inputs[0].GetLayout()) != DataTensor::ChannelsCount(params.output.GetLayout())) {
+    if (DataTensor::ChannelsCount(params.inputs[0].GetLayout()) != DataTensor::ChannelsCount(params.outputs[0].GetLayout())) {
         // subsequent reorder to differnt dimension is fused
-        dim_change = {params.inputs[0].GetDims().size(), params.output.GetDims().size()};
+        dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
         reorder_to_different_dim = true;
     }
 

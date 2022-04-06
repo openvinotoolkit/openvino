@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,8 @@ void regclass_frontend_FrontEndManager(py::module m) {
             R"(
                 Gets list of registered frontends.
 
-                Returns
-                ----------
-                get_available_front_ends : List[str]
-                    List of available frontend names.
+                :return: List of available frontend names.
+                :rtype: List[str]
              )");
 
     fem.def("load_by_framework",
@@ -46,15 +44,10 @@ void regclass_frontend_FrontEndManager(py::module m) {
             R"(
                 Loads frontend by name of framework and capabilities.
 
-                Parameters
-                ----------
-                framework : str
-                    Framework name. Throws exception if name is not in list of available frontends.
-
-                Returns
-                ----------
-                load_by_framework : FrontEnd
-                    Frontend interface for further loading of models.
+                :param framework: Framework name. Throws exception if name is not in list of available frontends.
+                :type framework: str
+                :return: Frontend interface for further loading of models.
+                :rtype: openvino.frontend.FrontEnd
              )");
 
     fem.def(
@@ -66,15 +59,10 @@ void regclass_frontend_FrontEndManager(py::module m) {
         R"(
                 Selects and loads appropriate frontend depending on model file extension and other file info (header).
 
-                Parameters
-                ----------
-                model_path : str
-                    Path to model file/directory.
-
-                Returns
-                ----------
-                load_by_model : FrontEnd
-                    Frontend interface for further loading of models. 'None' if no suitable frontend is found
+                :param model_path: A path to a model file/directory.
+                :type model_path: str
+                :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
+                :rtype: openvino.frontend.FrontEnd
             )");
 
     fem.def("__repr__", [](const ov::frontend::FrontEndManager& self) -> std::string {

@@ -1,11 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -104,7 +104,7 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 0) {  // "a_data"
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), inShape, 2, -1, 100);
             } else if (i == 1) {  // "b_offset_vals"
@@ -187,7 +187,7 @@ protected:
 TEST_P(DefConvLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "DeformableConvolution");
+    CheckPluginRelatedResults(compiledModel, "DeformableConvolution");
 }
 
 namespace {
@@ -335,6 +335,12 @@ const std::vector<std::vector<size_t>> channelParamsSingleGr = {
     {1, 2}, // def. gr. 1,2
     {16, 32}, // in. ch. per gr.
     {16, 32} // out. ch. per gr.
+};
+const std::vector<std::vector<size_t>> channelParamsSingleGr2 = {
+    {1}, // gr. 2,4
+    {1}, // def. gr. 1,2
+    {3}, // in. ch. per gr.
+    {3} // out. ch. per gr.
 };
 const std::vector<std::vector<size_t>> channelParamsMulGr = {
     {2, 4}, // gr. 2,4
@@ -503,7 +509,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest9, DefConvLayerCPUTest, params9_
 const auto params1 = ::testing::Combine(
                          ::testing::Combine(
                             addSpParams,
-                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams1, channelParamsSingleGr))),
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams1, channelParamsSingleGr2))),
                             defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "roi_align_kernel_ref.h"
@@ -29,7 +29,7 @@ namespace {
 ROIAlignKernelRef::DispatchData SetDefault(const roi_align_params& params) {
     ROIAlignKernelRef::DispatchData dispatchData;
     // Determine global work sizes.
-    dispatchData.gws[0] = params.output.LogicalSize();
+    dispatchData.gws[0] = params.outputs[0].LogicalSize();
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -70,7 +70,7 @@ bool ROIAlignKernelRef::Validate(const Params& p, const optional_params& o) cons
     if (params.inputs.size() != 3)
         return false;
 
-    if (params.output.Dimentions() > 4 || params.inputs[0].Dimentions() > 4 || params.inputs[1].Dimentions() > 2)
+    if (params.outputs[0].Dimentions() > 4 || params.inputs[0].Dimentions() > 4 || params.inputs[1].Dimentions() > 2)
         return false;
 
     return true;

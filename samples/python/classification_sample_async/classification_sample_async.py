@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -14,7 +14,7 @@ from openvino.runtime import AsyncInferQueue, Core, InferRequest, Layout, Type
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
+    """Parse and return command line arguments."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     # fmt: off
@@ -64,7 +64,7 @@ def main() -> int:
     core = Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
-    log.info(f'Reading the network: {args.model}')
+    log.info(f'Reading the model: {args.model}')
     # (.xml and .bin files) or (.onnx file)
     model = core.read_model(args.model)
 

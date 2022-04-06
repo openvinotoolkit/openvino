@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.middle.pattern_match import apply_pattern
 from openvino.tools.mo.middle.TensorIterator_utils import delete_selects_from
 from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
 from openvino.tools.mo.ops.identity import Identity
@@ -66,134 +67,140 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         return [TensorIteratorMerge]
 
     @staticmethod
-    def pattern():
+    def pattern(variation):
         log.debug('+++++++++++++++ ConditionMatching ++++++++++++++++')
-        return dict(
-            nodes=[
-                ('Enter_1_less', dict(kind='op', op='Enter')),
-                ('Strided_slice', dict(kind='op', op='StridedSlice')),
-                ('Strided_slice_data', dict(kind='data')),
-                ('Enter_1_less_data', dict(kind='data')),
+        nodes = [
+            ('Enter_1_less', dict(kind='op', op='Enter')),
+            ('Strided_slice', dict(kind='op', op='StridedSlice')),
+            ('Strided_slice_data', dict(kind='data')),
+            ('Enter_1_less_data', dict(kind='data')),
 
-                ('Less_1', dict(kind='op', op='Less')),
-                ('Merge_1', dict(kind='op', op='Merge')),
-                ('Merge_1_data', dict(kind='data')),
-                ('Less_1_data', dict(kind='data')),
+            ('Less_1', dict(kind='op', op='Less')),
+            ('Merge_1', dict(kind='op', op='Merge')),
+            ('Merge_1_data', dict(kind='data')),
+            ('Less_1_data', dict(kind='data')),
 
-                ('Less_2', dict(kind='op', op='Less')),
-                ('Merge_2', dict(kind='op', op='Merge')),
-                ('Merge_2_data', dict(kind='data')),
-                ('Less_2_data', dict(kind='data')),
+            ('Less_2', dict(kind='op', op='Less')),
+            ('Merge_2', dict(kind='op', op='Merge')),
+            ('Merge_2_data', dict(kind='data')),
+            ('Less_2_data', dict(kind='data')),
 
+            ('and', dict(kind='op', op='LogicalAnd')),
+            ('and_data', dict(kind='data')),
+            ('loop_cond', dict(kind='op', op='LoopCond')),
+            ('loop_cond_data', dict(kind='data')),
+
+            ('init_1', dict(kind='op', op='Const')),
+            ('init_1_data', dict(kind='data')),
+            ('Enter_1', dict(kind='op', op='Enter')),
+            ('Enter_1_data', dict(kind='data')),
+
+            ('init_2', dict(kind='op', op='Const')),
+            ('init_2_data', dict(kind='data')),
+            ('Enter_2', dict(kind='op', op='Enter')),
+            ('Enter_2_data', dict(kind='data')),
+
+            ('Switch_1', dict(kind='op', op='Switch')),
+            ('Switch_1_data', dict(kind='data')),
+            ('Identity_1', dict(kind='op', op='Identity')),
+            ('Identity_1_data', dict(kind='data')),
+            ('add_1', dict(kind='op', op='Add')),
+            ('add_1_y', dict(kind='op', op='Const')),
+            ('add_1_y_data', dict(kind='data')),
+            ('add_1_data', dict(kind='data')),
+            ('NextIteration_1', dict(kind='op', op='NextIteration')),
+
+            ('Switch_2', dict(kind='op', op='Switch')),
+            ('Switch_2_data', dict(kind='data')),
+            ('Identity_2', dict(kind='op', op='Identity')),
+            ('Identity_2_data', dict(kind='data')),
+            ('add_2', dict(kind='op', op='Add')),
+            ('add_2_y', dict(kind='op', op='Const')),
+            ('add_2_y_data', dict(kind='data')),
+            ('add_2_data', dict(kind='data')),
+            ('NextIteration_2', dict(kind='op', op='NextIteration')),
+
+        ]
+        edges = [
+            ('Strided_slice', 'Strided_slice_data'),
+            ('Strided_slice_data', 'Enter_1_less'),
+            ('Enter_1_less', 'Enter_1_less_data'),
+            ('Enter_1_less_data', 'Less_1'),
+            ('Less_1', 'Less_1_data'),
+            ('Less_1_data', 'and'),
+
+            ('and', 'and_data'),
+            ('and_data', 'loop_cond'),
+            ('loop_cond', 'loop_cond_data'),
+            ('loop_cond_data', 'Switch_1'),
+            ('loop_cond_data', 'Switch_2'),
+
+            ('init_1', 'init_1_data'),
+            ('init_1_data', 'Enter_1'),
+            ('Enter_1', 'Enter_1_data'),
+            ('Enter_1_data', 'Merge_1'),
+            ('Merge_1', 'Merge_1_data'),
+            ('Merge_1_data', 'Less_1'),
+
+            ('Merge_1_data', 'Switch_1'),
+            ('Switch_1', 'Switch_1_data'),
+            ('Switch_1_data', 'Identity_1'),
+            ('Identity_1', 'Identity_1_data'),
+            ('Identity_1_data', 'add_1'),
+            ('add_1_y', 'add_1_y_data'),
+            ('add_1_y_data', 'add_1'),
+            ('add_1', 'add_1_data'),
+            ('add_1_data', 'NextIteration_1'),
+
+            ('Merge_2_data', 'Switch_2'),
+            ('Switch_2', 'Switch_2_data'),
+            ('Switch_2_data', 'Identity_2'),
+            ('Identity_2', 'Identity_2_data'),
+            ('Identity_2_data', 'add_2'),
+            ('add_2_y', 'add_2_y_data'),
+            ('add_2_y_data', 'add_2'),
+            ('add_2', 'add_2_data'),
+            ('add_2_data', 'NextIteration_2'),
+
+            ('init_2', 'init_2_data'),
+            ('init_2_data', 'Enter_2'),
+            ('Enter_2', 'Enter_2_data'),
+            ('Enter_2_data', 'Merge_2'),
+
+            ('Merge_2', 'Merge_2_data'),
+            ('Merge_2_data', 'Less_2'),
+            ('Less_2', 'Less_2_data'),
+            ('Less_2_data', 'and'),
+        ]
+        if variation == 1:
+            nodes.extend([
                 ('Enter_2_less', dict(kind='op', op='Enter')),
                 ('Enter_2_less_data', dict(kind='data')),
-                ('minimum_data', dict(kind='data')),
-
-                ('and', dict(kind='op', op='LogicalAnd')),
-                ('and_data', dict(kind='data')),
-                ('loop_cond', dict(kind='op', op='LoopCond')),
-                ('loop_cond_data', dict(kind='data')),
-
-                ('init_1', dict(kind='op', op='Const')),
-                ('init_1_data', dict(kind='data')),
-                ('Enter_1', dict(kind='op', op='Enter')),
-                ('Enter_1_data', dict(kind='data')),
-
-                ('init_2', dict(kind='op', op='Const')),
-                ('init_2_data', dict(kind='data')),
-                ('Enter_2', dict(kind='op', op='Enter')),
-                ('Enter_2_data', dict(kind='data')),
-
-                ('Switch_1', dict(kind='op', op='Switch')),
-                ('Switch_1_data', dict(kind='data')),
-                ('Identity_1', dict(kind='op', op='Identity')),
-                ('Identity_1_data', dict(kind='data')),
-                ('add_1', dict(kind='op', op='Add')),
-                ('add_1_y', dict(kind='op', op='Const')),
-                ('add_1_y_data', dict(kind='data')),
-                ('add_1_data', dict(kind='data')),
-                ('NextIteration_1', dict(kind='op', op='NextIteration')),
-
-                ('Switch_2', dict(kind='op', op='Switch')),
-                ('Switch_2_data', dict(kind='data')),
-                ('Identity_2', dict(kind='op', op='Identity')),
-                ('Identity_2_data', dict(kind='data')),
-                ('add_2', dict(kind='op', op='Add')),
-                ('add_2_y', dict(kind='op', op='Const')),
-                ('add_2_y_data', dict(kind='data')),
-                ('add_2_data', dict(kind='data')),
-                ('NextIteration_2', dict(kind='op', op='NextIteration')),
-
-            ],
-            edges=[
-                ('Strided_slice', 'Strided_slice_data'),
-                ('Strided_slice_data', 'Enter_1_less'),
-                ('Enter_1_less', 'Enter_1_less_data'),
-                ('Enter_1_less_data', 'Less_1'),
-                ('Less_1', 'Less_1_data'),
-                ('Less_1_data', 'and'),
-
-                ('and', 'and_data'),
-                ('and_data', 'loop_cond'),
-                ('loop_cond', 'loop_cond_data'),
-                ('loop_cond_data', 'Switch_1'),
-                ('loop_cond_data', 'Switch_2'),
-
-                ('init_1', 'init_1_data'),
-                ('init_1_data', 'Enter_1'),
-                ('Enter_1', 'Enter_1_data'),
-                ('Enter_1_data', 'Merge_1'),
-                ('Merge_1', 'Merge_1_data'),
-                ('Merge_1_data', 'Less_1'),
-
-                ('Merge_1_data', 'Switch_1'),
-                ('Switch_1', 'Switch_1_data'),
-                ('Switch_1_data', 'Identity_1'),
-                ('Identity_1', 'Identity_1_data'),
-                ('Identity_1_data', 'add_1'),
-                ('add_1_y', 'add_1_y_data'),
-                ('add_1_y_data', 'add_1'),
-                ('add_1', 'add_1_data'),
-                ('add_1_data', 'NextIteration_1'),
-
-                ('Merge_2_data', 'Switch_2'),
-                ('Switch_2', 'Switch_2_data'),
-                ('Switch_2_data', 'Identity_2'),
-                ('Identity_2', 'Identity_2_data'),
-                ('Identity_2_data', 'add_2'),
-                ('add_2_y', 'add_2_y_data'),
-                ('add_2_y_data', 'add_2'),
-                ('add_2', 'add_2_data'),
-                ('add_2_data', 'NextIteration_2'),
-
+                ('minimum_data', dict(kind='data'))
+            ])
+            edges.extend([
                 ('minimum_data', 'Enter_2_less'),
                 ('Enter_2_less', 'Enter_2_less_data'),
                 ('Enter_2_less_data', 'Less_2'),
-
-                ('init_2', 'init_2_data'),
-                ('init_2_data', 'Enter_2'),
-                ('Enter_2', 'Enter_2_data'),
-                ('Enter_2_data', 'Merge_2'),
-
-                ('Merge_2', 'Merge_2_data'),
-                ('Merge_2_data', 'Less_2'),
-                ('Less_2', 'Less_2_data'),
-                ('Less_2_data', 'and'),
-            ],
-        )
+            ])
+        elif variation == 2:
+            edges.append(('Enter_1_less_data', 'Less_2'))
+        else:
+            raise Exception('Wrong pattern variation')
+        return dict(nodes=nodes, edges=edges)
 
     @staticmethod
     def looking_for_iteration_counter(graph: Graph, match: dict):
         types = ['TensorIteratorInput', 'TensorIteratorOutput']
-        candidates = mo_array([match['Identity_1_data'], match['Identity_2_data']])
-        results = mo_array([False for i in range(len(candidates))])
-        for i, candidat in enumerate(candidates):
-            for node in candidat.out_nodes():
+        candidates = [match['Identity_1_data'], match['Identity_2_data']]
+        results = []
+        for candidate in candidates:
+            for node in candidate.out_nodes():
                 if node['op'] in types:
-                    results[i] = True
-        assert not np.all(results)
-        assert sum(results) == 1
-        return candidates[results == True][0]
+                    results.append(candidate)
+                    break
+        assert len(results) == 1
+        return results[0]
 
     @staticmethod
     def check_dynamic_seq_len(graph: Graph, match: dict):
@@ -201,10 +208,16 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         Cycle is dynamic if at least one of the boundaries isn't constant OR this boundaries is different from tensor
         shape.
         """
-        dynamic_seq_len = match['Enter_1_less_data'].value is None or match['Enter_2_less_data'].value is None or \
-                          not np.array_equal(match['Enter_1_less_data'].value, match['Enter_2_less_data'].value)
+        dynamic_seq_len = match['Enter_1_less_data'].value is None
+        if 'Enter_2_less_data' in match:
+            dynamic_seq_len = dynamic_seq_len or match['Enter_2_less_data'].value is None or \
+                              not np.array_equal(match['Enter_1_less_data'].value, match['Enter_2_less_data'].value)
 
         return dynamic_seq_len
+
+    def find_and_replace_pattern(self, graph: Graph):
+        apply_pattern(graph, **self.pattern(1), action=self.replace_pattern)  # pylint: disable=no-member
+        apply_pattern(graph, **self.pattern(2), action=self.replace_pattern)  # pylint: disable=no-member
 
     def replace_pattern(self, graph: Graph, match: dict):
         log.debug('================== ConditionFind ===============')
@@ -235,7 +248,11 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         condition_attrs = dict(time=dict(init=init_2, step=step_2), iter=dict(init=init_1, step=step_1),
                                name=match['loop_cond'].name + '/TensorIteratorCondition_')
         condition = TensorIteratorCondition(graph, attrs=condition_attrs)
-        condition_data = condition.create_node_with_data(inputs=[match['Strided_slice_data'], match['minimum_data']],
+        if 'minimum_data' in match:
+            condition_inp = [match['Strided_slice_data'], match['minimum_data']]
+        else:
+            condition_inp = [match['Strided_slice_data']]
+        condition_data = condition.create_node_with_data(inputs=condition_inp,
                                                          data_nodes=[loop_condition, iterator_data])
 
         safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Identity_2_data', 'Strided_slice', 'Strided_slice_data',

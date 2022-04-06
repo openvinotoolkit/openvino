@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
-            slog::info << "Usage : " << argc << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << slog::endl;
             return EXIT_FAILURE;
         }
 
@@ -38,7 +38,7 @@ int tmain(int argc, tchar* argv[]) {
         const std::string device_name = TSTRING2STRING(argv[3]);
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
@@ -63,10 +63,9 @@ int tmain(int argc, tchar* argv[]) {
         ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
         std::shared_ptr<unsigned char> input_data = reader->getData();
 
-        // just wrap image data by ov::runtime::Tensor without allocating of new memory
-        ov::runtime::Tensor input_tensor = ov::runtime::Tensor(input_type, input_shape, input_data.get());
+        // just wrap image data by ov::Tensor without allocating of new memory
+        ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
 
-        const ov::Shape tensor_shape = input_tensor.get_shape();
         const ov::Layout tensor_layout{"NHWC"};
 
         // -------- Step 4. Configure preprocessing --------
@@ -75,15 +74,9 @@ int tmain(int argc, tchar* argv[]) {
 
         // 1) Set input tensor information:
         // - input() provides information about a single model input
-        // - precision of tensor is supposed to be 'u8'
+        // - reuse precision and shape from already available `input_tensor`
         // - layout of data is 'NHWC'
-        // - set static spatial dimensions to input tensor to resize from
-        ppp.input()
-            .tensor()
-            .set_element_type(ov::element::u8)
-            .set_layout(tensor_layout)
-            .set_spatial_static_shape(tensor_shape[ov::layout::height_idx(tensor_layout)],
-                                      tensor_shape[ov::layout::width_idx(tensor_layout)]);
+        ppp.input().tensor().set_from(input_tensor).set_layout(tensor_layout);
         // 2) Adding explicit preprocessing steps:
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
@@ -94,14 +87,14 @@ int tmain(int argc, tchar* argv[]) {
         // - precision of tensor is supposed to be 'f32'
         ppp.output().tensor().set_element_type(ov::element::f32);
 
-        // 6) Apply preprocessing modifing the original 'model'
+        // 6) Apply preprocessing modifying the original 'model'
         model = ppp.build();
 
         // -------- Step 5. Loading a model to the device --------
-        ov::runtime::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
 
         // -------- Step 6. Create an infer request --------
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // -------- Step 7. Prepare input --------
@@ -111,7 +104,7 @@ int tmain(int argc, tchar* argv[]) {
         infer_request.infer();
 
         // -------- Step 9. Process output
-        const ov::runtime::Tensor& output_tensor = infer_request.get_output_tensor();
+        const ov::Tensor& output_tensor = infer_request.get_output_tensor();
 
         // Print classification results
         ClassificationResult classification_result(output_tensor, {image_path});

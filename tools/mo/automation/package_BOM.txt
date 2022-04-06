@@ -12,9 +12,6 @@ install_prerequisites/install_prerequisites_tf.bat
 install_prerequisites/install_prerequisites_tf.sh
 install_prerequisites/install_prerequisites_tf2.bat
 install_prerequisites/install_prerequisites_tf2.sh
-install_prerequisites/protobuf-3.6.1-py3.5-win-amd64.egg
-install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
-install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
 openvino/tools/mo/__init__.py
 openvino/tools/mo/__main__.py
 openvino/tools/mo/analysis/__init__.py
@@ -200,9 +197,7 @@ openvino/tools/mo/front/interpolate_reshape.py
 openvino/tools/mo/front/InterpolateNormalizer.py
 openvino/tools/mo/front/InterpolateV1ToInterpolate.py
 openvino/tools/mo/front/kaldi/__init__.py
-openvino/tools/mo/front/kaldi/add_permute_after_convolution.py
-openvino/tools/mo/front/kaldi/add_reshape_around_convolution.py
-openvino/tools/mo/front/kaldi/add_reshape_around_pooling.py
+openvino/tools/mo/front/kaldi/add_reshape_transpose_around_conv_pool.py
 openvino/tools/mo/front/kaldi/apply_counts.py
 openvino/tools/mo/front/kaldi/extractor.py
 openvino/tools/mo/front/kaldi/extractors/__init__.py
@@ -270,6 +265,8 @@ openvino/tools/mo/front/mxnet/activation.py
 openvino/tools/mo/front/mxnet/adaptive_avg_pooling_ext.py
 openvino/tools/mo/front/mxnet/add_input_data_to_prior_boxes.py
 openvino/tools/mo/front/mxnet/arange_ext.py
+openvino/tools/mo/front/mxnet/arange_like_ext.py
+openvino/tools/mo/front/mxnet/arange_like_replacer.py
 openvino/tools/mo/front/mxnet/arange_replacer.py
 openvino/tools/mo/front/mxnet/batch_dot_ext.py
 openvino/tools/mo/front/mxnet/block_grad_ext.py
@@ -790,6 +787,7 @@ openvino/tools/mo/middle/permute_tensor_iterator.py
 openvino/tools/mo/middle/PoolV2ToAttributedPool.py
 openvino/tools/mo/middle/preprocessing.py
 openvino/tools/mo/middle/PreserveRuntimeInfo.py
+openvino/tools/mo/middle/quantize_dequantize_linear_resolver.py
 openvino/tools/mo/middle/quantize_fuses.py
 openvino/tools/mo/middle/quantize_linear_resolver.py
 openvino/tools/mo/middle/ReluQuantizeFuse.py
@@ -816,7 +814,6 @@ openvino/tools/mo/middle/sparse_reshape.py
 openvino/tools/mo/middle/split_tdnn_memoryoffset.py
 openvino/tools/mo/middle/SplitConcatPairToInterpolate.py
 openvino/tools/mo/middle/StridedSliceNormalizer.py
-openvino/tools/mo/middle/StridedSliceReplacer.py
 openvino/tools/mo/middle/SwapAxesMiddleReplacer.py
 openvino/tools/mo/middle/TensorIterator_utils.py
 openvino/tools/mo/middle/TensorIteratorBackEdge.py
@@ -839,6 +836,8 @@ openvino/tools/mo/mo_onnx.py
 openvino/tools/mo/mo_paddle.py
 openvino/tools/mo/mo_tf.py
 openvino/tools/mo/moc_frontend/__init__.py
+openvino/tools/mo/moc_frontend/analysis.py
+openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/serialize.py
@@ -846,6 +845,7 @@ openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
 openvino/tools/mo/ops/activation_ops.py
 openvino/tools/mo/ops/adaptive_avg_pooling.py
+openvino/tools/mo/ops/arange_like.py
 openvino/tools/mo/ops/argmax.py
 openvino/tools/mo/ops/argmin.py
 openvino/tools/mo/ops/assert_op.py
@@ -1023,6 +1023,7 @@ openvino/tools/mo/subprocess_main.py
 openvino/tools/mo/utils/__init__.py
 openvino/tools/mo/utils/broadcasting.py
 openvino/tools/mo/utils/check_ie_bindings.py
+openvino/tools/mo/utils/check_mo_import.py
 openvino/tools/mo/utils/class_registration.py
 openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
@@ -1054,6 +1055,7 @@ openvino/tools/mo/utils/ir_reader/extenders/experimental_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/fakequantize_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/GRUCell_extender.py
+openvino/tools/mo/utils/ir_reader/extenders/GRUSequence_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/if_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/interpolate_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/loop_extender.py

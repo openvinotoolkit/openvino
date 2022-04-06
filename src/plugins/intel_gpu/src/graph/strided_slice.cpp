@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,15 @@ primitive_type_id strided_slice::type_id() {
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     auto desc = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
-    auto output_format = input_layout.format;
-    if ((output_format == format::bfzyx) && (node.get_primitive()->shrink_axis_mask.size() > 0)) {
-        output_format = format::bfyx;
+    auto output_format = format::get_default_format(desc->out_size.size());
+    auto out_shape = desc->out_size;
+    std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());
+    // extend shape to 4d
+    for (size_t i = dims_converted.size(); i < 4; i++) {
+        dims_converted.push_back(1);
     }
-    return layout{input_layout.data_type, output_format, desc->out_size};
+    auto out_size = cldnn::tensor(output_format, dims_converted);
+    return layout{input_layout.data_type, output_format, out_size};
 }
 
 std::string strided_slice_inst::to_string(strided_slice_node const& node) {

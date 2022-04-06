@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ov {
 namespace pass {
@@ -25,8 +24,8 @@ class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParams;
  * in the bodies of a MultiSubGraphOp
  */
 
-class ov::pass::RemoveMultiSubGraphOpDanglingParams: public ov::pass::MatcherPass {
+class ov::pass::RemoveMultiSubGraphOpDanglingParams : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RemoveMultiSubGraphOpDanglingParams", "0");
     RemoveMultiSubGraphOpDanglingParams();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -17,6 +18,7 @@
 #include <memory>
 #include <list>
 #include <algorithm>
+#include <thread>
 
 namespace cldnn {
 
@@ -54,6 +56,30 @@ enum class onednn_post_op_type : uint32_t {
     optimized_sum
 };
 
+static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t) {
+    switch (t) {
+        case onednn_post_op_type::eltwise_act: os << "eltwise_act"; break;
+        case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
+        case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
+        case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
+        case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
+        case onednn_post_op_type::binary_add: os << "binary_add"; break;
+        case onednn_post_op_type::binary_max: os << "binary_max"; break;
+        case onednn_post_op_type::binary_min: os << "binary_min"; break;
+        case onednn_post_op_type::binary_relu: os << "binary_relu"; break;
+        case onednn_post_op_type::scale: os << "scale"; break;
+        case onednn_post_op_type::sum: os << "sum"; break;
+        case onednn_post_op_type::optimized: os << "optimized"; break;
+        case onednn_post_op_type::optimized_eltwise_act: os << "optimized_eltwise_act"; break;
+        case onednn_post_op_type::optimized_eltwise_clip: os << "optimized_eltwise_clip"; break;
+        case onednn_post_op_type::optimized_eltwise_linear: os << "optimized_eltwise_linear"; break;
+        case onednn_post_op_type::optimized_eltwise_round: os << "optimized_eltwise_round"; break;
+        case onednn_post_op_type::optimized_sum: os << "optimized_sum"; break;
+        default: os << "invalid";
+    }
+    return os;
+}
+
 struct fused_primitive_desc_onednn {
     onednn_post_op_type op_type; // onednn post-operation type
     size_t mem_offset;           // index of a memory buffer for current post-operation
@@ -64,11 +90,11 @@ struct fused_primitive_desc_onednn {
 struct fused_primitive_desc {
     std::shared_ptr<program_node> node;
     size_t dep_start_idx;
-    std::map<primitive_id, size_t> deps;
+    std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
     size_t total_num_deps = 0;
     activation_func activation;
-    activation_additional_params activation_params;
+    activation_additional_params activation_params = { 0.f, 0.f };
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
@@ -133,10 +159,10 @@ public:
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
-    void replace_dependency(size_t idx, program_node& new_dep);
+    void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
-    void replace_dependency(program_node const& old_dep, program_node& new_dep);
+    void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 
@@ -350,11 +376,19 @@ public:
 
     bool need_lockable_memory() const;
 
-    std::string get_unique_id() const { return unique_id; }
-    void set_unique_id(std::string id) { unique_id = id; }
+    size_t get_unique_id() const { return unique_id; }
+
+    void set_unique_id() {
+        unique_id = cur_id++;
+    }
+
+    static void reset_unique_id() {
+        cur_id = 0;
+    }
 
 protected:
-    std::string unique_id;
+    size_t unique_id = 0;
+    static thread_local size_t cur_id;
 
     std::shared_ptr<primitive> desc;
     program& myprog;

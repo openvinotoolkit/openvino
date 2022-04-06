@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,10 +31,6 @@ void CacheGuardEntry::performLock() {
 }
 
 //////////////////////////////////////////////////////
-
-CacheGuard::~CacheGuard() {
-    IE_ASSERT(m_table.size() == 0);
-}
 
 std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash) {
     std::unique_lock<std::mutex> lock(m_tableMutex);

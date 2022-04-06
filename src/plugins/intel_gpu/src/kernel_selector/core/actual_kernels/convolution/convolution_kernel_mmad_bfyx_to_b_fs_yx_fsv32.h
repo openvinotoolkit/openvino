@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,9 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
-        if (p.output.GetDType() == Datatype::F16 || p.output.GetDType() == Datatype::F32 ||
-            p.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || p.output.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-            if (p.output.Dimentions() == 5) {
+        if (p.outputs[0].GetDType() == Datatype::F16 || p.outputs[0].GetDType() == Datatype::F32 ||
+            p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+            if (p.outputs[0].Dimentions() == 5) {
                 return WeightsLayout::os_is_zyx_osv32_isv4;
             } else {
                 return WeightsLayout::os_is_yx_osv32_isv4;

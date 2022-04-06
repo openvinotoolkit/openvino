@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,25 +153,17 @@ matcher_pass_callback get_callback() {
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DConvolution, "Reshape1DConvolution", 0);
-
 ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
-
 ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
     auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
     this->register_matcher(m, get_callback());
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
 
 ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>(pattern::has_static_shape());

@@ -1,10 +1,11 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
     np_data_type_to_destination_type, packed_I4, packed_U4
@@ -22,6 +23,7 @@ class Cast(Op):
             'type': 'Convert',
             'version': 'opset1',
             'infer': self.infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
             'type_infer': self.type_infer,
             'dst_type': None,
             'in_ports_count': 1,

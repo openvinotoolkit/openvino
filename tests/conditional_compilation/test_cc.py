@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Test conditional compilation.
@@ -125,7 +125,7 @@ def test_verify(test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
 def test_libs_size(test_id, models, openvino_ref, artifacts):  # pylint: disable=unused-argument
     """Test if libraries haven't increased in size after conditional compilation."""
-    libraries = ["ov_runtime", "ov_intel_cpu_plugin"]
+    libraries = ["openvino", "openvino_intel_cpu_plugin"]
     minimized_pkg = artifacts / test_id / "install_pkg"
     ref_libs_size = get_lib_sizes(openvino_ref, libraries)
     lib_sizes = get_lib_sizes(minimized_pkg, libraries)

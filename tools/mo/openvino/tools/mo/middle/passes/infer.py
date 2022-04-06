@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -117,7 +117,7 @@ def partial_infer(graph: Graph, start_node: str = None):
     not_fully_inferred = graph.get_nodes_with_attributes(is_not_fully_inferred=True)
     for n in not_fully_inferred:
         node = Node(graph, n)
-        if node.has('infer') and not node.infer is None:
+        if node.has_and_set('infer'):
             node.infer(node)
 
     return graph
@@ -145,6 +145,7 @@ def infer_nodes(graph: Graph, nodes: List[Node], constant_subgraph_only: bool = 
                         in_values = [port.data.get_value() for port in node.in_ports().values()]
                         if node.soft_get('op') == 'Parameter' or any(value is None for value in in_values) or \
                                 (node.soft_get('op') == 'ShapeOf' and node.in_port(0).data.get_shape() is None):
+                            # if here will be any new ShapeOf type operation, we should update condition above
                             continue
 
                     if debug_logger:
@@ -335,8 +336,37 @@ def copy_type_infer(node):
 
 def reverse_infer(graph: Graph, nodes: list):
     nodes = reversed(nodes)
+    debug_logger = log.getLogger().isEnabledFor(log.DEBUG)
     for n in nodes:
         node = Node(graph, n)
-        if node.has_valid('reverse_infer'):
+        if node.has_and_set('reverse_infer'):
             log.debug("Executed reverse infer for node '{}'".format(node.soft_get('name', node.id)))
             node.reverse_infer(node)
+
+            if debug_logger:
+                log.debug('-' * 20)
+                log.debug('Reverse infer for {}'.format(node.soft_get('name')))
+                log.debug('Op: {}'.format(node.soft_get('op')))
+                log.debug('Outputs:')
+                log_debug_dict(node.out_nodes(), 'outputs')
+
+                log.debug('Inputs:')
+                log_debug_dict(node.in_nodes(), 'inputs')
+
+    parameters_with_no_shape = []
+    for node in graph.get_op_nodes(op='Parameter'):
+        if not node.has_valid('shape'):
+            parameters_with_no_shape.append(node)
+
+    if len(parameters_with_no_shape) == 0:
+        return
+
+    parameters_names = ''
+    for idx, node in enumerate(parameters_with_no_shape):
+        parameters_names += "'{}'".format(node.soft_get('name', node.id))
+        if idx < len(parameters_with_no_shape) - 1:
+            parameters_names += ', '
+
+    if len(parameters_with_no_shape) > 0:
+        raise Error("Model Optimizer is unable to deduce input shapes for the following Parameter nodes: {}. "
+                    "Please use cli options --input or --input_shape to set model input shape.".format(parameters_names))

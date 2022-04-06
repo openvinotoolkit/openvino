@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+
+#include <low_precision/common/quantization_granularity_restriction.hpp>
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -70,7 +72,8 @@ public:
         const ngraph::element::Type precision,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
         const std::vector<float>& weightsValues,
-        const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights);
+        const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+        const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& restrictions = {});
 };
 }  // namespace subgraph
 }  // namespace builder

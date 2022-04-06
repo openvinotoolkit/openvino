@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime.opset1.ops import absolute
@@ -84,7 +84,7 @@ from openvino.runtime.opset5.ops import log_softmax
 from openvino.runtime.opset5.ops import loop
 from openvino.runtime.opset1.ops import lrn
 from openvino.runtime.opset4.ops import lstm_cell
-from openvino.runtime.opset1.ops import lstm_sequence
+from openvino.runtime.opset5.ops import lstm_sequence
 from openvino.runtime.opset1.ops import matmul
 from openvino.runtime.opset8.ops import matrix_nms
 from openvino.runtime.opset8.ops import max_pool

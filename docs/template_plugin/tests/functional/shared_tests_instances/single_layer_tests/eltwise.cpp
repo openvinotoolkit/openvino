@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
         ngraph::helpers::EltwiseTypes::POWER,
 };
 
-std::map<std::string, std::string> additional_config_single_thread = {
+ov::AnyMap additional_config_single_thread = {
         {"CPU_THREADS_NUM", "1"}
 };
 

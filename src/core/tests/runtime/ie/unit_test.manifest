@@ -29,7 +29,6 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
-onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
@@ -113,17 +112,6 @@ IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 # I64 ONNX Clip Failing on ubuntu18/20_release CI
 IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
 IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
-
-# TopK Incorrect input data/index values precision
-onnx_model_argmax_int32
-onnx_model_argmin_int32
-arg_max_dyn_shape
-
-# Result mismatch
-onnx_model_argmax_float
-onnx_model_argmin_float
-onnx_model_argmax_select_last_index
-onnx_model_argmin_select_last_index
 
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
@@ -221,12 +209,12 @@ onnx_model_eye_like_dyn_rank
 
 
 # Constant network
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
-# /openvino/src/plugins/intel_cpu/mkldnn_graph.cpp:747
+# /openvino/src/plugins/intel_cpu/graph.cpp:747
 # Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
 onnx_model_quant_conv_linear_3d
 
@@ -508,7 +496,7 @@ relu_4Dbackprop
 # data [<name>] doesn't exist
 parameter_as_output
 
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 range_v0_int32
 range_v0_float32
 range_v4_int32
@@ -831,10 +819,6 @@ matmul_0x2_2x0
 matmul_3x2_2x0
 matmul_2x3_3x3_int64
 
-onnx_bool_const_op
-onnx_bool_init_and
-onnx_bool_input_or
-onnx_bool_init_raw
 shape_of_scalar_v0
 shape_of_scalar_v3
 shape_of_vector_v0
@@ -850,7 +834,7 @@ non_zero_all_1s
 non_zero_all_0s
 
 # NormalizeL2 - output mismatch,
-# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# dnnl_normalize_nchw applies eps after sqrt for across_spatial
 # Issue: 59586
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add
@@ -921,9 +905,6 @@ roll_negative_axes
 #-------------------------------------------------------------------------------
 
 # Clamp op:
-# Issue 51676: Output mismatch due to wrong conversion of bounds
-IE_CPU.clamp_integral
-IE_CPU.clamp_integral_negative
 # Issue 51679: CI failure on Ubuntu 20. Overflow handling -inf lower bound
 IE_CPU.clamp_int32
 # Precision mismatch
@@ -1570,3 +1551,7 @@ onnx_model_skip_layer_normalization_dynamic_shapes
 onnx_model_embed_layer_normalization_dynamic_shapes
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_attention_dynamic_shapes
+
+# z node not found in graph cache ticket: 81976
+IE_CPU.onnx_expand_context_dependent_function
+IE_CPU.onnx_softmax_crossentropy_loss_mean

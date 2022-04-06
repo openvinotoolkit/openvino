@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-// MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
+// Crop supports only 2d, 4d and 5d blobs
 // This test should pass after deleting
 // "input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5" condition in
 // strided_slice_to_crop transformation
@@ -158,7 +158,7 @@ TEST_F(NGraphReaderTests, ConvertStridedSliceToCrop) {
             });
 }
 
-// MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
+// Crop supports only 2d, 4d and 5d blobs
 // This test should pass after deleting
 // "input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5" condition in
 // strided_slice_to_crop transformation

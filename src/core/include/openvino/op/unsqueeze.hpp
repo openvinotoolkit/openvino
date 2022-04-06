@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief Unsqueeze operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Unsqueeze : public Op {
 public:
     OPENVINO_OP("Unsqueeze", "opset1");
@@ -29,6 +32,7 @@ public:
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 

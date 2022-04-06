@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,9 @@
 namespace kernel_selector {
 
 ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activation_params& arg) const {
-    const auto& out = arg.output;
+    const auto& out = arg.outputs[0];
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
 
     DispatchData dispatchData;
     if (out_layout == DataLayout::yxfb) {

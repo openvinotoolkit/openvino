@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReluTransformation, "ReluTransformation", 0);
-
 ReluTransformation::ReluTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(ReluTransformation);
     auto matcher = pattern::wrap_type<opset1::Relu>({ pattern::wrap_type<opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -30,7 +30,7 @@ ReluTransformation::ReluTransformation(const Params& params) : LayerTransformati
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ReluTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -40,8 +40,8 @@ bool ReluTransformation::transform(TransformationContext& context, ngraph::patte
         return false;
     }
 
-    relu = NetworkHelper::separateInStandaloneBranch(relu);
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, 0);
+    relu = NetworkHelper::separateInStandaloneBranch(relu, defaultPrecisions);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, defaultPrecisions, 0);
     moveDequantizationAfter(context, relu, dequantization, false, false);
     return true;
 }
@@ -55,7 +55,7 @@ bool ReluTransformation::canBeTransformed(const TransformationContext& context, 
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, defaultPrecisions, 0);
     if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }

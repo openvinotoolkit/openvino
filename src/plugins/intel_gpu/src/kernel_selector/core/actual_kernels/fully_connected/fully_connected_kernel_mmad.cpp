@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     FullyConnectedTuningData tuning_data;
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     size_t input_feature = input.Feature().v;
     size_t input_batch = input.Batch().v;
     size_t output_feature = output.Feature().v;
@@ -68,16 +68,18 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
         output_feature = output.Y().v;
     }
 
-    tuning_data.sub_group_size = IsSIMDSizeSupported(params.engineInfo, 8) ? 8 : 16;
-    if (tuning_data.sub_group_size == 8 && input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
-        ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
-        // Known cases for TGL where simd16 works better than simd8
-        bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;
-        bool simd16_exception_2 = input.Feature().v == 21504 && output.Feature().v == 512;
+    // In most cases SIMD8 works faster than SIMD16
+    tuning_data.sub_group_size = 8;
 
-        if (simd16_exception_1 || simd16_exception_2)
-            tuning_data.sub_group_size = 16;
-    }
+    // Known cases for TGL where simd16 works better than simd8
+    bool simd16_is_faster = output_feature == 1024 & output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
+    simd16_is_faster |= (input_feature == 25088 || input_feature == 21504) && output_feature == 512 &&
+                        input_batch == 1 && output_batch == 1 && input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
+
+    // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
+    // Also chose SIMD16 for the exception cases
+    if (!IsSIMDSizeSupported(params.engineInfo, 8) || simd16_is_faster)
+        tuning_data.sub_group_size = 16;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
@@ -127,7 +129,7 @@ FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(cons
                                                                             int) const {
     FullyConnectedTuningData tuning_data = GetTuningParams(params);
     auto dispatchData = Parent::SetDefault(params);
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     std::vector<size_t> global = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
     if (output.GetLayout() == DataLayout::bfyx)
@@ -146,7 +148,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto& input = params.inputs[0];
-    auto& output = params.output;
+    auto& output = params.outputs[0];
     auto& weights = params.weights;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
@@ -230,9 +232,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = {"batch", "feature", "0", "0"};
+        std::vector<std::string> idx_order = { "batch", "feature", "0", "0" };
         if (output.GetLayout() == DataLayout::bfyx)
-            idx_order = {"batch", "skip_f", "feature", "0"};
+            idx_order = { "batch", "skip_f", "feature", "0" };
 
         FusedOpsConfiguration conf = { "", idx_order, "dequantized", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
@@ -264,6 +266,6 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
 }
 
 KernelsPriority FullyConnectedKernelMMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_7;
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

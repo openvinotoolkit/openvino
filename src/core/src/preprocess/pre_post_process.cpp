@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
     explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
-        OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
+        OPENVINO_ASSERT(f, "Model can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
             info.m_impl->m_resolved_param = m_function->get_parameters()[i];
@@ -75,7 +75,7 @@ public:
                 return m_inputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Function doesn't have input with name ", tensor_name);
+        OPENVINO_ASSERT(false, "Model doesn't have input with name ", tensor_name);
     }
 
     OutputInfo& find_output(const std::string& tensor_name) {
@@ -85,7 +85,7 @@ public:
                 return m_outputs[index];
             }
         }
-        OPENVINO_ASSERT(false, "Function doesn't have output with name ", tensor_name);
+        OPENVINO_ASSERT(false, "Model doesn't have output with name ", tensor_name);
     }
 
     std::vector<InputInfo> m_inputs;
@@ -101,14 +101,14 @@ PrePostProcessor::~PrePostProcessor() = default;
 
 InputInfo& PrePostProcessor::input() {
     OPENVINO_ASSERT(m_impl->m_inputs.size() == 1,
-                    "PrePostProcessor::input() - function must have exactly one input, got ",
+                    "PrePostProcessor::input() - Model must have exactly one input, got ",
                     m_impl->m_inputs.size());
     return m_impl->m_inputs.front();
 }
 
 InputInfo& PrePostProcessor::input(size_t input_index) {
     OPENVINO_ASSERT(m_impl->m_inputs.size() > input_index,
-                    "PrePostProcessor::input(size_t) - function doesn't have input with index ",
+                    "PrePostProcessor::input(size_t) - Model doesn't have input with index ",
                     input_index,
                     ". Total number of inputs is ",
                     m_impl->m_inputs.size());
@@ -121,14 +121,14 @@ InputInfo& PrePostProcessor::input(const std::string& tensor_name) {
 
 OutputInfo& PrePostProcessor::output() {
     OPENVINO_ASSERT(m_impl->m_outputs.size() == 1,
-                    "PrePostProcessor::output() - function must have exactly one output, got ",
+                    "PrePostProcessor::output() - Model must have exactly one output, got ",
                     m_impl->m_outputs.size());
     return m_impl->m_outputs.front();
 }
 
 OutputInfo& PrePostProcessor::output(size_t output_index) {
     OPENVINO_ASSERT(m_impl->m_outputs.size() > output_index,
-                    "PrePostProcessor::output(size_t) - function doesn't have input with index ",
+                    "PrePostProcessor::output(size_t) - Model doesn't have input with index ",
                     output_index,
                     ". Total number of inputs is ",
                     m_impl->m_inputs.size());
@@ -169,7 +169,9 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
-        need_validate |= input_info.m_impl->build(function, existing_names, parameters_list);
+        if (input_info.m_impl->build(function, existing_names, parameters_list)) {
+            need_validate = true;
+        }
     }
 
     // Add parameters with right order
@@ -247,6 +249,11 @@ InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
     return *this;
 }
 
+InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
+    m_impl->set_from(runtime_tensor);
+    return *this;
+}
+
 // --------------------- PreProcessSteps ------------------
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
@@ -287,6 +294,11 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height,
 
 PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) {
     m_impl->add_resize_impl(alg, -1, -1);
+    return *this;
+}
+
+PreProcessSteps& PreProcessSteps::crop(const std::vector<int>& begin, const std::vector<int>& end) {
+    m_impl->add_crop_impl(begin, end);
     return *this;
 }
 

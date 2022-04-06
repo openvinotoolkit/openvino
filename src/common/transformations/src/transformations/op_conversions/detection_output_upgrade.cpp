@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::op::util;
-
-NGRAPH_RTTI_DEFINITION(pass::ConvertDetectionOutput1ToDetectionOutput8, "ConvertDetectionOutput1ToDetectionOutput8", 0);
 
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);
@@ -48,19 +46,17 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
 
         std::shared_ptr<opset8::DetectionOutput> detection_output_v8_node = nullptr;
         if (detection_output_v1_node->get_input_size() == 3) {
-            detection_output_v8_node =
-                make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                     detection_output_v1_node->input_value(1),
-                                                     detection_output_v1_node->input_value(2),
-                                                     attributes_v8);
+            detection_output_v8_node = make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                                            detection_output_v1_node->input_value(1),
+                                                                            detection_output_v1_node->input_value(2),
+                                                                            attributes_v8);
         } else if (detection_output_v1_node->get_input_size() == 5) {
-            detection_output_v8_node =
-                make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                     detection_output_v1_node->input_value(1),
-                                                     detection_output_v1_node->input_value(2),
-                                                     detection_output_v1_node->input_value(3),
-                                                     detection_output_v1_node->input_value(4),
-                                                     attributes_v8);
+            detection_output_v8_node = make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                                            detection_output_v1_node->input_value(1),
+                                                                            detection_output_v1_node->input_value(2),
+                                                                            detection_output_v1_node->input_value(3),
+                                                                            detection_output_v1_node->input_value(4),
+                                                                            attributes_v8);
         }
         if (!detection_output_v8_node)
             return false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -47,12 +47,12 @@ template<class T>
 void shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op, const std::vector<T> &input_shapes, std::vector<T> &output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0]);
+    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
 }
 
 template<class T>
 void shape_infer(const ov::op::util::LogicalReductionKeepDims* op, const std::vector<T> &input_shapes, std::vector<T> &output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0]);
+    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
 }

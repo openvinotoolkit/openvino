@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
@@ -101,7 +101,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
@@ -122,7 +122,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
-    pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
@@ -143,7 +143,7 @@ elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config gflags-devel.i686 zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
         gstreamer1

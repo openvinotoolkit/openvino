@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -58,7 +58,7 @@ def download(config):
     return runner.run()
 
 
-def command_line_for_convert(config):
+def command_line_for_convert(config, custom_mo_config=None):
     python_path = DOWNLOAD_PATH.as_posix()
     executable = OMZ_DOWNLOADER_PATH.joinpath('converter.py').as_posix()
     cli_args = ' -o ' + config.model_params.output_dir
@@ -66,19 +66,22 @@ def command_line_for_convert(config):
     cli_args += ' --name ' + config.name
     cli_args += ' --mo ' + MO_PATH.joinpath('mo.py').as_posix()
     cli_args += ' --precisions ' + config.precision
+    if custom_mo_config:
+        for custom_mo_arg in custom_mo_config:
+            cli_args += ' --add_mo_arg=' + custom_mo_arg
     script_launch_cli = '{python_exe} {main_py} {args}'.format(
         python_exe=sys.executable, main_py=executable, args=cli_args
     )
     if not is_platform_windows:
         return 'PYTHONPATH={path}:$PYTHONPATH '.format(path=python_path) + script_launch_cli
-    return 'cmd /C "set PYTHONPATH={path}:$PYTHONPATH && {script_launch_cli}"'.format(
+    return 'cmd /C "set PYTHONPATH={path};%PYTHONPATH% && {script_launch_cli}"'.format(
         path=python_path,
         script_launch_cli=script_launch_cli,
     )
 
 
-def convert(config):
-    runner = Command(command_line_for_convert(config))
+def convert(config, custom_mo_config=None):
+    runner = Command(command_line_for_convert(config, custom_mo_config))
     return runner.run()
 
 
@@ -100,7 +103,7 @@ def download_engine_config(model_name):
                 engine_conf_.network_info = model_.network_info
 
             for launcher in model_.launchers:
-                if launcher.framework == 'dlsdk':
+                if launcher.framework == 'openvino':
                     engine_conf_.launchers = list()
                     engine_launcher = {'framework': launcher.framework}
                     if launcher.adapter:

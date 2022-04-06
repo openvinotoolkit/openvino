@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 
 #include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
-#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 
@@ -369,6 +368,39 @@ ov::element::Type getType(const std::string& value) {
     return getType(value, supported_types);
 }
 
+bool isFP32(const ov::element::Type& type) {
+    return type == ov::element::f32;
+}
+
+static void setDefaultIO(ov::preprocess::PrePostProcessor& preprocessor,
+                         const std::vector<ov::Output<ov::Node>>& inputs,
+                         const std::vector<ov::Output<ov::Node>>& outputs) {
+    const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
+    const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
+
+    if (isMYRIAD) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            if (isFP32(inputs[i].get_element_type())) {
+                preprocessor.input(i).tensor().set_element_type(ov::element::f16);
+            }
+        }
+        for (size_t i = 0; i < outputs.size(); i++) {
+            if (isFP32(outputs[i].get_element_type())) {
+                preprocessor.output(i).tensor().set_element_type(ov::element::f16);
+            }
+        }
+    }
+
+    if (isVPUX) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_element_type(ov::element::u8);
+        }
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_element_type(ov::element::f32);
+        }
+    }
+}
+
 void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
     const std::string& ip,
     const std::string& op,
@@ -382,6 +414,8 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
     auto preprocessor = ov::preprocess::PrePostProcessor(model);
     const auto inputs = model->inputs();
     const auto outputs = model->outputs();
+    setDefaultIO(preprocessor, inputs, outputs);
+
     if (!ip.empty()) {
         auto type = getType(ip);
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -744,9 +778,11 @@ int main(int argc, char* argv[]) {
                 executableNetwork.Export(outputFile);
             }
         } else {
-            ov::runtime::Core core;
+            ov::Core core;
             if (!FLAGS_log_level.empty()) {
-                core.set_config({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+                ov::log::Level level;
+                std::stringstream{FLAGS_log_level} >> level;
+                core.set_property(FLAGS_d, ov::log::level(level));
             }
 
             auto model = core.read_model(FLAGS_m);
@@ -754,7 +790,8 @@ int main(int argc, char* argv[]) {
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto compiledModel = core.compile_model(model, FLAGS_d, configure());
+            auto configs = configure();
+            auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
             std::string outputName = FLAGS_o;
             if (outputName.empty()) {

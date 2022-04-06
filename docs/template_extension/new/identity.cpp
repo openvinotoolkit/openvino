@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ void Identity::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> Identity::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() != 1, "Incorrect number of new arguments");
+    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
     return std::make_shared<Identity>(new_args.at(0));
 }
@@ -34,11 +34,11 @@ bool Identity::visit_attributes(ov::AttributeVisitor& visitor) {
 //! [op:visit_attributes]
 
 //! [op:evaluate]
-bool Identity::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
+bool Identity::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     auto in = inputs[0];
     auto out = outputs[0];
     out.set_shape(in.get_shape());
-    memcpy(out.data(), in.data(), in.get_size());
+    memcpy(out.data(), in.data(), in.get_byte_size());
     return true;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,6 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
     return out << "_" <<
-        values.params.support3DTensorOnActivations << "_" <<
         values.actual << "_" <<
         values.expected;
 }
@@ -104,12 +103,6 @@ public:
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
-        if (testValues.params.support3DTensorOnActivations == false) {
-            transformer.get_pass_config()->set_callback<ngraph::pass::low_precision::MatMulTransformation>(
-                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-                    return ngraph::pass::low_precision::MatMulTransformation::is3DTensorOnActivations(node);
-                });
-        }
         transformer.transform(actualFunction);
 
         referenceFunction = (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty()) ?
@@ -144,7 +137,7 @@ public:
 
 TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -203,27 +196,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             {},
             {}
         }
-    },
-
-    // support3DTensorOnActivations = false for 3D tensor
-    {
-        LayerTransformation::createParamsU8I8().setSupport3DTensorOnActivations(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, { 1024, 1024 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} }
-        },
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, { 1024, 1024 } },
-            ngraph::element::i8,
-            {},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-            {}
-        }
-    },
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -490,26 +463,6 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { {}, {}, { 0.2f * 0.2f } },
             {},
-            {}
-        }
-    },
-
-    // support3DTensorOnActivations = false, but 2D tensor is used
-    {
-        LayerTransformation::createParamsU8I8().setSupport3DTensorOnActivations(false),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f } },
-            { std::vector<float>(2048 * 1000, 1.f), ngraph::element::f32, { 2048, 1000 }},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            { std::vector<float>(2048 * 1000, -126), ngraph::element::i8, { 2048, 1000 }},
-            ngraph::element::i8,
-            { {}, {}, { 0.02f * 0.1f } },
             {}
         }
     },

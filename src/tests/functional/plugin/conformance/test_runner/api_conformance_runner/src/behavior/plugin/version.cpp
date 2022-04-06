@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,7 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VersionTest,
-                                    ::testing::Values(ConformanceTests::targetDevice),
+    INSTANTIATE_TEST_SUITE_P(ie_plugin, VersionTest,
+                                    ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination()),
                             VersionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, VersionTest,
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                            VersionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, VersionTest,
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                            VersionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, VersionTest,
-                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                            VersionTest::getTestCaseName);
-
-
 }  // namespace

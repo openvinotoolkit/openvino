@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-typedef std::map<std::string, std::string> Config;
+using Config = ov::AnyMap;
 
 std::vector<std::vector<ov::Shape>>  inShapes = {
         {{2}},
@@ -32,6 +32,9 @@ std::vector<ov::test::ElementType> fpTypes = {
 
 std::vector<ov::test::ElementType> intTypes = {
         ov::element::i32,
+        ov::element::u32,
+        ov::element::i64,
+        ov::element::u64,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {

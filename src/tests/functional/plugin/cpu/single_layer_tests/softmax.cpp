@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ protected:
 TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "Softmax");
+    CheckPluginRelatedResults(compiledModel, "Softmax");
 }
 
 namespace {
@@ -128,6 +128,12 @@ const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
                            ov::Shape{10, 7, 1, 1, 1},
                            ov::Shape{5, 5, 1, 1, 1}}},
      1},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{{1, 10}, 10},
+                          {// target static shapes
+                           ov::Shape{10, 10},
+                           ov::Shape{5, 10}}},
+     1},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32{
@@ -153,6 +159,12 @@ const std::vector<SoftMaxConfig> notOptimizedConfigsFP32{
                            ov::Shape{10, 5, 10},
                            ov::Shape{10, 10, 1}}},
      1},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{{1, 10}, 10},
+                          {// target static shapes
+                           ov::Shape{7, 10},
+                           ov::Shape{10, 10}}},
+     0},
 };
 
 const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
@@ -170,6 +182,12 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
                            ov::Shape{5, 5, 5, 5, 5, 5},
                            ov::Shape{7, 7, 7, 7, 7, 7},
                            ov::Shape{5, 5, 5, 5, 5, 5}}},
+     4},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{{1, 10}, 5, 5, 5, 5, 5},
+                          {// target static shapes
+                           ov::Shape{5, 5, 5, 5, 5, 5},
+                           ov::Shape{7, 5, 5, 5, 5, 5}}},
      4},
 };
 

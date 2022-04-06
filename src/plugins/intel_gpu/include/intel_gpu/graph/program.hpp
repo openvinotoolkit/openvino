@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,9 @@ struct program {
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
-    friend class program_wrapper;       // this class is intended to extend the interface of program for
+    friend class program_wrapper;            // this class is intended to extend the interface of program for
                                              // the usage within tests_core_internal project only
+    friend class prepare_primitive_fusing_through;   // to be removed when possible
 public:
     struct nodes_ordering {
     public:
@@ -189,6 +190,12 @@ public:
     // returns if 'node' has been extracted and removed successfully
     bool extract_and_remove(program_node& node);
 
+    bool extract(program_node& node);
+
+    bool move_node(program_node& node,
+                   program_node& new_prev,
+                   program_node& new_next);
+
     // Fuses two nodes into fused_node and removes peer_node from graph
     void fuse_nodes(program_node& fused_node,
                     program_node& peer_node,
@@ -237,6 +244,7 @@ public:
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
 
+    // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
 private:
@@ -323,7 +331,7 @@ private:
 
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
-    void replace_all_usages(program_node& old_node, program_node& new_node);
+    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

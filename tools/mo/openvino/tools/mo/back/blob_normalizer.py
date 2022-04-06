@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.back.op_versioning import OpVersioning
@@ -33,7 +33,7 @@ class BlobNormalizer(BackReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('conv', dict(type=lambda type: type in ['Convolution', 'Deconvolution', 'FullyConnected']))],
+            nodes=[('conv', dict(type=lambda type: type in ['Convolution', 'Deconvolution', 'FullyConnected', 'DeformableConvolution']))],
             edges=[]
         )
 

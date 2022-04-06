@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMeanSubtract, "AddMeanSubtract", 0);
 
 ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
     // RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);

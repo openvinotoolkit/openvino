@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,9 @@ class Result;
 struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {
+
+class ResolveNameCollisions;
+
 namespace pattern {
 class Matcher;
 }  // namespace pattern
@@ -62,6 +65,7 @@ class Matcher;
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
+using TensorLabelVector = std::vector<TensorLabel>;
 
 template <typename NodeType>
 class Input;
@@ -106,9 +110,12 @@ std::string node_validation_failure_loc_string(const Node* node);
 
 class NodeAccessor;
 
-/// Nodes are the backbone of the graph of Value dataflow. Every node has
-/// zero or more nodes as arguments and one value, which is either a tensor
-/// or a (possibly empty) tuple of values.
+/**
+ * @brief Nodes are the backbone of the graph of Value dataflow. Every node has
+ * zero or more nodes as arguments and one value, which is either a tensor
+ * or a (possibly empty) tuple of values.
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     // For access to m_outputs.
     friend class descriptor::Input;
@@ -122,6 +129,8 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
+    // To fix collisions in generated friendly name
+    friend class pass::ResolveNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
@@ -195,15 +204,15 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
-    /// \deprecated Use evaluate with ov::runtime::Tensor instead
+    /// \deprecated Use evaluate with ov::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \returns true if successful
     OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
-    /// \deprecated Use evaluate with ov::runtime::Tensor instead
+    /// \deprecated Use evaluate with ov::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
@@ -211,34 +220,34 @@ public:
     /// when evaluating the op.
     /// \returns true if successful
     OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
-                        "ov::runtime::Tensor instead.")
+                        "ov::Tensor instead.")
     virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
-                        "ov::runtime::Tensor instead.")
+                        "ov::Tensor instead.")
     virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \returns true if successful
-    virtual bool evaluate(ov::runtime::TensorVector& output_values,
-                          const ov::runtime::TensorVector& input_values) const;
+    virtual bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const;
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the op.
     /// \returns true if successful
-    virtual bool evaluate(ov::runtime::TensorVector& output_values,
-                          const ov::runtime::TensorVector& input_values,
+    virtual bool evaluate(ov::TensorVector& output_values,
+                          const ov::TensorVector& input_values,
                           const ov::EvaluationContext& evaluationContext) const;
-    virtual bool evaluate_lower(ov::runtime::TensorVector& output_values) const;
-    virtual bool evaluate_upper(ov::runtime::TensorVector& output_values) const;
+    virtual bool evaluate_lower(ov::TensorVector& output_values) const;
+    virtual bool evaluate_upper(ov::TensorVector& output_values) const;
+    virtual bool evaluate_label(TensorLabelVector& output_labels) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
@@ -418,8 +427,11 @@ public:
     NodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     virtual size_t get_version() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_type_info().version;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")

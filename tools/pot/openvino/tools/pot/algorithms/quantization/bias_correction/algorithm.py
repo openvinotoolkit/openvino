@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import OrderedDict
@@ -18,7 +18,8 @@ from ....graph.transformer import GraphTransformer
 from ....samplers.creator import create_sampler
 from ....statistics.functions import activations as asf
 from ....statistics.functions import aggregation as agf
-from ....statistics.statistics import TensorStatisticAxis
+from ....statistics.statistics import TensorStatisticAxis, TensorStatistic
+from ..utils import get_input_shape_for_bias
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
 
@@ -260,6 +261,7 @@ class BiasCorrection(Algorithm):
         outputs_shapes = {nu.create_node_name(n): nu.get_output_shape(n, 0).copy() for n in input_nodes}
         inputs_data = []
         param_type = 'Parameter'
+        nodes_data = []
         for input_node in input_nodes:
             input_node_name = nu.create_node_name(input_node)
             c_input_shape = outputs_shapes[input_node_name]
@@ -271,15 +273,18 @@ class BiasCorrection(Algorithm):
                 parameter_name = input_node_name + '/parameter'
                 param_node = ge.create_node(input_node.graph, parameter_name, param_type,
                                             {'shape': c_input_shape, 'data_type': input_node_data_type})
-                for _, port in input_node.out_ports().items():
-                    for in_port in port.get_destinations():
-                        in_port.disconnect()
-                        in_port.connect(param_node.out_port(0))
+                nodes_data.append((input_node, param_node))
             inputs_data.append({
                 'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
                 'input_name': input_node_name
             })
+
+        for input_node, param_node in nodes_data:
+            for _, port in input_node.out_ports().items():
+                for in_port in port.get_destinations():
+                    in_port.disconnect()
+                    in_port.connect(param_node.out_port(0))
 
         return inputs_data
 
@@ -326,7 +331,7 @@ class BiasCorrection(Algorithm):
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
         current_inputs = self._launcher.model.inputs
-        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.shape) for input_const in
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.partial_shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
@@ -351,7 +356,7 @@ class BiasCorrection(Algorithm):
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
-        add_out_shape = nu.get_input_shape_for_bias(params['node_bias_add'])
+        add_out_shape = get_input_shape_for_bias(self._fp32_statistics, params['node_bias_add'].fullname)
         axis_channel = self.get_channel_axis(add_name)
         bias_shift_value = fp32_output - q_output
         bias_shape = np.ones(len(add_out_shape), dtype=np.int)
@@ -426,6 +431,8 @@ class BiasCorrection(Algorithm):
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
                                                          channel=self._channel_axis)}
+            statistics_layout[add_node_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
+                                                                        shape_for_inference=True)
 
         layers_mapping = fqut.create_renamed_layers_mapping(quantized_model, statistics_layout)
         self._stats_collector.register(self.name, statistics_layout, self._sampler, layers_mapping)

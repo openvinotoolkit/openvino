@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,12 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/op/broadcast.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/reshape.hpp>
 #include <ngraph/op/gather.hpp>
+#include <ngraph/op/reshape.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 namespace ngraph {
 namespace op {
@@ -50,8 +50,7 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
     }
 }
 
-std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
-                                         const PartialShape& shape) {
+std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant, const PartialShape& shape) {
     auto const_shape = constant->get_shape();
     if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
@@ -65,11 +64,14 @@ std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& co
 }
 
 std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape& shape) {
-    return std::make_shared<op::v1::Broadcast>(input, op::Constant::create(ngraph::element::i64, Shape {shape.size()}, shape));
+    return std::make_shared<op::v1::Broadcast>(input,
+                                               op::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
 }
 
-std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape) {
-    return std::make_shared<op::v1::Reshape>(input, op::Constant::create(element::i64, Shape{shape.size()}, shape), true);
+std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node>& input, const Shape& shape) {
+    return std::make_shared<op::v1::Reshape>(input,
+                                             op::Constant::create(element::i64, Shape{shape.size()}, shape),
+                                             true);
 }
 
 bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps) {
@@ -81,27 +83,29 @@ bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, 
     return std::abs(res - value) < eps;
 }
 
-bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function) {
-    for (auto & layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
+bool has_f16_constants(const std::shared_ptr<const ngraph::Function>& function) {
+    for (auto& layer : function->get_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) &&
+            layer->output(0).get_element_type() == ngraph::element::f16) {
             return true;
         }
     }
     return false;
 }
 
-bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape) {
+bool check_for_broadcast(const ngraph::PartialShape& ref_shape, const ngraph::PartialShape& other_shape) {
     // Check that other_shape doesn't broadcast ref_shape
-    if (other_shape.size() > ref_shape.size()) {
+    if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic() || other_shape.size() > ref_shape.size()) {
         return true;
     }
     auto ref_it = ref_shape.rbegin();
     auto other_it = other_shape.rbegin();
     // Check that other_shape dims are equal to ref_shape dims
     // In case if other_shape rank is less than ref_shape rank
-    // we stop comparision and return true
+    // we stop comparison and return true
     while (other_it != other_shape.rend()) {
-        if (*other_it != *ref_it && *other_it != 1) {
+        if ((other_it->is_dynamic() || other_it->get_length() != 1) &&
+            (ref_it->is_dynamic() || ref_it->get_length() == 1)) {
             return true;
         }
         ++other_it;
@@ -110,7 +114,8 @@ bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &ot
     return false;
 }
 
-std::shared_ptr<ngraph::Node> activation(const std::string& activation_name, const ngraph::Output<ngraph::Node>& apply_to) {
+std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
+                                         const ngraph::Output<ngraph::Node>& apply_to) {
     if (activation_name == "relu") {
         return std::make_shared<ngraph::opset4::Relu>(apply_to);
     } else if (activation_name == "sigmoid") {
@@ -122,9 +127,9 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name, con
     }
 }
 
-bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len) {
-    if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
-        const auto &seq_len_values = seq_len_const->cast_vector<int64_t>();
+bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len) {
+    if (const auto& seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
+        const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
             return val != max_seq_len;
         });
@@ -154,21 +159,23 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
     return result;
 }
 
-std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(const std::shared_ptr<ngraph::Node>& shape_node,
-                                                                                 const std::vector<size_t>& indices) {
-    return make_try_fold<v7::Gather>(
-            shape_node,
-            v0::Constant::create(ngraph::element::i64, {indices.size()}, indices),
-            v0::Constant::create(ngraph::element::i64, {}, {0}));
+std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
+    const std::shared_ptr<ngraph::Node>& shape_node,
+    const std::vector<size_t>& indices) {
+    return make_try_fold<v7::Gather>(shape_node,
+                                     v0::Constant::create(ngraph::element::i64, {indices.size()}, indices),
+                                     v0::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
-std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(const ngraph::Output<ngraph::Node>& shape_source,
+std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
+    const ngraph::Output<ngraph::Node>& shape_source,
     const std::vector<size_t>& indices) {
     const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
     return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
 }
 
-bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual) {
+bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected,
+                                                const ngraph::PartialShape& actual) {
     if (expected[0].is_static()) {
         return actual == expected;
     } else {
@@ -178,27 +185,28 @@ bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expe
     }
 }
 
-void visit_shape_path(const std::shared_ptr<ov::Node>& node,
-                      std::unordered_set<std::shared_ptr<ov::Node>>& visited,
-                      std::function<void(std::shared_ptr<ov::Node>)> func) {
+void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     if (!node)
         return;
     visited.insert(node);
-    std::deque<std::shared_ptr<ov::Node>> nodes{node};
+    std::deque<ov::Node*> nodes{node};
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
         // Do not check if already visited
-        if (ngraph::is_type<ngraph::opset1::ShapeOf>(curr_node) || ngraph::is_type<ngraph::opset3::ShapeOf>(curr_node)) {
+        if (ngraph::is_type<ngraph::opset1::ShapeOf>(curr_node) ||
+            ngraph::is_type<ngraph::opset3::ShapeOf>(curr_node)) {
             continue;
         }
 
-        visited.insert(curr_node);
         func(curr_node);
         for (auto& input_value : curr_node->input_values()) {
             // continue searching
-            const auto& input_node = input_value.get_node_shared_ptr();
+            const auto& input_node = input_value.get_node();
+            if (visited.count(input_node))
+                continue;
             nodes.push_front(input_node);
+            visited.insert(input_node);
         }
     }
 }
@@ -236,10 +244,10 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
     return input_type.is_integral() && output_type.is_real();
 }
 
-bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input) {
-    if (!is_type<opset8::Add>(eltwise) &&
-        !is_type<opset8::Subtract>(eltwise) &&
-        !is_type<opset8::Multiply>(eltwise) &&
+bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
+                                const Output<Node>& constant,
+                                const Output<Node>& non_constant_input) {
+    if (!is_type<opset8::Add>(eltwise) && !is_type<opset8::Subtract>(eltwise) && !is_type<opset8::Multiply>(eltwise) &&
         !is_type<opset8::Divide>(eltwise)) {
         return false;
     }
@@ -259,42 +267,41 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Outp
     float actual_const = 0;
     const void* data_ptr = constant_ptr->get_data_ptr();
     switch (constant_ptr->get_element_type()) {
-        case element::f32:
-            actual_const = reinterpret_cast<const float*>(data_ptr)[0];
-            break;
-        case element::i32:
-            actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
-            break;
-        case element::u32:
-            actual_const = static_cast<float>(reinterpret_cast<const uint32_t*>(data_ptr)[0]);
-            break;
-        case element::i64:
-            actual_const = static_cast<float>(reinterpret_cast<const int64_t*>(data_ptr)[0]);
-            break;
-        case element::u64:
-            actual_const = static_cast<float>(reinterpret_cast<const uint64_t*>(data_ptr)[0]);
-            break;
-        case element::i8:
-            actual_const = static_cast<float>(reinterpret_cast<const int8_t*>(data_ptr)[0]);
-            break;
-        case element::u8:
-            actual_const = static_cast<float>(reinterpret_cast<const uint8_t*>(data_ptr)[0]);
-            break;
-        case element::i16:
-            actual_const = static_cast<float>(reinterpret_cast<const int16_t*>(data_ptr)[0]);
-            break;
-        case element::u16:
-            actual_const = static_cast<float>(reinterpret_cast<const uint16_t*>(data_ptr)[0]);
-            break;
-        case element::f64:
-            actual_const = static_cast<float>(reinterpret_cast<const double*>(data_ptr)[0]);
-            break;
-        default:
-            return false;
+    case element::f32:
+        actual_const = reinterpret_cast<const float*>(data_ptr)[0];
+        break;
+    case element::i32:
+        actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
+        break;
+    case element::u32:
+        actual_const = static_cast<float>(reinterpret_cast<const uint32_t*>(data_ptr)[0]);
+        break;
+    case element::i64:
+        actual_const = static_cast<float>(reinterpret_cast<const int64_t*>(data_ptr)[0]);
+        break;
+    case element::u64:
+        actual_const = static_cast<float>(reinterpret_cast<const uint64_t*>(data_ptr)[0]);
+        break;
+    case element::i8:
+        actual_const = static_cast<float>(reinterpret_cast<const int8_t*>(data_ptr)[0]);
+        break;
+    case element::u8:
+        actual_const = static_cast<float>(reinterpret_cast<const uint8_t*>(data_ptr)[0]);
+        break;
+    case element::i16:
+        actual_const = static_cast<float>(reinterpret_cast<const int16_t*>(data_ptr)[0]);
+        break;
+    case element::u16:
+        actual_const = static_cast<float>(reinterpret_cast<const uint16_t*>(data_ptr)[0]);
+        break;
+    case element::f64:
+        actual_const = static_cast<float>(reinterpret_cast<const double*>(data_ptr)[0]);
+        break;
+    default:
+        return false;
     }
     float expected_const = 0;
-    if (is_type<opset8::Multiply>(eltwise) ||
-        is_type<opset8::Divide>(eltwise)) {
+    if (is_type<opset8::Multiply>(eltwise) || is_type<opset8::Divide>(eltwise)) {
         expected_const = 1;
     }
     if (actual_const != expected_const) {

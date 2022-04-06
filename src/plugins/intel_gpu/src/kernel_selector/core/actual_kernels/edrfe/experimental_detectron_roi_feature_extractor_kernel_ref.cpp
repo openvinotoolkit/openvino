@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2021-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,13 @@ namespace {
     ExperimentalDetectronROIFeatureExtractorRef::DispatchData SetDefault(const experimental_detectron_roi_feature_extractor_params& params) {
         ExperimentalDetectronROIFeatureExtractorRef::DispatchData dispatch_data;
         auto in_layout = params.inputs[0].GetLayout();
-        auto out_layout = params.output.GetLayout();
+        auto out_layout = params.outputs[0].GetLayout();
 
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
                                                                          { Tensor::DataChannelName::FEATURE },
                                                                          { Tensor::DataChannelName::BATCH }};
 
-        dispatch_data.gws = {params.output.X().v * params.output.Y().v, params.output.Feature().v, params.output.Batch().v};
+        dispatch_data.gws = {params.outputs[0].X().v * params.outputs[0].Y().v, params.outputs[0].Feature().v, params.outputs[0].Batch().v};
 
         dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
@@ -37,10 +37,8 @@ namespace {
         return result;
     }
 
-    const std::string level_ptrs = "level_ptrs";
-
     std::string GetDefinedLevelPtrs(size_t levels_num) {
-        std::string result = "const __global INPUT1_TYPE* " + level_ptrs + "[" + std::to_string(levels_num) + "] = {" + common_level_name + "1";
+        std::string result = "(const __global INPUT1_TYPE*[]){" + common_level_name + "1";
         for (size_t i = 1; i < levels_num; i++) {
             result += ", " + common_level_name + std::to_string(i + 1);
         }
@@ -48,10 +46,8 @@ namespace {
         return result;
     }
 
-    const std::string spatial_scales = "spatial_scales";
-
     std::string GetDefinedSpatialScales(const std::vector<int64_t>& scales, size_t levels_num) {
-        std::string result = "__constant float " + spatial_scales + "[" + std::to_string(levels_num) + "] = {" + std::to_string(1.0f / scales[0]);
+        std::string result = "(float[]){" + std::to_string(1.0f / scales[0]);
         for (size_t i = 1; i < levels_num; i++) {
             result += ", " + std::to_string(1.0f / scales[i]);
         }
@@ -59,10 +55,8 @@ namespace {
         return result;
     }
 
-    const std::string level_sizes = "level_sizes";
-
     std::string GetDefinedLevelSizes(size_t levels_num) {
-        std::string result = "__constant int " + level_sizes + "[" + std::to_string(3 * levels_num) +"] = {INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
+        std::string result = "(size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
         std::string idx = "";
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
@@ -83,12 +77,9 @@ JitConstants ExperimentalDetectronROIFeatureExtractorRef::GetJitConstants(const 
                       MakeJitConstant("IS_ALIGNED", params.aligned),
                       MakeJitConstant("NUM_PYRAMID_LEVELS", levels_num),
                       MakeJitConstant("INPUT_LEVEL_PARAMS", GetInputLevelParams(levels_num)),
-                      MakeJitConstant("LEVEL_PTRS", level_ptrs),
-                      MakeJitConstant("DEFINE_LEVEL_PTRS", GetDefinedLevelPtrs(levels_num)),
-                      MakeJitConstant("SPATIAL_SCALES", spatial_scales),
-                      MakeJitConstant("DEFINE_SPATIAL_SCALES", GetDefinedSpatialScales(params.pyramid_scales, levels_num)),
-                      MakeJitConstant("LEVEL_SIZES", level_sizes),
-                      MakeJitConstant("DEFINE_LEVEL_SIZES", GetDefinedLevelSizes(levels_num))});
+                      MakeJitConstant("LEVEL_PTRS", GetDefinedLevelPtrs(levels_num)),
+                      MakeJitConstant("SPATIAL_SCALES", GetDefinedSpatialScales(params.pyramid_scales, levels_num)),
+                      MakeJitConstant("LEVEL_SIZES", GetDefinedLevelSizes(levels_num))});
 
     return jit;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <shared_node_info.hpp>
 #include <test_common.hpp>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -527,6 +528,60 @@ TEST(model, multiple_inputs_outputs_model_from_const_model) {
     EXPECT_EQ(f->outputs().size(), 2);
 }
 
+TEST(model, parameter_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_NO_THROW(function->input());
+    EXPECT_NO_THROW(function->input("data"));
+    EXPECT_THROW(function->input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+
+    EXPECT_EQ(ov::element::f16, function->input("data").get_element_type());
+    EXPECT_EQ(ov::element::f16, function->output("data").get_element_type());
+}
+
+TEST(model, constant_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    std::shared_ptr<ov::Node> constant = nullptr;
+
+    {
+        constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_THROW(function->input(), ov::Exception);
+    EXPECT_THROW(function->input("data"), ov::Exception);
+    EXPECT_THROW(function->input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+    EXPECT_EQ(ov::element::f32, function->output("data").get_element_type());
+}
+
 TEST(model_reshape, ReshapedDynamicShapeLayout) {
     std::shared_ptr<ov::Model> ngraph;
     {
@@ -741,7 +796,7 @@ TEST(model_reshape, TestInvalidReshape) {
         f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
-    EXPECT_ANY_THROW(f->reshape({{"tensor", ov::Shape({4})}}));
+    EXPECT_THROW(f->reshape({{"tensor", ov::Shape({4})}}), ov::Exception);
 
     auto param = f->get_parameters().front();
     EXPECT_EQ(param->get_output_shape(0), ov::Shape({1, 1000, 4}));
@@ -1064,6 +1119,207 @@ TEST(model, add_output_port_to_result) {
     EXPECT_EQ(out, result->output(0));
 }
 
+TEST(model, add_output_performance) {
+    using namespace std::chrono;
+    auto test = [](int cnt, bool& timeout) -> size_t {
+        auto shape = ov::Shape{1, 1, 224, 224};
+        auto type = ov::element::f32;
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->set_friendly_name("Param1");
+        param->output(0).set_names({"Param1"});
+        ov::NodeVector nodes;
+        std::shared_ptr<ov::Node> op = param;
+        for (int i = 0; i < cnt; i++) {
+            op = std::make_shared<ov::opset8::Add>(op, op);
+            op->set_friendly_name("OpNameAdd" + std::to_string(i));
+            op->output(0).set_names({"Add" + std::to_string(i)});
+        }
+        auto res = std::make_shared<ov::op::v0::Result>(op);
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+        auto start = steady_clock::now();
+        // Add outputs to all nodes via op+port and tensor names
+        for (int i = 0; i < cnt; i++) {
+            model->add_output("Add" + std::to_string(i));
+            model->add_output("OpNameAdd" + std::to_string(i), 0);
+            if (i % 100 == 0 && duration_cast<seconds>(steady_clock::now() - start).count() > 30) {
+                timeout = true;
+                return 0;
+            }
+        }
+        auto end = steady_clock::now();
+        return duration_cast<microseconds>(end - start).count();
+    };
+    bool timeout = false;
+    auto t1 = test(200, timeout);
+    EXPECT_FALSE(timeout);
+    auto t2 = test(10000, timeout);  // Should be ~50 times longer, not 2500 times
+    EXPECT_FALSE(timeout);
+    EXPECT_LE(t2, t1 * 1000);  // Check 1000 times threshold (expected 50) which is definitely enough
+}
+
+TEST(model, add_output_cache_invalidation_tensor_name) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->output(0).set_names({"Param1"});
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->output(0).set_names({"TensorName"});
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->output(0).set_names({"Tensor3"});
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    model->add_output("Tensor3");  // This creates cache
+
+    op->output(0).set_names({"OldTensorName"});
+    op2->output(0).set_names({"TensorName"});
+    auto added = model->add_output("TensorName");  // This shall update cache as "TensorName" points to another node
+    // Verify that output is added to 'op2'
+    auto added_type_name = added.get_node_shared_ptr()->input(0).get_source_output().get_node()->get_type_name();
+    EXPECT_EQ(ov::opset8::Relu::get_type_info_static().name, std::string(added_type_name));
+}
+
+TEST(model, add_output_cache_invalidation_op_name) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->set_friendly_name("Param1");
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->set_friendly_name("OpName");
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("Op3");
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    model->add_output("Op3", 0);  // This creates cache
+
+    op->set_friendly_name("OldOpName");
+    op2->set_friendly_name("OpName");
+    auto added = model->add_output("OpName", 0);  // This shall update cache as "OpName" points to another node
+    // Verify that output is added to 'op2'
+    auto added_type_name = added.get_node_shared_ptr()->input(0).get_source_output().get_node()->get_type_name();
+    EXPECT_EQ(ov::opset8::Relu::get_type_info_static().name, std::string(added_type_name));
+}
+
+TEST(model, add_output_ordered_ops) {
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    param->set_friendly_name("Param1");
+    auto op = std::make_shared<ov::opset8::Add>(param, param);
+    op->set_friendly_name("OpName");
+    auto op1 = std::make_shared<ov::opset8::Abs>(op);
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("Op3");
+    auto res = std::make_shared<ov::op::v0::Result>(op3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    auto ops_before = model->get_ordered_ops();
+    auto new_res = model->add_output(op2);
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size() + 1)
+        << "Before: " << ops_before.size() << ". After: " << ops_after.size();
+    bool relu_found = false, relu_result_found = false;
+    for (const auto& node : ops_after) {
+        if (ov::as_type_ptr<ov::opset8::Relu>(node)) {
+            relu_found = true;
+            EXPECT_FALSE(relu_result_found);
+        } else if (ov::as_type_ptr<ov::opset8::Result>(node) &&
+                   ov::as_type_ptr<ov::opset8::Relu>(node->get_input_node_shared_ptr(0))) {
+            relu_result_found = true;
+            EXPECT_TRUE(relu_found);
+        }
+    }
+    EXPECT_TRUE(relu_found);
+    EXPECT_TRUE(relu_result_found);
+    // Invalidate result
+    ops_before = model->get_ordered_ops();
+    res->set_arguments(ov::NodeVector{});
+    EXPECT_EQ(model->get_ordered_ops().size(), ops_before.size() - 1);
+}
+
+// Scenario:
+// 1. Create model with nodes A,B,C.
+// 2. Add output to some node 'A' - 'names cache' will be created
+// 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+// 4. Assign name 'B' to existing node 'C'
+// 5. Call get_ordered_ops (ordered_ops_cache=true)
+// 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+// Without clearing 'names cache' on step 5 - test will incorrectly add output to 'B'
+TEST(model, add_output_clear_cached_tensor_name_by_ordered_ops) {
+    // 1. Create model with nodes A,B,C.
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto op1 = std::make_shared<ov::opset8::Abs>(param);
+    op1->get_default_output().set_names({"A"});
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    op2->get_default_output().set_names({"B"});
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->get_default_output().set_names({"C"});
+    auto op4 = std::make_shared<ov::opset8::Subtract>(op3, op3);
+    op4->get_default_output().set_names({"D"});
+    auto res = std::make_shared<ov::op::v0::Result>(op4);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    // 2. Add output to some node 'A' - 'names cache' will be created
+    auto a_output = model->add_output("A");
+    auto ops_before = model->get_ordered_ops();
+    // 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+    auto op2_new = std::make_shared<ov::opset8::Add>(op1, op1);
+    model->replace_node(op2, op2_new);
+    // 4. Assign name 'B' to existing node 'C'
+    op3->get_default_output().set_names({"B"});
+    // 5. Call get_ordered_ops (ordered_ops_cache=true)
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size());
+    // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+    auto b_output = model->add_output("B");
+    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    EXPECT_EQ(b_type, op3->get_type_name());
+}
+
+// Same as above, but for add_output(opName, idx) case. Scenario:
+// 1. Create model with nodes A,B,C.
+// 2. Add output to some node 'A' - 'names cache' will be created
+// 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+// 4. Assign name 'B' to existing node 'C'
+// 5. Call get_ordered_ops (ordered_ops_cache=true)
+// 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+// Without clearing 'names cache' on step 5 - test will incorrectly add output to 'B'
+TEST(model, add_output_clear_cached_op_name_by_ordered_ops) {
+    // 1. Create model with nodes A,B,C.
+    auto shape = ov::Shape{1, 1, 224, 224};
+    auto type = ov::element::f32;
+    auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto op1 = std::make_shared<ov::opset8::Abs>(param);
+    op1->set_friendly_name("A");
+    auto op2 = std::make_shared<ov::opset8::Relu>(op1);
+    op2->set_friendly_name("B");
+    auto op3 = std::make_shared<ov::opset8::Abs>(op2);
+    op3->set_friendly_name("C");
+    auto op4 = std::make_shared<ov::opset8::Subtract>(op3, op3);
+    op4->set_friendly_name("D");
+    auto res = std::make_shared<ov::op::v0::Result>(op4);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    // 2. Add output to some node 'A' - 'names cache' will be created
+    auto a_output = model->add_output("A", 0);
+    auto ops_before = model->get_ordered_ops();
+    // 3. Remove some node 'B' - ordered_ops_cache will be 'false'
+    auto op2_new = std::make_shared<ov::opset8::Add>(op1, op1);
+    model->replace_node(op2, op2_new);
+    // 4. Assign name 'B' to existing node 'C'
+    op3->set_friendly_name("B");
+    // 5. Call get_ordered_ops (ordered_ops_cache=true)
+    auto ops_after = model->get_ordered_ops();
+    EXPECT_EQ(ops_after.size(), ops_before.size());
+    // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
+    auto b_output = model->add_output("B", 0);
+    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    EXPECT_EQ(b_type, op3->get_type_name());
+}
+
 namespace {
 bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
     auto shared_info = ov::ModelAccessor(f).get_shared_info();
@@ -1384,7 +1640,7 @@ TEST(model, get_batch_size) {
 TEST(model, get_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
-                                       {"NCHW", "D...", "NCHW", "N???"});
+                                       {"NCHW", "D...", "NCHW", "N?"});
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
@@ -1393,7 +1649,7 @@ TEST(model, get_batch_size_with_conflict) {
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
-        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N?").to_string()) != std::string::npos) << err.what();
         // Verify error message doesn't contain non-conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
@@ -1471,7 +1727,7 @@ TEST(model, set_batch_size_dynamic_layout) {
 TEST(model, set_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
-                                       {"NCHW", "D...", "NCHW", "N???"});
+                                       {"NCHW", "D...", "NCHW", "N?"});
 
     // TODO: gtest v.10 limitation. Replace with EXPECT_THAT for gtest >= v1.11
     try {
@@ -1480,7 +1736,7 @@ TEST(model, set_batch_size_with_conflict) {
     } catch (const ov::Exception& err) {
         // Verify error message contains conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("NCHW").to_string()) != std::string::npos) << err.what();
-        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N???").to_string()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(ov::Layout("N?").to_string()) != std::string::npos) << err.what();
         // Verify error message doesn't contain non-conflicting layouts
         EXPECT_TRUE(std::string(err.what()).find(ov::Layout("D...").to_string()) == std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find("tensor_input_0") == std::string::npos) << err.what();
@@ -1522,4 +1778,157 @@ TEST(model, set_batch_size_validation_throw) {
     } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
+}
+
+TEST(model, incompatible_layout) {
+    auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}}, {"NCHW"});
+    using callback = std::function<void()>;
+    auto verify_ex = [&](const callback& cb, const std::string& msg) {
+        try {
+            cb();
+            FAIL() << "set_layout shall throw";
+        } catch (const ov::Exception& err) {
+            // Verify error message contains conflicting layouts
+            EXPECT_TRUE(std::string(err.what()).find(msg) != std::string::npos) << err.what();
+        } catch (...) {
+            FAIL() << "Expected ov::Exception";
+        }
+    };
+    auto verify_ex_set_layout = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                ov::layout::set_layout(f->input(), layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout("HWC");
+    verify_ex_set_layout("NDCHW");
+    verify_ex_set_layout("ND...CHW");
+    EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "H...WC"));
+    EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "...NCHW"));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW..."));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW"));
+
+    auto verify_ex_set_layout_param = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_layout(layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout_param("HWC");
+    verify_ex_set_layout_param("NDCHW");
+    verify_ex_set_layout_param("ND...CHW");
+
+    auto verify_ex_set_partial_shape = [&](const ov::PartialShape& shape) {
+        std::stringstream msgStr;
+        msgStr << shape;
+        auto msg = msgStr.str();
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_partial_shape(shape);
+            },
+            msg);
+    };
+    verify_ex_set_partial_shape({1, 2, 3, 4, 5});
+    verify_ex_set_partial_shape({1, 2, 3});
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape::dynamic()));
+    EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape{1, 3, 224, 224}));
+
+    auto verify_ex_set_layout_result = [&](const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        verify_ex(
+            [&]() {
+                ov::layout::set_layout(f->output(), layout);
+            },
+            msg);
+    };
+    verify_ex_set_layout_result("HWC");
+    verify_ex_set_layout_result("NDCHW");
+    verify_ex_set_layout_result("ND...CHW");
+
+    auto verify_ex_set_layout_result_validate = [&](const ov::PartialShape& param_shape, const ov::Layout& layout) {
+        auto msg = layout.to_string();
+        f = bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic()}, {"..."});
+        verify_ex(
+            [&]() {
+                f->get_parameters()[0]->set_partial_shape(param_shape);
+                ov::layout::set_layout(f->output(), layout);
+                f->validate_nodes_and_infer_types();
+            },
+            msg);
+    };
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "HWC");
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "NDHWC");
+    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "ND...HWC");
+}
+
+TEST(model, clone_model_function) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    auto input1 = model->input(0);
+    auto input2 = model->input("data1");
+
+    auto cloned_model = ov::clone_model(*model);
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, cloned_model);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(model, clone_model) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    auto input1 = model->input(0);
+    auto input2 = model->input("data1");
+
+    auto cloned_model = model->clone();
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(model, cloned_model);
+    EXPECT_TRUE(res.valid) << res.message;
 }

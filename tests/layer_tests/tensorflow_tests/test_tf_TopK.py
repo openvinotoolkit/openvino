@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc, permute_axis
+
 from openvino.tools.mo.ops.op import PermuteAttrs
 from unit_tests.utils.graph import build_graph
-from common.utils.tf_utils import permute_nchw_to_nhwc, permute_axis
 
 
 class Test_TopK(CommonTFLayerTest):
@@ -52,7 +52,8 @@ class Test_TopK(CommonTFLayerTest):
         #
         topk_output_shape = shape.copy()
         inverse_nhwc_nchw = PermuteAttrs.get_nhwc_to_nchw_permutation(len(topk_output_shape)).inv
-        topk_axis = permute_axis(len(topk_output_shape) - 1, inverse_nhwc_nchw)  # we need to permute axis attribute
+        topk_axis = permute_axis(len(topk_output_shape) - 1,
+                                 inverse_nhwc_nchw)  # we need to permute axis attribute
         topk_output_shape[topk_axis] = k
 
         ref_net = None
@@ -64,7 +65,8 @@ class Test_TopK(CommonTFLayerTest):
                 'Const_k_input_data': {'shape': [], 'kind': 'data'},
                 'Const_k': {'kind': 'op', 'type': 'Const'},
                 'Const_k_data': {'shape': [], 'kind': 'data'},
-                'TopK': {'kind': 'op', 'type': 'TopK', 'axis': topk_axis, 'mode': 'max', 'sort': 'value'},
+                'TopK': {'kind': 'op', 'type': 'TopK', 'axis': topk_axis, 'mode': 'max',
+                         'sort': 'value'},
                 'TopK_data_1': {'shape': topk_output_shape, 'kind': 'data'},
                 'TopK_data_2': {'shape': topk_output_shape, 'kind': 'data'},
                 'result_1': {'kind': 'op', 'type': 'Result'},
@@ -94,9 +96,12 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_TopK_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_topK_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_TopK_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_topK_net(**params, ir_version=ir_version,
+                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_2D = [
         dict(shape=[14, 15], k=10),
@@ -105,9 +110,12 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_TopK_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_topK_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_TopK_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_topK_net(**params, ir_version=ir_version,
+                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_3D = [
         dict(shape=[13, 14, 15], k=10),
@@ -116,9 +124,12 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_TopK_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_topK_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_TopK_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_topK_net(**params, ir_version=ir_version,
+                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_4D = [
         dict(shape=[12, 13, 14, 15], k=10),
@@ -127,9 +138,12 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_TopK_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_topK_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_TopK_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_topK_net(**params, ir_version=ir_version,
+                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)
 
     test_data_5D = [
         dict(shape=[11, 12, 13, 14, 15], k=10),
@@ -138,6 +152,9 @@ class Test_TopK(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_TopK_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_topK_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+    def test_TopK_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                     api_2):
+        self._test(*self.create_topK_net(**params, ir_version=ir_version,
+                                         use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend, api_2=api_2)

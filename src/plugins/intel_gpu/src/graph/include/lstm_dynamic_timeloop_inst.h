@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ public:
     program_node& initial_cell() const { return get_dependency_by_name("initial_cell"); }
 
     float clip() const { return get_primitive()->clip; }
-    int32_t direction() const { return recurrent().get_output_layout().size.feature[0]; }
+    int32_t direction() const { return recurrent().get_output_layout().feature(); }
     bool input_forget() const { return get_primitive()->input_forget; }
     bool dyn_length_term() const { return !get_primitive()->dyn_length.empty(); }
     bool recurrent_term() const { return !get_primitive()->recurrent.empty(); }

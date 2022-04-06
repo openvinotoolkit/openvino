@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
 
         return args;
     }
@@ -43,7 +43,7 @@ public:
             const auto& cell_layout = arg.cell().get_output_layout();
             lstm_elt_params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
-            if (cell_layout.size.spatial[1] > 1) {
+            if (cell_layout.spatial(1) > 1) {
                 lstm_elt_params.cell_direction = arg.direction();
             }
         }

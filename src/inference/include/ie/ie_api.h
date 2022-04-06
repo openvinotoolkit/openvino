@@ -1,17 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- *  @defgroup ie_cpp_api Inference Engine C++ API
- *  Inference Engine C++ API
- */
-
-/**
  * @brief The macro defines a symbol import/export mechanism essential for Microsoft Windows(R) OS.
- *
  * @file ie_api.h
  */
+
 #pragma once
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE) || (defined(__GNUC__) && (__GNUC__ < 4))

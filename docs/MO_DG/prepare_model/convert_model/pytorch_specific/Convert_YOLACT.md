@@ -1,4 +1,4 @@
-# Convert PyTorch* YOLACT to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
+# Convert PyTorch* YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
 
 You Only Look At CoefficienTs (YOLACT) is a simple, fully convolutional model for real-time instance segmentation.
 The PyTorch\* implementation is publicly available in [this GitHub* repository](https://github.com/dbolya/yolact).
@@ -29,7 +29,7 @@ index 547bc0a..bde0680 100644
 +++ b/eval.py
 @@ -593,9 +593,12 @@ def badhash(x):
      return x
- 
+
  def evalimage(net:Yolact, path:str, save_path:str=None):
 -    frame = torch.from_numpy(cv2.imread(path)).cuda().float()
 +    frame = torch.from_numpy(cv2.imread(path)).float()
@@ -38,9 +38,9 @@ index 547bc0a..bde0680 100644
      batch = FastBaseTransform()(frame.unsqueeze(0))
      preds = net(batch)
 +    torch.onnx.export(net, batch, "yolact.onnx", opset_version=11)
- 
+
      img_numpy = prep_display(preds, frame, None, None, undo_transform=False)
-     
+
 diff --git a/utils/augmentations.py b/utils/augmentations.py
 index cc7a73a..2420603 100644
 --- a/utils/augmentations.py
@@ -48,7 +48,7 @@ index cc7a73a..2420603 100644
 @@ -623,8 +623,11 @@ class FastBaseTransform(torch.nn.Module):
      def __init__(self):
          super().__init__()
- 
+
 -        self.mean = torch.Tensor(MEANS).float().cuda()[None, :, None, None]
 -        self.std  = torch.Tensor( STD ).float().cuda()[None, :, None, None]
 +        self.mean = torch.Tensor(MEANS).float()[None, :, None, None]
@@ -57,7 +57,7 @@ index cc7a73a..2420603 100644
 +            self.mean.cuda()
 +            self.std.cuda()
          self.transform = cfg.backbone.transform
- 
+
      def forward(self, img):
 diff --git a/yolact.py b/yolact.py
 index d83703b..f8c787c 100644
@@ -66,7 +66,7 @@ index d83703b..f8c787c 100644
 @@ -17,19 +17,22 @@ import torch.backends.cudnn as cudnn
  from utils import timer
  from utils.functions import MovingAverage, make_net
- 
+
 -# This is required for Pytorch 1.0.1 on Windows to initialize Cuda on some driver versions.
 -# See the bug report here: https://github.com/pytorch/pytorch/issues/17108
 -torch.cuda.current_device()
@@ -76,26 +76,26 @@ index d83703b..f8c787c 100644
 -if not use_jit:
 -    print('Multiple GPUs detected! Turning off JIT.')
 +use_jit = False
- 
+
  ScriptModuleWrapper = torch.jit.ScriptModule if use_jit else nn.Module
  script_method_wrapper = torch.jit.script_method if use_jit else lambda fn, _rcn=None: fn
- 
- 
+
+
 +def decode(loc, priors):
 +    variances = [0.1, 0.2]
 +    boxes = torch.cat((priors[:, :2] + loc[:, :, :2] * variances[0] * priors[:, 2:], priors[:, 2:] * torch.exp(loc[:, :, 2:] * variances[1])), 2)
 +
 +    boxes_result1 = boxes[:, :, :2] - boxes[:, :, 2:] / 2
-+    boxes_result2 = boxes[:, :, 2:] + boxes[:, :, :2]
++    boxes_result2 = boxes[:, :, 2:] + boxes_result1
 +    boxes_result = torch.cat((boxes_result1, boxes_result2), 2)
 +
 +    return boxes_result
 +
- 
+
  class Concat(nn.Module):
      def __init__(self, nets, extra_params):
 @@ -476,7 +479,10 @@ class Yolact(nn.Module):
-     
+
      def load_weights(self, path):
          """ Loads weights from a compressed save file. """
 -        state_dict = torch.load(path)
@@ -103,23 +103,23 @@ index d83703b..f8c787c 100644
 +            state_dict = torch.load(path)
 +        else:
 +            state_dict = torch.load(path, map_location=torch.device('cpu'))
- 
+
          # For backward compatability, remove these (the new variable is called layers)
          for key in list(state_dict.keys()):
 @@ -673,8 +679,11 @@ class Yolact(nn.Module):
                  else:
                      pred_outs['conf'] = F.softmax(pred_outs['conf'], -1)
- 
+
 -            return self.detect(pred_outs, self)
 +            pred_outs['boxes'] = decode(pred_outs['loc'], pred_outs['priors']) # decode output boxes
- 
+
 +            pred_outs.pop('priors') # remove unused in postprocessing layers
 +            pred_outs.pop('loc') # remove unused in postprocessing layers
 +            return pred_outs
- 
- 
- 
--- 
+
+
+
+--
 ```
 3. Save and close the file.
 

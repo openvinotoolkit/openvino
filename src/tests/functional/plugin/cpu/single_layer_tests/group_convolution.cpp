@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ public:
 protected:
     bool isBias = false;
 
-    void checkBiasFusing(ov::runtime::CompiledModel &execNet) const {
+    void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 
@@ -117,10 +117,35 @@ protected:
                                               ngraph::ParameterVector &params,
                                               const std::shared_ptr<ngraph::Node> &lastNode) override {
         auto retNode = CpuTestWithFusing::modifyGraph(ngPrc, params, lastNode);
-        for (size_t i = targetStaticShapes.front().size(); i < params.size(); ++i) {
-            const auto& shape = params[i]->get_output_partial_shape(0);
-            if (shape.is_static()) {
-                targetStaticShapes.front().push_back(shape.get_shape());
+        std::shared_ptr<ngraph::Node> opToShapeInfer = nullptr;
+        for (auto& targetShapes : targetStaticShapes) {
+            for (size_t i = targetShapes.size(); i < params.size(); ++i) {
+                const auto &shape = params[i]->get_output_partial_shape(0);
+                if (shape.is_static()) {
+                    targetShapes.push_back(shape.get_shape());
+                } else {
+                    // It is assumed that in such tests we have second parameter only if sum fusion is tested.
+                    // Considering this fact, we need to set the appropriate static shape for the second term of the sum operation, and
+                    // it has to match the convolution output shape. So the most suitable solution here is to perform shape inference on the
+                    // convolution node
+                    if (!opToShapeInfer) {
+                        ngraph::OutputVector inputsForShapeInfer;
+                        for (size_t j = 0; j < lastNode->get_input_size(); j++) {
+                            if (ngraph::is_type<ngraph::opset1::Constant>(lastNode->get_input_node_ptr(j))) {
+                                inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                            } else {
+                                inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(lastNode->get_input_element_type(j),
+                                                                                                          lastNode->get_input_partial_shape(j)));
+                            }
+                        }
+                        opToShapeInfer = lastNode->clone_with_new_inputs(inputsForShapeInfer);
+                    }
+
+                    std::vector<ov::Shape> secondParameterShapes;
+                    opToShapeInfer->get_input_tensor(0).set_partial_shape(targetShapes.front());
+                    opToShapeInfer->validate_and_infer_types();
+                    targetShapes.push_back(opToShapeInfer->get_output_shape(0));
+                }
             }
         }
         return retNode;
@@ -151,7 +176,7 @@ protected:
         init_input_shapes({inputShape});
 
         if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
-            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
+            PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
             selectedType += "_BF16";
             rel_threshold = 1e-2f;
         } else {
@@ -179,9 +204,9 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
 
     run();
     if (isBias) {
-        checkBiasFusing(executableNetwork);
+        checkBiasFusing(compiledModel);
     }
-    CheckPluginRelatedResults(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {
@@ -361,6 +386,19 @@ std::vector<InputShape> inShapesGemm2D = {
     }
 };
 
+std::vector<InputShape> inShapesGemm2D_cache = {
+    {{}, {{ 2, 12, 7, 7 }}},
+    {
+        //dynamic shape
+        {{1, 200}, 12, -1, {1, 200}},
+        { //target static shapes
+            { 1, 12, 5, 5 },
+            { 1, 12, 7, 7 },
+            { 1, 12, 5, 5 }
+        }
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -368,7 +406,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_Gemm_FP32, GroupConvolutionLayerCPUT
                                         ::testing::Values(ElementType::f32),
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::Values(ElementType::undefined),
-                                        ::testing::ValuesIn(inShapesGemm2D),
+                                        ::testing::ValuesIn(inShapesGemm2D_cache),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Gemm_2D)),
                                 ::testing::ValuesIn(fusingParamsSet),
@@ -570,6 +608,58 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::ValuesIn(inputShapes2d),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
+std::vector<InputShape> inputShapes2d_dynBatch = {
+    {
+        //dynamic shapes
+        { {1, 10}, 64, 7, 7},
+        { //target static shapes
+            { 2, 64, 7, 7 },
+            { 1, 64, 9, 9 },
+            { 3, 64, 9, 9 }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConv_2D_FP32_dynBatch, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_2D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d_dynBatch),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                ::testing::ValuesIn(fusingParamsSet),
+                                ::testing::Values(cpuEmptyPluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
+std::vector<InputShape> inputShapes2d_cache = {
+    {
+        //dynamic shapes
+        {-1, 64, -1, {1, 200}},
+        { //target static shapes
+            { 1, 64, 7, 7 },
+            { 1, 64, 9, 9 },
+            { 1, 64, 7, 7 },
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(nightly_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_2D,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2d_cache),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
                                 ::testing::ValuesIn(fusingParamsSet),

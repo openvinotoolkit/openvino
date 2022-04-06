@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
@@ -13,8 +14,6 @@
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
 bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // TODO: enable conditional compile
@@ -30,6 +29,7 @@ bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Func
     static_manager.register_pass<ngraph::pass::StridedSliceSqueeze>();
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.register_pass<ngraph::pass::TransposeMatMul>();
+    static_manager.register_pass<ngraph::pass::BroadcastConstRangeReplacement>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;

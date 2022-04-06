@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,6 +132,16 @@ DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
 DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
 
 /**
+ * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
+ *
+ * Metric returns a value of unsigned int type,
+ * Note that the returned value may not aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size.
+ * If the MODEL_PTR is not given, it will return 1.
+ */
+DECLARE_METRIC_KEY(MAX_BATCH_SIZE, unsigned int);
+
+/**
  * @brief Metric to provide a hint for a range for number of async infer requests. If device supports streams,
  * the metric provides range for number of IRs per stream.
  *
@@ -242,6 +252,15 @@ namespace PluginConfigParams {
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
+ * @brief (Optional) config key that defines what model should be provided with more performant bounded resource first
+ * It provides 3 types of levels: High, Medium and Low. The default value is Medium
+ */
+DECLARE_CONFIG_KEY(MODEL_PRIORITY);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_MED);
+DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
+
+/**
  * @brief High-level OpenVINO Performance Hints
  * unlike low-level config keys that are individual (per-device), the hints are smth that every device accepts
  * and turns into device-specific settings
@@ -249,12 +268,17 @@ namespace PluginConfigParams {
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
 DECLARE_CONFIG_VALUE(LATENCY);
 DECLARE_CONFIG_VALUE(THROUGHPUT);
+DECLARE_CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
 /**
  * @brief (Optional) config key that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
+/**
+ * @brief (Optional) config key that governs Auto-Batching (with YES/NO values, below)
+ */
+DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 
 /**
  * @brief generic boolean values

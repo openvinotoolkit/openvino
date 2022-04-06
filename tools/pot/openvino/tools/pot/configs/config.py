@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
@@ -185,6 +185,7 @@ class Config(Dict):
                 'range_estimator': range_estimator_parameters,
                 'weights': weights_params,
                 'activations': activations_params,
+                'saturation_fix': None
             },
             'FastBiasCorrection': bias_correction_params,
             'BiasCorrection': bias_correction_params,
@@ -296,8 +297,8 @@ class Config(Dict):
             self._configure_ac_params()
             self.engine.type = 'accuracy_checker'
         elif engine.type == 'simplified':
-            if 'data_source' not in engine:
-                raise KeyError('Missed data dir for sample engine')
+            if engine.data_source is None:
+                raise KeyError('Missed data dir for simplified engine')
             self.engine.device = engine.device if engine.device else 'CPU'
             engine.data_source = Path(engine.data_source)
         else:

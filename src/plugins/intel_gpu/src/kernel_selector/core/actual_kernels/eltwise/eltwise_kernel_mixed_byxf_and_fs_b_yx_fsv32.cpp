@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,8 +116,8 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
     size_t batches;
     size_t featuresRoundedUp;
 
-    auto dims = newParams.output.LogicalDims();
-    if (newParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+    auto dims = newParams.outputs[0].LogicalDims();
+    if (newParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         x = dims[0];
         y = dims[1];
         batches = dims[2];
@@ -144,8 +144,8 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
 KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const eltwise_params&>(params);
 
-    if ((p.output.GetLayout() == p.inputs[0].GetLayout()) &&
-        (p.output.GetLayout() ==
+    if ((p.outputs[0].GetLayout() == p.inputs[0].GetLayout()) &&
+        (p.outputs[0].GetLayout() ==
          p.inputs[1].GetLayout())) {  // There is no need for reordering kernel, better use something more optimal
         return FORCE_PRIORITY_9;
     } else {  // There is need for byxf/fsv32 reordering kernel use this one

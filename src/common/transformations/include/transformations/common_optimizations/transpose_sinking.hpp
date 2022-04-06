@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -32,17 +31,18 @@ class TRANSFORMATIONS_API TransposeFuse;
  */
 class ngraph::pass::TransposeReduction : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeReduction", "0");
     TransposeReduction();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize in case it is followed by reduction or squeeze
+ * @brief TransposeFQReduction transformation sinks Transpose through FakeQuantize in case it is followed by reduction
+ * or squeeze
  */
 class ngraph::pass::TransposeFQReduction : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeFQReduction", "0");
     TransposeFQReduction();
 };
 
@@ -52,7 +52,7 @@ public:
  */
 class ngraph::pass::TransposeConvert : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeConvert", "0");
     TransposeConvert();
 };
 
@@ -62,18 +62,18 @@ public:
  */
 class ngraph::pass::TransposeEltwise : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeEltwise", "0");
     TransposeEltwise();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or fuses them
- * to single Transpose if input gets changed
+ * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or
+ * fuses them to single Transpose if input gets changed
  */
 class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeFuse", "0");
     TransposeFuse();
 };
 
@@ -81,9 +81,9 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief TransposeSinking transformation sinks Transposes through known operations
  */
-class ngraph::pass::TransposeSinking: public ngraph::pass::GraphRewrite {
+class ngraph::pass::TransposeSinking : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeSinking", "0");
     TransposeSinking() {
         add_matcher<ngraph::pass::TransposeFQReduction>();
         add_matcher<ngraph::pass::TransposeReduction>();

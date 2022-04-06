@@ -1,29 +1,26 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <vector>
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
+#include <memory>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <vector>
 
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
-#include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
-
-#include "itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SliceToStridedSlice, "SliceToStridedSlice", 0);
-
 namespace {
-    Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
+Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
                                    const Output<ngraph::Node>& slice_axes,
                                    const Output<ngraph::Node>& scatter_axis,
                                    size_t slice_indices_length,
@@ -39,12 +36,13 @@ namespace {
     // axes: [2, 3] - apply slice values to 2 and 3 dimension of input data
     // expected_output_shape: {3, 3, 1, 1}
 
-    const auto default_indices = ngraph::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ngraph::Node> adjusted_indices = ngraph::op::util::make_try_fold<ngraph::opset8::ScatterUpdate>(
-                                                                                         default_indices,
-                                                                                         slice_axes,
-                                                                                         indices, // updates
-                                                                                         scatter_axis);
+    const auto default_indices =
+        ngraph::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+    std::shared_ptr<ngraph::Node> adjusted_indices =
+        ngraph::op::util::make_try_fold<ngraph::opset8::ScatterUpdate>(default_indices,
+                                                                       slice_axes,
+                                                                       indices,  // updates
+                                                                       scatter_axis);
 
     if (!ngraph::op::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
@@ -95,8 +93,10 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<opset8::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const = use_shapes ? get_constant_from_source(slice_node->input_value(4))
-                                    : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            axes_const =
+                use_shapes
+                    ? get_constant_from_source(slice_node->input_value(4))
+                    : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }
@@ -109,11 +109,9 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             auto norm_axes_vec = normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
             axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
         } else {
-            const bool need_normalization = std::any_of(axes_vec.begin(),
-                                                        axes_vec.end(),
-                                                        [](int64_t axis) {
-                                                            return axis < 0;
-                                                        });
+            const bool need_normalization = std::any_of(axes_vec.begin(), axes_vec.end(), [](int64_t axis) {
+                return axis < 0;
+            });
             if (need_normalization)
                 return false;
         }
@@ -133,9 +131,16 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             stop_input = align_indices(stop_input, slice_axes, scatter_axis, slice_indices_length, 0, new_ops);
             step_input = align_indices(step_input, slice_axes, scatter_axis, slice_indices_length, 1, new_ops);
         }
-        new_ops.insert(new_ops.end(), {start_input.get_node_shared_ptr(), stop_input.get_node_shared_ptr(), step_input.get_node_shared_ptr()});
+        new_ops.insert(
+            new_ops.end(),
+            {start_input.get_node_shared_ptr(), stop_input.get_node_shared_ptr(), step_input.get_node_shared_ptr()});
 
-        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg, start_input, stop_input, step_input, begin_end_mask, begin_end_mask);
+        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg,
+                                                                          start_input,
+                                                                          stop_input,
+                                                                          step_input,
+                                                                          begin_end_mask,
+                                                                          begin_end_mask);
         new_ops.push_back(strided_slice);
 
         strided_slice->set_friendly_name(slice_node->get_friendly_name());

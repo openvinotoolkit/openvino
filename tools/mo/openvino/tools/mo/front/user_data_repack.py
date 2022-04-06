@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
@@ -31,6 +31,11 @@ class UserDataRepack(FrontReplacementPattern):
         graph.graph['user_shapes'] = packed_user_shapes
         graph.graph['packed_outputs'] = packed_outputs
         graph.graph['freeze_placeholder'] = freeze_placeholder
+
+        if argv.inputs_list is not None and isinstance(argv.inputs_list, list) and len(argv.inputs_list) > 0:
+            graph.inputs_order = argv.inputs_list
+        if argv.output is not None and isinstance(argv.output, list) and len(argv.output) > 0:
+            graph.outputs_order = argv.output
 
         inputs = list(packed_user_shapes.keys()) \
             if packed_user_shapes is not None and isinstance(packed_user_shapes, dict) else None

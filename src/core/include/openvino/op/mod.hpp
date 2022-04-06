@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ namespace op {
 namespace v1 {
 /// \brief Mod returns an element-wise division reminder with two given tensors applying
 /// multi-directional broadcast rules.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);

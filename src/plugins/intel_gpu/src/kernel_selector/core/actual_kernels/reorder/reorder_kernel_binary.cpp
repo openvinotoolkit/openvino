@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,9 +40,9 @@ JitConstants ReorderKernelBinary::GetJitConstants(const reorder_params& params) 
         jit.AddConstant(MakeJitConstant("INPUT_PACKED_FEATURES_NUM", CeilDiv(input.Feature().v, 16)));
     }
 
-    if (params.output.GetDType() == Datatype::BINARY) {
+    if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_OUTPUT", 1));
-        jit.AddConstant(MakeJitConstant("OUTPUT_PACKED_FEATURES_NUM", CeilDiv(params.output.Feature().v, 32)));
+        jit.AddConstant(MakeJitConstant("OUTPUT_PACKED_FEATURES_NUM", CeilDiv(params.outputs[0].Feature().v, 32)));
     }
 
     return jit;
@@ -51,7 +51,7 @@ JitConstants ReorderKernelBinary::GetJitConstants(const reorder_params& params) 
 ReorderKernelBinary::DispatchData ReorderKernelBinary::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
@@ -70,15 +70,15 @@ KernelsData ReorderKernelBinary::GetKernelsData(const Params& params, const opti
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
     if (orgParams.inputs[0].GetDType() != Datatype::BINARY &&
-        orgParams.output.GetDType() != Datatype::BINARY)
+        orgParams.outputs[0].GetDType() != Datatype::BINARY)
         return {};
 
     if (orgParams.inputs[0].GetDType() == Datatype::BINARY &&
         orgParams.inputs[0].GetLayout() != DataLayout::b_fs_yx_32fp)
         return {};
 
-    if (orgParams.output.GetDType() == Datatype::BINARY &&
-        orgParams.output.GetLayout() != DataLayout::b_fs_yx_32fp)
+    if (orgParams.outputs[0].GetDType() == Datatype::BINARY &&
+        orgParams.outputs[0].GetLayout() != DataLayout::b_fs_yx_32fp)
         return {};
 
     return GetCommonKernelsData(orgParams, options);

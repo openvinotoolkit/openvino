@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -56,13 +56,13 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         shape[features_dim_idx] = value.size
         value = value.reshape(shape)
 
-        name = in_name + '/' + preprocessing_name
-        preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
-
         if input_node.op == 'Parameter' and input_node.has_and_set('data_type'):
             dtype = input_node.data_type
             if np.issubdtype(dtype, np.floating):
                 value = value.astype(dtype)
+
+        name = in_name + '/' + preprocessing_name
+        preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
 
         if input_node.is_out_port_connected(0) and len(input_node.out_port(0).get_destinations()) == 1:
             # There are models with pattern Parameter(uint8) -> Convert(float).

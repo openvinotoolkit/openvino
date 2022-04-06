@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDef
                                                                                      int) const {
     DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -60,7 +60,7 @@ KernelsPriority BinaryConvolutionKernelGeneric::GetKernelsPriority(const Params&
 }
 
 bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_params& o) const {
-    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !ConvolutionBinaryCheckInput(p, o))
         return false;
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
@@ -76,13 +76,13 @@ JitConstants BinaryConvolutionKernelGeneric::GetJitConstants(const binary_convol
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     size_t input_line_size = params.stride.x * (x_block_size - 1) + params.weights.X().v;
 
     int pad_physical_val = params.pad_value == -1.0f ? 0x00000000 : 0xFFFFFFFF;
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
-    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.output.Feature().v, ic_pack_size)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.outputs[0].Feature().v, ic_pack_size)));
     jit.AddConstant(MakeJitConstant("PAD_VALUE", pad_physical_val));
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", x_block_size));
     jit.AddConstant(MakeJitConstant("INPUT_ELEMENTS_PER_WI", CeilDiv(input_line_size, sub_group_size)));
@@ -94,7 +94,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetJitConstants(const binary_convol
                                         (0xFFFFFFFF >> (ic_pack_size - params.inputs[0].Feature().v % ic_pack_size))));
     }
 
-    if (params.output.GetDType() == Datatype::BINARY) {
+    if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
     }
 
@@ -161,7 +161,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                 std::string cast_type_vec = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
 
-                if (fused_dep.tensors[0].Feature().v == params.output.Feature().v) {
+                if (fused_dep.tensors[0].Feature().v == params.outputs[0].Feature().v) {
                     prepare_data += vec_data_type + " " + var_name_in + " = " + cast_type_vec +
                                     get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                 } else {
@@ -169,7 +169,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                                  + "(" + fused_dep_codegen.GetInputPtrName(0) + "[0]);";
                 }
 
-                if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
+                if (fused_dep.tensors[2].Feature().v == params.outputs[0].Feature().v) {
                     prepare_data += vec_data_type + " " + var_name_out + " = " + cast_type_vec +
                                     get_aligned_load2(fused_dep_codegen.GetInputPtrName(3), "f_block*OC_BLOCK_SIZE") + ";";
                 } else {
@@ -177,15 +177,15 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                                     "(" + fused_dep_codegen.GetInputPtrName(3)+"[0]);";
                 }
 
-                std::string var_in_s0 = fused_dep.tensors[0].Feature().v == params.output.Feature().v ? var_name_in + ".s0" : var_name_in;
-                std::string var_in_s1 = fused_dep.tensors[0].Feature().v == params.output.Feature().v ? var_name_in + ".s1" : var_name_in;
+                std::string var_in_s0 = fused_dep.tensors[0].Feature().v == params.outputs[0].Feature().v ? var_name_in + ".s0" : var_name_in;
+                std::string var_in_s1 = fused_dep.tensors[0].Feature().v == params.outputs[0].Feature().v ? var_name_in + ".s1" : var_name_in;
 
-                std::string var_out_s0 = fused_dep.tensors[3].Feature().v == params.output.Feature().v ? var_name_out + ".s0" : var_name_out;
-                std::string var_out_s1 = fused_dep.tensors[3].Feature().v == params.output.Feature().v ? var_name_out + ".s1" : var_name_out;
+                std::string var_out_s0 = fused_dep.tensors[3].Feature().v == params.outputs[0].Feature().v ? var_name_out + ".s0" : var_name_out;
+                std::string var_out_s1 = fused_dep.tensors[3].Feature().v == params.outputs[0].Feature().v ? var_name_out + ".s1" : var_name_out;
 
                 channel_pack_fused_ops += "\\\n\tfor (int i = 0; i < 16; i++) {";
                 channel_pack_fused_ops += "\\\n\tint ch0, ch1;";
-                if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
+                if (fused_dep.tensors[2].Feature().v == params.outputs[0].Feature().v) {
                     channel_pack_fused_ops += "\\\n\tif ("+ var_out_s0 + " == UNIT_VAL_ONE) ";
                     channel_pack_fused_ops += "\\\n\t\tch0 = dst[0*SUB_GROUP_SIZE + i] > " + var_in_s0 + " ? (1 << lid) : 0;";
                     channel_pack_fused_ops += "\\\n\telse ";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,9 @@
 #include <ie_precision.hpp>
 #include "defs.h"
 #include "ie_parallel.hpp"
+
+namespace ov {
+namespace intel_cpu {
 
 struct jit_uni_softmax_kernel;
 
@@ -51,3 +54,5 @@ private:
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
 };
 
+}   // namespace intel_cpu
+}   // namespace ov

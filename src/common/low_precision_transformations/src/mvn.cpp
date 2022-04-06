@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,11 @@
 #include "low_precision/network_helper.hpp"
 
 #include "ngraph/opsets/opset6.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MVNTransformation, "MVNTransformation", 0);
 
 namespace mvn {
 
@@ -43,6 +42,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 } // namespace mvn
 
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(MVNTransformation);
     auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
         pattern::wrap_type<ngraph::op::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>() }),
         pattern::wrap_type<ngraph::opset6::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>(), pattern::wrap_type<ngraph::opset1::Constant>() })
@@ -56,7 +56,7 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MVNTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -65,7 +65,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(operation);
+    const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions);
     if (dequantization.empty() || dequantization.subtract != nullptr) {
         return false;
     }
@@ -124,7 +124,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         normalizeVariance = ov::as_type_ptr<opset6::MVN>(mvn)->get_normalize_variance();
     }
 
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn, defaultPrecisions);
     const auto scalesConst = dequantization.multiplyConstant;
     const auto type = scalesConst->get_element_type();
 

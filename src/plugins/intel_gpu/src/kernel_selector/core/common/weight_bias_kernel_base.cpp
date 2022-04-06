@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ JitConstants WeightBiasKernelBase::GetJitConstants(const weight_bias_params& par
     });
 
     if (params.bias.empty() == false) {
-        const bool sameDims = params.bias[0].SameDims(params.output);
+        const bool sameDims = params.bias[0].SameDims(params.outputs[0]);
         jit.AddConstants({
             MakeJitConstant("BIAS", params.bias[0]),
             MakeJitConstant("BIAS_PER_OUTPUT", sameDims),

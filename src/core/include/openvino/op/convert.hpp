@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise type conversion operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convert : public Op {
 public:
     OPENVINO_OP("Convert", "opset1");
@@ -47,6 +48,7 @@ public:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 protected:
     ov::element::Type m_destination_type;

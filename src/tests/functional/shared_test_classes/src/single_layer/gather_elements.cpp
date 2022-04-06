@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@ void GatherElementsLayerTest::SetUp() {
     InferenceEngine::Precision dPrecision, iPrecision;
     int axis;
     std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, targetDevice) = this->GetParam();
+    outPrc = dPrecision;
 
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);

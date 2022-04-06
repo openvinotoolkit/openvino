@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,8 @@ inline std::vector<preprocess_func> GPU_smoke_preprocess_functions() {
         preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
         preprocess_func(resize_cubic, "resize_cubic", 0.01f),
         preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { ov::Shape {1, 3, 123, 123} }),
+        preprocess_func(crop_basic, "crop_basic", 0.000001f),
+        preprocess_func(crop_negative, "crop_negative", 0.000001f),
         preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
         preprocess_func(convert_layout_hwc_to_nchw, "convert_layout_hwc_to_nchw", 0.01f),
         preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),

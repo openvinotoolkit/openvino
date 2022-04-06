@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ namespace op {
 namespace v1 {
 /// \brief Takes a slice of an input tensor, i.e., the sub-tensor that resides within a
 ///        bounding box, optionally with stride.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API StridedSlice : public Op {
 public:
     OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
@@ -78,18 +79,34 @@ public:
     const std::vector<int64_t>& get_begin_mask() const {
         return m_begin_mask;
     }
+    void set_begin_mask(const std::vector<int64_t>& vec) {
+        m_begin_mask = vec;
+    }
     const std::vector<int64_t>& get_end_mask() const {
         return m_end_mask;
+    }
+    void set_end_mask(const std::vector<int64_t>& vec) {
+        m_end_mask = vec;
     }
     const std::vector<int64_t>& get_new_axis_mask() const {
         return m_new_axis_mask;
     }
+    void set_new_axis_mask(const std::vector<int64_t>& vec) {
+        m_new_axis_mask = vec;
+    }
     const std::vector<int64_t>& get_shrink_axis_mask() const {
         return m_shrink_axis_mask;
+    }
+    void set_shrink_axis_mask(const std::vector<int64_t>& vec) {
+        m_shrink_axis_mask = vec;
     }
     const std::vector<int64_t>& get_ellipsis_mask() const {
         return m_ellipsis_mask;
     }
+    void set_ellipsis_mask_mask(const std::vector<int64_t>& vec) {
+        m_ellipsis_mask = vec;
+    }
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -100,6 +117,7 @@ public:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

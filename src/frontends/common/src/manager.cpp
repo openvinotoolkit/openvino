@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ public:
             if (plugin_it != m_plugins.end()) {
                 if (plugin_it->load()) {
                     auto fe_obj = std::make_shared<FrontEnd>();
-                    fe_obj->m_shared_object = plugin_it->get_so_pointer();
+                    fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
                     fe_obj->m_actual = plugin_it->get_creator().m_creator();
                     return fe_obj;
                 }
@@ -56,7 +56,7 @@ public:
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
             if (plugin.get_creator().m_name == framework) {
                 auto fe_obj = std::make_shared<FrontEnd>();
-                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
                 fe_obj->m_actual = plugin.get_creator().m_creator();
                 return fe_obj;
             }
@@ -93,7 +93,7 @@ public:
             OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
             if (fe->supported(variants)) {
                 auto fe_obj = std::make_shared<FrontEnd>();
-                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
                 fe_obj->m_actual = fe;
                 return fe_obj;
             }
@@ -109,7 +109,7 @@ public:
 
 private:
     // Helper structure for searching plugin either by name or by file name
-    // File name here doesn't contain prefix/suffix (like "ov_*_frontend.so")
+    // File name here doesn't contain prefix/suffix (like "openvino_*_frontend.so")
     struct FrontEndNames {
         FrontEndNames(std::string n, std::string f) : name(std::move(n)), file_name(std::move(f)) {}
         bool operator==(const FrontEndNames& other) const {
@@ -185,7 +185,7 @@ private:
             if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
                 auto fe_obj = std::make_shared<FrontEnd>();
-                fe_obj->m_shared_object = plugin_info.get_so_pointer();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
                 fe_obj->m_actual = fe;
                 return fe_obj;
             }

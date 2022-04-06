@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -48,7 +48,7 @@ def test_fake_quantize():
     input_high_value = np.float32(23)
     output_low_value = np.float32(2)
     output_high_value = np.float32(16)
-    levels = np.float32(4)
+    levels = np.int32(4)
 
     data_shape = [1, 2, 3, 4]
     bound_shape = []
@@ -114,7 +114,7 @@ def test_depth_to_space():
         dtype=np.float32,
     )
     mode = "blocks_first"
-    block_size = np.float32(2)
+    block_size = np.int32(2)
 
     data_shape = [1, 4, 2, 3]
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,9 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             loop_carried_dep.clear();
             for (const auto& backedge : node.get_back_edges()) {
-                event::ptr body_event = body_network->get_primitive_event(backedge.from);
+                event::ptr body_event;
+                if (body_network->has_event(backedge.from))
+                    body_event = body_network->get_primitive_event(backedge.from);
                 loop_carried_dep.emplace_back(body_event);
             }
 

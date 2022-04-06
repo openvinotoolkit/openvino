@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace builder {
 /// \return     The vector containing multiple nodes we split input node into.
 ///
 NGRAPH_DEPRECATED("This builder was deprecated.")
-OutputVector split(const Output<Node>& value, const std::vector<size_t>& length_parts, int64_t axis = 0);
+OutputVector split(const Output<Node>& value, const std::vector<int64_t>& length_parts, int64_t axis = 0);
 
 /// \brief      Split node on specified axis into multiple parts.
 ///
@@ -35,7 +35,7 @@ OutputVector split(const Output<Node>& value, const std::vector<size_t>& length_
 /// \return     The vector containing multiple outputs we split input node into.
 ///
 NGRAPH_DEPRECATED("This builder was deprecated.")
-OutputVector split(const Output<Node>& value, size_t split_parts, int axis = 0);
+OutputVector split(const Output<Node>& value, int64_t split_parts, int axis = 0);
 
 namespace opset1 {
 /// \brief      Split value on specified axis into multiple parts.
@@ -51,7 +51,7 @@ namespace opset1 {
 /// \return     The vector containing multiple outputs we split input node into.
 ///             The vector is output of Split:v1 op
 ///
-OutputVector split(const Output<Node>& value, const std::vector<size_t>& split_lengths, int64_t axis = 0);
+OutputVector split(const Output<Node>& value, const std::vector<int64_t>& split_lengths, int64_t axis = 0);
 
 /// \brief      Split value on specified axis into multiple parts.
 ///
@@ -69,7 +69,7 @@ OutputVector split(const Output<Node>& value, const std::vector<size_t>& split_l
 /// \return     The vector containing multiple nodes we split input node into.
 ///             The vector is output of VariadicSplit:v1 op
 ///
-OutputVector split(const Output<Node>& value, size_t num_splits, int64_t axis = 0);
+OutputVector split(const Output<Node>& value, int64_t num_splits, int64_t axis = 0);
 }  // namespace opset1
 }  // namespace builder
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,8 +188,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                      uint32_t num_vector_elements,
                      uint32_t num_active_elements,
                      uint32_t num_vector_stride,
-                     uint32_t num_bytes_per_element_input,
-                     uint32_t num_bytes_per_element);
+                     InferenceEngine::Precision precision_in,
+                     InferenceEngine::Precision precision_out);
 
     template <typename T, typename U>
     void copyInputData(T *dst,

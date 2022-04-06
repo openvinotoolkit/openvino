@@ -2,6 +2,16 @@ var sw_anchors = {};
 var urlSearchParams = new URLSearchParams(window.location.search);
 var sw_timer;
 
+/* Doc Versions */
+var versions;
+try {
+    versions = JSON.parse(data);
+}
+catch (err) {
+    console.log(err);
+    versions = [];
+}
+
 /* Adobe Analytics */
 var wapLocalCode = 'us-en';
 var wapSection = 'openvinotoolkit';
@@ -15,8 +25,17 @@ var wapSection = 'openvinotoolkit';
     s.appendChild(po);
 })();
 
-$(document).ready(function() {
+// legal notice for benchmarks
+function addLegalNotice() {
+    if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks_openvino.html#platform-configurations">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
+        $('body').append(legalNotice);
+    }
+}
+
+$(document).ready(function () {
     createVersions();
+    updateTitleTag();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
@@ -25,7 +44,52 @@ $(document).ready(function() {
     if (TABLE_SORT) {
         addTableSort();
     }
+    addLegalNotice();
+    createSphinxTabSets();
 });
+
+// Determine where we'd go if clicking on a version selector option
+function getPageUrlWithVersion(version) {
+    var currentURL = window.location.href;
+    var newURL = currentURL.replace(getCurrentVersion(), version);
+    return encodeURI(newURL);
+}
+
+
+function createSphinxTabSets() {
+    var sphinxTabSets = $('.sphinxtabset');
+    var tabSetCount = 1000;
+    sphinxTabSets.each(function() {
+        var tabSet = $(this);
+        var inputCount = 1;
+        tabSet.addClass('tab-set docutils');
+        tabSetCount++;
+        tabSet.find('> .sphinxtab').each(function() {
+            var tab = $(this);
+            var checked = '';
+            var tabValue = tab.attr('data-sphinxtab-value');
+            if (inputCount == 1) {
+                checked = 'checked';
+            }
+            var input = $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`);
+            input.insertBefore(tab);
+            var label = $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`);
+            label.click(onLabelClick);
+            label.insertBefore(tab);
+            inputCount++;
+            tab.addClass('tab-content docutils');
+        });
+
+    })
+    ready(); // # this function is available from tabs.js
+}
+
+function updateTitleTag() {
+    var title = $('title');
+    var currentVersion = getCurrentVersion();
+    var newTitle = (title.text() + ' — Version(' + currentVersion + ')').replace(/\s+/g, ' ').trim();
+    title.text(newTitle);
+}
 
 function getCurrentVersion() {
     var protocol = window.location.protocol + "//";
@@ -46,22 +110,13 @@ function getCurrentVersion() {
 
 
 function createVersions() {
-    var versions;
-    var currentVersion = getCurrentVersion()
-    
-    try {
-        versions = JSON.parse(data);
-    }
-    catch(err) {
-        console.log(err);
-        versions = [];
-    }
+    var currentVersion = getCurrentVersion();
     var versionBtn = $('#version-selector');
     versionBtn.text(currentVersion);
     versionBtn.width((currentVersion.length * 10) + 'px');
     var versionsContainer = $('[aria-labelledby="version-selector"]');
     versions.forEach(item => {
-        var link = $('<a class="dropdown-item" href="#">' + item.version + '</a>');
+        var link = $('<a class="dropdown-item" href="' + getPageUrlWithVersion(item.version) + '">' + item.version + '</a>');
         if (item.version === currentVersion) {
             link.addClass('font-weight-bold');
         }
@@ -75,22 +130,22 @@ function createVersions() {
 
 function addTableSort() {
     var tables = $('table.table');
-    tables.each(function() {
+    tables.each(function () {
         var table = $(this);
         var headings = table.find('th');
-        headings.each(function() {
+        headings.each(function () {
             var th = $(this);
             var index = th.index();
             var sortBtn = $('<span class="sort-btn"></span>');
             th.addClass('sort-header');
-            th.click(function(){
+            th.click(function () {
                 var counter = 0;
                 sortBtn.addClass('sort-active');
                 sortBy = sortBtn.data('sortby');
                 var trs = table.find('tbody tr');
                 sortBtn.toggleClass('ascending');
-                trs.sort(function(item1, item2) {
-                    
+                trs.sort(function (item1, item2) {
+
                     if (sortBtn.hasClass('ascending')) {
                         var text1 = $(item1).find('td').eq(index).text();
                         var text2 = $(item2).find('td').eq(index).text();
@@ -116,7 +171,7 @@ function addTableSort() {
                     else {
                         return 0;
                     }
-                }).map(function() {
+                }).map(function () {
                     var row = $(this);
                     if (counter % 2 === 0) {
                         row.removeClass('row-odd');
@@ -130,7 +185,7 @@ function addTableSort() {
                     table.find('tbody').append(row);
                 });
 
-                headings.each(function() {
+                headings.each(function () {
                     if ($(this).index() !== index) {
                         $(this).find('.sort-btn').removeClass('ascending');
                         $(this).find('.sort-btn').removeClass('sort-active');
@@ -144,9 +199,9 @@ function addTableSort() {
 
 function initViewerJS() {
     try {
-        var images =$('main img[src*="_images"]');
-        images.each(function() {
-            try{
+        var images = $('main img[src*="_images"]');
+        images.each(function () {
+            try {
                 new Viewer($(this).get(0));
             }
             catch (err) {
@@ -154,14 +209,14 @@ function initViewerJS() {
             }
         });
     }
-    catch(err) {
+    catch (err) {
         console.log(err);
     }
 }
 
 function init_col_sections() {
     var collapsible_sections = $('div.collapsible-section');
-    collapsible_sections.each(function() {
+    collapsible_sections.each(function () {
         try {
             var title = $(this).data('title') || 'Click to expand';
             var summary = $('<summary>' + title + '</summary>');
@@ -170,7 +225,7 @@ function init_col_sections() {
             $(this).wrap(details);
             summary.insertBefore($(this));
         }
-        catch(err) {
+        catch (err) {
             console.log(err);
         }
     });

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,12 @@
 #include "utils/general_utils.h"
 #include <vector>
 
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl;
 using namespace Xbyak;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 32 : 16;
@@ -218,4 +219,5 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
     emitter_postamble();
 }
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

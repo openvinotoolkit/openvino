@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,11 @@
 
 namespace kernel_selector {
 
-class ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x : public ConvolutionKernelBase {
+class ConvolutionKernel_yxfb_yxio_b1_block_multiple_x : public ConvolutionKernelBase {
 public:
-    ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x()
+    ConvolutionKernel_yxfb_yxio_b1_block_multiple_x()
         : ConvolutionKernelBase("convolution_gpu_yxfb_yxio_b1_block_multiple_x_fp32") {}
-    virtual ~ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x() {}
+    virtual ~ConvolutionKernel_yxfb_yxio_b1_block_multiple_x() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,5 +51,41 @@ void TopKLayerTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");
+}
+
+InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    IE_ASSERT(InferenceEngine::Precision::FP32 == info.getTensorDesc().getPrecision()
+           || InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision()
+           || InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision());
+
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+    blob->allocate();
+
+    size_t size = blob->size();
+    int start = - static_cast<int>(size / 2);
+    std::vector<int> data(size);
+    std::iota(data.begin(), data.end(), start);
+    std::mt19937 gen(0);
+    std::shuffle(data.begin(), data.end(), gen);
+
+    float divisor = size / 10.0;
+    if (InferenceEngine::Precision::FP32 == info.getTensorDesc().getPrecision()) {
+        auto *rawBlobDataPtr = blob->buffer().as<float *>();
+        for (size_t i = 0; i < size; i++) {
+            rawBlobDataPtr[i] = static_cast<float>(data[i] / divisor);
+        }
+    } else if (InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision()) {
+        auto *rawBlobDataPtr = blob->buffer().as<ngraph::bfloat16 *>();
+        for (size_t i = 0; i < size; i++) {
+            rawBlobDataPtr[i] = static_cast<ngraph::bfloat16>(data[i] / divisor);
+        }
+    } else if (InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision()) {
+        auto *rawBlobDataPtr = blob->buffer().as<ngraph::float16 *>();
+        for (size_t i = 0; i < size; i++) {
+            rawBlobDataPtr[i] = static_cast<ngraph::float16>(data[i] / divisor);
+        }
+    }
+
+    return blob;
 }
 }  // namespace LayerTestsDefinitions

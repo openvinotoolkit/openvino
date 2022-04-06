@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,12 @@ namespace low_precision {
  * @brief StridedSliceTransformation propagates dequantization operations through StridedSlice operation.
  *
  * For more details about the transformation, refer to
- * [StridedSliceTransformation](@ref openvino_docs_IE_DG_lpt_StridedSliceTransformation) page
+ * [StridedSliceTransformation](@ref openvino_docs_OV_UG_lpt_StridedSliceTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("StridedSliceTransformation", "0");
     StridedSliceTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

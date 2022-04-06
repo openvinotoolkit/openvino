@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,7 @@ using namespace std;
 
 // Constructor
 runtime::LRUCache::LRUCache() {
-    int32_t cache_size = getenv_int("NGRAPH_CACHE_SIZE");
-    if (cache_size <= 0) {
-        m_cache_size = 1024;  // TODO(nbpatel): Figure out a default size for the cache
-    } else {
-        m_cache_size = cache_size;
-    }
+    m_cache_size = 1024;
 
     m_map = {};
     m_list = {};

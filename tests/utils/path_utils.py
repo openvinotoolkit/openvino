@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Common utilities for working with paths
@@ -15,7 +15,7 @@ from pathlib import Path
 UTILS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, str(UTILS_DIR))
 
-from platform_utils import get_os_name
+from platform_utils import get_os_type
 
 
 def expand_env_vars(obj):
@@ -34,16 +34,16 @@ def expand_env_vars(obj):
 
 def get_lib_path(lib_name):
     """Function for getting absolute path in OpenVINO directory to specific lib"""
-    os_name = get_os_name()
+    os_type = get_os_type()
     all_libs = {
-        'ov_intel_cpu_plugin': {
-            'Windows': Path('runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll'),
-            'Linux': Path('runtime/lib/intel64/libov_intel_cpu_plugin.so')},
-        'ov_runtime': {
-            'Windows': Path('runtime/bin/intel64/Release/ov_runtime.dll'),
-            'Linux': Path('runtime/lib/intel64/libov_runtime.so')}
+        'openvino_intel_cpu_plugin': {
+            'Windows': Path('runtime/bin/intel64/Release/openvino_intel_cpu_plugin.dll'),
+            'Linux': Path('runtime/lib/intel64/libopenvino_intel_cpu_plugin.so')},
+        'openvino': {
+            'Windows': Path('runtime/bin/intel64/Release/openvino.dll'),
+            'Linux': Path('runtime/lib/intel64/libopenvino.so')}
                 }
-    return all_libs[lib_name][os_name]
+    return all_libs[lib_name][os_type]
 
 
 def check_positive_int(val):

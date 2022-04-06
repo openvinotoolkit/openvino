@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,8 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                             {0, 1, 1, 1}, {1, 1, 1, 1},  {},  {},  {} },
         StridedSliceSpecificParams{ { 2, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 },
                             {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {0, 1, 0, 0, 0},  {} },
+        StridedSliceSpecificParams{ { 1, 5, 30, 30, 30 }, { 0, 0, 0, 0, 0 }, { 0, 0, 29, 29, 29 }, { 1, 1, 1, 1, 1 },
+                            {1, 1, 1, 1, 1}, {1, 1, 0, 0, 0},  {0, 0, 0, 0, 0},  {0, 0, 0, 0, 0},  {0, 0, 0, 0, 0} },
         StridedSliceSpecificParams{ { 10, 12 }, { -1, 1 }, { -9999, 0 }, { -1, 1 },
                                 { 0, 1 }, { 0, 1 },  { 0, 0 },  { 0, 0 },  { 0, 0 } },
         StridedSliceSpecificParams{ { 5, 5, 5, 5 }, { -1, 0, -1, 0 }, { -50, 0, -60, 0 }, { -1, 1, -1, 1 },

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,8 @@
 #include "utils.hpp"
 // clang-format on
 
-typedef std::function<void(size_t id, size_t group_id, const double latency)> QueueCallbackFunction;
+typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
+    QueueCallbackFunction;
 
 /// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
 /// time.
@@ -33,20 +34,19 @@ public:
 
     ~InferReqWrap() = default;
 
-    explicit InferReqWrap(ov::runtime::CompiledModel& model, size_t id, QueueCallbackFunction callbackQueue)
+    explicit InferReqWrap(ov::CompiledModel& model, size_t id, QueueCallbackFunction callbackQueue)
         : _request(model.create_infer_request()),
           _id(id),
           _lat_group_id(0),
           _callbackQueue(callbackQueue),
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
-            // TODO: Add exception ptr rethrow in proper thread
             _endTime = Time::now();
-            _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
+            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), ptr);
         });
     }
 
-    void startAsync() {
+    void start_async() {
         _startTime = Time::now();
         _request.start_async();
     }
@@ -59,44 +59,44 @@ public:
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-        _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
+        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), nullptr);
     }
 
-    std::vector<ov::runtime::ProfilingInfo> getPerformanceCounts() {
+    std::vector<ov::ProfilingInfo> get_performance_counts() {
         return _request.get_profiling_info();
     }
 
-    void setShape(const std::string& name, const ov::Shape& dims) {
+    void set_shape(const std::string& name, const ov::Shape& dims) {
         // TODO check return status
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::runtime::Tensor getTensor(const std::string& name) {
+    ov::Tensor get_tensor(const std::string& name) {
         return _request.get_tensor(name);
     }
 
-    void setTensor(const std::string& name, const ov::runtime::Tensor& data) {
+    void set_tensor(const std::string& name, const ov::Tensor& data) {
         _request.set_tensor(name, data);
     }
 
-    double getExecutionTimeInMilliseconds() const {
+    double get_execution_time_in_milliseconds() const {
         auto execTime = std::chrono::duration_cast<ns>(_endTime - _startTime);
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
-    void setLatencyGroupId(size_t id) {
+    void set_latency_group_id(size_t id) {
         _lat_group_id = id;
     }
 
     // in case of using GPU memory we need to allocate CL buffer for
     // output blobs. By encapsulating cl buffer inside InferReqWrap
     // we will control the number of output buffers and access to it.
-    std::map<std::string, ::gpu::BufferType>& getOutputClBuffer() {
+    std::map<std::string, ::gpu::BufferType>& get_output_cl_buffer() {
         return outputClBuffer;
     }
 
 private:
-    ov::runtime::InferRequest _request;
+    ov::InferRequest _request;
     Time::time_point _startTime;
     Time::time_point _endTime;
     size_t _id;
@@ -107,20 +107,21 @@ private:
 
 class InferRequestsQueue final {
 public:
-    InferRequestsQueue(ov::runtime::CompiledModel& model, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
+    InferRequestsQueue(ov::CompiledModel& model, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
         : enable_lat_groups(enable_lat_groups) {
         for (size_t id = 0; id < nireq; id++) {
             requests.push_back(std::make_shared<InferReqWrap>(model,
                                                               id,
-                                                              std::bind(&InferRequestsQueue::putIdleRequest,
+                                                              std::bind(&InferRequestsQueue::put_idle_request,
                                                                         this,
                                                                         std::placeholders::_1,
                                                                         std::placeholders::_2,
-                                                                        std::placeholders::_3)));
+                                                                        std::placeholders::_3,
+                                                                        std::placeholders::_4)));
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);
-        resetTimes();
+        reset_times();
     }
 
     ~InferRequestsQueue() {
@@ -133,7 +134,7 @@ public:
         requests.clear();
     }
 
-    void resetTimes() {
+    void reset_times() {
         _startTime = Time::time_point::max();
         _endTime = Time::time_point::min();
         _latencies.clear();
@@ -142,24 +143,38 @@ public:
         }
     }
 
-    double getDurationInMilliseconds() {
+    double get_duration_in_milliseconds() {
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void putIdleRequest(size_t id, size_t lat_group_id, const double latency) {
+    void put_idle_request(size_t id,
+                          size_t lat_group_id,
+                          const double latency,
+                          const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
-        _latencies.push_back(latency);
-        if (enable_lat_groups) {
-            _latency_groups[lat_group_id].push_back(latency);
+        if (ptr) {
+            inferenceException = ptr;
+        } else {
+            _latencies.push_back(latency);
+            if (enable_lat_groups) {
+                _latency_groups[lat_group_id].push_back(latency);
+            }
+            _idleIds.push(id);
+            _endTime = std::max(Time::now(), _endTime);
         }
-        _idleIds.push(id);
-        _endTime = std::max(Time::now(), _endTime);
         _cv.notify_one();
     }
 
-    InferReqWrap::Ptr getIdleRequest() {
+    InferReqWrap::Ptr get_idle_request() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
+            if (inferenceException) {
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    throw ex;
+                }
+            }
             return _idleIds.size() > 0;
         });
         auto request = requests.at(_idleIds.front());
@@ -168,18 +183,25 @@ public:
         return request;
     }
 
-    void waitAll() {
+    void wait_all() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
+            if (inferenceException) {
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    throw ex;
+                }
+            }
             return _idleIds.size() == requests.size();
         });
     }
 
-    std::vector<double> getLatencies() {
+    std::vector<double> get_latencies() {
         return _latencies;
     }
 
-    std::vector<std::vector<double>> getLatencyGroups() {
+    std::vector<std::vector<double>> get_latency_groups() {
         return _latency_groups;
     }
 
@@ -194,4 +216,5 @@ private:
     std::vector<double> _latencies;
     std::vector<std::vector<double>> _latency_groups;
     bool enable_lat_groups;
+    std::exception_ptr inferenceException = nullptr;
 };

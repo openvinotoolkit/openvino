@@ -1,25 +1,26 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 
 #include <algorithm>
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <numeric>
-#include <tuple>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <set>
+#include <tuple>
 #include <utility>
 #include <vector>
 
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
 namespace {
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
-    if (perm.empty()) return {};
+    if (perm.empty())
+        return {};
 
     std::vector<int64_t> result(perm.size());
     for (int64_t i = 0; i < static_cast<int64_t>(perm.size()); ++i) {
@@ -48,27 +49,32 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
     std::iota(result.begin(), result.end(), static_cast<int64_t>(rank - num_of_axes));
     return result;
 }
-} // namespace
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::WrapInterpolateIntoTransposes, "WrapInterpolateIntoTransposes", 0);
+}  // namespace
 
 ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ov::opset8::Interpolate>(m.get_match_root());
-        if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() || interpolate->inputs().size() != 4) return false;
+        if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
+            interpolate->inputs().size() != 4)
+            return false;
 
         int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
-        // If the input rank is equal to 1 or 2, then such Interpolate is supported by MKLDNN.
-        if (input_rank < 3) return false;
+        // If the input rank is equal to 1 or 2, then such Interpolate is supported by OneDNN.
+        if (input_rank < 3)
+            return false;
 
-        auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
-        if (!axes_node) return false;
+        auto axes_node =
+            std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+        if (!axes_node)
+            return false;
 
         const auto axes = axes_node->cast_vector<int64_t>();
         if (static_cast<int64_t>(axes.size()) > input_rank - 2 ||
-            std::all_of(axes.begin(), axes.end(), [](int64_t axis){ return axis != 0 && axis != 1; })) {
+            std::all_of(axes.begin(), axes.end(), [](int64_t axis) {
+                return axis != 0 && axis != 1;
+            })) {
             return false;
         }
 
@@ -76,15 +82,23 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         const auto last_perm = reverse_permutation(first_perm);
 
         auto first_transpose_perm = ov::opset8::Constant::create(element::i64, {first_perm.size()}, first_perm);
-        auto first_transpose = std::make_shared<ov::opset8::Transpose>(interpolate->input_value(0), first_transpose_perm);
+        auto first_transpose =
+            std::make_shared<ov::opset8::Transpose>(interpolate->input_value(0), first_transpose_perm);
         auto new_axes = build_new_axes(axes.size(), input_rank);
         auto new_axes_node = ov::opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
-        auto new_interpolate = interpolate->clone_with_new_inputs({first_transpose, interpolate->input_value(1), interpolate->input_value(2), new_axes_node});
+        auto new_interpolate = interpolate->clone_with_new_inputs(
+            {first_transpose, interpolate->input_value(1), interpolate->input_value(2), new_axes_node});
         auto last_transpose_perm = ov::opset8::Constant::create(element::i64, {last_perm.size()}, last_perm);
         auto last_transpose = std::make_shared<ov::opset8::Transpose>(new_interpolate, last_transpose_perm);
 
         last_transpose->set_friendly_name(interpolate->get_friendly_name());
-        copy_runtime_info(interpolate, {first_transpose_perm, first_transpose, new_axes_node, new_interpolate, last_transpose_perm, last_transpose});
+        copy_runtime_info(interpolate,
+                          {first_transpose_perm,
+                           first_transpose,
+                           new_axes_node,
+                           new_interpolate,
+                           last_transpose_perm,
+                           last_transpose});
         replace_node(interpolate, last_transpose);
 
         return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,6 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
-    std::vector<std::shared_ptr<void>> shared_objects;
-    std::vector<ov::Extension::Ptr> extensions;
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 

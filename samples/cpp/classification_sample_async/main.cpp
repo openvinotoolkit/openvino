@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,15 +80,15 @@ int main(int argc, char* argv[]) {
             throw std::logic_error("No suitable images were found");
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         printInputAndOutputsInfo(*model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // -------- Step 3. Configure preprocessing --------
         const ov::Layout tensor_layout{"NHWC"};
@@ -145,14 +145,14 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 6. Loading model to the device --------
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
-        ov::runtime::CompiledModel compiled_model = core.compile_model(model, FLAGS_d);
+        ov::CompiledModel compiled_model = core.compile_model(model, FLAGS_d);
 
         // -------- Step 7. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
-        ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Step 8. Combine multiple input images as batch --------
-        ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
+        ov::Tensor input_tensor = infer_request.get_input_tensor();
 
         for (size_t image_id = 0; image_id < images_data.size(); ++image_id) {
             const size_t image_size = shape_size(model->input().get_shape()) / batchSize;
@@ -166,11 +166,14 @@ int main(int argc, char* argv[]) {
         size_t cur_iteration = 0;
         std::condition_variable condVar;
         std::mutex mutex;
-
+        std::exception_ptr exception_var;
         // -------- Step 10. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
-            if (ex)
-                throw ex;
+            if (ex) {
+                exception_var = ex;
+                condVar.notify_all();
+                return;
+            }
 
             std::lock_guard<std::mutex> l(mutex);
             cur_iteration++;
@@ -193,13 +196,17 @@ int main(int argc, char* argv[]) {
         // Wait all iterations of the async request
         std::unique_lock<std::mutex> lock(mutex);
         condVar.wait(lock, [&] {
+            if (exception_var) {
+                std::rethrow_exception(exception_var);
+            }
+
             return cur_iteration == num_iterations;
         });
 
         slog::info << "Completed async requests execution" << slog::endl;
 
         // -------- Step 11. Process output --------
-        ov::runtime::Tensor output = infer_request.get_output_tensor();
+        ov::Tensor output = infer_request.get_output_tensor();
 
         // Read labels from file (e.x. AlexNet.labels)
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";

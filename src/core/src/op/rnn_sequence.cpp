@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,12 +104,18 @@ void op::v5::RNNSequence::validate_and_infer_types() {
     } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
         valid_num_directions = 2;
     } else {
+        // Guard for potential future extension of RecurrentSequenceDirection enum
         NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
     }
 
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
-                          "Parameter num_directions not match direction in RNNSequence.");
+                          "Parameter 'num_directions' doesn't match with direction '",
+                          m_direction,
+                          "' in RNNSequence. Expected ",
+                          valid_num_directions,
+                          ", actual ",
+                          merged_num_directions);
 
     // Validate hidden_size value for W, R, B inputs
     if (merged_hidden_size.is_static()) {

@@ -23,8 +23,7 @@ The tool takes two command line parameters:
 * `--constants_size_threshold` - Optional. Maximum size of constant in megabytes to be serialized.
                                  If constant size exceeds specified number it will be replaced
                                  with parameter and meta information about original data range will be saved
-* `--eliminate_dynamism` - Optional. If specified dynamic shapes will be eliminated from model 
-                           and replaced by propagated upper bound values (if possible)       
+* '--extract_body' - Optional. Allow to extract operation bodies to operation cache.
 
 E.g.    
 ```subgraphsDumper --input_folders /folder/with/models,/another/folder/with/models --output_folder /output/folder```

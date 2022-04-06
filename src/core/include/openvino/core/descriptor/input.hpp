@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,12 @@ class OPENVINO_API Input {
 
 public:
     /// \param node The node that owns this input
-    /// \param index The position of this this tensor in all input tensors
+    /// \param index The position of this tensor in all input tensors
     /// \param output The output that supplies a value for this input
     Input(Node* node, size_t index, Output& output);
     /// \brief Create an Input that is not connected to an output
     /// \param node The node that owns this input
-    /// \param index The position of this this tensor in all input tensors
+    /// \param index The position of this tensor in all input tensors
     Input(Node* node, size_t index);
     ~Input();
 

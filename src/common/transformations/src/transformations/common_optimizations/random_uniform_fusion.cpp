@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
 
 #include <memory>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/ngraph.hpp>
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RandomUniformFusion, "RandomUniformFusion", 0);
 
 ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
@@ -64,9 +62,8 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto& folded_const1 = ngraph::get_constant_from_source(new_mul_add1);
         const auto& folded_const2 = ngraph::get_constant_from_source(new_mul_add2);
 
-        const auto new_ru = ru->clone_with_new_inputs({data,
-                                                       folded_const1 ? folded_const1 : new_mul_add1,
-                                                       folded_const2 ? folded_const2 : new_mul_add2});
+        const auto new_ru = ru->clone_with_new_inputs(
+            {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});
 
         if (pattern_map.count(convert_pattern)) {
             const auto& convert = pattern_map.at(convert_pattern);
@@ -76,7 +73,8 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
             if (!cvt->get_element_type().is_real())
                 return false;
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});
-            copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()}, {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
+            copy_runtime_info({ru, cvt, mul_add.get_node_shared_ptr()},
+                              {new_mul_add1, new_mul_add2, new_ru, new_ru_conv});
             new_ru_conv->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), new_ru_conv);
         } else {

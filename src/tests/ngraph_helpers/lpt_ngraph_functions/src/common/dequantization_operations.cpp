@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,8 +64,8 @@ DequantizationOperations::Subtract::Subtract(
     const size_t constantIndex,
     const ngraph::element::Type constantPrecision,
     const bool addConvert,
-    const std::vector<std::string>& attributes,
-    const std::vector<std::string>& convertAttributes) :
+    const ov::Node::RTMap& attributes,
+    const ov::Node::RTMap& convertAttributes) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),

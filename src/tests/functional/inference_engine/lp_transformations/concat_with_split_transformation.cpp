@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@
 #include <low_precision/propagate_precisions.hpp>
 #include <low_precision/markup_avg_pool_precision_preserved.hpp>
 #include <low_precision/markup_precisions.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
-#include "low_precision/common/operation_precision_restriction.hpp"
+#include <low_precision/markup_quantization_granularity.hpp>
+#include "low_precision/common/precisions_restriction.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -99,17 +99,17 @@ public:
             testValues.actual.fakeQuantize2,
             addConvolution);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-               ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+               ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                    {0, testValues.params.precisionsOnActivations},
                    {1, testValues.params.precisionsOnWeights},
                })
            });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, quantizationRestrictions);
@@ -151,7 +151,7 @@ public:
 
 TEST_P(ConcatWithSplitTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 

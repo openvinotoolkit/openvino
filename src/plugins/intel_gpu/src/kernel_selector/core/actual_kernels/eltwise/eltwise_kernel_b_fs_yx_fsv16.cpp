@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 static inline size_t GetBlockSize(const eltwise_params& params) {
     // Set blocksize 1 when broadcasting X dim
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        if ((params.inputs[i].X().v == 1) && !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
+        if ((params.inputs[i].X().v == 1) && !IsBroadcastingPossibleInput(params.inputs[i], params.outputs[0])) {
             return 1;
         }
     }
@@ -52,7 +52,7 @@ static inline size_t GetBlockSize(const eltwise_params& params) {
     size_t optimal_bs_values[] = {8, 4, 2, 1};
 
     for (auto bs : optimal_bs_values) {
-        if ((params.output.X().v) % bs == 0) {
+        if ((params.outputs[0].X().v) % bs == 0) {
             return bs;
         }
     }
@@ -68,7 +68,7 @@ static inline bool OpHasFeatureBroadcast(const eltwise_params& params, const siz
         if (input.mode == EltwiseInputMode::INPUT_BUFFER) {
             if (params.inputs[input_idx].LogicalSize() != 1 &&
                 params.inputs[input_idx].Feature().v == 1 &&
-                params.output.Feature().v != 1) {
+                params.outputs[0].Feature().v != 1) {
                     return true;
                 }
         }
@@ -93,7 +93,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::MakeLoadJitConstants(const eltwise_par
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
                 {
-                    if (params.inputs[input.index].LogicalSize() == params.output.Feature().v &&
+                    if (params.inputs[input.index].LogicalSize() == params.outputs[0].Feature().v &&
                         params.inputs[input.index].LogicalSize() == params.inputs[input.index].Feature().v) {
                         std::string block_read_str = "BLOCK_READN(INPUT" + toCodeString(input.index) + "_TYPE, " +
                                                      "1, " +
@@ -115,7 +115,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::MakeLoadJitConstants(const eltwise_par
                         } else {
                             jit.AddConstant(MakeJitConstant(idx_order, "b, f_block*16, z, y, x"));
                         }
-                        bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.output.Feature().v != 1);
+                        bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.outputs[0].Feature().v != 1);
 
                         const std::string block_read_str = "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE), BLOCK_READN(INPUT" +
                                                                 toCodeString(input.index) + "_TYPE, BLOCK_SIZE, " +
@@ -170,7 +170,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     auto blockSize = GetBlockSize(params);
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", blockSize));
-    jit.AddConstant(MakeJitConstant("BLOCKS_COUNT", CeilDiv(params.output.X().v, blockSize)));
+    jit.AddConstant(MakeJitConstant("BLOCKS_COUNT", CeilDiv(params.outputs[0].X().v, blockSize)));
 
     jit.Merge(MakeInputDeclsJitConstants(params, useVload8));
     jit.Merge(MakeLoadJitConstants(params, useVload8));
@@ -190,25 +190,25 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.output));
+        jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
     }
 
     if (!params.stride.empty()) {
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, params.output.GetDType(), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
 
-    if (params.output.Feature().v % 16 != 0)
-        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.output.Feature().v % 16));
+    if (params.outputs[0].Feature().v % 16 != 0)
+        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % 16));
 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"b", "f_block*16", "y", "x"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"b", "f_block*16", "z", "y", "x"};
         }
 
@@ -222,7 +222,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     if (params.broadcast) {
         bool need_idx_safe = true;
         for (size_t i = 0; i < params.inputs.size(); i++) {
-            if (IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
+            if (IsBroadcastingPossibleInput(params.inputs[i], params.outputs[0])) {
                     need_idx_safe = false;
                     break;
             }
@@ -241,7 +241,7 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 
     const auto& params = static_cast<const eltwise_params&>(p);
 
-    const auto count = params.output.PhysicalSize();
+    const auto count = params.outputs[0].PhysicalSize();
 
     if (count % 8 != 0)
         return false;
@@ -252,7 +252,7 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if ((params.inputs[i].GetLayout() != DataLayout::b_fs_yx_fsv16) &&
             (params.inputs[i].GetLayout() != DataLayout::b_fs_zyx_fsv16) &&
-            !IsBroadcastingPossibleInput(params.inputs[i], params.output)) {
+            !IsBroadcastingPossibleInput(params.inputs[i], params.outputs[0])) {
             return false;
         }
     }
@@ -261,7 +261,7 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 
     // Check that padding before features doesn't miss-align the blocks
     auto feature_block_size = 16;
-    if (input0.Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0) {
+    if (input0.Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0) {
         return false;
     }
 
@@ -298,9 +298,9 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const eltwise_params& params) const {
     DispatchData dispatchData;
 
-    dispatchData.gws[0] = Align(params.output.Feature().v, 16);
-    dispatchData.gws[1] = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v * params.output.Z().v;
-    dispatchData.gws[2] = params.output.Batch().v;
+    dispatchData.gws[0] = Align(params.outputs[0].Feature().v, 16);
+    dispatchData.gws[1] = CeilDiv(params.outputs[0].X().v, GetBlockSize(params)) * params.outputs[0].Y().v * params.outputs[0].Z().v;
+    dispatchData.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 16;
     dispatchData.lws[1] = 16;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,9 +22,9 @@ struct binary_convolution_test_params {
     tensor in_shape;
     tensor out_shape;
     tensor kernel;
-    tensor stride;
-    tensor pad;
-    tensor dilation;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
     uint32_t groups;
     data_types data_type;
     format input_format;
@@ -60,7 +60,7 @@ public:
 
     layout get_input_layout(binary_convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -71,9 +71,9 @@ public:
 
 } // namespace
 
-#define CASE_BIN_CONV1 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 1, 1, 3, 3 }, tensor{ 1 }, tensor{ { 0, 0, 1, 1, 0, 0 }, 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV2 { 1, 16, 4, 5 }, { 1, 30, 4, 5 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-#define CASE_BIN_CONV3 { 1, 184, 12, 21 }, { 1, 224, 12, 21 }, { 1, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV1 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV2 { 1, 16, 4, 5 }, { 1, 30, 4, 5 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
+#define CASE_BIN_CONV3 { 1, 184, 12, 21 }, { 1, 224, 12, 21 }, { 1, 1, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------------- binary convolution cases ------------------------------------- */
@@ -170,7 +170,9 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride2) {
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
 
-    auto dw_stride = tensor{ 1, 1, 2, 2 };
+    ov::Strides dw_stride = {2, 2};
+    ov::Strides dw_dilation = {1, 1};
+    ov::CoordinateDiff dw_pad = p.pad;
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
@@ -178,7 +180,7 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride2) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
         binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         reorder("reorder_bfyx", "conv_dw", p.default_format, data_types::f32)
     );
 
@@ -191,7 +193,9 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride1) {
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
 
-    auto dw_stride = tensor{ 1, 1, 1, 1 };
+    ov::Strides dw_stride = {1, 1};
+    ov::Strides dw_dilation = {1, 1};
+    ov::CoordinateDiff dw_pad = p.pad;
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
@@ -199,7 +203,7 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride1) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
         binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         reorder("reorder_bfyx", "conv_dw", p.default_format, data_types::f32)
     );
 
@@ -218,7 +222,9 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride2) {
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
 
-    auto dw_stride = tensor{ 1, 1, 2, 2 };
+    ov::Strides dw_stride = {2, 2};
+    ov::Strides dw_dilation = {1, 1};
+    ov::CoordinateDiff dw_pad = p.pad;
     auto in_thresh = get_mem(get_per_channel_layout(p), min_random, max_random);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -227,7 +233,7 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride2) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
         binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         activation("activation", "conv_dw", "slope_data", activation_func::relu_negative_slope),
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
@@ -242,7 +248,9 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride1) {
     auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
     auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
 
-    auto dw_stride = tensor{ 1, 1, 1, 1 };
+    ov::Strides dw_stride = {1, 1};
+    ov::Strides dw_dilation = {1, 1};
+    ov::CoordinateDiff dw_pad = p.pad;
     auto in_thresh = get_mem(get_per_channel_layout(p), min_random, max_random);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -251,7 +259,7 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride1) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
         binary_convolution("bin_conv_prim", "input", { "weights" }, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
         scale("scale", "bin_conv_prim", "scale_data"),
-        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        convolution("conv_dw", "scale", { "weights_dw" }, p.out_shape.feature[0], dw_stride, dw_pad, dw_dilation),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         activation("activation", "conv_dw", "slope_data", activation_func::relu_negative_slope),
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)

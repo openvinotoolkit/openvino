@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn_memory.h"
+#include <cpu_memory.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 #include <string>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * Utility class to dump blob contant in plain format.
@@ -20,21 +21,21 @@ namespace MKLDNNPlugin {
  * NB! Channel is a second dimension for all blob types.
  */
 class BlobDumper {
-    MKLDNNMemoryPtr memory;
+    MemoryPtr memory;
 
-    void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const;
+    void prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t> &data) const;
 
 public:
     BlobDumper() = default;
     BlobDumper(const DnnlBlockedMemoryDesc &desc) {
-        mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
-        memory = std::make_shared<MKLDNNMemory>(eng);
+        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+        memory = std::make_shared<Memory>(eng);
         memory->Create(desc);
     }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;
 
-    explicit BlobDumper(const MKLDNNMemoryPtr &_memory) : memory(_memory) {}
+    explicit BlobDumper(const MemoryPtr &_memory) : memory(_memory) {}
 
     static BlobDumper read(const std::string &file_path);
     static BlobDumper read(std::istream &stream);
@@ -50,4 +51,5 @@ public:
     }
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

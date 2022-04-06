@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.convolution import Convolution
 from openvino.tools.mo.ops.op import Op
 
@@ -31,3 +32,12 @@ class DeformableConvolution(Op):
         if self.get_opset() == 'opset8':
             attrs.append('bilinear_interpolation_pad')
         return attrs
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape_1 = node.in_port(0).data.get_shape()
+        input_shape_2 = node.in_port(1).data.get_shape()
+        if input_shape_1 is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+        if input_shape_2 is None:
+            node.in_port(1).data.set_shape(undefined_shape_of_rank(4))

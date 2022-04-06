@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/common_optimizations/division_by_zero_fp16_resolver.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
-#include <openvino/opsets/opset8.hpp>
+#include "itt.hpp"
 #include "ngraph/rt_info.hpp"
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-
-NGRAPH_RTTI_DEFINITION(ov::pass::DivisionByZeroFP16Resolver, "DivisionByZeroFP16Resolver", 0);
+#include "transformations/utils/utils.hpp"
 
 constexpr float normalized_fp16_min = 6.103515625e-05f;  // fp16 minimal normalized  value
 

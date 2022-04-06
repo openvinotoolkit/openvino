@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ using testing::SetArgReferee;
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  exeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  exeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
 

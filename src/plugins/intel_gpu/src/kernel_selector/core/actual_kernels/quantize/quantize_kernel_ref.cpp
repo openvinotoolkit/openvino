@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
 CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
 
-    auto output = params.output;
+    auto output = params.outputs[0];
 
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
         dispatchData.gws[0] = output.Batch().v;
@@ -56,7 +56,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
 
 JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     }
     return jit;
@@ -68,8 +68,8 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
         return false;
 
     // Binary packed output is possible only with b_fs_yx_32fp output layout and some input layouts
-    if (params.output.GetDType() == Datatype::BINARY &&
-        (params.output.GetLayout() != DataLayout::b_fs_yx_32fp ||
+    if (params.outputs[0].GetDType() == Datatype::BINARY &&
+        (params.outputs[0].GetLayout() != DataLayout::b_fs_yx_32fp ||
         (params.inputs[0].GetLayout() != DataLayout::bfyx &&
          params.inputs[0].GetLayout() != DataLayout::bfzyx &&
          params.inputs[0].GetLayout() != DataLayout::b_fs_zyx_fsv16 &&

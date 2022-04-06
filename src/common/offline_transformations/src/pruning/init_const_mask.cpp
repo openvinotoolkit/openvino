@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitConstMask, "InitConstMask", 0);
 
 ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                                            const std::function<bool(const double & value)> & condition) {
@@ -30,8 +28,12 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
 
         for (const auto & dim : dims) {
             if (dim >= shape.size()) {
-                throw ngraph_error("Dim value " + std::to_string(dim) + " is out of range [0;" +std::to_string(shape.size() - 1) + "]");
+                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim
+                             << " dimension which is out of shape " << shape
+                             << " for node (" << const_node->get_friendly_name() << ")";
+                continue;
             }
+
             for (size_t value = 0; value < shape[dim]; ++value) {
                 Coordinate begin(shape.size(), 0);
                 Coordinate end(shape);

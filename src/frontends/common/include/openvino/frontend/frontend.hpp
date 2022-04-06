@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,6 +147,8 @@ protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
 
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+
+    std::vector<ov::Extension::Ptr> m_extensions;
 
 private:
     static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,

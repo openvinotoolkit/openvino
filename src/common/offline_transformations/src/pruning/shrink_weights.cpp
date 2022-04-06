@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,13 @@
 #include <ngraph/log.hpp>
 #include <ngraph/ngraph.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
-
 bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};
     for (const auto & node : f->get_ordered_ops()) {
         // calculate shape for every node in graph as the input shape may change
         // during Constant shrinking
-        node->validate_and_infer_types();
+        node->revalidate_and_infer_types();
 
         // TODO: constant can be shared across functions so we need to avoid consumers from other function
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(node);
@@ -51,7 +49,33 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 #endif
 
         if (!mask) continue;
+        // Case mask should adjust value from constant instead of constant pruning
+        if (mask->adjust_value() && !mask->all_dims_are_empty()) {
+            std::vector<int64_t> new_const_value;
+            auto value = const_node->cast_vector<int64_t>();
+            for (size_t i = 0; i < mask->size(); i++) {
+                const int64_t res = value[i] - mask->at(i).size();
+                new_const_value.push_back((res > 0)? res : value[i]);
+            }
 
+            const auto new_const = opset6::Constant::create(const_node->get_element_type(),
+                                                            const_node->get_shape(), new_const_value);
+            new_const->set_friendly_name(const_node->get_friendly_name());
+            ngraph::copy_runtime_info(const_node, new_const);
+            ngraph::replace_node(const_node, new_const);
+
+            auto to_str = [](const std::vector<int64_t> v) -> std::string {
+                std::ostringstream out;
+                out << "[ ";
+                for (auto & val : v)
+                    out << val << ' ';
+                out << "]";
+                return out.str();
+            };
+            NGRAPH_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): "
+                         << to_str(value) << " to " << to_str(new_const_value);
+            continue;
+        }
         auto last_output = const_node->output(0);
         auto consumers = last_output.get_target_inputs();
 

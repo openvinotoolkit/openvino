@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {
-    BlobAllocator(const std::shared_ptr<ov::runtime::AllocatorImpl>& impl) : _impl{impl} {}
+    BlobAllocator(const std::shared_ptr<ov::AllocatorImpl>& impl) : _impl{impl} {}
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -39,7 +39,7 @@ struct BlobAllocator : public IAllocator {
         }
     }
 
-    std::shared_ptr<ov::runtime::AllocatorImpl> _impl;
+    std::shared_ptr<ov::AllocatorImpl> _impl;
     std::unordered_map<void*, size_t> size_map;
 };
 }  // namespace InferenceEngine

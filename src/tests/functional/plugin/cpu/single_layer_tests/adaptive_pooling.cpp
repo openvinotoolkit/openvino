@@ -1,8 +1,8 @@
-/// Copyright (C) 2021 Intel Corporation
+/// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -135,7 +135,7 @@ protected:
     void validate() override {
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
-                                    [](const std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> &params) {
+                                    [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                                         return params.first->get_friendly_name() == "ParamSecondInput";
                                     });
             IE_ASSERT(pos != inputs.end());
@@ -149,10 +149,10 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 auto *dataPtr = tensor.data<int32_t>();
                 for (size_t i = 0; i < pooledVector.size(); i++) {
                     dataPtr[i] = pooledVector[i];
@@ -171,7 +171,7 @@ private:
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(executableNetwork, "AdaptivePooling");
+    CheckPluginRelatedResults(compiledModel, "AdaptivePooling");
 }
 
 namespace {

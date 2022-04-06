@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -16,8 +16,11 @@ from openvino.tools.mo.middle.pattern_match import apply_pattern
 
 def pad_op_transform(graph: Graph, match: dict):
     op = match['op']
-    pad_op = match['pad_op']
-    input_data = pad_op.in_node(0)
+    pad_op: Node = match['pad_op']
+
+    # to keep reshape-ability if Pad receives pads_begin/pads_end from shape subgraph
+    if pad_op.in_port(1).get_source().node.soft_get('can_be_fused') is False:
+        return
 
     if pad_op.mode != 'constant':
         log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
@@ -48,9 +51,9 @@ def pad_op_transform(graph: Graph, match: dict):
     if op.type == 'Pooling':
         op['exclude_pad'] = False
     assert (graph[match['pad_output'].node][match['op'].node][0]['in'] == 0)
-    edge_attrs = graph.get_edge_data(match['pad_output'].id, match['op'].id)[0]
-    graph.remove_edge(match['pad_output'].id, match['op'].id)
-    graph.add_edge(input_data.id, match['op'].id, **{'in': 0, **edge_attrs})
+
+    match['op'].in_port(0).disconnect()
+    pad_op.in_port(0).get_connection().add_destination(match['op'].in_port(0))
 
 
 def fuse_pad(graph: Graph):

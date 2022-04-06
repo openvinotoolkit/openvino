@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include "single_layer_tests/experimental_detectron_generate_proposals_single_image.hpp"
-#include "common_test_utils/data_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ov::test;
 using namespace ov::test::subgraph;
@@ -16,14 +16,14 @@ const std::vector<float> nms_threshold = { 0.699999988079071 };
 const std::vector<int64_t> post_nms_count = { 6 };
 const std::vector<int64_t> pre_nms_count = { 1000 };
 
-const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {
+const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors = {
     {
         "empty",
         {
             // 3
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {1.0f, 1.0f, 1.0f}),
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {1.0f, 1.0f, 1.0f}),
             // 36 x 4 = 144
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -36,7 +36,7 @@ const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inpu
 
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
             // 12 x 2 x 6 = 144
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{12, 2, 6}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{12, 2, 6}, {
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -49,7 +49,7 @@ const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inpu
 
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
             // {3 x 2 x 6} = 36
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{3, 2, 6}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3, 2, 6}, {
                 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f,
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f})
@@ -58,8 +58,8 @@ const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inpu
     {
         "filled",
         {
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {150.0, 150.0, 1.0}),
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3}, {150.0, 150.0, 1.0}),
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{36, 4}, {
                 12.0, 68.0, 102.0, 123.0, 46.0, 80.0,  79.0,  128.0, 33.0, 71.0, 127.0, 86.0,  33.0, 56.0, 150.0, 73.0,
                 5.0,  41.0, 93.0,  150.0, 74.0, 66.0,  106.0, 115.0, 17.0, 37.0, 87.0,  150.0, 31.0, 27.0, 150.0, 39.0,
                 29.0, 23.0, 112.0, 123.0, 41.0, 37.0,  103.0, 150.0, 8.0,  46.0, 98.0,  111.0, 7.0,  69.0, 114.0, 150.0,
@@ -69,7 +69,7 @@ const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inpu
                 54.0, 56.0, 120.0, 150.0, 56.0, 29.0,  150.0, 31.0,  42.0, 3.0,  139.0, 92.0,  41.0, 65.0, 150.0, 130.0,
                 49.0, 13.0, 143.0, 30.0,  40.0, 60.0,  150.0, 150.0, 23.0, 73.0, 24.0,  115.0, 56.0, 84.0, 107.0, 108.0,
                 63.0, 8.0,  142.0, 125.0, 78.0, 37.0,  93.0,  144.0, 40.0, 34.0, 150.0, 46.0,  30.0, 21.0, 150.0, 120.0}),
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{12, 2, 6}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{12, 2, 6}, {
                 9.062256,   10.883133, 9.8441105,   12.694285,   0.41781136, 8.749107,      14.990341,  6.587644,  1.4206103,
                 13.299262,  12.432549, 2.736371,    0.22732796,  6.3361835,  12.268727,     2.1009045,  4.771589,  2.5131326,
                 5.610736,   9.3604145, 4.27379,     8.317948,    0.60510135, 6.7446275,     1.0207708,  1.1352817, 1.5785321,
@@ -86,7 +86,7 @@ const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inpu
                 8.248259,   11.815807, 15.713364,   1.0023532,   1.3203261,  1.7100681,     0.7407832,  1.09448,   1.7188418,
                 1.4412547,  1.4862992, 0.74790007,  0.31571656,  0.6398838,  2.0236106,     1.1869069,  1.7265586, 1.2624544,
                 0.09934269, 1.3508598, 0.85212964,  -0.38968498, 1.7059708,  1.6533034,     1.7400402,  1.8123854, -0.43063712}),
-            CommonTestUtils::create_tensor<float>(ov::element::f32, ov::Shape{3, 2, 6}, {
+            ov::test::utils::create_tensor<float>(ov::element::f32, ov::Shape{3, 2, 6}, {
                 0.7719922,  0.35906568, 0.29054508, 0.18124384, 0.5604661,  0.84750974, 0.98948747, 0.009793862, 0.7184191,
                 0.5560748,  0.6952493,  0.6732593,  0.3306898,  0.6790913,  0.41128764, 0.34593266, 0.94296855,  0.7348507,
                 0.24478768, 0.94024557, 0.05405676, 0.06466125, 0.36244348, 0.07942984, 0.10619422, 0.09412837,  0.9053611,

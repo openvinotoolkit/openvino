@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,9 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
                                                                                                             int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
 
-    auto x = cp.output.X().v;
-    auto y = cp.output.Y().v;
-    auto f = cp.output.Feature().v;
+    auto x = cp.outputs[0].X().v;
+    auto y = cp.outputs[0].Y().v;
+    auto f = cp.outputs[0].Feature().v;
 
     if (x == 1 && y == 1) {
         return { 1, DEFAULT };
@@ -47,10 +47,10 @@ float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_p
     auto tuneOptions = GetAutoTuneOptions(params, 0);
     auto blockWidth = tuneOptions.blockWidth;
 
-    auto x = params.output.X().v;
-    auto y = params.output.Y().v;
-    auto f = params.output.Feature().v;
-    auto b = params.output.Batch().v;
+    auto x = params.outputs[0].X().v;
+    auto y = params.outputs[0].Y().v;
+    auto f = params.outputs[0].Feature().v;
+    auto b = params.outputs[0].Batch().v;
 
     auto threads = CeilDiv(x * y, blockWidth) * CeilDiv(f, tuning_data.feature_block_size) * tuning_data.slm_div_factor * b;
 
@@ -65,7 +65,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
     size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
 
     size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
-    bool block_size_one_is_better = params.output.X().v == 1 && params.output.Y().v == 1 && input.Feature().v >= 2048;
+    bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
     if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.bIMADSupport && !block_size_one_is_better)
         while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
@@ -106,7 +106,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -129,7 +129,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
     auto autoTune = GetAutoTuneOptions(params, -1);
 
     const auto& input = p.inputs[0];
-    const auto& out = p.output;
+    const auto& out = p.outputs[0];
 
     auto bBlockSizeX = out.X().v % autoTune.blockWidth == 0;
     auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
@@ -156,7 +156,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p, const option
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v || output.Feature().v % 16 != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
@@ -213,7 +213,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
 
-    bool padded_output = params.output.X().pad.Total() != 0;
+    bool padded_output = params.outputs[0].X().pad.Total() != 0;
     bool non_unit_fused_op_spatial = false;
 
     // Set padded_output to true when fused inputs have paddings to have correct blocked loads
@@ -235,11 +235,11 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("NON_UNIT_FUSED_OP_SPATIAL", non_unit_fused_op_spatial));
 
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, blockWidth)));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, blockWidth)));
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
     jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(params.inputs[0].Feature().v, tuning_data.feature_block_size)));
-    if (params.output.Feature().v % tuning_data.feature_block_size != 0) {
+    if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
     if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {

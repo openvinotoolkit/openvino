@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,8 +56,11 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
+        auto network_impl = std::make_shared<GNAExecutableNetwork>(modelFileName, plg);
+        // set pointer for IInferencePlugin interface
+        network_impl->SetPointerToPlugin(shared_from_this());
 
-        return std::make_shared<GNAExecutableNetwork>(modelFileName, plg);
+        return network_impl;
     }
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
@@ -66,7 +69,11 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
-        return std::make_shared<GNAExecutableNetwork>(networkModel, plg);
+        auto network_impl = std::make_shared<GNAExecutableNetwork>(networkModel, plg);
+        // set pointer for IInferencePlugin interface
+        network_impl->SetPointerToPlugin(shared_from_this());
+
+        return network_impl;
     }
 
     std::string GetName() const noexcept override {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,6 @@ class ConvertSwishToSwishIEMatcher;
 
 class ngraph::pass::ConvertSwishToSwishIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSwishToSwishIEMatcher", "0");
     ConvertSwishToSwishIEMatcher();
 };

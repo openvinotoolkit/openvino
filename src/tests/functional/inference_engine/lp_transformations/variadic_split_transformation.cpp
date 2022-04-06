@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ TEST_P(VariadicSplitTransformation, CompareFunctions) {
     InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
-    auto res = compare_functions(referenceFunction, actualFunction, true, false);
+    auto res = compare_functions(actualFunction, referenceFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
@@ -118,7 +118,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per tensor quantization
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { -1, -1, -1, -1 },
         std::int64_t{2}, std::vector<size_t>{ 10, 6 },
         LayerTransformation::createParamsU8I8(),
         // ActualValues
@@ -198,7 +198,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values, dynamic shape
     {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+        { -1, 3, -1, -1 },
         std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -223,7 +223,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values, dynamic shape (dynamic channels)
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { -1, -1, -1, -1 },
         std::int64_t{1}, std::vector<size_t>{ 2, 1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -234,11 +234,16 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32},
-            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
-            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
-            ngraph::element::f32,
-            {}
+            {},
+            ngraph::element::u8,
+            {
+                {
+                    {ngraph::element::f32},
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 2, 1, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 2, 1, 1}}
+                },
+                {{ngraph::element::f32}, {3.f}, {33.f}}
+            }
         }
     },
     // U8 per channel quantization with different values (constants without batch)
@@ -350,7 +355,7 @@ const std::vector<VariadicSplitTransformationTestValues> testValues = {
     },
     // U8 split second dimension, dynamic shape
     {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { -1, -1, -1, -1 },
         std::int64_t{-1}, std::vector<size_t>{ 10, 4, 2 },
         LayerTransformation::createParamsU8I8(),
         {

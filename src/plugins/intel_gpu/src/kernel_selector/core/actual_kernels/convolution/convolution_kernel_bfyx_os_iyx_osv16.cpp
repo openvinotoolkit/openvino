@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,8 +121,8 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         // if less than 16 values is required to compute one single row of output
         // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
         // performance results)
-        } else if (cp.output.X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
-            option.blockWidth = cp.output.X().v;
+        } else if (cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
+            option.blockWidth = cp.outputs[0].X().v;
             option.blockHeight = 1;
             option.prefetch = 4;
         } else if (cp.filterSize.x < 5 && cp.filterSize.y < 5) {
@@ -146,8 +146,8 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.output.Batch().v != 1) {
-        shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight, sub_group_size);
+    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1) {
+        shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;
 }
@@ -157,7 +157,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     const auto& sub_group_size = GetSubGroupSize(cp);
 
-    const auto of_maps = cp.output.Feature().v;
+    const auto of_maps = cp.outputs[0].Feature().v;
     const auto of_maps_per_group = of_maps / cp.groups;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
@@ -172,14 +172,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
                                                           cp.stride,
                                                           cp.dilation,
                                                           sub_group_size,
-                                                          cp.output.GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
+                                                          cp.outputs[0].GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
                                                           sub_group_size);
     dispatchData.cldnnStyle.inputBlockArraySize = input_block_dims.first;
     dispatchData.cldnnStyle.inputBlockWidth = input_block_dims.second;
 
-    dispatchData.gws[0] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
-    dispatchData.gws[1] = CeilDiv(cp.output.Y().v, dispatchData.cldnnStyle.blockHeight);
-    dispatchData.gws[2] = of_threads_per_batch * cp.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth);
+    dispatchData.gws[1] = CeilDiv(cp.outputs[0].Y().v, dispatchData.cldnnStyle.blockHeight);
+    dispatchData.gws[2] = of_threads_per_batch * cp.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -193,7 +193,7 @@ KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Pa
 }
 
 bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 
@@ -205,7 +205,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     const auto& sub_group_size = GetSubGroupSize(cp);
 
-    const auto of_maps = params.output.Feature().v;
+    const auto of_maps = params.outputs[0].Feature().v;
     const auto of_maps_per_group = of_maps / params.groups;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps_per_group;

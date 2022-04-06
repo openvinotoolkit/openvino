@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
 #include <functional>
-
+#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
@@ -27,18 +26,18 @@ class NGRAPH_API TransposeMatMul;
  *  - MatMul(any_input, Reshape(any_input, any_input))
  */
 
-class ngraph::pass::ReshapeAMatMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeAMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeAMatMul", "0");
     ReshapeAMatMul();
 };
-class ngraph::pass::ReshapeBMatMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::ReshapeBMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeBMatMul", "0");
     ReshapeBMatMul();
 };
-class ngraph::pass::TransposeMatMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::TransposeMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeMatMul", "0");
     TransposeMatMul();
 };

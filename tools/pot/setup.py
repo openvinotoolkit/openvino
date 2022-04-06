@@ -1,22 +1,39 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import subprocess
 import sys
 
+from shutil import copyfile
 from setuptools import setup, find_packages
+from setuptools.command.install import install
 
 UNKNOWN_VERSION = "unknown version"
 here = os.path.abspath(os.path.dirname(__file__))
+prefix = os.path.join("openvino", "tools")
 
 with open(os.path.join(here, 'README.md'), 'r') as fh:
     long_description = fh.read()
 
 
+class InstallCmd(install):
+    def run(self):
+        install.run(self)
+
+        if self.root is None and self.record is None:
+            # install requires
+            self.do_egg_install()
+
+        version_txt = os.path.join(prefix, "pot", "version.txt")
+        if os.path.exists(version_txt):
+            copyfile(os.path.join(version_txt),
+                     os.path.join(self.install_purelib, version_txt))
+
+
 def generate_pot_version():
     try:
-        pot_dir = os.path.normpath(os.path.join(here, "openvino", "tools"))
+        pot_dir = os.path.normpath(os.path.join(here, prefix))
         branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=pot_dir)
         commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=pot_dir)
         return "custom_{}_{}".format(branch_name.strip().decode(), commit_hash.strip().decode())
@@ -25,15 +42,14 @@ def generate_pot_version():
 
 
 def get_version():
-    version = generate_pot_version()
-    version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
-    if version != UNKNOWN_VERSION:
+    version_txt = os.path.join(here, prefix, "pot", "version.txt")
+    if os.path.isfile(version_txt):
+        with open(version_txt) as f:
+            version = f.readline().replace('\n', '')
+    else:
+        version = generate_pot_version()
         with open(version_txt, 'w') as f:
             f.write(version + '\n')
-    else:
-        if os.path.isfile(version_txt):
-            with open(version_txt) as f:
-                version = f.readline().replace('\n', '')
     return version
 
 
@@ -122,9 +138,13 @@ setup(
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
                                     "tools", "tools.*"]),
-    package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
-                  "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},
+    package_data={'openvino.tools.pot.configs.hardware': ['*.json'],
+                  'openvino.tools.pot.api.samples': ['*.md', '*/*.md'],
+                  'openvino.tools.pot.configs.templates': ['*.json']},
     include_package_data=True,
+    cmdclass={
+        'install': InstallCmd,
+    },
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: EULA for the Intel(R) Software Development Products',

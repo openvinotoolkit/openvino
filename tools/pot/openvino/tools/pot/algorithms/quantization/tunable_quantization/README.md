@@ -1,8 +1,8 @@
-# TunableQuantization Algorithm {#pot_compression_algorithms_quantization_tunable_quantization_README}
+# TunableQuantization Algorithm
 
 ## Overview
 
-TunableQuantization algorithm is a modified version of the vanilla **MinMaxQuantization** quantization method that automatically inserts [FakeQuantize](https://docs.openvinotoolkit.org/latest/_docs_ops_quantization_FakeQuantize_1.html) operations into the model graph based on the specified target hardware and initializes them using statistics collected on the calibration dataset.
+TunableQuantization algorithm is a modified version of the vanilla **MinMaxQuantization** quantization method that automatically inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1) operations into the model graph based on the specified target hardware and initializes them using statistics collected on the calibration dataset.
 It is recommended to be run as a part of an optimization pipeline similar to the one used in [**DefaultQuantization**](../default/README.md):
 *  ActivationChannelAlignment - Used as a preliminary step before quantization and allows you to align ranges of output activations of Convolutional layers in order to reduce the quantization error.
 *  FastBiasCorrection - Adjusts biases of Convolutional and Fully-Connected layers based on the quantization error of the layer in order to make the overall error unbiased.

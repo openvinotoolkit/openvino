@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///  @rationale aot tests aim to test network export/import  functionality
 
-#if defined(ENABLE_INTEL_VPU)
+#if defined(ENABLE_INTEL_MYRIAD)
 
 #include <behavior_test_plugin.h>
 #include <mvnc.h>

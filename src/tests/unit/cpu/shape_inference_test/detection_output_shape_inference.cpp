@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "utils/shape_inference/static_shape.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 template <typename T1, typename T2 = typename T1::Attributes>
 std::shared_ptr<Node> create_detection_output(const PartialShape& box_logits_shape,

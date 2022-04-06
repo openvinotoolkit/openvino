@@ -1,8 +1,9 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
 
+#include <openvino/core/graph_util.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
@@ -25,17 +26,18 @@
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"
-#include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
+#include "pyopenvino/core/properties/properties.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
-#include "pyopenvino/frontend/extensions.hpp"
+#include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/input_model.hpp"
 #include "pyopenvino/frontend/manager.hpp"
+#include "pyopenvino/frontend/node_context.hpp"
 #include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
@@ -68,6 +70,21 @@ std::string get_version() {
 
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
+    std::string pyopenvino_version = CI_BUILD_NUMBER;
+    std::string runtime_version = get_version();
+    bool is_custom_pyopenvino_version = pyopenvino_version.empty() || pyopenvino_version.find("custom_") == 0;
+    bool is_custom_runtime_version = runtime_version.empty() || runtime_version.find("custom_") == 0;
+    auto versions_compatible =
+        is_custom_pyopenvino_version || is_custom_runtime_version || pyopenvino_version == runtime_version;
+    OPENVINO_ASSERT(versions_compatible,
+                    "OpenVINO Python version (",
+                    pyopenvino_version,
+                    ") mismatches with OpenVINO Runtime library version (",
+                    runtime_version,
+                    "). It can happen if you have 2 or more different versions of OpenVINO installed in system. "
+                    "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
+                    "OpenVINO Runtime and Python libraries point to same release.");
+
     m.def("get_version", &get_version);
     m.def("get_batch", &ov::get_batch);
     m.def("set_batch", &ov::set_batch);
@@ -78,6 +95,60 @@ PYBIND11_MODULE(pyopenvino, m) {
         },
         py::arg("model"),
         py::arg("batch_size") = -1);
+
+    m.def(
+        "serialize",
+        [](std::shared_ptr<ov::Model>& model,
+           const std::string& xml_path,
+           const std::string& bin_path,
+           const std::string& version) {
+            ov::serialize(model, xml_path, bin_path, Common::convert_to_version(version));
+        },
+        py::arg("model"),
+        py::arg("xml_path"),
+        py::arg("bin_path") = "",
+        py::arg("version") = "UNSPECIFIED",
+        R"(
+            Serialize given model into IR. The generated .xml and .bin files will be saved
+            into provided paths.
+            :param model: model which will be converted to IR representation
+            :type model: openvino.runtime.Model
+            :param xml_path: path where .xml file will be saved
+            :type xml_path: str
+            :param bin_path: path where .bin file will be saved (optional),
+                             the same name as for xml_path will be used by default.
+            :type bin_path: str
+            :param version: version of the generated IR (optional).
+            Supported versions are:
+            - "UNSPECIFIED" (default) : Use the latest or model version
+            - "IR_V10" : v10 IR
+            - "IR_V11" : v11 IR
+
+            :Examples:
+
+            1. Default IR version:
+
+            .. code-block:: python
+
+                shape = [2, 2]
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                op = (parameter_a + parameter_b) * parameter_c
+                model = Model(op, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version
+                serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin")
+            2. IR version 11:
+
+            .. code-block:: python
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                op = (parameter_a + parameter_b) * parameter_c
+                model = Model(ops, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version
+                serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin", version="IR_V11")
+        )");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
@@ -128,11 +199,14 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
-    regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
 
+    // Properties and hints
+    regmodule_properties(m);
+
+    // frontend
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
     regclass_frontend_GeneralFailureFrontEnd(m);
@@ -142,10 +216,17 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
+    regclass_frontend_NodeContext(m);
+
+    // frontend extensions
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
     regclass_frontend_JsonConfigExtension(m);
+    regclass_frontend_ConversionExtensionBase(m);
+    regclass_frontend_ConversionExtension(m);
     regclass_frontend_ProgressReporterExtension(m);
+    regclass_frontend_OpExtension(m);
 
+    // transformations
     regmodule_offline_transformations(m);
 }

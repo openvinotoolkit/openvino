@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -84,7 +84,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
                 tensor = ov::test::utils::create_and_fill_tensor(
                         funcInput.get_element_type(), targetInputStaticShapes[i], 10, -5, 7, 222);
@@ -101,7 +101,7 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(executableNetwork, "NormalizeL2");
+    CheckPluginRelatedResults(compiledModel, "NormalizeL2");
 }
 
 namespace {

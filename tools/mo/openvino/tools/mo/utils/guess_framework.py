@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
@@ -8,7 +8,7 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
-def deduce_framework_by_namespace(argv: Namespace):
+def deduce_legacy_frontend_by_namespace(argv: Namespace):
     if not argv.framework:
         if getattr(argv, 'saved_model_dir', None) or getattr(argv, 'input_meta_graph', None):
             argv.framework = 'tf'
@@ -20,9 +20,6 @@ def deduce_framework_by_namespace(argv: Namespace):
             raise Error('Path to input model is required: use --input_model.')
         else:
             argv.framework = guess_framework_by_ext(argv.input_model)
-        if not argv.framework:
-            raise Error('Framework name can not be deduced from the given options: {}={}. Use --framework to choose '
-                        'one of caffe, tf, mxnet, kaldi, onnx', '--input_model', argv.input_model, refer_to_faq_msg(15))
 
     return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
 

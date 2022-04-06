@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -19,10 +19,10 @@ def get_broadcast_axes(
     replicating elements from the input tensor as needed to fill the new dimensions.
     Function calculate which of the output axes are added in this way.
 
-    @param output_shape: The new shape for the output tensor.
-    @param input_shape: The shape of input tensor.
-    @param axis: The axis along which we want to replicate elements.
-    @return The indices of added axes.
+    :param output_shape: The new shape for the output tensor.
+    :param input_shape: The shape of input tensor.
+    :param axis: The axis along which we want to replicate elements.
+    returns The indices of added axes.
     """
     axes_indexes = list(range(0, len(output_shape)))
     if axis is None:

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,12 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
     DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
+    JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
+    std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE };
+    }
 };
 }  // namespace kernel_selector

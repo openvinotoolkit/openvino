@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/cc/ngraph/itt.hpp>
@@ -14,10 +14,6 @@
 #include "backend/gna_limitations.hpp"
 
 using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(ConvertMatmulToPointWiseConvolution, "ConvertMatmulToPointWiseConvolution", 0);
-NGRAPH_RTTI_DEFINITION(ConvertMatmulWithBiasToPointWiseConvolution, "ConvertMatmulWithBiasToPointWiseConvolution", 0);
-NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmulWithFqToPointWiseConvolution", 0);
 
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);

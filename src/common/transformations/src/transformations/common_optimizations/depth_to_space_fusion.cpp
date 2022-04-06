@@ -1,22 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
-#include "itt.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
-
+#include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
-bool check_block_first(const ngraph::PartialShape& shape_input, const ngraph::PartialShape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::PartialShape& shape_reshape_after,
+bool check_block_first(const ngraph::PartialShape& shape_input,
+                       const ngraph::PartialShape& shape_reshape_before,
+                       const ngraph::AxisVector& permutation,
+                       const ngraph::PartialShape& shape_reshape_after,
                        size_t& possible_block_size) {
     const auto input_rank = shape_input.rank();
     auto spatial_dims = input_rank.get_length() - 2;
@@ -50,7 +51,8 @@ bool check_block_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
         return false;
     }
 
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK *
+    // block_size])
     expected_shape = {shape_input[0], c_dim};
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
@@ -62,8 +64,10 @@ bool check_block_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
     return true;
 }
 
-bool check_depth_first(const ngraph::PartialShape& shape_input, const ngraph::PartialShape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::PartialShape& shape_reshape_after,
+bool check_depth_first(const ngraph::PartialShape& shape_input,
+                       const ngraph::PartialShape& shape_reshape_before,
+                       const ngraph::AxisVector& permutation,
+                       const ngraph::PartialShape& shape_reshape_after,
                        size_t& possible_block_size) {
     const auto input_rank = shape_input.rank();
     auto spatial_dims = input_rank.get_length() - 2;
@@ -95,7 +99,8 @@ bool check_depth_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
         return false;
     }
 
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK *
+    // block_size])
     expected_shape = {shape_input[0], c_dim};
     for (int i = 2; i < input_rank.get_length(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
@@ -107,9 +112,7 @@ bool check_depth_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
     return true;
 }
 
-} // namespace
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
+}  // namespace
 
 ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
@@ -117,9 +120,11 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     auto input1 = ngraph::pattern::any_input();
     auto input2 = ngraph::pattern::any_input();
     auto input3 = ngraph::pattern::any_input();
-    auto reshape_before = ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({ input0, input1 }, pattern::consumers_count(1));
-    auto permute = ngraph::pattern::wrap_type<ngraph::opset3::Transpose>({ reshape_before, input2 }, pattern::consumers_count(1));
-    auto reshape_after = ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({ permute, input3 });
+    auto reshape_before =
+        ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({input0, input1}, pattern::consumers_count(1));
+    auto permute =
+        ngraph::pattern::wrap_type<ngraph::opset3::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
+    auto reshape_after = ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({permute, input3});
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
@@ -127,7 +132,8 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->get_input_node_shared_ptr(0));
+        auto permute =
+            std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->get_input_node_shared_ptr(0));
         if (!permute) {
             return false;
         }
@@ -148,13 +154,16 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         }
 
         // check that all dimensions except batch are static
-        if (std::any_of(p_shape_input.begin() + 1, p_shape_input.end(), [](const ngraph::Dimension& x) { return x.is_dynamic(); })) {
+        if (std::any_of(p_shape_input.begin() + 1, p_shape_input.end(), [](const ngraph::Dimension& x) {
+                return x.is_dynamic();
+            })) {
             return false;
         }
 
         // input shape: [ batch, C, spatial_dims], expected_shape = spatial_dims.size() * 2 + 2
         auto expected_shape_size = (input_rank.get_length() - 2) * 2 + 2;
-        if (input_rank != p_shape_reshape_after.rank().get_length() || p_shape_reshape_before.rank().get_length() != expected_shape_size ||
+        if (input_rank != p_shape_reshape_after.rank().get_length() ||
+            p_shape_reshape_before.rank().get_length() != expected_shape_size ||
             p_shape_permute.rank().get_length() != expected_shape_size) {
             return false;
         }
@@ -170,13 +179,18 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         size_t block_size;
         if (check_depth_first(p_shape_input, p_shape_reshape_before, permutation, p_shape_reshape_after, block_size)) {
             mode = ngraph::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
-        } else if (check_block_first(p_shape_input, p_shape_reshape_before, permutation, p_shape_reshape_after, block_size)) {
+        } else if (check_block_first(p_shape_input,
+                                     p_shape_reshape_before,
+                                     permutation,
+                                     p_shape_reshape_after,
+                                     block_size)) {
             mode = ngraph::opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
         } else {
             return false;
         }
 
-        auto depth_to_space = std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+        auto depth_to_space =
+            std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ngraph::replace_node(reshape_after, depth_to_space);

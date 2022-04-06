@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,13 +46,13 @@ struct ExperimentalDOParams {
     PartialShape imageSizeInfoShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor roisData;
-    ov::runtime::Tensor deltasData;
-    ov::runtime::Tensor scoresData;
-    ov::runtime::Tensor imageSizeInfoData;
-    ov::runtime::Tensor refBoxesData;
-    ov::runtime::Tensor refClassesData;
-    ov::runtime::Tensor refScoresData;
+    ov::Tensor roisData;
+    ov::Tensor deltasData;
+    ov::Tensor scoresData;
+    ov::Tensor imageSizeInfoData;
+    ov::Tensor refBoxesData;
+    ov::Tensor refClassesData;
+    ov::Tensor refScoresData;
     std::string testcaseName;
 };
 

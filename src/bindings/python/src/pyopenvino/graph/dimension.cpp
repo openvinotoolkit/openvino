@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 
 namespace py = pybind11;
@@ -26,10 +27,8 @@ void regclass_graph_Dimension(py::module m) {
             R"(
                 Construct a static dimension.
 
-                Parameters
-                ----------
-                 dimension : int
-                    Value of the dimension.
+                :param dimension: Value of the dimension.
+                :type dimension: int
             )");
     dim.def(py::init<value_type&, value_type&>(),
             py::arg("min_dimension"),
@@ -37,14 +36,15 @@ void regclass_graph_Dimension(py::module m) {
             R"(
                 Construct a dynamic dimension with bounded range.
 
-                Parameters
-                ----------
-                min_dimension : int
-                    The lower inclusive limit for the dimension.
-
-                max_dimension : int
-                    The upper inclusive limit for the dimension.
+                :param min_dimension: The lower inclusive limit for the dimension.
+                :type min_dimension: int
+                :param max_dimension: The upper inclusive limit for the dimension.
+                :type max_dimension: int
             )");
+
+    dim.def(py::init([](const std::string& value) {
+        return Common::dimension_from_str(value);
+    }));
 
     dim.def_static("dynamic", &ov::Dimension::dynamic);
 
@@ -52,21 +52,16 @@ void regclass_graph_Dimension(py::module m) {
                               &ov::Dimension::is_dynamic,
                               R"(
                                 Check if Dimension is dynamic.
-
-                                Returns
-                                ----------
-                                is_dynamic : bool
-                                    True if dynamic, else False.
+                                :return: True if dynamic, else False.
+                                :rtype: bool
                               )");
     dim.def_property_readonly("is_static",
                               &ov::Dimension::is_static,
                               R"(
                                 Check if Dimension is static.
 
-                                Returns
-                                ----------
-                                is_static : bool
-                                    True if static, else False.
+                                :return: True if static, else False.
+                                :rtype: bool
                               )");
 
     dim.def(
@@ -88,11 +83,9 @@ void regclass_graph_Dimension(py::module m) {
             R"(
                 Return this dimension as integer.
                 This dimension must be static and non-negative.
-
-                Returns
-                ----------
-                get_length : int
-                    Value of the dimension.
+                
+                :return: Value of the dimension.
+                :rtype: int
             )");
     dim.def("get_min_length",
             &ov::Dimension::get_min_length,
@@ -100,10 +93,8 @@ void regclass_graph_Dimension(py::module m) {
                 Return this dimension's min_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Returns
-                ----------
-                get_min_length : int
-                    Value of the dimension.
+                :return: Value of the dimension.
+                :rtype: int
             )");
     dim.def("get_max_length",
             &ov::Dimension::get_max_length,
@@ -111,10 +102,8 @@ void regclass_graph_Dimension(py::module m) {
                 Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Returns
-                ----------
-                get_max_length : int
-                    Value of the dimension.
+                :return: Value of the dimension.
+                :rtype: int
             )");
 
     dim.def("same_scheme",
@@ -124,16 +113,11 @@ void regclass_graph_Dimension(py::module m) {
                 Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Parameters
-                ----------
-                dim : Dimension
-                    The other dimension to compare this dimension to.
-
-                Returns
-                ----------
-                same_scheme : bool
-                    True if this dimension and dim are both dynamic,
-                    or if they are both static and equal, otherwise False.
+                :param dim: The other dimension to compare this dimension to.
+                :type dim: Dimension
+                :return: True if this dimension and dim are both dynamic,
+                         or if they are both static and equal, otherwise False.
+                :rtype: bool
             )");
     dim.def("compatible",
             &ov::Dimension::compatible,
@@ -142,15 +126,10 @@ void regclass_graph_Dimension(py::module m) {
                 Check whether this dimension is capable of being merged
                 with the argument dimension.
 
-                Parameters
-                ----------
-                dim : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                compatible : bool
-                    True if this dimension is compatible with d, else False.
+                :param dim: The dimension to compare this dimension with.
+                :type dim: Dimension
+                :return: True if this dimension is compatible with d, else False.
+                :rtype: bool
             )");
     dim.def("relaxes",
             &ov::Dimension::relaxes,
@@ -164,15 +143,10 @@ void regclass_graph_Dimension(py::module m) {
 
                 this.relaxes(d) is equivalent to d.refines(this).
 
-                Parameters
-                ----------
-                dim : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                relaxes : bool
-                    True if this dimension relaxes d, else False.
+                :param dim: The dimension to compare this dimension with.
+                :type dim: Dimension
+                :return: True if this dimension relaxes d, else False.
+                :rtype: bool
             )");
     dim.def("refines",
             &ov::Dimension::refines,
@@ -186,15 +160,10 @@ void regclass_graph_Dimension(py::module m) {
 
                 this.refines(d) is equivalent to d.relaxes(this).
 
-                Parameters
-                ----------
-                dim : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                relaxes : bool
-                    True if this dimension refines d, else False.
+                :param dim: The dimension to compare this dimension with.
+                :type dim: Dimension
+                :return: True if this dimension refines d, else False.
+                :rtype: bool
             )");
 
     dim.def("__str__", [](const ov::Dimension& self) -> std::string {

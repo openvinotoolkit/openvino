@@ -1,147 +1,31 @@
-# Quantization {#pot_compression_algorithms_quantization_README}
+# Quantization
 
-The primary optimization feature of the Post-training Optimization Tool (POT) is uniform quantization. In general,
-this method supports an arbitrary number of bits, greater or equal to two, which represents weights and activations.
-During the quantization process, the method inserts [FakeQuantize](@ref openvino_docs_ops_quantization_FakeQuantize_1)
-operations into the model graph automatically based on a predefined hardware target in order to produce the most
-hardware-friendly optimized model:
-![](../../../docs/images/convolution_quantization.png)
+## Introduction
 
-After that, different quantization algorithms can tune the `FakeQuantize` parameters or remove some of them in order to
-meet the accuracy criteria. The resulting *fakequantized* models are interpreted and transformed to real low-precision
-models during inference at the OpenVINO™ Inference Engine runtime giving real performance improvement.
+The primary optimization feature of the Post-training Optimization Tool (POT) is the uniform integer quantization which allows substantially increasing inference performance and reducing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example, 8-bit for CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes the specification of HW settings transparent for the user by introducing a concept of the `target_device` parameter.
+
+> **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and VPU devices. GNA-quantized models are compatible only with CPU.
+
+During the quantization process, the POT tool runs inference of the optimizing model to estimate quantization parameters for input activations of the quantizable operation. It means that a calibration dataset is required to perform quantization. This dataset may have or not have annotation depending on the quantization algorithm that is used.
 
 ## Quantization Algorithms
 
-Currently, the POT provides two algorithms for 8-bit quantization, which are verified and provide stable results on a
+Currently, the POT provides two algorithms for 8-bit quantization, which are verified and guarantee stable results on a
 wide range of DNN models:
-*  **DefaultQuantization** is a default method that provides fast and in most cases accurate results for 8-bit
-   quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
+*  [**DefaultQuantization**](@ref pot_compression_algorithms_quantization_default_README) is a default method that provides fast and in most cases accurate results. It requires only an unannotated dataset for quantization. For details, see the [DefaultQuantization Algorithm](@ref pot_compression_algorithms_quantization_default_README) documentation.
 
-*  **AccuracyAwareQuantization** enables remaining at a predefined range of accuracy drop after quantization at the cost
-   of performance improvement. It may require more time for quantization. For details, see the
-   [AccuracyAwareQuantization Algorithm](@ref pot_compression_algorithms_quantization_accuracy_aware_README) documentation.
+*  [**AccuracyAwareQuantization**](@ref accuracy_aware_README) enables remaining at a predefined range of accuracy drop after quantization at the cost
+   of performance improvement. The method requires annotated representative dataset and may require more time for quantization. For details, see the
+   [AccuracyAwareQuantization Algorithm](@ref accuracy_aware_README) documentation.
 
-## Quantization Formula
+For more details about the representation of the low-precision model please refer to this [document](@ref pot_docs_model_representation).
 
-Quantization is parametrized by clamping the range and the number of quantization levels:
-
-\f[  
-output = \frac{\left\lfloor (clamp(input; input\_low, input\_high)-input\_low)  *s\right \rceil}{s} + input\_low\\  
-\f]
-
-\f[
-clamp(input; input\_low, input\_high) = min(max(input, input\_low), input\_high)))
-\f]
-
-\f[
-s=\frac{levels-1}{input\_high - input\_low}
-\f]
-
-In the formulas:
-* `input_low` and `input_high` represent the quantization range 
-* \f[\left\lfloor\cdot\right \rceil\f] denotes rounding to the nearest integer
-
-The POT supports symmetric and asymmetric quantization of weights and activations, which are controlled by the `preset`.
-The main difference between them is that in the symmetric mode the floating-point zero is mapped directly to the integer
-zero, while in asymmetric the mode it can be an arbitrary integer number. In any mode, the floating-point zero is mapped
-directly to the quant without rounding an error. See this [tutorial](@ref pot_docs_BestPractices) for details.
-
-Below is the detailed description of quantization formulas for both modes. These formulas are used both in the POT to
-quantize weights of the model and in the OpenVINO™ Inference Engine runtime when quantizing activations during the
-inference.
-
-####  Symmetric Quantization
-
-The formula is parametrized by the `scale` parameter that is tuned during the quantization process:
-
-\f[
-input\_low=scale*\frac{level\_low}{level\_high}
-\f]
-
-\f[
-input\_high=scale
-\f]
+## See also
+* [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
+* [Use POT Command-line for Model Zoo models](@ref pot_compression_cli_README)
+* [POT API](@ref pot_compression_api_README)
+* [Post-Training Optimization Best Practices](@ref pot_docs_BestPractices)
 
 
-Where `level_low` and `level_high` represent the range of the discrete signal.
-* For weights:
-
-\f[
-level\_low=-2^{bits-1}+1
-\f]
-
-\f[
-level\_high=2^{bits-1}-1
-\f]
-
-\f[
-levels=255
-\f]
-
-* For unsigned activations:
-
-\f[
-level\_low=0
-\f]
-
-\f[
-level\_high=2^{bits}-1
-\f]
-
-\f[
-levels=256
-\f]
-
-* For signed activations:
-
-\f[
-level\_low=-2^{bits-1}
-\f]
-
-\f[
-level\_high=2^{bits-1}-1
-\f]
 
 
-\f[
-levels=256
-\f]
-
-####  Asymmetric Quantization
-
-The quantization formula is parametrized by `input_low` and `input_range` that are tunable parameters:
-
-\f[
-input\_high=input\_low + input\_range
-\f]
-
-\f[
-levels=256
-\f]
-
-For weights and activations the following quantization mode is applied:
-
-\f[
-{input\_low}' = min(input\_low, 0)
-\f]
-
-\f[
-{input\_high}' = max(input\_high, 0)
-\f]
-
-\f[
-ZP= \left\lfloor \frac{-{input\_low}'*(levels-1)}{{input\_high}'-{input\_low}'} \right \rceil 
-\f]
-
-\f[
-{input\_high}''=\frac{ZP-levels+1}{ZP}*{input\_low}'
-\f]
-
-\f[
-{input\_low}''=\frac{ZP}{ZP-levels+1}*{input\_high}'
-\f]
-
-\f[
-{input\_low,input\_high} = \begin{cases} {input\_low}',{input\_high}', & ZP \in $\{0,levels-1\}$ \\ {input\_low}',{input\_high}'', & {input\_high}'' - {input\_low}' > {input\_high}' - {input\_low}'' \\ {input\_low}'',{input\_high}', & {input\_high}'' - {input\_low}' <= {input\_high}' - {input\_low}''\\ \end{cases}
-\f]

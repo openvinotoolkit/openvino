@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
@@ -105,7 +105,7 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "ov_template_plugin";
+    std::string pluginName = "openvino_template_plugin";
     pluginName += IE_BUILD_POSTFIX;
     ie.RegisterPlugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -198,6 +199,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
                 }
             }
             new_func->reshape(new_shapes);
+            {
+                auto deviceInfo = engine->get_device_info();
+                TransformationsPipeline transformations(config, deviceInfo);
+                transformations.apply(new_func);
+            }
 
             // reshape network input/output maps accordingly
             // for correct network compilation

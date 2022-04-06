@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -20,10 +21,19 @@ namespace ov {
 namespace test {
 namespace behavior {
 
+inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(std::string targetDevice,
+                                                                              std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+    // auto-batching (which now relies on the dim tracking) needs a ngraph function without reshapes in that
+    if (targetDevice.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos)
+        return ngraph::builder::subgraph::makeConvPoolReluNoReshapes(inputShape, ngPrc);
+    else  // for compatibility with the GNA that fails on any other ngraph function
+        return ngraph::builder::subgraph::makeConvPoolRelu(inputShape, ngPrc);
+}
 
 typedef std::tuple<
-        std::string,                        // Device name
-        std::map<std::string, std::string>  // Config
+        std::string,            // Device name
+        ov::AnyMap   // Config
 > InferRequestParams;
 
 class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
@@ -31,14 +41,15 @@ class OVInferRequestTests : public testing::WithParamInterface<InferRequestParam
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
-        std::map<std::string, std::string> configuration;
+        ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             using namespace CommonTestUtils;
             for (auto &configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
             }
         }
         return result.str();
@@ -48,8 +59,12 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-        execNet = core->compile_model(function, targetDevice, configuration);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+        ov::AnyMap params;
+        for (auto&& v : configuration) {
+            params.emplace(v.first, v.second);
+        }
+        execNet = core->compile_model(function, targetDevice, params);
     }
 
     void TearDown() override {
@@ -59,18 +74,18 @@ public:
     }
 
 protected:
-    ov::runtime::CompiledModel execNet;
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    ov::CompiledModel execNet;
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
-    std::map<std::string, std::string> configuration;
+    ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 };
 
-inline ov::runtime::Core createCoreWithTemplate() {
+inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
-    ov::runtime::Core core;
+    ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "ov_template_plugin";
+    std::string pluginName = "openvino_template_plugin";
     pluginName += IE_BUILD_POSTFIX;
     core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
@@ -116,11 +131,35 @@ public:
     std::string deviceName;
 
     void SetUp() override {
+        // TODO: Remove it after fixing issue 69529
+        // w/a for myriad (cann't store 2 caches simultaneously)
+        PluginCache::get().reset();
+
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         deviceName = GetParam();
     }
 };
+
+using PriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // device priority Configuration key
+>;
+class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::Test, public ::testing::WithParamInterface<PriorityParams> {
+protected:
+    std::string deviceName;
+    ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> simpleNetwork;
+
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(deviceName, configuration) = GetParam();
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+    }
+};
+using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
+using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                   \
 {                                                      \

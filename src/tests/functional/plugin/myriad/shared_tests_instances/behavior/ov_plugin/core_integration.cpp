@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
+#include <gtest/gtest.h>
 
+#include <algorithm>
 #include <functional_test_utils/skip_tests_config.hpp>
 
 #include "common_test_utils/file_utils.hpp"
@@ -16,7 +18,7 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("ov_intel_vpu_plugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
+        std::make_pair(std::string("openvino_intel_myriad_plugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
 };
 
 //
@@ -34,16 +36,15 @@ INSTANTIATE_TEST_SUITE_P(OVClassNetworkTestP_smoke, OVClassNetworkTestP, ::testi
 using OVClassNetworkTestP_VPU_GetMetric = OVClassNetworkTestP;
 
 TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
-    ov::runtime::Core ie;
-    ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
-
-    ov::Any optimizationCapabilitiesParameter;
-    ASSERT_NO_THROW(optimizationCapabilitiesParameter =
-                            ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
-
-    const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
-    ASSERT_EQ(optimizationCapabilities.size(), 1);
-    ASSERT_EQ(optimizationCapabilities.front(), METRIC_VALUE(FP16));
+    ov::Core ie;
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities)
+    std::vector<std::string> device_capabilities;
+    ASSERT_NO_THROW(device_capabilities = ie.get_property(deviceName, ov::device::capabilities));
+    ASSERT_EQ(device_capabilities.size(), 2);
+    ASSERT_NE(std::find(device_capabilities.begin(), device_capabilities.end(), ov::device::capability::EXPORT_IMPORT),
+              device_capabilities.end());
+    ASSERT_NE(std::find(device_capabilities.begin(), device_capabilities.end(), ov::device::capability::FP16),
+              device_capabilities.end());
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetMetricP, OVClassNetworkTestP_VPU_GetMetric, ::testing::ValuesIn(devices));

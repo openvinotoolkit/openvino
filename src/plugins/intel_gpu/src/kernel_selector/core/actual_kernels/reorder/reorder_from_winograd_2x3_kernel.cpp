@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ JitConstants ReorderFromWinograd2x3Kernel::GetJitConstants(const reorder_params&
 
     constexpr auto output_tile_width = 2;  // by definition of F(2,3)
 
-    if (params.output.X().v % output_tile_width != 0)
+    if (params.outputs[0].X().v % output_tile_width != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
 
     return jit;
@@ -39,7 +39,7 @@ ReorderFromWinograd2x3Kernel::DispatchData ReorderFromWinograd2x3Kernel::SetDefa
 
     constexpr auto output_tile_width = 2;  // by definition of F(2,3)
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     dispatchData.gws[0] = static_cast<size_t>(output.Feature().v * output.Batch().v);
     dispatchData.gws[1] = static_cast<size_t>(output.X().v / output_tile_width);

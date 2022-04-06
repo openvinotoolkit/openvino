@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +26,8 @@ void regclass_pyngraph_Dimension(py::module m) {
             R"(
                 Construct a static dimension.
 
-                Parameters
-                ----------
-                 dimension : int
-                    Value of the dimension.
+                :param dimension: Value of the dimension.
+                :type dimension: int
             )");
     dim.def(py::init<value_type&, value_type&>(),
             py::arg("min_dimension"),
@@ -37,13 +35,10 @@ void regclass_pyngraph_Dimension(py::module m) {
             R"(
                 Construct a dynamic dimension with bounded range.
 
-                Parameters
-                ----------
-                min_dimension : int
-                    The lower inclusive limit for the dimension.
-
-                max_dimension : int
-                    The upper inclusive limit for the dimension.
+                :param min_dimension: The lower inclusive limit for the dimension.
+                :type min_dimension: int
+                :param max_dimension: inclusive limit for the dimension.
+                :type max_dimension: The upper inclusive limit for the dimension.
             )");
 
     dim.def_static("dynamic", &ngraph::Dimension::dynamic);
@@ -53,20 +48,16 @@ void regclass_pyngraph_Dimension(py::module m) {
                               R"(
                                 Check if Dimension is dynamic.
 
-                                Returns
-                                ----------
-                                is_dynamic : bool
-                                    True if dynamic, else False.
+                                :return: True if dynamic, else False.
+                                :rtype: bool
                               )");
     dim.def_property_readonly("is_static",
                               &ngraph::Dimension::is_static,
                               R"(
                                 Check if Dimension is static.
 
-                                Returns
-                                ----------
-                                is_static : bool
-                                    True if static, else False.
+                                :return: True if static, else False.
+                                :rtype: bool
                               )");
 
     dim.def(
@@ -89,10 +80,8 @@ void regclass_pyngraph_Dimension(py::module m) {
                 Return this dimension as integer.
                 This dimension must be static and non-negative.
 
-                Returns
-                ----------
-                get_length : int
-                    Value of the dimension.
+                :return Value of the dimension.
+                :rtype: int
             )");
     dim.def("get_min_length",
             &ngraph::Dimension::get_min_length,
@@ -100,10 +89,8 @@ void regclass_pyngraph_Dimension(py::module m) {
                 Return this dimension's min_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Returns
-                ----------
-                get_min_length : int
-                    Value of the dimension.
+                :return: Value of the dimension.
+                :rtype: int
             )");
     dim.def("get_max_length",
             &ngraph::Dimension::get_max_length,
@@ -111,10 +98,8 @@ void regclass_pyngraph_Dimension(py::module m) {
                 Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Returns
-                ----------
-                get_max_length : int
-                    Value of the dimension.
+                :return: Value of the dimension.
+                :rtype: int
             )");
 
     dim.def("same_scheme",
@@ -124,16 +109,11 @@ void regclass_pyngraph_Dimension(py::module m) {
                 Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
 
-                Parameters
-                ----------
-                dim : Dimension
-                    The other dimension to compare this dimension to.
-
-                Returns
-                ----------
-                same_scheme : bool
-                    True if this dimension and dim are both dynamic,
-                    or if they are both static and equal, otherwise False.
+                :param dim: The other dimension to compare this dimension to.
+                :type dim: Dimension
+                :return: True if this dimension and dim are both dynamic,
+                or if they are both static and equal, otherwise False.
+                :rtype: bool
             )");
     dim.def("compatible",
             &ngraph::Dimension::compatible,
@@ -142,15 +122,10 @@ void regclass_pyngraph_Dimension(py::module m) {
                 Check whether this dimension is capable of being merged 
                 with the argument dimension.
 
-                Parameters
-                ----------
-                d : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                compatible : bool
-                    True if this dimension is compatible with d, else False.
+                :param d: The dimension to compare this dimension with.
+                :type d: Dimension
+                :return: True if this dimension is compatible with d, else False.
+                :rtype: bool
             )");
     dim.def("relaxes",
             &ngraph::Dimension::relaxes,
@@ -164,15 +139,10 @@ void regclass_pyngraph_Dimension(py::module m) {
 
                 this.relaxes(d) is equivalent to d.refines(this).
 
-                Parameters
-                ----------
-                d : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                relaxes : bool
-                    True if this dimension relaxes d, else False.
+                :param d: The dimension to compare this dimension with.
+                :type d: Dimension
+                :return: True if this dimension relaxes d, else False.
+                :rtype: bool
             )");
     dim.def("refines",
             &ngraph::Dimension::refines,
@@ -186,15 +156,10 @@ void regclass_pyngraph_Dimension(py::module m) {
 
                 this.refines(d) is equivalent to d.relaxes(this).
 
-                Parameters
-                ----------
-                d : Dimension
-                    The dimension to compare this dimension with.
-
-                Returns
-                ----------
-                relaxes : bool
-                    True if this dimension refines d, else False.
+                :param d: The dimension to compare this dimension with.
+                :type d: Dimension
+                :return: True if this dimension refines d, else False.
+                :rtype: bool
             )");
 
     dim.def("__str__", [](const ngraph::Dimension& self) -> std::string {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,57 @@ const std::vector<ReshapeTransformationParam> params = {
         },
         "Reshape",
         "U8"
-    }
+    },
+    // Channels count reducing, per-channel dequantizations 4d -> 4d
+    {
+        { 1, 3, 16, 16 },
+        { 1, 1, 48, 16 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1 },
+          { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
+          { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "FP32"
+    },
+    // Channels count reducing, per-channel dequantizations 3d -> 4d
+    {
+        { 1, 3,  16 },
+        { 1, 1, 6, 8 },
+        { 256ul, ngraph::Shape{ 1, 3, 1 },
+                { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
+                { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "FP32"
+    },
+    // Channels count reducing, per-channel dequantizations 4d -> 3d
+    {
+        { 1, 3, 2, 4 },
+        { 1, 1, 24 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1 },
+                { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
+                { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "FP32"
+    },
+    // Channels count reducing, per-channel dequantizations 5d -> 3d
+    {
+        { 1, 3, 2, 4, 2 },
+        { 1, 1, 48 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1, 1 },
+                { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
+                { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "FP32"
+    },
+    // Channels count reducing, per-channel dequantizations 5d -> 4d
+    {
+        { 1, 3, 2, 4, 2 },
+        { 1, 1, 3, 16 },
+        { 256ul, ngraph::Shape{ 1, 3, 1, 1, 1 },
+                { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
+                { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        "Reshape",
+        "FP32"
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,

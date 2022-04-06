@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
  * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  *
  * For more details about the transformation, refer to
- * [PullReshapeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullReshapeThroughDequantization) page
+ * [PullReshapeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::PullReshapeThroughDequantization : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PullReshapeThroughDequantization", "0");
     PullReshapeThroughDequantization(const std::vector<ngraph::element::Type>& inputPrecisions = {});
 };

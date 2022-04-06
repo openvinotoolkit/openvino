@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,66 +26,99 @@ static constexpr char detailedCntReport[] = "detailed_counters";
 /// @brief Responsible for calculating different latency metrics
 class LatencyMetrics {
 public:
-    LatencyMetrics() = delete;
+    LatencyMetrics() {}
 
-    LatencyMetrics(const std::vector<double>& latencies) : latencies(latencies) {
-        if (latencies.empty()) {
-            throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
-        }
-        std::sort(this->latencies.begin(), this->latencies.end());
+    LatencyMetrics(const std::vector<double>& latencies,
+                   const std::string& data_shape = "",
+                   size_t percentile_boundary = 50)
+        : data_shape(data_shape),
+          percentile_boundary(percentile_boundary) {
+        fill_data(latencies, percentile_boundary);
     }
 
-    LatencyMetrics(std::vector<double>&& latencies) : latencies(latencies) {
-        if (latencies.empty()) {
-            throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");
-        }
-        std::sort(this->latencies.begin(), this->latencies.end());
-    }
+    void write_to_stream(std::ostream& stream) const;
+    void write_to_slog() const;
+    const nlohmann::json to_json() const;
 
-    double min() {
-        return latencies[0];
-    }
-
-    double average() {
-        return std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
-    }
-
-    double percentile(std::size_t p) {
-        return latencies[size_t(latencies.size() / 100.0 * p)];
-    }
-
-    double max() {
-        return latencies.back();
-    }
-
-    void logTotal(size_t p) {
-        std::string percentileStr = (p == 50) ? "\tMedian:  " : "\t" + std::to_string(p) + " percentile:    ";
-        slog::info << percentileStr << double_to_string(percentile(p)) << " ms" << slog::endl;
-        slog::info << "\tAvg:    " << double_to_string(average()) << " ms" << slog::endl;
-        slog::info << "\tMin:    " << double_to_string(min()) << " ms" << slog::endl;
-        slog::info << "\tMax:    " << double_to_string(max()) << " ms" << slog::endl;
-    }
+public:
+    double median_or_percentile = 0;
+    double avg = 0;
+    double min = 0;
+    double max = 0;
+    std::string data_shape;
 
 private:
-    std::vector<double> latencies;
+    void fill_data(std::vector<double> latencies, size_t percentile_boundary);
+    size_t percentile_boundary = 50;
+};
+
+class StatisticsVariant {
+public:
+    enum Type { INT, DOUBLE, STRING, ULONGLONG, METRICS };
+
+    StatisticsVariant(std::string csv_name, std::string json_name, int v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          i_val(v),
+          type(INT) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, double v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          d_val(v),
+          type(DOUBLE) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, const std::string& v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          s_val(v),
+          type(STRING) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, unsigned long long v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          ull_val(v),
+          type(ULONGLONG) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, uint32_t v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          ull_val(v),
+          type(ULONGLONG) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, unsigned long v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          ull_val(v),
+          type(ULONGLONG) {}
+    StatisticsVariant(std::string csv_name, std::string json_name, const LatencyMetrics& v)
+        : csv_name(csv_name),
+          json_name(json_name),
+          metrics_val(v),
+          type(METRICS) {}
+
+    ~StatisticsVariant() {}
+
+    std::string csv_name;
+    std::string json_name;
+    int i_val = 0;
+    double d_val = 0;
+    unsigned long long ull_val = 0;
+    std::string s_val;
+    LatencyMetrics metrics_val;
+    Type type;
+
+    std::string to_string() const;
+    void write_to_json(nlohmann::json& js) const;
 };
 
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
 public:
-    typedef std::vector<ov::runtime::ProfilingInfo> PerformaceCounters;
-    typedef std::vector<std::pair<std::string, std::string>> Parameters;
+    typedef std::vector<ov::ProfilingInfo> PerformanceCounters;
+    typedef std::vector<StatisticsVariant> Parameters;
 
     struct Config {
         std::string report_type;
         std::string report_folder;
     };
 
-    enum class Category {
-        COMMAND_LINE_PARAMETERS,
-        RUNTIME_CONFIG,
-        EXECUTION_RESULTS,
-    };
+    enum class Category { COMMAND_LINE_PARAMETERS, RUNTIME_CONFIG, EXECUTION_RESULTS, EXECUTION_RESULTS_GROUPPED };
 
     explicit StatisticsReport(Config config) : _config(std::move(config)) {
         _separator =
@@ -101,15 +135,16 @@ public:
             _separator = "";
     }
 
-    void addParameters(const Category& category, const Parameters& parameters);
+    void add_parameters(const Category& category, const Parameters& parameters);
 
-    void dump();
+    virtual void dump();
 
-    void dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts);
+    virtual void dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts);
 
 private:
-    void dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts);
+    void dump_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
 
+protected:
     // configuration of current benchmark execution
     const Config _config;
 
@@ -118,4 +153,19 @@ private:
 
     // csv separator
     std::string _separator;
+
+    StatisticsReport::PerformanceCounters get_average_performance_counters(
+        const std::vector<PerformanceCounters>& perfCounts);
+};
+
+class StatisticsReportJSON : public StatisticsReport {
+public:
+    explicit StatisticsReportJSON(Config config) : StatisticsReport(std::move(config)) {}
+
+    void dump() override;
+    void dump_performance_counters(const std::vector<PerformanceCounters>& perfCounts) override;
+
+private:
+    void dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters);
+    const nlohmann::json perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts);
 };

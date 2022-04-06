@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@ namespace SkipTestsConfig {
 extern bool disable_tests_skipping;
 
 bool currentTestIsDisabled();
-std::vector<std::string> readSkipTestConfigFiles(const std::vector<std::string>& filePaths);
 
 }  // namespace SkipTestsConfig
 }  // namespace FuncTestUtils

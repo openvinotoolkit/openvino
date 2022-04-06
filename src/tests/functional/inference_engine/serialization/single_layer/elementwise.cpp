@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::MOD
 };
 
-std::map<std::string, std::string> additionalConfig = {};
+ov::AnyMap additionalConfig = {};
 
 const auto elementiwiseParams = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),

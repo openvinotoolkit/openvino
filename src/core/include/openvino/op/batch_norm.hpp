@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
@@ -52,6 +55,9 @@ private:
 };
 }  // namespace v0
 namespace v5 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset5", op::Op, 5);

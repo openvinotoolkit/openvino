@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     else
         return Datatype::F32;
@@ -91,7 +91,7 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
 // Checks if we need boundary checking in kernel.
 bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     const auto& input = pp.inputs[0];
-    const auto& output = pp.output;
+    const auto& output = pp.outputs[0];
 
     if (pp.poolPad.x != 0 || pp.poolPad.y != 0 || pp.poolPad.z != 0) {
         return true;
@@ -128,7 +128,7 @@ bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& param
     }
 
     if (!has_fused_quantize_to_int8 &&
-        (params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8) &&
+        (params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8) &&
         params.poolType == PoolType::AVG) {
         return true;
     }
@@ -137,7 +137,7 @@ bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& param
 }
 
 PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
 

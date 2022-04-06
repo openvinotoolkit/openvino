@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ public:
     typed_primitive_inst(network& network, lstm_dynamic_node const& node);
 
     static void check_direction(program_node& node, int32_t direction, std::string name) {
-        if (node.get_output_layout().size.spatial[1] != direction)
+        if (node.get_output_layout().spatial(1) != direction)
             CLDNN_ERROR_MESSAGE(node.id(), name + " directions size need to equal 1 or 2 (bidrectional) !");
     }
 
@@ -52,7 +52,7 @@ public:
                                                 int32_t hidden_size,
                                                 int32_t direction,
                                                 std::string name) {
-        auto node_tensor = node.get_output_layout().size;
+        auto node_layout = node.get_output_layout();
         CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                       name + " format",
                                       node.get_output_layout().format.value,
@@ -60,20 +60,20 @@ public:
                                       format::bfyx);
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               name + " batch size",
-                              node_tensor.batch[0],
+                              node_layout.batch(),
                               "input batch size",
                               batch_size,
                               "Sizes mismatch, " + name + ": " + node.id());
         check_direction(node, direction, name);
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               name + " x size",
-                              node_tensor.spatial[0],
+                              node_layout.spatial(0),
                               "input_size",
                               hidden_size,
                               "Sizes mismatch, " + name + ": " + node.id());
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               name + " f size",
-                              node_tensor.feature[0],
+                              node_layout.feature(),
                               "1",
                               1,
                               "Sizes mismatch, " + name + ": " + node.id());

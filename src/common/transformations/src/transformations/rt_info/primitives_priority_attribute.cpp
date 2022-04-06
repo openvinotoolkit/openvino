@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,11 +31,12 @@ std::string ov::getPrimitivesPriority(const std::shared_ptr<ngraph::Node>& node)
 }
 
 Any PrimitivesPriority::merge(const ngraph::NodeVector& nodes) const {
-    auto isConvolutionBased = [](const std::shared_ptr<Node>& node) -> bool {
+    auto canBeMerged = [](const std::shared_ptr<Node>& node) -> bool {
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::MatMul>(node)) {
             return true;
         }
         return false;
@@ -44,7 +45,7 @@ Any PrimitivesPriority::merge(const ngraph::NodeVector& nodes) const {
     std::set<std::string> unique_pp;
 
     for (auto& node : nodes) {
-        if (isConvolutionBased(node)) {
+        if (canBeMerged(node)) {
             std::string pp = getPrimitivesPriority(node);
             if (!pp.empty())
                 unique_pp.insert(pp);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,3 +29,4 @@ add_subdirectory(src)
 install(DIRECTORY test_runner/ DESTINATION tests/memory_tests/test_runner COMPONENT tests EXCLUDE_FROM_ALL)
 install(DIRECTORY .automation/ DESTINATION tests/memory_tests/test_runner/.automation COMPONENT tests EXCLUDE_FROM_ALL)
 install(DIRECTORY scripts/ DESTINATION tests/memory_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY ../utils/ DESTINATION tests/utils COMPONENT tests EXCLUDE_FROM_ALL)

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ namespace frontend {
 /// calling corresponding ctor.
 class FRONTEND_API DecoderTransformationExtension : public ov::Extension {
 public:
+    using Ptr = std::shared_ptr<DecoderTransformationExtension>;
     DecoderTransformationExtension() = default;
 
     /// \brief Create a custom functional pass where code of the pass is implemented as a function.

@@ -21,7 +21,7 @@ Once the commands above are executed, the Inference Engine Developer Package is 
        * `IE::ngraph` - shared nGraph library
        * `IE::inference_engine` - shared Inference Engine library
        * `IE::inference_engine_transformations` - shared library with Inference Engine ngraph-based Transformations
-       * `IE::inference_engine_preproc` - shared library with Inference Engine preprocessing plugin
+       * `IE::openvino_gapi_preproc` - shared library with Inference Engine preprocessing plugin
        * `IE::inference_engine_plugin_api` - interface library with Inference Engine Plugin API headers
        * `IE::inference_engine_lp_transformations` - shared library with low-precision transformations
        * `IE::pugixml` - static Pugixml library
@@ -91,12 +91,12 @@ endif()
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 
-@snippet src/CMakeLists.txt cmake:plugin
+@snippet template_plugin/src/CMakeLists.txt cmake:plugin
 
 > **NOTE**: `IE::inference_engine` target is imported from the Inference Engine Developer Package.
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
 
-@snippet tests/functional/CMakeLists.txt cmake:functional_tests
+@snippet template_plugin/tests/functional/CMakeLists.txt cmake:functional_tests
 
 > **NOTE**: The `IE::funcSharedTests` static library with common functional Inference Engine Plugin tests is imported via the Inference Engine Developer Package.

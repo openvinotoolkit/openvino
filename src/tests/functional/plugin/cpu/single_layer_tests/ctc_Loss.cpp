@@ -1,10 +1,10 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <string>
 #include <tuple>
@@ -123,7 +123,7 @@ protected:
         }
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (i == 0) {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                  dataShape,
@@ -131,7 +131,7 @@ protected:
                                                                  0,
                                                                  10);
             } else if (i == 1) {
-                tensor = ov::runtime::Tensor{funcInput.get_element_type(), {shapeN}};
+                tensor = ov::Tensor{funcInput.get_element_type(), {shapeN}};
                 if (funcInput.get_element_type() == ElementType::i32) {
                     auto begin = tensor.data<int32_t>();
                     std::copy(logitLength.begin(), logitLength.end(), begin);
@@ -149,7 +149,7 @@ protected:
                     while ((value = distLabel(genLable)) == blank) {}
                     labels[n] = value;
                 }
-                tensor = ov::runtime::Tensor{funcInput.get_element_type(), {shapeNT}};
+                tensor = ov::Tensor{funcInput.get_element_type(), {shapeNT}};
                 if (funcInput.get_element_type() == ElementType::i32) {
                     auto begin = tensor.data<int32_t>();
                     std::copy(labels.begin(), labels.end(), begin);
@@ -168,7 +168,7 @@ protected:
                     labelLength[n] = std::min(len, logitLength[n]);
                 }
 
-                tensor = ov::runtime::Tensor{funcInput.get_element_type(), {shapeN}};
+                tensor = ov::Tensor{funcInput.get_element_type(), {shapeN}};
                 if (funcInput.get_element_type() == ElementType::i32) {
                     auto begin = tensor.data<int32_t>();
                     std::copy(labelLength.begin(), labelLength.end(), begin);
@@ -189,7 +189,7 @@ TEST_P(CTCLossLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "CTCLoss");
+    CheckPluginRelatedResults(compiledModel, "CTCLoss");
 }
 
 namespace {

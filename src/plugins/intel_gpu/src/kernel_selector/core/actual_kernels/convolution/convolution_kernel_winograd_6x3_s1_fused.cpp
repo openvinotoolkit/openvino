@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,10 @@ JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const conv
     const auto rows = params.inputs[0].Y().v + input_pad_y;
     const auto cols = params.inputs[0].X().v + input_pad_x;
 
-    auto output_pad_x_before = params.output.GetDims()[0].pad.before;
-    auto output_pad_y_before = params.output.GetDims()[1].pad.before;
-    auto output_pad_x_after = params.output.GetDims()[0].pad.after;
-    auto output_pad_y_after = params.output.GetDims()[1].pad.after;
+    auto output_pad_x_before = params.outputs[0].GetDims()[0].pad.before;
+    auto output_pad_y_before = params.outputs[0].GetDims()[1].pad.before;
+    auto output_pad_x_after = params.outputs[0].GetDims()[0].pad.after;
+    auto output_pad_y_after = params.outputs[0].GetDims()[1].pad.after;
     auto C4_up16 = ((uint32_t)((idepth + 15) / 16) * 16) / 4;
 
     // if there's input padding then input offset should be ignored
@@ -85,7 +85,7 @@ ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     int) const {
     Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
-    const auto odepth = arg.output.Feature().v;
+    const auto odepth = arg.outputs[0].Feature().v;
     const auto input_pad_y = arg.inputs[0].Y().pad.before + arg.inputs[0].Y().pad.after;
     const auto input_pad_x = arg.inputs[0].X().pad.before + arg.inputs[0].X().pad.after;
     const auto rows = arg.inputs[0].Y().v + input_pad_y;
@@ -127,9 +127,9 @@ bool ConvolutionKernel_Winograd_6x3_s1_fused::Validate(const Params& p, const op
 
     if ((params.weights.X().v != 3) || (params.weights.Y().v != 3) || (params.stride.x != 1) ||
         (params.stride.y != 1) || (params.filterSize.x != 3) || (params.filterSize.y != 3) ||
-        (params.output.Feature().v % 32) || (params.inputs[0].Feature().v % 32) ||
-        (params.output.Feature().pad.before != 0) || (params.output.Feature().pad.after != 0) ||
-        (params.output.Batch().pad.before != 0) || (params.output.Batch().pad.after != 0) ||
+        (params.outputs[0].Feature().v % 32) || (params.inputs[0].Feature().v % 32) ||
+        (params.outputs[0].Feature().pad.before != 0) || (params.outputs[0].Feature().pad.after != 0) ||
+        (params.outputs[0].Batch().pad.before != 0) || (params.outputs[0].Batch().pad.after != 0) ||
         // TODO: add support to batch > 1
         (params.inputs[0].Batch().v != 1)) {
         return {};

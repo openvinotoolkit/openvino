@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-using namespace MKLDNNPlugin;
+namespace ov {
+namespace intel_cpu {
 
 bool Shape::isCompatible(const VectorDims &vecDims) const {
     if (getRank() != vecDims.size()) {
@@ -47,3 +48,6 @@ std::string Shape::toString() const  {
     output << "}";
     return output.str();
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

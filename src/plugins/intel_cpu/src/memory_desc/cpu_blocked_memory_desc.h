@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,8 @@
 #include "blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
@@ -22,8 +23,9 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
-    bool isCompatible(const CpuBlockedMemoryDesc &rhs) const;
-    bool isCompatible(const DnnlBlockedMemoryDesc &rhs) const;
+    bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const override;
+    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
 
     InferenceEngine::Precision getPrecision() const override {
         return precision;
@@ -76,10 +78,6 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
-    MemoryDescPtr cloneWithUndefStridesAndOffset() const override;
-
-    MemoryDescPtr cloneWithDefaultStridesAndOffset() const override;
-
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
 
 private:
@@ -105,4 +103,5 @@ private:
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
 using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

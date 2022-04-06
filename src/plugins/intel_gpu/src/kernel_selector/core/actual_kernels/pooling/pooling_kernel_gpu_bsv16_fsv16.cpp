@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -72,7 +72,7 @@ bool PoolingKernel_bsv16_fsv16::Validate(const Params& p, const optional_params&
     const auto& params = static_cast<const pooling_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     if (output.Batch().v % batch_block_size != 0 || output.Feature().v % feature_block_size != 0)
         return false;
@@ -91,7 +91,7 @@ bool PoolingKernel_bsv16_fsv16::Validate(const Params& p, const optional_params&
 
 JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("OC_BLOCK", feature_block_size));
@@ -105,9 +105,9 @@ JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& pa
         auto input_dt = GetActivationType(params);
 
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"(b + BLOCK_NUM * 8)", "oc", "y", "x"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"(b + BLOCK_NUM * 8)", "oc", "z", "y", "x"};
         }
 

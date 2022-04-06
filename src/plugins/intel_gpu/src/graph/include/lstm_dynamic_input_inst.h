@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ public:
         return get_dependency(3);
     }
 
-    int32_t direction() const { return weights().get_output_layout().size.feature[0]; }
+    int32_t direction() const { return weights().get_output_layout().feature(); }
     bool dyn_length_term() const { return !get_primitive()->dyn_length.empty(); }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
     bool weights_term() const { return !get_primitive()->weights.empty(); }

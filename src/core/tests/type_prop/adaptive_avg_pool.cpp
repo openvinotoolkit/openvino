@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ TEST(type_prop, adaptive_avg_pool_unsupported_input_shape) {
     auto data = make_shared<op::Parameter>(element::f32, arg_shape);
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{}, output_shape);
 
-    EXPECT_THROW(make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
+    EXPECT_THROW(const auto unused = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
 }
 
 TEST(type_prop, adaptive_avg_pool_wrong_out_shape) {
@@ -91,5 +91,5 @@ TEST(type_prop, adaptive_avg_pool_wrong_out_shape) {
     auto data = make_shared<op::Parameter>(element::f32, arg_shape);
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, output_shape);
 
-    EXPECT_THROW(make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
+    EXPECT_THROW(const auto unused = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
 }

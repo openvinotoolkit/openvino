@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -689,6 +689,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
 
     test_case.add_expected_output<float>(Shape{1, 2}, {64.f, 64.f});
     test_case.add_expected_output<float>(Shape{3, 1, 2}, {4.f, 4.f, 16.f, 16.f, 64.f, 64.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
+    /*
+       unsq = unsqueeze(input)
+       padded = pad(unsq)
+       avgpool = avgpool(padded, kernel=[3, 1, 1])
+       if_output = if (avgpool.shape[1] == 1) {
+         squeeze(avgpool)
+       } else {
+         identity(avgpool)
+       }
+       output = add(input, if_output)
+    */
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_with_only_indentity_in_else_branch.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    std::vector<float> x(shape_size(Shape{1, 5, 2, 2}));
+    std::iota(x.begin(), x.end(), 0);
+    std::vector<float> expected{1.333333, 3,  4.666666, 6.333333, 8,  10, 12,       14, 16,        18,
+                                20,       22, 24,       26,       28, 30, 25.33333, 27, 28.666667, 30.33333};
+    test_case.add_input<float>(x);
+    test_case.add_expected_output<float>(expected);
     test_case.run();
 }
 

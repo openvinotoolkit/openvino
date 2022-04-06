@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ protected:
     bool NeedPaddedInput() const override { return false; }
 
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
-        if (DataTensor::ChannelsCount(p.output.GetLayout()) <= 4) {
+        if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
             return WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         } else {
             return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;

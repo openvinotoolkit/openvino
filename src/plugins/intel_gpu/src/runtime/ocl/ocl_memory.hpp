@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     void unlock(const stream& stream) override;
     const cl::UsmMemory& get_buffer() const { return _buffer; }
     cl::UsmMemory& get_buffer() { return _buffer; }
+    void* buffer_ptr() const override { return _buffer.get(); }
 
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;

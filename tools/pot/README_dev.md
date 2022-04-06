@@ -1,4 +1,4 @@
-# Post-training Optimization Tool {#pot_README_dev}
+# Post-training Optimization Tool
 
 Starting with the 2020.1 version, OpenVINO&trade; toolkit delivers the Post-Training Optimization Tool designed to accelerate the inference of DL models by converting them into a more hardware-friendly representation by applying specific methods that do not require re-training, for example, post-training quantization.
 For more details about the low-precision flow in OpenVINO&trade;, refer to the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
@@ -24,7 +24,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 - OpenVINO
 
 ### Installation (Temporary)
-1) Clone DLDT repo: `git clone https://github.com/openvinotoolkit/openvino`
+1) Clone the openvino repo: `git clone https://github.com/openvinotoolkit/openvino`
 2) Download submodules:
    ```
    git submodule init
@@ -33,7 +33,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 3) Setup Model Optimizer. 
     You can setup Model Optimizer that needs for POT purposed with the two ways:
     1. Install Model Optimizer with pip using "python setup.py install" at the mo folder (`<openvino_path>/tools/mo/setup.py`)
-    2. Setup Model Optimizer for Python using PYTHONPATH environment variable. Add the the following `<openvino_path>/tools/mo` into PYTHONPATH.
+    2. Setup Model Optimizer for Python using PYTHONPATH environment variable. Add the following `<openvino_path>/tools/mo` into PYTHONPATH.
 4) Install requirements for accuracy checker:
     - From POT root: `cd ./thirdparty/open_model_zoo/tools/accuracy_checker`
     - Call setup script: `python3 setup.py install`

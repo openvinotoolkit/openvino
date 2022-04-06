@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,8 @@ const std::vector<std::vector<size_t >> kernelsH1 = {{1, 3},
                                                      {1, 5}};
 const std::vector<std::vector<size_t >> stridesH1 = {{1, 1},
                                                      {1, 3}};
+const std::vector<std::vector<size_t>> stridesH1Big = {{1, 9},
+                                                       {1, 16}};
 const std::vector<std::vector<ptrdiff_t>> padBeginsH1 = {{1, 0},
                                                          {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEndsH1 = {{1, 0},
@@ -146,6 +148,14 @@ const auto conv2DParams_AutoPadValid_Height1 = ::testing::Combine(
         ::testing::ValuesIn(numOutCannels),
         ::testing::Values(ngraph::op::PadType::VALID)
 );
+const auto conv2DParams_AutoPadValid_Height1_BigStride = ::testing::Combine(
+        ::testing::ValuesIn(kernelsH1),
+        ::testing::ValuesIn(stridesH1Big),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(dilationsH1),
+        ::testing::ValuesIn(numOutCannels),
+        ::testing::Values(ngraph::op::PadType::VALID));
 const auto conv2DParams_AutoPadValid_Width1 = ::testing::Combine(
         ::testing::ValuesIn(kernelsW1),
         ::testing::ValuesIn(stridesW1),
@@ -200,6 +210,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLa
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::ValuesIn(inputShapesH1),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1_BigStride,
+                         ConvolutionLayerTest,
+                         ::testing::Combine(conv2DParams_AutoPadValid_Height1_BigStride,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::ValuesIn(inputShapesH1),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLayerTest,

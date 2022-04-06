@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,11 +116,11 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
 
     VVVVF<T> output_cpu = eltwise_reference<T>(input1_rnd, input2_rnd, mode, relu, slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
-    tensor output_tensor = output_layout.get_buffer_size();
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    auto output_tensor = output_layout.get_padded_dims();
+    int x_size = output_tensor[3];
+    int y_size = output_tensor[2];
+    int f_size = output_tensor[1];
+    int b_size = output_tensor[0];
     EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
     EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
@@ -2513,6 +2513,134 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     }
 }
 
+TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
+{
+    auto& engine = get_test_engine();
+    bool f16_supported = engine.get_device_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    size_t input_b = 2;
+    size_t input_f = 72;
+    size_t input1_y = 10, input1_x = 10;
+    size_t input2_y = 1, input2_x = 1;
+
+    tensor input1_tensor(input_b, input_f, input1_x, input1_y);
+    tensor input2_tensor(input_b, input_f, input2_x, input2_y);
+
+    VVVVF<FLOAT16> input1_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<FLOAT16> input2_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input2_y, input2_x, 1, 3);
+
+    VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
+    VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
+
+    auto input1 = engine.allocate_memory({ data_types::f16,format::bfyx, input1_tensor });
+    auto input2 = engine.allocate_memory({ data_types::f16,format::bfyx, input2_tensor });
+
+    set_values(input1, input1_flatten);
+    set_values(input2, input2_flatten);
+
+    topology ref_topology;
+    ref_topology.add(input_layout("input1", input1->get_layout()));
+    ref_topology.add(input_layout("input2", input2->get_layout()));
+    ref_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::prod));
+
+    network ref_network(engine, ref_topology);
+    ref_network.set_input_data("input1", input1);
+    ref_network.set_input_data("input2", input2);
+
+    auto ref_outputs = ref_network.execute();
+    auto ref_output = ref_outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<FLOAT16> ref_ptr(ref_output, get_test_stream());
+
+    topology fsv32_topology;
+    fsv32_topology.add(input_layout("input1", input1->get_layout()));
+    fsv32_topology.add(input_layout("input2", input2->get_layout()));
+    fsv32_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input1_tensor)));
+    fsv32_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input2_tensor)));
+    fsv32_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::prod));
+    fsv32_topology.add(reorder("reorder_bfyx", "eltwise", layout(data_types::f16, format::bfyx, input1_tensor)));
+
+    network fsv32_network(engine, fsv32_topology);
+    fsv32_network.set_input_data("input1", input1);
+    fsv32_network.set_input_data("input2", input2);
+
+    auto fsv32_outputs = fsv32_network.execute();
+    auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
+    cldnn::mem_lock<FLOAT16> fsv32_ptr(fsv32_output, get_test_stream());
+
+    ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
+
+    for (size_t i = 0; i < ref_ptr.size(); i++) {
+        ASSERT_EQ(float(ref_ptr[i]), float(fsv32_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
+{
+    auto& engine = get_test_engine();
+    bool f16_supported = engine.get_device_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    size_t input_b = 2;
+    size_t input_f = 72;
+    size_t input1_y = 10, input1_x = 10;
+
+    tensor input1_tensor(input_b, input_f, input1_x, input1_y);
+    tensor input2_tensor(1, input_f, 1, 1);
+
+    VVVVF<FLOAT16> input1_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<FLOAT16> input2_rnd = generate_random_4d<FLOAT16>(1, input_f, 1, 1, 1, 3);
+
+    VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
+    VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
+
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, input1_tensor });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, input2_tensor });
+
+    set_values(input1, input1_flatten);
+    set_values(input2, input2_flatten);
+
+    topology ref_topology;
+    ref_topology.add(input_layout("input1", input1->get_layout()));
+    ref_topology.add(input_layout("input2", input2->get_layout()));
+    ref_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::prod));
+
+    network ref_network(engine, ref_topology);
+    ref_network.set_input_data("input1", input1);
+    ref_network.set_input_data("input2", input2);
+
+    auto ref_outputs = ref_network.execute();
+    auto ref_output = ref_outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<FLOAT16> ref_ptr(ref_output, get_test_stream());
+
+    topology fsv32_topology;
+    fsv32_topology.add(input_layout("input1", input1->get_layout()));
+    fsv32_topology.add(input_layout("input2", input2->get_layout()));
+    fsv32_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input1_tensor)));
+    fsv32_topology.add(eltwise("eltwise", "reorder1", "input2", eltwise_mode::prod));
+    fsv32_topology.add(reorder("reorder_bfyx", "eltwise", layout(data_types::f16, format::bfyx, input1_tensor)));
+
+    network fsv32_network(engine, fsv32_topology);
+    fsv32_network.set_input_data("input1", input1);
+    fsv32_network.set_input_data("input2", input2);
+
+    auto fsv32_outputs = fsv32_network.execute();
+    auto fsv32_output = fsv32_outputs.at("reorder_bfyx").get_memory();
+    cldnn::mem_lock<FLOAT16> fsv32_ptr(fsv32_output, get_test_stream());
+
+    ASSERT_EQ(ref_ptr.size(), fsv32_ptr.size());
+
+    for (size_t i = 0; i < ref_ptr.size(); i++) {
+        ASSERT_EQ(float(ref_ptr[i]), float(fsv32_ptr[i]));
+    }
+}
+
 TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
     //  Input  : 2x2x2x2x1
     //  Input2 : 2x2x1x1x2
@@ -2903,11 +3031,12 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
 
     VVVVF<int8_t> output_cpu = eltwise_bool_reference<T>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
-    tensor output_tensor = output_layout.get_buffer_size();
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    auto output_tensor = output_layout.get_padded_dims();
+    int x_size = output_tensor[3];
+    int y_size = output_tensor[2];
+    int f_size = output_tensor[1];
+    int b_size = output_tensor[0];
+
     EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
     EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
@@ -3202,11 +3331,11 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
 {
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -3248,10 +3377,10 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = input_ref->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> input_ptr{input_ref, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
@@ -3789,11 +3918,11 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -3835,10 +3964,10 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {

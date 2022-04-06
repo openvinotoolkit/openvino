@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ static const Version gnaPluginDescription = {
         CI_BUILD_NUMBER
         "_with_GNA_LIB_VER==2"
         ,
-        "ov_intel_gna_plugin"
+        "openvino_intel_gna_plugin"
 };
 
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(GNAPluginInternal, gnaPluginDescription)

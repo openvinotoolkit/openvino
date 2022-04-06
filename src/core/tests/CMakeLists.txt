@@ -1,6 +1,8 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
@@ -13,8 +15,6 @@ set(OV_ONNX_NAMESPACE ngraph_onnx)
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(util)
-    add_subdirectory(engines_util)
     if (ENABLE_OV_ONNX_FRONTEND)
         add_subdirectory(onnx_test_util)
     endif()
@@ -48,6 +48,8 @@ set(SRC
     coordinate.cpp
     coordinate_range.cpp
     copy.cpp
+    copy_runtime_info.cpp
+    dimension.cpp
     element_type.cpp
     eval.cpp
     extension.cpp
@@ -79,6 +81,7 @@ set(SRC
     pass/serialization/const_compression.cpp
     pass/serialization/deterministicity.cpp
     pass/serialization/serialize.cpp
+    pass/serialization/from_model.cpp
     pattern.cpp
     preprocess.cpp
     replace_node.cpp
@@ -160,7 +163,9 @@ set(SRC
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/idft.cpp
+    type_prop/if.cpp
     type_prop/interpolate.cpp
+    type_prop/irdft.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
@@ -193,6 +198,7 @@ set(SRC
     type_prop/prior_box_clustered.cpp
     type_prop/random_uniform.cpp
     type_prop/range.cpp
+    type_prop/rdft.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
@@ -203,6 +209,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/region_yolo.cpp
     type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
@@ -239,7 +246,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp
-    type_prop/ti.cpp
+    type_prop/tensor_iterator.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -258,6 +265,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asin.cpp
     visitors/op/asinh.cpp
+    visitors/op/assign.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
     visitors/op/avg_pool.cpp
@@ -319,6 +327,7 @@ set(SRC
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/idft.cpp
+    visitors/op/irdft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -355,6 +364,8 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/rdft.cpp
+    visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -401,23 +412,25 @@ set(SRC
     visitors/op/swish.cpp
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
+    visitors/op/tensor_iterator.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
+    validation_utils.cpp
 )
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
@@ -425,7 +438,7 @@ if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
     endif()
 endif()
 
@@ -435,15 +448,15 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_gpu_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
     endif()
 endif()
 
-if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_TEMPLATE AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
     endif()
 endif()
 
@@ -459,8 +472,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
-    backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
 )
 
@@ -475,6 +486,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
+    op_eval/loop.cpp
     op_eval/matmul.cpp
     op_eval/memory.cpp
     op_eval/mish.cpp
@@ -571,9 +583,11 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
+                                        commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
+                                        ov_shape_inference
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
@@ -600,9 +614,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR openvino_onnx_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE ov_onnx_frontend onnx_test_util)
+    target_link_libraries(ov_core_unit_tests PRIVATE openvino_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -611,7 +625,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(ov_core_unit_tests ov_ir_frontend)
+    add_dependencies(ov_core_unit_tests openvino_ir_frontend)
 endif()
 
 install(TARGETS ov_core_unit_tests

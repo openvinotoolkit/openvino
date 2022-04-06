@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,6 +36,10 @@ def reduce_helper(func: callable, x: np.array, axis: tuple, keepdims: bool):
     :return: the result tensor
     """
     result = func(x, axis=axis, keepdims=keepdims)
+    # we need to handle this case specially to avoid problems with deepcopy method with MaskedConstant converted to
+    # masked_array - see issue https://github.com/numpy/numpy/issues/21022
+    if isinstance(result, np.ma.core.MaskedConstant):
+        return np.ma.masked_array(data=-1, mask=True, dtype=result.dtype)
     if is_fully_defined(x):
         return result
     else:

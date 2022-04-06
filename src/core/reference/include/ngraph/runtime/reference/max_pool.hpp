@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,11 +147,11 @@ struct Coord : public std::vector<T> {
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
 
-bool elem_in_padding_area(const Coord<int>& kernel_position,
-                          const Coord<size_t>& kernel_offset,
-                          const Shape& data_shape) {
+inline bool elem_in_padding_area(const Coord<int>& kernel_position,
+                                 const Coord<size_t>& kernel_offset,
+                                 const Shape& data_shape) {
     for (size_t dim = 0; dim + 2 < data_shape.size(); ++dim) {
-        if (kernel_position[dim] + kernel_offset[dim] < 0 ||
+        if (static_cast<int64_t>(kernel_position[dim]) + static_cast<int64_t>(kernel_offset[dim]) < 0LL ||
             kernel_position[dim] + kernel_offset[dim] >= data_shape[dim + 2]) {
             return true;
         }
@@ -160,9 +160,9 @@ bool elem_in_padding_area(const Coord<int>& kernel_position,
     return false;
 }
 
-Coord<int> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
-                                     const Strides& kernel_strides,
-                                     const Shape& pads_begin) {
+inline Coord<int> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
+                                            const Strides& kernel_strides,
+                                            const Shape& pads_begin) {
     Coord<int> top_left_corner;
     top_left_corner.reserve(out_elem_coord.size());
     for (size_t i = 0u; i < out_elem_coord.size(); ++i) {

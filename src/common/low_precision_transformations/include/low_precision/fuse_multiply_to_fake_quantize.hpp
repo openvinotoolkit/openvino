@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,12 @@ namespace low_precision {
  * @brief FuseMultiplyToFakeQuantizeTransformation fuses Multiply operation to FakeQuantize.
  *
  * For more details about the transformation, refer to
- * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FuseMultiplyToFakeQuantizeTransformation) page
+ * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FuseMultiplyToFakeQuantizeTransformation", "0");
     FuseMultiplyToFakeQuantizeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

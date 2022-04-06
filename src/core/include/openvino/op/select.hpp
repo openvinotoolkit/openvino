@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ namespace v1 {
 /// | Type                   | Description                                                                                                                                                             |
 /// | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg1}[i_1,\dots,i_n]\text{ if }\texttt{arg0}[i_1,\dots,i_n] \neq 0\text{, else }\texttt{arg2}[i_1,\dots,i_n]\f$ |
+/// \ingroup ov_ops_cpp_api
 // clang-format on
 class OPENVINO_API Select : public Op {
 public:

@@ -1,14 +1,16 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "paddle_tests")
 
 file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes)
+target_link_libraries(${TARGET_NAME} PRIVATE cnpy frontend_shared_test_classes
+        openvino_paddle_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -55,9 +57,12 @@ else()
 endif()
 
 add_dependencies(${TARGET_NAME} paddle_test_models)
-add_dependencies(${TARGET_NAME} ov_paddle_frontend)
+add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
 if (ENABLE_INTEL_CPU)
-    add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
+
+add_subdirectory(standalone_build)
+add_dependencies(${TARGET_NAME} paddle_fe_standalone_build_test)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ TEST_P(concat_onednn_activation, along_f) {
         input_layout("input1", get_input_layout(p)),
         concatenation("concat",
                       { "input0", "input1" },
-                      concatenation::concatenation_axis::along_f,
+                      1,
                       data_types::f16,
                       "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
@@ -125,7 +125,7 @@ TEST_P(concat_onednn_eltwise, along_f) {
         data("scale_data", get_mem(data_layout, 1.0f / tensor{ 1, 1, 4, 4 }.count())),
         concatenation("concat",
                       { "input0", "input1" },
-                      concatenation::concatenation_axis::along_f,
+                      1,
                       data_types::f16,
                       "",
                       padding{ { 0, 0, 0, 0 }, 0 }),

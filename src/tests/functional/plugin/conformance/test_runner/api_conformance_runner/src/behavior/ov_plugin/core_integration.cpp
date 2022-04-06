@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/core.hpp"
-#include "api_conformance_helpers.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
@@ -16,79 +16,79 @@ namespace {
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCommon, OVClassBasicTestP,
-        ::testing::Values(std::make_pair(getPluginLibNameByDevice(ConformanceTests::targetDevice), ConformanceTests::targetDevice)));
+        ov_plugin, OVClassBasicTestP,
+        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassNetworkTestP, OVClassNetworkTestP,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassNetworkTestP,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generateComplexDeviceName(ConformanceTests::targetDevice)));
+        ov_plugin, OVClassImportExportTestP,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
 // IE Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ov_plugin, OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ov_plugin, OVClassGetMetricTest_SUPPORTED_METRICS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetMetricTest_AVAILABLE_DEVICES,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ov_plugin, OVClassGetMetricTest_FULL_DEVICE_NAME,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_RANGE_FOR_STREAMS,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetMetricTest_RANGE_FOR_STREAMS,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetMetricTest, OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ov_plugin, OVClassGetMetricTest_ThrowUnsupported,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
+        ov_plugin, OVClassGetConfigTest_ThrowUnsupported,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetAvailableDevices, OVClassGetAvailableDevices,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetAvailableDevices,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
 // IE Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassGetConfigTest, OVClassGetConfigTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassGetConfigTest,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassQueryNetworkTest,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
-        ::testing::Values(ConformanceTests::targetDevice));
+        ov_plugin, OVClassLoadNetworkTest,
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 } // namespace
 

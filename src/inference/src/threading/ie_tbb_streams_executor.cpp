@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,9 @@
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <tbb/concurrent_queue.h>
 #    include <tbb/enumerable_thread_specific.h>
+#    ifndef TBB_PREVIEW_GLOBAL_CONTROL
+#        define TBB_PREVIEW_GLOBAL_CONTROL 1
+#    endif
 #    include <tbb/global_control.h>
 #    include <tbb/task_group.h>
 #    include <tbb/task_scheduler_observer.h>

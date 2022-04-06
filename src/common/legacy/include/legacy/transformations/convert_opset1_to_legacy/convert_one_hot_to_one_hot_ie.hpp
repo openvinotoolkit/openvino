@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class ConvertOneHotToOneHotIEMatcher;
 
 class ngraph::pass::ConvertOneHotToOneHotIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertOneHotToOneHotIEMatcher", "0");
     ConvertOneHotToOneHotIEMatcher();
 
     void detect_output_type(const std::shared_ptr<Function> & f);

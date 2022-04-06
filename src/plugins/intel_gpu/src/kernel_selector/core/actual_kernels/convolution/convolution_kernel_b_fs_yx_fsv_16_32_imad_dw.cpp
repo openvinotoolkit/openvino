@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,10 +74,10 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params,
 
     auto conv_params = static_cast<const convolution_params&>(params);
 
-    if (conv_params.inputs[0].GetLayout() != conv_params.output.GetLayout())
+    if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout())
         return false;
 
-    if (conv_params.groups != conv_params.output.Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v)
+    if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v)
         return false;
 
     // For asymmetric data, kernel needs compensation optimization
@@ -91,7 +91,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params,
 }
 
 WeightsLayout ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetPreferredWeightsLayout(const convolution_params& params) const {
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16)
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
         return WeightsLayout::gs_oi_yxs_gsv16_yxsv4;
     else
         return WeightsLayout::gs_oi_yxs_gsv32_yxsv4;
@@ -103,7 +103,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         return all_tune_params[index];
     }
 
-    auto& output = params.output;
+    auto& output = params.outputs[0];
 
     size_t fsv = 32;
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
@@ -214,14 +214,14 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
     size_t slm_preload_tile_y = (tparams.lws1 == 1)
                                 ? params.filterSize.y
                                 : (tparams.lws1 - 1) * params.stride.y + (params.filterSize.y - 1) * params.dilation.y + 1;
-    size_t fsv = params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ? 16 : 32;
+    size_t fsv = params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ? 16 : 32;
     auto total_slm = tparams.preload_input_slm ? slm_preload_tile_x * slm_preload_tile_y * fsv : 0;
     valid_tune_params &= total_slm <= params.engineInfo.maxLocalMemSize;
 
-    valid_tune_params &= tparams.tile_x <= params.output.X().v;
+    valid_tune_params &= tparams.tile_x <= params.outputs[0].X().v;
     // Check that tune params don't use needlesly many work-groups in x/y
-    valid_tune_params &= tparams.lws1 <= Align(params.output.Y().v, 2);
-    valid_tune_params &= tparams.tile_x * tparams.lws0 <= Align(params.output.X().v, 2);
+    valid_tune_params &= tparams.lws1 <= Align(params.outputs[0].Y().v, 2);
+    valid_tune_params &= tparams.tile_x * tparams.lws0 <= Align(params.outputs[0].X().v, 2);
 
     // Filter out combinations that are known to be sub-optimal in order to reduce search space
     valid_tune_params &= tparams.exeMode == DEFAULT;
@@ -234,7 +234,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::DispatchData
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params& params, int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.output;
+    auto& out = params.outputs[0];
 
     auto tune_params = GetAutoTuneParams(params, autoTuneIndex);
 
@@ -267,11 +267,11 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetKernelsPriority(
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convolution_params& params) const {
-    const auto inputLimitX = (params.output.X().v - 1) * params.stride.x
+    const auto inputLimitX = (params.outputs[0].X().v - 1) * params.stride.x
         + (params.filterSize.x - 1) * params.dilation.x + 1;
-    const auto inputLimitY = (params.output.Y().v - 1) * params.stride.y
+    const auto inputLimitY = (params.outputs[0].Y().v - 1) * params.stride.y
         + (params.filterSize.y - 1) * params.dilation.y + 1;
-    const auto inputLimitZ = (params.output.Z().v - 1) * params.stride.z
+    const auto inputLimitZ = (params.outputs[0].Z().v - 1) * params.stride.z
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool has_pad = true;
@@ -286,11 +286,11 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convoluti
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convolution_params& params) const {
-    const auto inputLimitX = (params.output.X().v - 1) * params.stride.x
+    const auto inputLimitX = (params.outputs[0].X().v - 1) * params.stride.x
         + (params.filterSize.x - 1) * params.dilation.x + 1;
-    const auto inputLimitY = (params.output.Y().v - 1) * params.stride.y
+    const auto inputLimitY = (params.outputs[0].Y().v - 1) * params.stride.y
         + (params.filterSize.y - 1) * params.dilation.y + 1;
-    const auto inputLimitZ = (params.output.Z().v - 1) * params.stride.z
+    const auto inputLimitZ = (params.outputs[0].Z().v - 1) * params.stride.z
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool needs_pad = false;

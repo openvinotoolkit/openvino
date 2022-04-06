@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,8 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    op = NetworkHelper::separateInStandaloneBranch(op);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op), true);
+    op = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
+    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions), true);
     return true;
 }
 

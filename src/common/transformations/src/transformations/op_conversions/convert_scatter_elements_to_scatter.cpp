@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 
 #include <memory>
-#include <vector>
-#include <numeric>
-
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <numeric>
+#include <vector>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
+#include "itt.hpp"
 
 ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);
@@ -30,7 +28,8 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
-        auto axis_const = std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
+        auto axis_const =
+            std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
 
         if (!axis_const) {
             return false;
@@ -43,7 +42,8 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
         const auto updates_pshape = scatter->input(2).get_partial_shape();
 
         // Check that ScatterElementsUpdate and Broadcast inputs has static shapes
-        if (data_pshape.rank().is_dynamic() || indices_pshape.rank().is_dynamic() || updates_pshape.rank().is_dynamic()) {
+        if (data_pshape.rank().is_dynamic() || indices_pshape.rank().is_dynamic() ||
+            updates_pshape.rank().is_dynamic()) {
             return false;
         }
 
@@ -51,45 +51,45 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
         const uint64_t updates_rank = updates_pshape.rank().get_length();
         const uint64_t indices_rank = indices_pshape.rank().get_length();
 
-
         // Check that axis Constant has {} or {1} shape
         if (shape_size(axis_const->get_shape()) > 1) {
             return false;
         }
 
-        const size_t axis =  ngraph::normalize_axes(scatter->get_friendly_name(),
-                                                  axis_const->cast_vector<int64_t>(),
-                                                  data_pshape.rank())[0];
+        const size_t axis = ngraph::normalize_axes(scatter->get_friendly_name(),
+                                                   axis_const->cast_vector<int64_t>(),
+                                                   data_pshape.rank())[0];
 
         struct Range {
             uint64_t l, r;
-            Range(const uint64_t & l, const uint64_t & r) : l(l), r(r) {
-                if (l > r) throw ngraph_error("Range values are inconsistent");
+            Range(const uint64_t& l, const uint64_t& r) : l(l), r(r) {
+                if (l > r)
+                    throw ngraph_error("Range values are inconsistent");
             }
 
             uint64_t size() const {
                 return r - l;
             }
 
-            bool operator!= (const Range & rhs) const {
+            bool operator!=(const Range& rhs) const {
                 return (r - l != rhs.r - rhs.l);
             }
 
-            static
-            bool is_valid(const int64_t & l, const int64_t & r) {
+            static bool is_valid(const int64_t& l, const int64_t& r) {
                 return (l >= 0 && l <= r);
             }
 
-            static
-            bool is_empty(const uint64_t & l, const uint64_t & r) {
+            static bool is_empty(const uint64_t& l, const uint64_t& r) {
                 return l == r;
             }
         };
 
-        auto compare_shapes_ranges = [](const PartialShape & lhsShape, const PartialShape & rhsShape, const Range & lhsRange, const Range & rhsRange) -> bool {
+        auto compare_shapes_ranges = [](const PartialShape& lhsShape,
+                                        const PartialShape& rhsShape,
+                                        const Range& lhsRange,
+                                        const Range& rhsRange) -> bool {
             // Check that ranges are equal and suits to Shapes sizes
-            if (lhsRange != rhsRange ||
-                lhsRange.r > static_cast<uint64_t>(lhsShape.rank().get_length()) ||
+            if (lhsRange != rhsRange || lhsRange.r > static_cast<uint64_t>(lhsShape.rank().get_length()) ||
                 rhsRange.r > static_cast<uint64_t>(rhsShape.rank().get_length())) {
                 return false;
             }
@@ -105,7 +105,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             return true;
         };
 
-        auto product = [](const Shape & shape, const Range & range) -> uint64_t {
+        auto product = [](const Shape& shape, const Range& range) -> uint64_t {
             uint64_t prod(1);
             for (size_t dim = range.l; dim < range.r; ++dim) {
                 prod *= shape[dim];
@@ -122,7 +122,8 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
          *     updates_shape[d_0, d_1, i_0(axis), i_1, ... , i_n, d_axis + 1, ... , d_n]
          *
          * EXAMPLE:
-         *     In this example the input shapes are suits the rules above and ScatterElementsUpdate can be replaced with ScatterUpdate
+         *     In this example the input shapes are suits the rules above and ScatterElementsUpdate can be replaced with
+         * ScatterUpdate
          *
          *     axis = 1               | (axis)
          *                           \/
@@ -172,8 +173,10 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             const auto indices_shape = indices_pshape.get_shape();
             Shape indices_new_shape(updates_shape.begin() + axis, updates_shape.begin() + updates_last.l);
             if (indices_shape != indices_new_shape) {
-                indices_input = std::make_shared<ngraph::opset3::Reshape>(indices_input,
-                        opset3::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape), false);
+                indices_input = std::make_shared<ngraph::opset3::Reshape>(
+                    indices_input,
+                    opset3::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape),
+                    false);
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
         } else {
@@ -182,7 +185,8 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             // 2. updates_pshape axis interval size = 1
 
             for (size_t dim = 1; dim < indices_rank; ++dim) {
-                if (indices_pshape[dim] != 1) return false;
+                if (indices_pshape[dim] != 1)
+                    return false;
             }
 
             if (Range(axis, updates_last.l).size() != 1) {
@@ -193,8 +197,9 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             if (indices_rank > 1) {
                 std::vector<int64_t> squeeze_axes(indices_rank - 1ul);
                 std::iota(squeeze_axes.begin(), squeeze_axes.end(), 1);
-                indices_input = std::make_shared<ngraph::opset3::Squeeze>(indices_input,
-                        opset3::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
+                indices_input = std::make_shared<ngraph::opset3::Squeeze>(
+                    indices_input,
+                    opset3::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
                 new_ops.push_back(indices_input.get_node_shared_ptr());
             }
         }
@@ -213,4 +218,3 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
     auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, matcher_name);
     register_matcher(m, callback);
 }
-

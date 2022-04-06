@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -49,7 +49,7 @@ class StatisticGraphBuilder:
                     add_output_node, op_name = getattr(self, f'insert_{type_stat}')(model_graph,
                                                                                     node,
                                                                                     type_stat,
-                                                                                    node.name,
+                                                                                    node_name,
                                                                                     **stat.kwargs)
                     if add_output_node:
                         if node_name not in nodes_names_map[model_graph.name]:
@@ -99,13 +99,18 @@ class StatisticGraphBuilder:
         axis_const = self.find_axis(node, granularity, axis)
         if isinstance(axis_const, str):
             return (True, node.name)
+
+        out_port = self.get_out_port(node_name)
+        if out_port is not None:
+            node_name = f'{node_name[0]}.{out_port}'
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
                                                      dict(name=f'{type_stat}_{node_name}'))
         reduce_op['fullname'] = reset_node_fullname(node.fullname, reduce_op.name)
         if node.graph != model_graph:
             Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
-        node.out_port(0).connect(reduce_op.in_port(0))
-        return self.insert_result(model_graph, node, reduce_op, type_stat)
+
+        node.out_port(out_port if out_port else 0).connect(reduce_op.in_port(0))
+        return self.insert_result(model_graph, node, reduce_op, type_stat, out_port)
 
     def insert_min(self, model_graph, node, type_stat, node_name, **kwargs):
         return self.insert_reduce(model_graph, ReduceMin, node, kwargs.get('granularity'), type_stat, node_name)
@@ -127,7 +132,12 @@ class StatisticGraphBuilder:
         axis_const = self.find_axis(node, kwargs.get('granularity'))
         if isinstance(axis_const, str):
             return (True, node.name)
-        abs_node = Abs(node.graph, {"name": f'abs_{node_name}'}).create_node_with_data([node.out_node(0)]).in_node(0)
+
+        out_port = self.get_out_port(node_name)
+        if out_port is not None:
+            node_name = f'{node_name[0]}.{out_port}'
+        abs_node = Abs(node.graph, {"name": f'abs_{node_name}'}). \
+                    create_node_with_data([node.out_node(out_port if out_port else 0)]).in_node(0)
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
                                                   dict(name=f'{type_stat}_{node_name}'))
 
@@ -135,16 +145,18 @@ class StatisticGraphBuilder:
             Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
         max_op['fullname'] = reset_node_fullname(node.fullname, max_op.name)
         abs_node.out_port(0).connect(max_op.in_port(0))
-        return self.insert_result(model_graph, node, max_op, type_stat)
+        return self.insert_result(model_graph, node, max_op, type_stat, out_port)
 
     @staticmethod
-    def insert_result(model_graph, node, child_node, name):
+    def insert_result(model_graph, node, child_node, name, port=None):
         if node.graph != model_graph:
             model_graph.graph['additional_outputs'] = child_node.fullname.split('|')
             res_op = AddOutputRecursive().find_and_replace_pattern(model_graph)
             ie_result_name = res_op[0].name
         else:
             ie_result_name = f'{name}_{node.name}'
+            if port is not None:
+                ie_result_name = ie_result_name + f'.{port}'
             res_op = Result(node.graph, {'name': f'Result_{ie_result_name}'}).create_node()
             child_node.out_port(0).connect(res_op.in_port(0))
         return (False, ie_result_name)
@@ -165,3 +177,8 @@ class StatisticGraphBuilder:
         node_name_in_graph = layout_name[0] if isinstance(layout_name, tuple) else layout_name
         node_name_in_graph = node_name_in_graph.replace('/pre_fq_input', '')
         return node_name_in_graph
+
+    @staticmethod
+    def get_out_port(node_name):
+        out_port = node_name[1] if isinstance(node_name, tuple) else None
+        return out_port

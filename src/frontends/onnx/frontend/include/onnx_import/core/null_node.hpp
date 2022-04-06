@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ namespace onnx_import {
 /// https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
 class ONNX_IMPORTER_API NullNode : public ngraph::Node {
 public:
-    static constexpr NodeTypeInfo type_info{"NullNode", 0};
+    static constexpr NodeTypeInfo type_info{"NullNode", static_cast<uint64_t>(0)};
     const NodeTypeInfo& get_type_info() const override {
         return type_info;
     }

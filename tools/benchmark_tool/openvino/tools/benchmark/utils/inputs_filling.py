@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,6 +9,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from openvino.runtime import Tensor, PartialShape
+from openvino.runtime.utils.types import get_dtype
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
@@ -98,7 +99,8 @@ def get_input_data(paths_to_input, app_input_info):
                     logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
                                    f"but only {images_to_be_used_map[info.name]} were provided.")
             else:
-                logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
+                if not (info.is_image_info and len(image_sizes) == 1):
+                    logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
         else:
             if info.name in image_mapping:
                 logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
@@ -117,7 +119,6 @@ def get_input_data(paths_to_input, app_input_info):
             image_size = image_sizes[0]
             logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
             data[port] = get_image_info_tensors(image_size, info)
-
         else:
             logger.info(f"Fill input '{info.name}' with random values ")
             data[port] = fill_tensors_with_random(info)
@@ -138,7 +139,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
     niter = max(num_shapes, num_images)
     for i in range(niter):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
-        dtype = get_dtype(info.element_type.get_type_name())[0]
+        dtype = get_dtype(info.element_type)
         images = np.ndarray(shape=shape, dtype=dtype)
         image_index = processed_frames
         current_batch_size = 1 if process_with_original_shapes else batch_sizes[i % num_shapes]
@@ -155,13 +156,13 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if info.scale or info.mean:
+            if info.scale.size or info.mean.size:
                 blue, green, red = cv2.split(image)
-                if info.mean:
+                if info.mean.size:
                     blue = np.subtract(blue, info.mean[0])
                     green = np.subtract(green, info.mean[1])
                     red = np.subtract(red, info.mean[2])
-                if info.scale:
+                if info.scale.size:
                     blue = np.divide(blue, info.scale[0])
                     green = np.divide(green, info.scale[1])
                     red = np.divide(red, info.scale[2])
@@ -184,36 +185,13 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 try:
                     images[b] = image
                 except ValueError:
-                    #raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}. "
-                                    #f"Try to provide layout for input '{info.name}'.")
-                    # backward compatibility
-                    # will be removed
-                    logger.warning(f"Image shape {image.shape} is not compatible with input shape {shape}. "
-                                   f"Input '{info.name}' will be filled with random values!")
-                    return fill_tensors_with_random(info)
-
+                    raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}! "
+                                    f"Make sure -i parameter is valid.")
             image_index += 1
         processed_frames += current_batch_size
         if not process_with_original_shapes:
             tensors.append(Tensor(images))
     return tensors
-
-
-def get_dtype(precision):
-    format_map = {
-      'f32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
-      'i32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
-      'i64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      'f16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
-      'i16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
-      'u16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
-      'i8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
-      'u8'   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
-      'boolean' : (np.uint8, 0, 1),
-    }
-    if precision in format_map.keys():
-        return format_map[precision]
-    raise Exception("Can't find data type for precision: " + precision)
 
 
 def get_binary_tensors(binary_paths, info, batch_sizes):
@@ -224,7 +202,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
     tensors = []
     for i in range(niter):
         shape_id = i % num_shapes
-        dtype = get_dtype(info.element_type.get_type_name())[0]
+        dtype = get_dtype(info.element_type)
         shape = list(info.shapes[shape_id])
         binaries = np.ndarray(shape=shape, dtype=dtype)
         if info.layout.has_name('N'):
@@ -237,7 +215,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             logger.info("Prepare binary file " + binary_filename)
 
             binary_file_size = os.path.getsize(binary_filename)
-            blob_size = dtype().nbytes * int(np.prod(shape))
+            blob_size = dtype.itemsize * int(np.prod(shape))
             if blob_size != binary_file_size:
                 raise Exception(
                     f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
@@ -266,7 +244,7 @@ def get_image_sizes(app_input_info):
 def get_image_info_tensors(image_sizes, layer):
     im_infos = []
     for shape, image_size in zip(layer.shapes, image_sizes):
-        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type.get_type_name())[0])
+        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type))
         for b in range(shape[0]):
             for i in range(shape[1]):
                 im_info[b][i] = image_size if i in [0, 1] else 1
@@ -275,7 +253,8 @@ def get_image_info_tensors(image_sizes, layer):
 
 
 def fill_tensors_with_random(layer):
-    dtype, rand_min, rand_max = get_dtype(layer.element_type.get_type_name())
+    dtype = get_dtype(layer.element_type)
+    rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
@@ -314,20 +293,22 @@ def parse_path(path, app_input_info):
     """
     Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
     """
-    input_names = sorted(list(info.name for info in app_input_info))
+    input_names = list(info.name for info in app_input_info)
+    input_node_names = list(info.node_name for info in app_input_info)
     parsed_names = re.findall(r"([^,]\w+):", path)
-    wrong_names = list(name for name in parsed_names if name not in input_names)
+    wrong_names = list(name for name in parsed_names if name not in input_names + input_node_names)
     if wrong_names:
         raise Exception(
             f"Wrong input mapping! Cannot find inputs: {wrong_names}. "
             f"Available inputs: {input_names}. "
             "Please check `-i` input data"
         )
+    tensor_names = [parsed_name if parsed_name in input_names else input_names[input_node_names.index(parsed_name)] for parsed_name in parsed_names]
     input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
     input_path_mapping = defaultdict(list)
     # input mapping is used
-    if parsed_names:
-        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(parsed_names, input_pathes)}
+    if tensor_names:
+        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(tensor_names, input_pathes)}
     else:
         input_files = list()
         _input_pathes = input_pathes[0].strip(",").split(",")
@@ -336,7 +317,7 @@ def parse_path(path, app_input_info):
             if input_path.exists():
                 if input_path.is_dir():
                     input_files += list(str(file_path) for file_path in input_path.iterdir())
-                elif input_path.is_file:
+                elif input_path.is_file():
                     input_files.append(str(input_path))
             else:
                 raise Exception(f"Path '{str(input_path)}' doesn't exist \n {str(input_path)}")
@@ -348,8 +329,9 @@ def parse_path(path, app_input_info):
             logger.warning(f"Number of provided input files '{num_files}' is not a multiple of the number of "
                                    f"model inputs. Only {len(input_files)} files fill be used.")
         num_files = len(input_files)
+        inputs_to_fill = list(info.name for info in app_input_info if not info.is_image_info)
         for i in range(num_files):
-            input_path_mapping[input_names[i % num_inputs]].append(input_files[i])
+            input_path_mapping[inputs_to_fill[i % len(inputs_to_fill)]].append(input_files[i])
 
     images_mapping = defaultdict(list)
     binary_mapping = defaultdict(list)

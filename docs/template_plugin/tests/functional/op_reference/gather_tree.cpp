@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,11 @@ using namespace ov;
 
 namespace {
 struct GatherTreeParams {
-    Tensor stepIds;
-    Tensor parentIdx;
-    Tensor maxSeqLen;
-    Tensor endToken;
-    Tensor finalIdx;
+    reference_tests::Tensor stepIds;
+    reference_tests::Tensor parentIdx;
+    reference_tests::Tensor maxSeqLen;
+    reference_tests::Tensor endToken;
+    reference_tests::Tensor finalIdx;
     std::string testcaseName;
 };
 
@@ -78,32 +78,32 @@ std::vector<GatherTreeParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
     std::vector<GatherTreeParams> params {
         Builder {}
-        .stepIds(Tensor(ET, {1, 1, 10}, std::vector<T>{
+        .stepIds(reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 9}))
-        .parentIdx(Tensor(ET, {1, 1, 10}, std::vector<T>{
+        .parentIdx(reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 9}))
-        .maxSeqLen(Tensor(ET, {1}, std::vector<T>{9}))
-        .endToken(Tensor(ET, {}, std::vector<T>{9}))
-        .finalIdx(Tensor(ET, {1, 1, 10}, std::vector<T>{
+        .maxSeqLen(reference_tests::Tensor(ET, {1}, std::vector<T>{9}))
+        .endToken(reference_tests::Tensor(ET, {}, std::vector<T>{9}))
+        .finalIdx(reference_tests::Tensor(ET, {1, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 9}))
         .testcaseName("gather_tree_1"),
 
         Builder {}
-        .stepIds(Tensor(ET, {5, 1, 10}, std::vector<T>{
+        .stepIds(reference_tests::Tensor(ET, {5, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
             3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
             8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
             5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
             8, 8, 7, 9, 8, 3, 1, 7, 5, 9}))
-        .parentIdx(Tensor(ET, {5, 1, 10}, std::vector<T>{
+        .parentIdx(reference_tests::Tensor(ET, {5, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
             3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
             8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
             5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
             8, 8, 7, 9, 8, 3, 1, 7, 5, 9}))
-        .maxSeqLen(Tensor(ET, {1}, std::vector<T>{9}))
-        .endToken(Tensor(ET, {}, std::vector<T>{9}))
-        .finalIdx(Tensor(ET, {5, 1, 10}, std::vector<T>{
+        .maxSeqLen(reference_tests::Tensor(ET, {1}, std::vector<T>{9}))
+        .endToken(reference_tests::Tensor(ET, {}, std::vector<T>{9}))
+        .finalIdx(reference_tests::Tensor(ET, {5, 1, 10}, std::vector<T>{
             4, 4, 9, 9, 4, 9, 2, 9, 9, 9,
             1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
             1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
@@ -112,7 +112,7 @@ std::vector<GatherTreeParams> generateParams() {
         .testcaseName("gather_tree_5"),
 
         Builder {}
-        .stepIds(Tensor(ET, {20, 1, 10}, std::vector<T>{
+        .stepIds(reference_tests::Tensor(ET, {20, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
             8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
             8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
@@ -123,7 +123,7 @@ std::vector<GatherTreeParams> generateParams() {
             8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
             2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
             1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9}))
-        .parentIdx(Tensor(ET, {20, 1, 10}, std::vector<T>{
+        .parentIdx(reference_tests::Tensor(ET, {20, 1, 10}, std::vector<T>{
             1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
             8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
             8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
@@ -134,9 +134,9 @@ std::vector<GatherTreeParams> generateParams() {
             8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
             2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
             1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9}))
-        .maxSeqLen(Tensor(ET, {1}, std::vector<T>{9}))
-        .endToken(Tensor(ET, {}, std::vector<T>{9}))
-        .finalIdx(Tensor(ET, {20, 1, 10}, std::vector<T>{
+        .maxSeqLen(reference_tests::Tensor(ET, {1}, std::vector<T>{9}))
+        .endToken(reference_tests::Tensor(ET, {}, std::vector<T>{9}))
+        .finalIdx(reference_tests::Tensor(ET, {20, 1, 10}, std::vector<T>{
             9, 4, 9, 4, 4, 4, 9, 4, 9, 9, 9, 1, 9, 1, 1, 1, 9, 1, 9, 9,
             9, 1, 9, 1, 1, 1, 9, 1, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
             9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,

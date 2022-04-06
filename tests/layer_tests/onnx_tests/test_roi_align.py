@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -68,8 +68,10 @@ class TestROIAlign(OnnxRuntimeLayerTest):
                 '3_indices': {'kind': 'op', 'type': 'Parameter'},
                 'indices_data': {'shape': indices_shape, 'kind': 'data'},
 
-                'node': {'kind': 'op', 'type': 'ROIAlign', 'pooled_h': pooled_h, 'pooled_w': pooled_w,
-                         'mode': mode, 'sampling_ratio': sampling_ratio, 'spatial_scale': spatial_scale},
+                'node': {'kind': 'op', 'type': 'ROIAlign', 'pooled_h': pooled_h,
+                         'pooled_w': pooled_w,
+                         'mode': mode, 'sampling_ratio': sampling_ratio,
+                         'spatial_scale': spatial_scale},
                 'node_data': {'shape': output_shape, 'kind': 'data'},
 
                 'result': {'kind': 'op', 'type': 'Result'}
@@ -104,6 +106,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, api_2=api_2)

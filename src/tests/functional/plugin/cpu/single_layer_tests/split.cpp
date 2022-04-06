@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,10 +80,10 @@ protected:
         for (int i = 0; i < outIndices.size(); i++) {
             // This WA is necessary because result nodes connected to the same output of the split node (or any node) are deduplicated
             // on the CNNNetwork level. It might not be needed when the CPU plugin moves completely to nGraph.
-            // This is still a single layer test since the Ceiling nodes are added only as a WA.
+            // This is still a single layer test since the Relu nodes are added only as a WA.
 
-            auto fakeMultiplication = std::make_shared<ngraph::opset5::Ceiling>(split->output(outIndices[i]));
-            results.push_back(std::make_shared<ngraph::opset5::Result>(fakeMultiplication));
+            auto fakeEltwise = std::make_shared<ngraph::opset5::Relu>(split->output(outIndices[i]));
+            results.push_back(std::make_shared<ngraph::opset5::Result>(fakeEltwise));
         }
         split->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(results, params, "split");
@@ -122,7 +122,7 @@ const auto blocked16_5D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "unknown
 const auto blocked16_4D_ref = CPUSpecificParams{{nChw16c}, {nChw16c}, {}, "ref"};
 const auto blocked16_5D_ref = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "ref"};
 
-// List of precisions natively supported by mkldnn.
+// List of precisions natively supported by onednn.
 const std::vector<ElementType> netPrecisions = {
         ElementType::i8,
         ElementType::i32,
@@ -153,6 +153,16 @@ const std::vector<InputShape> inputShapes4D_Nspc2NcspSpecial = {
                 {2, 8, 5, 7},
                 {1, 4, 10, 2},
                 {3, 16, 5, 9}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 8, 5, 7},
+            // target
+            {
+                {2, 8, 5, 7},
+                {1, 8, 5, 7},
+                {2, 8, 5, 7},
             }
         },
 };
@@ -223,6 +233,15 @@ const std::vector<InputShape> inputShapes4D_planar = {
                 {3, 11, 9, 3}
             }
         },
+        {
+            // dynamic
+            {{1, 5}, 5, 6, 9},
+            // target
+            {
+                {2, 5, 6, 9},
+                {1, 5, 6, 9},
+            }
+        },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_planar, SplitLayerCPUTest,
@@ -255,6 +274,15 @@ const std::vector<InputShape> inputShapes4D_block = {
                 {2, 16, 12, 12},
                 {1, 16, 12, 12},
                 {3, 16, 12, 12}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 16, 12, 12},
+            // target
+            {
+                {2, 16, 12, 12},
+                {1, 16, 12, 12}
             }
         },
 };
@@ -458,6 +486,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split1D, SplitLayerCPUTest,
                                 ::testing::Values(std::vector<size_t>({})),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
                             SplitLayerCPUTest::getTestCaseName);
+
+const std::vector<InputShape> inputShapes4D_dynBatch = {
+        {
+            // dynamic
+            {{1, 10}, 6, 6, 9},
+            // target
+            {
+                {6, 6, 6, 9},
+                {9, 6, 6, 9},
+            }
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_by_batch, SplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(3),
+                                ::testing::Values(1),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(inputShapes4D_dynBatch),
+                                ::testing::ValuesIn(outIndices3),
+                                ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D)),
+                        SplitLayerCPUTest::getTestCaseName);
 
 // ============================================== inPlace cases ============================================
 INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,

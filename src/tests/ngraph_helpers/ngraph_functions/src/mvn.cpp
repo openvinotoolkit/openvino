@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
     // Ngraph MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
     ngraph::AxisSet axes;
     const size_t startAxis = acrossChannels ? 1 : 2;
-    const size_t numOfDims = in.get_shape().size();
+    const size_t numOfDims = in.get_partial_shape().size();
     for (size_t i = startAxis; i < numOfDims; i++)
         axes.insert(i);
     mvnNode->set_reduction_axes(axes);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,6 @@ class Model;
 namespace preprocess {
 
 /// \brief Main class for adding pre- and post- processing steps to existing ov::Model
-/// API has Builder-like style to allow chaining calls in client's code, like
-/// \code{.cpp}
-/// auto proc = PrePostProcessor(function).input(<for input1>).input(<input2>);
-/// \endcode
 ///
 /// This is a helper class for writing easy pre- and post- processing operations on ov::Model object assuming that
 /// any preprocess operation takes one input and produces one output.
@@ -26,6 +22,7 @@ namespace preprocess {
 /// For advanced preprocessing scenarios, like combining several functions with multiple inputs/outputs into one,
 /// client's code can use transformation passes over ov::Model
 ///
+/// \ingroup ov_model_cpp_api
 class OPENVINO_API PrePostProcessor final {
     class PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;

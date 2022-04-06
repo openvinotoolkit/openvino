@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include "lstm_inst.h"
 #include "reshape_inst.h"
 #include "resample_inst.h"
-#include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
@@ -122,13 +121,12 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // calculating sizes
     program_node& input = node.input();
     layout input_layout = input.get_output_layout();
-    tensor input_size = input_layout.size;
     tensor recurrent_size = p.get_node(recurrent_id).get_output_layout().size;
 
     // hidden tensor size = [batch, seq, hidden_size, direction]
     // the output of the element wise operation is cropped and used in the next time step
     // sequence_len = 1 and direction = 1. The backward pass is separated from the forward pass
-    auto hidden_size = tensor(input_size.batch[0], 1, recurrent_size.spatial[0], 1);
+    auto hidden_size = tensor(input_layout.batch(), 1, recurrent_size.spatial[0], 1);
 
     size_t directions = recurrent_size.feature[0];
     size_t num_input_dependencies = node.get_dependencies().size();
@@ -139,7 +137,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // input is not divided into sequence elements
     if (sequence_len == 1 && num_input_dependencies == 1) {
         // Get the sequence length from the input to LSTM
-        sequence_len = input_size.feature[0];
+        sequence_len = input_layout.feature();
 
         // If the input's feature/sequence length field is > 1, i.e. If
         // the sequence elements are concatenated into one single input
@@ -147,7 +145,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
         if (sequence_len > 1) {
             for (size_t sequence_element = 0; sequence_element < sequence_len; sequence_element++) {
                 primitive_id crop_id = input.id() + ":crop:" + get_id_string(sequence_element);
-                tensor crop_tensor{input_size.batch[0], 1, input_size.spatial[0], input_size.spatial[1]};
+                tensor crop_tensor{input_layout.batch(), 1, input_layout.spatial(0), input_layout.spatial(1)};
                 tensor offset_tensor{0, static_cast<tensor::value_type>(sequence_element), 0, 0};
                 auto input_crop = std::make_shared<crop>(crop_id, input.id(), crop_tensor, offset_tensor);
                 auto& input_crop_node = p.get_or_create(input_crop);
@@ -190,7 +188,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     std::vector<program_node*> cell_list(directions * sequence_len);
     std::vector<program_node*> hidden_list(directions * sequence_len);
     std::map<size_t, std::pair<primitive_id, program_node*>> output_map;
-    size_t input_directions = input_size.spatial[1];
+    size_t input_directions = input_layout.spatial(1);
 
     // lstm expanding
     for (size_t dir = 0; dir < directions; ++dir) {
@@ -298,8 +296,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             output_ids_offsets.push_back(e.second.first);
         }
         primitive_id concatenation_id = node.id() + ":concat";
-        auto concatenation_primitive =
-            std::make_shared<concatenation>(concatenation_id, output_ids_offsets, concatenation::along_f);
+        auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);
         auto& concatenation_node = p.get_or_create(concatenation_primitive);
         for (auto& e : output_map) {
             p.add_connection(*e.second.second, concatenation_node);
@@ -312,7 +309,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             if (emit_last_cell)
                 concatenate_len++;
 
-            tensor output_size{input_size.batch[0],
+            tensor output_size{input_layout.batch(),
                                static_cast<int32_t>(concatenate_len),
                                hidden_size.spatial[0],
                                (int32_t)directions};

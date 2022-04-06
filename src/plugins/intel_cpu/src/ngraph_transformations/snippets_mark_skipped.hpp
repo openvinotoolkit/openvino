@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+
 /**
  * @interface SnippetsMarkSkipped
  * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise operations
@@ -14,7 +16,7 @@ namespace MKLDNNPlugin {
  */
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SnippetsMarkSkipped", "0");
     SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };
@@ -36,4 +38,6 @@ enum class NodeFusingType : int64_t {
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
     FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
-}  // namespace MKLDNNPlugin
+
+}   // namespace intel_cpu
+}   // namespace ov

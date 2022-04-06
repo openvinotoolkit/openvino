@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,8 +13,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
@@ -27,11 +27,12 @@ endif()
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
 #               [SKIP_INSTALL]
+#               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION)
+    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -101,32 +102,33 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc)
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
+        if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
-                add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
             else()
-                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_preproc)
+                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino_gapi_preproc)
             endif()
         endif()
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET ov_ir_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_ir_frontend)
+            if(TARGET openvino_ir_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_ir_frontend)
             endif()
+            if(TARGET openvino_onnx_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_onnx_frontend)
+            endif()
+            if(TARGET openvino_paddle_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_paddle_frontend)
+            endif()
+            if(TARGET openvino_tensorflow_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} openvino_tensorflow_frontend)
+            endif()
+            # TODO: remove with legacy CNNNLayer API / IR v7
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
-            endif()
-            if(TARGET ov_onnx_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_onnx_frontend)
-            endif()
-            if(TARGET ov_paddle_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_paddle_frontend)
-            endif()
-            if(TARGET ov_tensorflow_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_tensorflow_frontend)
             endif()
         endif()
 
@@ -145,25 +147,27 @@ function(ie_add_plugin)
         endif()
     endif()
 
-    # check that plugin with such name is not registered
+    # Enable for static build to generate correct plugins.hpp
+    if(NOT IE_PLUGIN_SKIP_REGISTRATION OR NOT BUILD_SHARED_LIBS)
+        # check that plugin with such name is not registered
+        foreach(plugin_entry IN LISTS PLUGIN_FILES)
+            string(REPLACE ":" ";" plugin_entry "${plugin_entry}")
+            list(GET plugin_entry -1 library_name)
+            list(GET plugin_entry 0 plugin_name)
+            if(plugin_name STREQUAL "${IE_PLUGIN_DEVICE_NAME}" AND
+                    NOT library_name STREQUAL ${IE_PLUGIN_NAME})
+                message(FATAL_ERROR "${IE_PLUGIN_NAME} and ${library_name} are both registered as ${plugin_name}")
+            endif()
+        endforeach()
 
-    foreach(plugin_entry IN LISTS PLUGIN_FILES)
-        string(REPLACE ":" ";" plugin_entry "${plugin_entry}")
-        list(GET plugin_entry -1 library_name)
-        list(GET plugin_entry 0 plugin_name)
-        if(plugin_name STREQUAL "${IE_PLUGIN_DEVICE_NAME}" AND
-           NOT library_name STREQUAL ${IE_PLUGIN_NAME})
-            message(FATAL_ERROR "${IE_PLUGIN_NAME} and ${library_name} are both registered as ${plugin_name}")
-        endif()
-    endforeach()
+        # append plugin to the list to register
 
-    # append plugin to the list to register
-
-    list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
-    set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
+        list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
+        set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
+    endif()
 endfunction()
 
 function(ov_add_plugin)
@@ -171,13 +175,12 @@ function(ov_add_plugin)
 endfunction()
 
 #
-# ie_register_plugins_dynamic(MAIN_TARGET <main target name>
-#                             POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+# ie_register_plugins_dynamic(MAIN_TARGET <main target name>)
 #
 macro(ie_register_plugins_dynamic)
     set(options)
     set(oneValueArgs MAIN_TARGET)
-    set(multiValueArgs POSSIBLE_PLUGINS)
+    set(multiValueArgs)
     cmake_parse_arguments(IE_REGISTER "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT IE_REGISTER_MAIN_TARGET)
@@ -186,19 +189,24 @@ macro(ie_register_plugins_dynamic)
 
     # Unregister <device_name>.xml files for plugins from current build tree
 
-    set(plugins_to_remove ${IE_REGISTER_POSSIBLE_PLUGINS})
     set(config_output_file "$<TARGET_FILE_DIR:${IE_REGISTER_MAIN_TARGET}>/plugins.xml")
 
-    foreach(plugin IN LISTS plugins_to_remove)
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+        list(GET name 0 device_name)
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                   COMMAND
                     "${CMAKE_COMMAND}"
                     -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
-                    -D "IE_PLUGIN_NAME=${plugin}"
+                    -D "IE_PLUGIN_NAME=${device_name}"
                     -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                     -P "${IEDevScripts_DIR}/plugins/unregister_plugin_cmake.cmake"
                   COMMENT
-                    "Remove ${plugin} from the plugins.xml file"
+                    "Remove ${device_name} from the plugins.xml file"
                   VERBATIM)
     endforeach()
 
@@ -250,6 +258,15 @@ endmacro()
 # ie_register_plugins()
 #
 macro(ie_register_plugins)
+    if(BUILD_SHARED_LIBS)
+        ie_register_plugins_dynamic(${ARGN})
+    endif()
+endmacro()
+
+#
+# ov_register_plugins()
+#
+macro(ov_register_plugins)
     if(BUILD_SHARED_LIBS)
         ie_register_plugins_dynamic(${ARGN})
     endif()
@@ -314,7 +331,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(ov_runtime)
+    ie_target_link_plugins(openvino)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
@@ -341,7 +358,7 @@ function(ie_generate_plugins_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(_ie_plugins_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine _ie_plugins_hpp)
+    add_dependencies(inference_engine_obj _ie_plugins_hpp)
 
     # add dependency for object files
     get_target_property(sources inference_engine_obj SOURCES)

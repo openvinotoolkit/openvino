@@ -29,6 +29,9 @@ body {
 .dark {
     background: #8b000040;
 }
+.grey-red {
+  background: #5e121275;
+}
 .filters {
     background: #FFF;
     padding: 5px 10px;

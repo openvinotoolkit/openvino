@@ -69,14 +69,10 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# If doesn't have evaluate method and we cannot infer it
+# ONNX evaluate method not implemented for If operator
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
 
-# Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
-# Peepholes input unsupported
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid unsupported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
@@ -140,3 +136,11 @@ INTERPRETER.onnx_dyn_shapes_flatten_neg_axis
 INTERPRETER.onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
 INTERPRETER.onnx_model_instance_normalization_dyn_shape
 INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
+
+# new failures after fixing the TestCase class - 77385
+quant_dequant_pattern_axis
+onnx_clip_no_min_no_max_int64
+
+# z node not found in graph cache - ticket: 81976
+INTERPRETER.onnx_expand_context_dependent_function
+INTERPRETER.onnx_softmax_crossentropy_loss_mean

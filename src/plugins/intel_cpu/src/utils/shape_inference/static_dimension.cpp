@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "static_dimension.hpp"
 
-using namespace ov;
+namespace ov {
+namespace intel_cpu {
 
-std::ostream& ov::operator<<(std::ostream& str, const StaticDimension& dimension) {
+std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
     return str << dimension.get_length();
 }
 
@@ -42,7 +43,7 @@ StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
 }
 
 StaticDimension StaticDimension::operator/(const value_type divisor) const {
-    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+    OPENVINO_ASSERT(divisor > 0, "divisor must be greater than 0");
 
     if (m_dimension % divisor) {
         return StaticDimension{};
@@ -102,3 +103,6 @@ StaticDimension::value_type StaticDimension::get_max_length() const {
 StaticDimension::value_type StaticDimension::get_min_length() const {
     return m_dimension;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

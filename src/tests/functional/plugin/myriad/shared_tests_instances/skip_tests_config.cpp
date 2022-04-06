@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferDynamicNetworkWithSetTensor2times.*",
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
-        // TODO: Issue: 67972
-        R"(.*Hetero.*InferRequestDynamicTests.*)",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -60,7 +58,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 73501
         R"(.*_Hetero_Behavior.*OVExecGraphImportExportTest.*)",
         // TODO: Issue 65013
-        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*importExportedFunctionConstantResultOnly.*elementType=(f32|f16).*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
@@ -71,5 +69,26 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
         R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
         R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
+
+        // Tests with unsupported precision
+        ".*InferRequestCheckTensorPrecision.*type=boolean.*",
+        ".*InferRequestCheckTensorPrecision.*type=bf16.*",
+        ".*InferRequestCheckTensorPrecision.*type=f64.*",
+        ".*InferRequestCheckTensorPrecision.*type=i4.*",
+        ".*InferRequestCheckTensorPrecision.*type=i16.*",
+        ".*InferRequestCheckTensorPrecision.*type=i64.*",
+        ".*InferRequestCheckTensorPrecision.*type=u1.*",
+        ".*InferRequestCheckTensorPrecision.*type=u4.*",
+        ".*InferRequestCheckTensorPrecision.*type=u8.*",
+        ".*InferRequestCheckTensorPrecision.*type=u16.*",
+        ".*InferRequestCheckTensorPrecision.*type=u64.*",
+
+        // TODO: Issue 76209
+        R"(.*MultithreadingTests.*canRun.*RequestsConsistentlyFromThreads.*MYRIAD.*)",
+        // TODO: CVS-82012
+        R"(.*StridedSliceLayerTest\.CompareWithRefs/inShape=\(1\.12\.100\).*)",
+
+        // Issue: 81016
+        R"(.*ParameterResultSubgraphTest\.CompareWithRefs.*)",
     };
 }

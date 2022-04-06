@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ngraph/op/variadic_split.hpp"
@@ -9,6 +9,7 @@
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"

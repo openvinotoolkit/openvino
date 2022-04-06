@@ -1,24 +1,25 @@
 # Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
 
-This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API, [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
+This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
+Models with only one input and output are supported.
 
-Hello Reshape SSD C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
+The following C++ API is used in the application:
 
-| Feature    | API  | Description |
-|:---     |:--- |:---
-| Model Operations | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of model
-| Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
-| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| Node operations | `ov::Node::get_type_info`, `ngraph::op::DetectionOutput::get_type_info_static`, `ov::Output::get_any_name`, `ov::Output::get_shape` | Get a node info |
+| Model Operations | `ov::Model::get_ops`, `ov::Model::reshape` | Get model nodes, reshape input |
+| Tensor Operations | `ov::Tensor::data` | Get a tensor data |
+| Preprocessing | `ov::preprocess::PreProcessSteps::convert_element_type`, `ov::preprocess::PreProcessSteps::convert_layout` | Model input preprocessing |
 
-Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
-| Options  | Values |
-|:---                              |:---
-| Validated Models                 | [person-detection-retail-0013](@ref omz_models_model_person_detection_retail_0013)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
-| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [Python](../../../samples/python/hello_reshape_ssd/README.md) |
+| Options | Values |
+| :--- | :--- |
+| Validated Models | [person-detection-retail-0013](@ref omz_models_model_person_detection_retail_0013) |
+| Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
+| Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [Python](../../../samples/python/hello_reshape_ssd/README.md) |
 
 ## How It Works
 
@@ -26,13 +27,17 @@ Upon the start-up the sample application reads command line parameters, loads sp
 Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image and output data to the standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
+
+```
+hello_reshape_ssd <path_to_model> <path_to_image> <device>
+```
 
 To run the sample, you need specify a model and image:
 
@@ -41,34 +46,36 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
-You can use the following command to do inference on CPU of an image using a trained SSD network:
-
-```
-<path_to_sample>/hello_reshape_ssd <path_to_model> <path_to_image> <device> <batch>
-```
-
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
-```
 
-2. `person-detection-retail-0013` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
 
 ```
-python <path_to_omz_tools>/converter.py --name <model_name>
+python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-3. Perform inference of `person_detection.png` using `person-detection-retail-0013` model on a `GPU`, for example:
+2. Download a pre-trained model using:
 
 ```
-<path_to_sample>/hello_reshape_ssd <path_to_model>/person-detection-retail-0013.xml <path_to_image>/person_detection.png GPU 1
+omz_downloader --name person-detection-retail-0013
+```
+
+3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it using the model converter script:
+
+```
+omz_converter --name <model_name>
+```
+
+4. Perform inference of `person_detection.bmp` using `person-detection-retail-0013` model on a `GPU`, for example:
+
+```
+hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
 ```
 
 ## Sample Output
@@ -78,33 +85,38 @@ of the detected objects along with the respective confidence values and the coor
 rectangles to the standard output stream.
 
 ```
-[ INFO ] Loading model files: C:\temp\models\public\ssd_mobilenet_v1_fpn_coco\FP16\ssd_mobilenet_v1_fpn_coco.xml
-[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ] OpenVINO Runtime version ......... <version>
+[ INFO ] Build ........... <build>
+[ INFO ]
+[ INFO ] Loading model files: \models\person-detection-retail-0013.xml
+[ INFO ] model name: ResMobNet_v4 (LReLU) with single SSD head
 [ INFO ]     inputs
-[ INFO ]         input name: image_tensor
+[ INFO ]         input name: data
 [ INFO ]         input type: f32
-[ INFO ]         input shape: {1, 3, 640, 640}
+[ INFO ]         input shape: {1, 3, 320, 544}
 [ INFO ]     outputs
-[ INFO ]         output name: DetectionOutput
+[ INFO ]         output name: detection_out
 [ INFO ]         output type: f32
-[ INFO ]         output shape: {1, 1, 100, 7}
-Reshape network to the image size = [512x512] with batch = 1
-[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ]         output shape: {1, 1, 200, 7}
+Reshape network to the image size = [960x1699]
+[ INFO ] model name: ResMobNet_v4 (LReLU) with single SSD head
 [ INFO ]     inputs
-[ INFO ]         input name: image_tensor
+[ INFO ]         input name: data
 [ INFO ]         input type: f32
-[ INFO ]         input shape: {1, 3, 512, 512}
+[ INFO ]         input shape: {1, 3, 960, 1699}
 [ INFO ]     outputs
-[ INFO ]         output name: DetectionOutput
+[ INFO ]         output name: detection_out
 [ INFO ]         output type: f32
-[ INFO ]         output shape: {1, 1, 100, 7}
-[0,18] element, prob = 0.781129    (109,52)-(342,441) batch id = 0
-The resulting image was saved in the file: hello_reshape_ssd_batch_0.bmp
+[ INFO ]         output shape: {1, 1, 200, 7}
+[0,1] element, prob = 0.716309,    (852,187)-(983,520)
+The resulting image was saved in the file: hello_reshape_ssd_output.bmp
+
+This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ typedef std::tuple<
         float,                                  // nms_threshold: specifies NMS threshold
         int64_t,                                // post_nms_count: number of top-n proposals after NMS
         int64_t,                                // pre_nms_count: number of top-n proposals after NMS
-        std::pair<std::string, std::vector<ov::runtime::Tensor>>, // input tensors
+        std::pair<std::string, std::vector<ov::Tensor>>, // input tensors
         ElementType,                            // Network precision
         std::string                             // Device name>;
 > ExperimentalDetectronGenerateProposalsSingleImageTestParams;

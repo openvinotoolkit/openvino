@@ -4,6 +4,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
 jobs:
 - job: Lin
@@ -79,11 +80,12 @@ jobs:
 
   - task: CMake@1
     inputs:
+      # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_FASTER_BUILD=ON
+        -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
@@ -111,11 +113,6 @@ jobs:
   - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
-
-  - publish: $(BUILD_DIR)/openvino.tgz
-    artifact: openvino.tgz
-    continueOnError: true
-    displayName: 'Publish submission'
 
   - script: |
         curl --form token=$(COVERITY_TOKEN) \

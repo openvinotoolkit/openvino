@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset7.hpp>
-
 #include "op_table.hpp"
+#include "openvino/opsets/opset7.hpp"
 
 using namespace std;
 using namespace ov;
@@ -18,15 +17,15 @@ namespace op {
 OutputVector translate_max_pool_op(const NodeContext& node) {
     auto ng_input = node.get_input(0);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
+    auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_ksize = node.get_attribute<std::vector<int64_t>>("ksize");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
     int N = 2;
-    if (node.get_name() == "MaxPool3D") {
+    if (node.get_op_type() == "MaxPool3D") {
         N = 3;
     }
     Strides ng_strides(N);

@@ -1,39 +1,42 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "mkldnn_memory.h"
-#include "mkldnn_primitive.h"
+#include <cpu_memory.h>
+#include <primitive.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlExecutor {
     protected:
         class IntermReorder {
             public:
-                IntermReorder(const mkldnn::memory::desc& descSrc, const mkldnn::memory::desc& descDst, const mkldnn::engine& engine);
-                void exec(mkldnn::memory& memSrc, mkldnn::memory& memDst, mkldnn::stream strm);
-                const mkldnn::memory::desc& getSrcDesc() const { return m_descSrc; }
-                const mkldnn::memory::desc& getDstDesc() const { return m_descDst; }
+                IntermReorder(const dnnl::memory::desc& descSrc, const dnnl::memory::desc& descDst, const dnnl::engine& engine);
+                void exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm);
+                const dnnl::memory::desc& getSrcDesc() const { return m_descSrc; }
+                const dnnl::memory::desc& getDstDesc() const { return m_descDst; }
 
             private:
-                mkldnn::reorder m_reorder;
-                mkldnn::memory::desc m_descSrc;
-                mkldnn::memory::desc m_descDst;
+                dnnl::reorder m_reorder;
+                dnnl::memory::desc m_descSrc;
+                dnnl::memory::desc m_descDst;
         };
 
     public:
-        void exec(std::unordered_map<int, mkldnn::memory> primArgs, mkldnn::stream strm);
+        void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+        bool needReordering() const;
         virtual ~DnnlExecutor() = default;
 
     protected:
         DnnlExecutor() = default;
-        MKLDNNPrimitive execPrim;
+        Primitive execPrim;
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;
         std::unordered_map<int, IntermReorder> outputReorders;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

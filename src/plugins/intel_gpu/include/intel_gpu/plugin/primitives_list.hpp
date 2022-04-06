@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ REGISTER_FACTORY(v0, Sign);
 REGISTER_FACTORY(v0, SquaredDifference);
 REGISTER_FACTORY(v0, SpaceToDepth);
 REGISTER_FACTORY(v0, Squeeze);
+REGISTER_FACTORY(v0, ShapeOf);
 REGISTER_FACTORY(v0, ShuffleChannels);
 REGISTER_FACTORY(v0, Tan);
 REGISTER_FACTORY(v0, Tanh);
@@ -88,7 +89,6 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, BatchNormInference);
 // REGISTER_FACTORY(v0, Range);
 // REGISTER_FACTORY(v0, RNNCell);
-// REGISTER_FACTORY(v0, ShapeOf);
 
 // ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);
@@ -160,6 +160,7 @@ REGISTER_FACTORY(v3, ROIAlign);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
 REGISTER_FACTORY(v3, ScatterNDUpdate);
+REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
@@ -168,7 +169,6 @@ REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
 // REGISTER_FACTORY(v3, ReadValue);
-// REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, TopK);
 
 // ------------------------------ Supported v4 ops ------------------------------ //
@@ -207,9 +207,11 @@ REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
+REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
+REGISTER_FACTORY(v7, Gelu);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);

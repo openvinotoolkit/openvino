@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
     EliminateUnsqueezeGather();
 };
 
@@ -39,6 +39,6 @@ public:
 
 class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };

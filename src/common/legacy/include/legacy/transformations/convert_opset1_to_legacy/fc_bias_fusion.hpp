@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,6 @@ class FullyConnectedBiasFusion;
 
 class ngraph::pass::FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FullyConnectedBiasFusion", "0");
     FullyConnectedBiasFusion();
 };

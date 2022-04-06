@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v8 {
 /// \brief Tensor RandomUniform operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API RandomUniform : public Op {
 public:
     OPENVINO_OP("RandomUniform", "opset8");
@@ -66,6 +67,11 @@ public:
     }
     void set_op_seed(uint64_t seed2) {
         m_op_seed = seed2;
+    }
+
+    /// \return The state value.
+    std::pair<uint64_t, uint64_t> get_state() const {
+        return m_state;
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START

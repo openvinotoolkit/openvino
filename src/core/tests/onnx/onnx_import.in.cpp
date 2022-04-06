@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -93,10 +94,36 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     });
 
     EXPECT_EQ(additions.size(), 2);
-    EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
+    EXPECT_EQ(additions.at(0)->get_friendly_name(), "X");
     EXPECT_EQ(additions.at(0)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"X"});
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_output_name) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/duplicated_output_name.onnx"));
+    EXPECT_EQ(function->get_output_size(), 2);
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_duplicated_more_output_names) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/duplicated_more_output_names.onnx"));
+    EXPECT_EQ(function->get_output_size(), 4);
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_multiple_inputs(Inputs{{1, 2}, {2}, {3}});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{7});
+    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_binary_add_abc) {
@@ -191,7 +218,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
         FAIL() << "Expected ngraph::ngraph_error";
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
-        EXPECT_NE(what.find("nGraph does not support"), std::string::npos);
+        EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
         EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
     } catch (...) {
@@ -377,18 +404,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5});
     test_case.add_expected_output<float>({0, 2, 6, 12, 20, 30});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
-
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
-    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
-    test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
-    test_case.add_expected_output<uint8_t>(Shape{}, {255});
     test_case.run();
 }
 
@@ -804,20 +819,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11) {
     // clang-format off
     test_case.add_expected_output<float>(
         Shape{3, 4, 5},
-        {0.88890495, 0.04825497, 0.27088348, 0.04490523, 0.02037154,
-         0.06955369, 0.31998834, 0.39223197, 0.68041159, 0.05141776,
-         0.02566661, 0.5885689,  0.12453075, 0.06257374, 0.03019055,
-         0.01587475, 0.0431878,  0.21235381, 0.21210944, 0.89802015,
+        {0.80619484, 0.03075256, 0.1161086,  0.027393,   0.01955098,
+         0.07012683, 0.22670066, 0.18689778, 0.4614171,  0.05485764,
+         0.04486171, 0.7228683,  0.10286818, 0.07356264, 0.05583908,
+         0.01280724, 0.02448298, 0.08096659, 0.11509769, 0.76664555,
 
-         0.31752626, 0.19442629, 0.0546935,  0.06279221, 0.36823282,
-         0.10362164, 0.06523066, 0.24006419, 0.03103672, 0.32987983,
-         0.55743381, 0.473766,   0.61451431, 0.09486084, 0.03722801,
-         0.02141829, 0.26657706, 0.090728,   0.81131024, 0.26465935,
+         0.30399805, 0.10764059, 0.03371745, 0.09505949, 0.4595844,
+         0.13369875, 0.04866969, 0.19944906, 0.0633215,  0.554861,
+         0.39101103, 0.19217177, 0.27755913, 0.10521588, 0.03404216,
+         0.01150354, 0.08279411, 0.03137731, 0.6890207,  0.18530433,
 
-         0.08619648, 0.43343993, 0.3877785,  0.04523505, 0.15625437,
-         0.61900597, 0.01653285, 0.06394322, 0.56592636, 0.27376196,
-         0.11201305, 0.31654337, 0.21947994, 0.07893034, 0.05236297,
-         0.18278451, 0.23348385, 0.32879834, 0.30990825, 0.5176207});
+         0.0402528,  0.31156224, 0.23747502, 0.15431291, 0.25639707,
+         0.10627912, 0.00436928, 0.01439711, 0.7097961,  0.16515835,
+         0.06798343, 0.29571748, 0.17468554, 0.34994435, 0.11166911,
+         0.03615172, 0.07108136, 0.08527993, 0.4477579,  0.35972902});
     // clang-format on
 
     test_case.run(6);
@@ -833,20 +848,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset13) {
     // clang-format off
     test_case.add_expected_output<float>(
         Shape{3, 4, 5},
-        {0.88890495, 0.04825497, 0.27088348, 0.04490523, 0.02037154,
-         0.06955369, 0.31998834, 0.39223197, 0.68041159, 0.05141776,
-         0.02566661, 0.5885689,  0.12453075, 0.06257374, 0.03019055,
-         0.01587475, 0.0431878,  0.21235381, 0.21210944, 0.89802015,
+        {0.80619484, 0.03075256, 0.1161086,  0.027393,   0.01955098,
+         0.07012683, 0.22670066, 0.18689778, 0.4614171,  0.05485764,
+         0.04486171, 0.7228683,  0.10286818, 0.07356264, 0.05583908,
+         0.01280724, 0.02448298, 0.08096659, 0.11509769, 0.76664555,
 
-         0.31752626, 0.19442629, 0.0546935,  0.06279221, 0.36823282,
-         0.10362164, 0.06523066, 0.24006419, 0.03103672, 0.32987983,
-         0.55743381, 0.473766,   0.61451431, 0.09486084, 0.03722801,
-         0.02141829, 0.26657706, 0.090728,   0.81131024, 0.26465935,
+         0.30399805, 0.10764059, 0.03371745, 0.09505949, 0.4595844,
+         0.13369875, 0.04866969, 0.19944906, 0.0633215,  0.554861,
+         0.39101103, 0.19217177, 0.27755913, 0.10521588, 0.03404216,
+         0.01150354, 0.08279411, 0.03137731, 0.6890207,  0.18530433,
 
-         0.08619648, 0.43343993, 0.3877785,  0.04523505, 0.15625437,
-         0.61900597, 0.01653285, 0.06394322, 0.56592636, 0.27376196,
-         0.11201305, 0.31654337, 0.21947994, 0.07893034, 0.05236297,
-         0.18278451, 0.23348385, 0.32879834, 0.30990825, 0.5176207});
+         0.0402528,  0.31156224, 0.23747502, 0.15431291, 0.25639707,
+         0.10627912, 0.00436928, 0.01439711, 0.7097961,  0.16515835,
+         0.06798343, 0.29571748, 0.17468554, 0.34994435, 0.11166911,
+         0.03615172, 0.07108136, 0.08527993, 0.4477579,  0.35972902});
     // clang-format on
 
     test_case.run(6);
@@ -4627,4 +4642,98 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
     } catch (...) {
         FAIL() << "Other exception than expected was thrown.";
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_ai_onnx_domain.onnx"));
+
+    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+                     .get_vector();
+
+    auto expected_output =
+        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+            .get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_default_domain) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_default_domain.onnx"));
+
+    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+                     .get_vector();
+
+    auto expected_output =
+        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+            .get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_default_domain_opset13) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_default_domain_opset13.onnx"));
+
+    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+                     .get_vector();
+    auto expected_output =
+        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+            .get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_ai_onnx_domain_opset13) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_ai_onnx_domain_opset13.onnx"));
+
+    auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                          {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+                     .get_vector();
+    auto expected_output =
+        test::NDArray<float, 4>({{{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                  {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
+            .get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/expand_failsafe_node.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    const auto input_data = std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f};
+    test_case.add_input<float>(input_data);
+    // the target shape is an empty constant so the Expand operation should not modify the input shape
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
 }

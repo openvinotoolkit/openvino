@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ namespace op {
 namespace v1 {
 /// \brief Elementwise addition operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
@@ -81,6 +82,7 @@ private:
 namespace v3 {
 /// \brief NonMaxSuppression operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
@@ -163,6 +165,7 @@ protected:
 namespace v4 {
 /// \brief NonMaxSuppression operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
     OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
@@ -214,6 +217,7 @@ public:
 namespace v5 {
 /// \brief NonMaxSuppression operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
     OPENVINO_OP("NonMaxSuppression", "opset5", op::Op, 5);

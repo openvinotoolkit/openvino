@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,20 +12,26 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseConvertTransformation, "FuseConvertTransformation", 0);
-
 FuseConvertTransformation::FuseConvertTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FuseConvertTransformation);
     auto multiply = pattern::wrap_type<opset1::Multiply>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto subtract = pattern::wrap_type<opset1::Subtract>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto add = pattern::wrap_type<opset1::Add>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
+    auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>({
+        pattern::wrap_type<opset1::Convert>({pattern::wrap_type<opset1::Constant>()}),
+        pattern::any_input(),
+        pattern::any_input(),
+        pattern::any_input(),
+        pattern::any_input()});
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(
-        std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract,  add }),
-        "FuseConvertTransformation");
+        std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract, add, fakeQuantize }),
+        matcher_name);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

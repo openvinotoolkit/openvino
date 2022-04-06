@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -401,6 +401,36 @@ inline std::shared_ptr<Model> resize_dynamic() {
     return function;
 }
 
+inline std::shared_ptr<Model> crop_basic() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, 10, 10});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_shape({1, 3, 40, 40});
+    p.input().preprocess().crop({0, 0, 5, 10}, {1, 3, 15, 20});
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<Model> crop_negative() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, -1, -1});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_shape({1, 3, 40, 40});
+    p.input().preprocess().crop({0, 0, 5, 10}, {1, 3, -5, -5});
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<Model> crop_dynamic() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 3, -1, -1});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_shape(PartialShape{1, 3, -1, -1});
+    p.input().preprocess().crop({0, 0, 50, 50}, {1, 3, 60, 150});
+    function = p.build();
+    return function;
+}
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func> {
             preprocess_func(mean_only, "mean_only", 0.01f),
@@ -421,7 +451,10 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
-            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 123, 123} }),
+            preprocess_func(resize_dynamic, "resize_dynamic", 0.01f, { Shape {1, 3, 223, 323} }),
+            preprocess_func(crop_basic, "crop_basic", 0.000001f),
+            preprocess_func(crop_negative, "crop_negative", 0.000001f),
+            preprocess_func(crop_dynamic, "crop_dynamic", 0.000001f, { Shape {1, 3, 123, 123} }),
             preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(convert_layout_hwc_to_nchw, "convert_layout_hwc_to_nchw", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),

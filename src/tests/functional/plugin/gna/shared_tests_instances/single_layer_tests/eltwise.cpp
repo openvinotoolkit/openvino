@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::ADD
 };
 
-std::vector<std::map<std::string, std::string>> additional_config = {
+std::vector<ov::AnyMap> additional_config = {
         {
                 {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
                 {"GNA_SCALE_FACTOR_0", "1638.4"},

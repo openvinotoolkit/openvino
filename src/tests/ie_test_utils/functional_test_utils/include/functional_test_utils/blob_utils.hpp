@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,7 +263,7 @@ compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::v
 }
 
 inline void
-compare_tensor(const ov::runtime::Tensor& res_tensor, const ov::runtime::Tensor& ref_tensor, float max_diff = 0.01,
+compare_tensor(const ov::Tensor& res_tensor, const ov::Tensor& ref_tensor, float max_diff = 0.01,
              const std::string& assertDetails = "", bool printData = false) {
     ASSERT_EQ(res_tensor.get_byte_size(), ref_tensor.get_byte_size()) << "Tensors have different byteSize(): "
                                                           << res_tensor.get_byte_size() << " and " << ref_tensor.get_byte_size();
@@ -535,14 +535,14 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     return blob;
 }
 
-inline ov::runtime::Tensor create_and_fill_tensor(
+inline ov::Tensor create_and_fill_tensor(
         const ov::element::Type element_type,
         const ov::Shape& shape,
         const uint32_t range = 10,
         const int32_t start_from = 0,
         const int32_t resolution = 1,
         const int seed = 1) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+    auto tensor = ov::Tensor{element_type, shape};
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(
         {ov::ie::details::convertPrecision(element_type),
          {shape.begin(), shape.end()},

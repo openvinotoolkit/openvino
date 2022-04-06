@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,10 +45,14 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv16_vload)(
 {
     const uint global_id = get_global_id(0);
     const uint group_id = get_group_id(0);
-    const uint batch_group_id = get_global_id(1); // which part of batches we are computing, for example for batch 64 we compute batches 0..31 for batch_group_id == 0 and batches 32..65 for batch_group_id == 1
+    const uint batch_group_id = get_global_id(1); // which part of batches we are computing,
+                                                  // for example for batch 64 we compute batches 0..31 for batch_group_id == 0
+                                                  // and batches 32..65 for batch_group_id == 1
     const uint id_in_sub_group = get_sub_group_local_id();
 
-    const uint out_id = (id_in_sub_group * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1)) / SUB_GROUP_SIZE + group_id * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1) + (BATCHES_PER_WORK_ITEM * batch_group_id) / SUB_GROUP_SIZE;
+    const uint out_id = (id_in_sub_group * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1)) / SUB_GROUP_SIZE +
+                        group_id * BATCHES_PER_WORK_ITEM * (uint)get_global_size(1) +
+                        (BATCHES_PER_WORK_ITEM * batch_group_id) / SUB_GROUP_SIZE;
 
     uint neuronIdx = id_in_sub_group + group_id * SUB_GROUP_SIZE;
 
@@ -66,7 +70,7 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv16_vload)(
         MULTIPLY_BLOCKS_16x8(blockC00, blockA00, blockB00)
 
         weight_offset += 128;
-        input_idx     += 128; // 128 = 16x8 - because of input format which have blocks of 128 elements
+        input_idx     += 128; // 128 = 16 x 8 - because of input format which have blocks of 128 elements
     }
 
 #if BIAS_TERM
@@ -76,7 +80,6 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv16_vload)(
     blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
     vstore16(blockC00, out_id, output);
-
 }
 
 #undef SUB_GROUP_SIZE

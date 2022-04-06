@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ static const char RUNTIME_PRECISION[] = "runtimePrecision";
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutionNode) : public ngraph::Node {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"ExecutionNode", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"ExecutionNode", static_cast<uint64_t>(0)};
     const ngraph::NodeTypeInfo& get_type_info() const override;
 
     /**

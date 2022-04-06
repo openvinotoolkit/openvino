@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "ConvertSubtractConstant", 0);
 
 // Original (FP16 as example, I8 in constantPrecisions):
 //
@@ -37,6 +36,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "Co
 //          Multiply
 //
 ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions) {
+    MATCHER_SCOPE(ConvertSubtractConstant);
     auto weightsConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
     auto weightsConvertWrapper = ngraph::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
     auto subtractConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
@@ -93,6 +93,6 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multiplyWrapper, "ConvertSubtractConstant");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(multiplyWrapper, matcher_name);
     this->register_matcher(m, callback);
 }

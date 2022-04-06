@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@
 
 struct TestTensor {
     std::shared_ptr<ngraph::runtime::HostTensor> tensor;
-    ov::StaticShape static_shape;
+    ov::intel_cpu::StaticShape static_shape;
 
     template <typename T>
-    TestTensor(std::initializer_list<T> values) : TestTensor(ov::StaticShape({values.size()}), values) {}
+    TestTensor(std::initializer_list<T> values) : TestTensor(ov::intel_cpu::StaticShape({values.size()}), values) {}
 
     template <typename T>
-    TestTensor(T scalar) : TestTensor(ov::StaticShape({}), {scalar}) {}
+    TestTensor(T scalar) : TestTensor(ov::intel_cpu::StaticShape({}), {scalar}) {}
 
-    TestTensor(ov::StaticShape shape) : static_shape(shape) {}
+    TestTensor(ov::intel_cpu::StaticShape shape) : static_shape(shape) {}
 
     template <typename T>
-    TestTensor(ov::StaticShape shape, std::initializer_list<T> values) {
+    TestTensor(ov::intel_cpu::StaticShape shape, std::initializer_list<T> values) {
         static_shape = shape;
 
         ov::Shape s;
@@ -49,9 +49,9 @@ struct TestTensor {
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
 static void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
-                               std::initializer_list<ov::StaticShape> expect_shapes) {
-    std::vector<ov::StaticShape> output_shapes;
-    std::vector<ov::StaticShape> input_shapes;
+                               std::initializer_list<ov::intel_cpu::StaticShape> expect_shapes) {
+    std::vector<ov::intel_cpu::StaticShape> output_shapes;
+    std::vector<ov::intel_cpu::StaticShape> input_shapes;
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constData;
 
     int index = 0;
@@ -62,7 +62,7 @@ static void check_static_shape(ov::Node* op,
         index++;
     });
 
-    output_shapes.resize(expect_shapes.size(), ov::StaticShape{});
+    output_shapes.resize(expect_shapes.size(), ov::intel_cpu::StaticShape{});
 
     shape_inference(op, input_shapes, output_shapes, constData);
 

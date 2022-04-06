@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p, const optional_para
 MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
+    auto items_num = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -70,8 +70,8 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_p
     auto lws = std::max(std::min(items_num, max_lws) / simd, (size_t)1) * simd;
 
     dispatchData.gws[0] = lws;
-    dispatchData.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-    dispatchData.gws[2] = params.output.Batch().v;
+    dispatchData.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+    dispatchData.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.lws[0] = lws;
     dispatchData.lws[1] = 1;
@@ -134,7 +134,7 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     const mvn_params& params) const {
     MultiDispatchData dispatchData;
 
-    auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
+    auto items_num = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -150,8 +150,8 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     size_t stage1_lws = lws;
 
     dispatchData.stage_1.gws[0] = stage1_lws * item_groups;
-    dispatchData.stage_1.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-    dispatchData.stage_1.gws[2] = params.output.Batch().v;
+    dispatchData.stage_1.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+    dispatchData.stage_1.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.stage_1.lws[0] = stage1_lws;
     dispatchData.stage_1.lws[1] = 1;
@@ -162,8 +162,8 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     size_t stage2_lws = std::max(std::min(item_groups, max_lws) / simd, (size_t)1) * simd;
 
     dispatchData.stage_2.gws[0] = stage2_lws;
-    dispatchData.stage_2.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-    dispatchData.stage_2.gws[2] = params.output.Batch().v;
+    dispatchData.stage_2.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+    dispatchData.stage_2.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.stage_2.lws[0] = stage2_lws;
     dispatchData.stage_2.lws[1] = 1;
@@ -172,8 +172,8 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     dispatchData.stage_2.itemsNum = item_groups;
 
     dispatchData.stage_final.gws[0] = std::max(items_num / simd, (size_t)1) * simd;
-    dispatchData.stage_final.gws[1] = CeilDiv(params.output.Feature().v, fsv);
-    dispatchData.stage_final.gws[2] = params.output.Batch().v;
+    dispatchData.stage_final.gws[1] = CeilDiv(params.outputs[0].Feature().v, fsv);
+    dispatchData.stage_final.gws[2] = params.outputs[0].Batch().v;
 
     dispatchData.stage_final.lws[0] = simd;
     dispatchData.stage_final.lws[1] = 1;
@@ -220,7 +220,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
     {
@@ -244,7 +244,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     if (params.mvnNormalizeVariance) {
@@ -291,7 +291,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     {  // Final
@@ -329,7 +329,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto slm_per_sg = fsv * 4;
     auto max_lws = params.engineInfo.maxWorkGroupSize;
-    auto items_num = orgParams.output.X().v * orgParams.output.Y().v * orgParams.output.Z().v;
+    auto items_num = orgParams.outputs[0].X().v * orgParams.outputs[0].Y().v * orgParams.outputs[0].Z().v;
 
     auto enough_slm = max_lws / simd * simd * slm_per_sg <= max_slm;
     auto enough_lws = max_lws / simd >= 1;

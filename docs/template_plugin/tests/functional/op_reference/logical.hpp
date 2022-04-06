@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace LogicalOpsRefTestDefinitions {
 
 struct RefLogicalParams {
     ngraph::helpers::LogicalTypes opType;
-    std::vector<Tensor> inputs;
-    Tensor expected;
+    std::vector<reference_tests::Tensor> inputs;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<RefLogicalParams> {
@@ -48,7 +48,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs) {
+    static std::shared_ptr<ov::Model> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<reference_tests::Tensor>& inputs) {
         ov::ParameterVector params_vec;
         for (auto& input : inputs) {
             params_vec.push_back(std::make_shared<op::v0::Parameter>(input.type, input.shape));

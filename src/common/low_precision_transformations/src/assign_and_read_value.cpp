@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,15 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <openvino/op/util/assign_base.hpp>
 #include "low_precision/fake_quantize.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AssignAndReadValueTransformation, "AssignAndReadValueTransformation", 0);
-
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params) :
     LayerTransformation(params), function(function) {
+    MATCHER_SCOPE(AssignAndReadValueTransformation);
     auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<opset1::Multiply>() });
     auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -44,7 +44,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{ assign3, assign6 }),
-        "AssignAndReadValueTransformation");
+        matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -57,8 +57,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     const auto readValue = oldAssign->get_control_dependencies()[0];
     oldAssign->remove_control_dependency(readValue);
 
-    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign);
-    const auto dequantization = NetworkHelper::getDequantization(assign);
+    const auto assign = NetworkHelper::separateInStandaloneBranch(oldAssign, defaultPrecisions);
+    const auto dequantization = NetworkHelper::getDequantization(assign, defaultPrecisions);
 
     auto oldVar = ov::as_type_ptr<op::ReadValueBase>(readValue)->get_variable();
     auto variableInfo = oldVar->get_info();
@@ -119,7 +119,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const TransformationCont
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op);
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     return dequantization.subtract == nullptr && dequantization.multiply != nullptr;
 }
 

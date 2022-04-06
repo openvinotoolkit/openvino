@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include <functional>
 #include <memory>
-#include <numeric>
-
+#include <ngraph/log.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
-#include <ngraph/log.hpp>
+#include <numeric>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -56,8 +56,7 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
         // op has Nop
 
         // check if the indices is constant
-        auto constant_indices =
-                ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+        auto constant_indices = ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
         if (!constant_indices) {
             return false;
         } else {
@@ -75,8 +74,7 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
 
 static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     // skip if shapes are dynamic
-    if (node->get_input_partial_shape(0).is_dynamic() ||
-        node->get_output_partial_shape(0).is_dynamic()) {
+    if (node->get_input_partial_shape(0).is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
         return false;
     }
 
@@ -99,19 +97,26 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
-    if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
-        ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
+    if (ov::as_type_ptr<opset3::Squeeze>(input_node) || ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
         ov::as_type_ptr<opset3::Reshape>(input_node)) {
+        if (input_node->get_output_target_inputs(0).size() != 1)
+            return false;
+
         auto shape = node->get_output_shape(0);
-        std::vector<int64_t> vi;
-        vi.assign(shape.begin(), shape.end());
-        auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
-        auto new_reshape =
-            make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
-        new_reshape->set_friendly_name(node->get_friendly_name());
-        copy_runtime_info({input_node, node}, new_reshape);
-        replace_node(node, new_reshape);
-        return true;
+
+        // remove interchangeable nodes
+        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == shape) {
+            return replace_output_update_name(node->output(0), input_node->input_value(0));
+        } else {
+            std::vector<int64_t> vi;
+            vi.assign(shape.begin(), shape.end());
+            auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            auto new_reshape = make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
+            new_reshape->set_friendly_name(node->get_friendly_name());
+            copy_runtime_info({input_node, node}, new_reshape);
+            replace_node(node, new_reshape);
+            return true;
+        }
     }
 
     return false;
@@ -167,8 +172,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     }
 }
 
-static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
-                                               const PartialShape& out_shape) {
+static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
     std::vector<int64_t> axes;
     int64_t i = 0;
     for (auto o = 0; o < out_shape.rank().get_length(); o++) {
@@ -183,8 +187,7 @@ static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
     return axes;
 }
 
-static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
-                                             const PartialShape& out_shape) {
+static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape, const PartialShape& out_shape) {
     std::vector<int64_t> axes;
     int64_t out_i = 0;
     for (auto i = 0; i < data_shape.rank().get_length(); i++) {
@@ -214,8 +217,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
         auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
-        if (unsqueeze->get_output_partial_shape(0).same_scheme(
-                new_unsq->get_output_partial_shape(0))) {
+        if (unsqueeze->get_output_partial_shape(0).same_scheme(new_unsq->get_output_partial_shape(0))) {
             return replace_node_update_name(unsqueeze, new_unsq);
         }
         return false;
@@ -241,11 +243,9 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
             if (data_shape.rank().get_length() - static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
-                auto axes_const =
-                    opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+                auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
-                if (unsqueeze->get_output_partial_shape(0).same_scheme(
-                        new_sq->get_output_partial_shape(0))) {
+                if (unsqueeze->get_output_partial_shape(0).same_scheme(new_sq->get_output_partial_shape(0))) {
                     return replace_node_update_name(unsqueeze, new_sq);
                 }
                 return false;
@@ -268,30 +268,26 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
 }
 
 #define ECHO(NAME) #NAME
-#define STR(NAME) ECHO(NAME)
-#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC) \
-class NAME : public ngraph::pass::MatcherPass { \
-public: \
-NGRAPH_RTTI_DECLARATION; \
-NAME() { \
-    MATCHER_SCOPE(NAME); \
-    auto match_node = ngraph::pattern::wrap_type<OP>(); \
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) { \
-        return FUNC(m.get_match_root()); \
-    }; \
-    auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
-    register_matcher(m, callback); \
-}  \
-}; \
-NGRAPH_RTTI_DEFINITION(NAME, STR(NAME), 0);
+#define STR(NAME)  ECHO(NAME)
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC)                                     \
+    class NAME : public ngraph::pass::MatcherPass {                                        \
+    public:                                                                                \
+        OPENVINO_RTTI(STR(NAME), "0");                                                     \
+        NAME() {                                                                           \
+            MATCHER_SCOPE(NAME);                                                           \
+            auto match_node = ngraph::pattern::wrap_type<OP>();                            \
+            ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {    \
+                return FUNC(m.get_match_root());                                           \
+            };                                                                             \
+            auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
+            register_matcher(m, callback);                                                 \
+        }                                                                                  \
+    };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
-
-
-NGRAPH_RTTI_DEFINITION(pass::EliminatePad, "EliminatePad", 0);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -310,8 +306,14 @@ pass::EliminatePad::EliminatePad() {
         const auto pad_begin_value = pad_begin_const->cast_vector<int64_t>();
         const auto pad_end_value = pad_end_const->cast_vector<int64_t>();
 
-        if (std::any_of(pad_begin_value.begin(), pad_begin_value.end(), [](int64_t value) { return value != 0; }) ||
-            std::any_of(pad_end_value.begin(), pad_end_value.end(), [](int64_t value) { return value != 0; })) {
+        if (std::any_of(pad_begin_value.begin(),
+                        pad_begin_value.end(),
+                        [](int64_t value) {
+                            return value != 0;
+                        }) ||
+            std::any_of(pad_end_value.begin(), pad_end_value.end(), [](int64_t value) {
+                return value != 0;
+            })) {
             return false;
         }
 
@@ -321,8 +323,6 @@ pass::EliminatePad::EliminatePad() {
     auto m = std::make_shared<pattern::Matcher>(pad_node_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::EliminateConvert, "EliminateConvert", 0);
 
 pass::EliminateConvert::EliminateConvert() {
     MATCHER_SCOPE(EliminateConvert);
@@ -343,15 +343,13 @@ pass::EliminateConvert::EliminateConvert() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateConvertNonZero, "EliminateConvertNonZero", 0);
-
 pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     MATCHER_SCOPE(EliminateConvertNonZero);
     auto convert_pattern = pattern::wrap_type<opset8::Convert>(pattern::consumers_count(1));
     auto non_zero = pattern::wrap_type<opset8::NonZero>({convert_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto & pattern_map = m.get_pattern_map();
+        const auto& pattern_map = m.get_pattern_map();
         auto convert = pattern_map.at(convert_pattern);
         // remove convert
         convert->output(0).replace(convert->input_value(0));
@@ -363,8 +361,6 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     auto m = std::make_shared<pattern::Matcher>(non_zero, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::EliminateConcat, "EliminateConcat", 0);
 
 pass::EliminateConcat::EliminateConcat() {
     MATCHER_SCOPE(EliminateConcat);
@@ -382,8 +378,6 @@ pass::EliminateConcat::EliminateConcat() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateSplit, "EliminateSplit", 0);
-
 pass::EliminateSplit::EliminateSplit() {
     MATCHER_SCOPE(EliminateConcat);
     auto convert_pattern = pattern::wrap_type<opset8::Split>();
@@ -399,8 +393,6 @@ pass::EliminateSplit::EliminateSplit() {
     auto m = std::make_shared<pattern::Matcher>(convert_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::EliminateSqueeze, "EliminateSqueeze", 0);
 
 pass::EliminateSqueeze::EliminateSqueeze() {
     MATCHER_SCOPE(EliminateSqueeze);
@@ -485,21 +477,19 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateTranspose, "EliminateTranspose", 0);
-
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
     auto order = pattern::wrap_type<opset8::Constant>();
     auto transpose_pattern = pattern::wrap_type<opset8::Transpose>({pattern::any_input(), order});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto & pattern_map = m.get_pattern_map();
+        const auto& pattern_map = m.get_pattern_map();
         auto order_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(order));
         if (!order_const) {
             return false;
         }
 
-        const auto & order_values = order_const->cast_vector<int64_t>();
+        const auto& order_values = order_const->cast_vector<int64_t>();
         vector<int64_t> ref_values(order_values.size());
         std::iota(ref_values.begin(), ref_values.end(), 0);
         if (order_values != ref_values) {
@@ -514,16 +504,12 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateEltwise, "EliminateEltwise", 0);
-
 pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
     auto constant_pattern = pattern::wrap_type<opset8::Constant>();
-    auto eltwise_pattern = pattern::wrap_type<opset8::Add,
-                                              opset8::Subtract,
-                                              opset8::Multiply,
-                                              opset8::Divide>({input, constant_pattern});
+    auto eltwise_pattern =
+        pattern::wrap_type<opset8::Add, opset8::Subtract, opset8::Multiply, opset8::Divide>({input, constant_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -541,8 +527,6 @@ pass::EliminateEltwise::EliminateEltwise() {
     auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations

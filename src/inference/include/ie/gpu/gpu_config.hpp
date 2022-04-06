@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,11 +52,6 @@ DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
 
 /**
- * @brief Metric to get maximum batch size which does not cause performance degradation due to memory swap impact.
- */
-DECLARE_GPU_METRIC_KEY(MAX_BATCH_SIZE, uint32_t);
-
-/**
  * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
  *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
  */
@@ -77,48 +72,6 @@ namespace GPUConfigParams {
 #define DECLARE_GPU_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(GPU_##name)
 
 /**
- * @brief This key instructs the GPU plugin to use two priorities of GPU configuration as follows:
- * • OpenCL queue priority hint as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf,
- *      it has 4 types of levels: High, Med, Low, and Default. the default is Default
- * • Host task priority which is set cpu core type of TBB affinity used in load network.
- *      this has 3 types of levels: High, LOW, and ANY. the default is ANY.
- *      it is only affected on Hybrid CPUs. if the device doesn't support Hybrid CPUs, it is set to the default.
- *
- * There are two types of setting you can choose from: Model level setting and Queue/Host Task level setting.
- * • Plugin level setting is the predefined combination of OpenCL queue priority and host task priority.
- *      It provides only two types of levels: High and Low.
- * • Queue/Host Task level setting is the combination of OpenCL Queue priority and host task priority
- *      such as GPU_QUEUE_PRIORITY_HIGH|GPU_HOST_TASK_PRIORITY_HIGH.
- *      You can set each levels of OpenCL Queue priority and host task priority directly using this setting.
- *
- * The default value of GPU_MODEL_PRIORITY is "GPI_QUEUE_PRIORITY_DEFAULT|GPU_HOST_TASK_PRIORITY_ANY".
- * The detailed option values are as follows:
- * Model priority
- * • GPUConfigParams::GPU_MODEL_PRIORITY_HIGH  - GPU_QUEUE_PRIORITY_HIGH|GPU_HOST_TASK_PRIORITY_HIGH
- * • GPUConfigParams::GPU_MODEL_PRIORITY_LOW   - GPU_QUEUE_PRIORITY_LOW|GPU_HOST_TASK_PRIORITY_LOW
- * OpenCL queue priority
- * • GPUConfigParams::GPU_QUEUE_PRIORITY_HIGH       - mapped to CL_QUEUE_PRIORITY_HIGH_KHR
- * • GPUConfigParams::GPU_QUEUE_PRIORITY_MED        - mapped to CL_QUEUE_PRIORITY_MED_KHR
- * • GPUConfigParams::GPU_QUEUE_PRIORITY_LOW        - mapped to CL_QUEUE_PRIORITY_LOW_KHR
- * • GPUConfigParams::GPI_QUEUE_PRIORITY_DEFAULT    - Not set queue priority property in cl_queue_properties
- * Host task priority
- * • GPUConfigParams::GPU_HOST_TASK_PRIORITY_HIGH   - mapped to IStreamsExecutor::Config::BIG
- * • GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW    - mapped to IStreamsExecutor::Config::LITTLE
- * • GPUConfigParams::GPU_HOST_TASK_PRIORITY_ANY    - mapped to IStreamsExecutor::Config::ANY
- */
-
-DECLARE_GPU_CONFIG_KEY(MODEL_PRIORITY);
-DECLARE_GPU_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
-DECLARE_GPU_CONFIG_VALUE(MODEL_PRIORITY_LOW);
-DECLARE_GPU_CONFIG_VALUE(QUEUE_PRIORITY_HIGH);
-DECLARE_GPU_CONFIG_VALUE(QUEUE_PRIORITY_MED);
-DECLARE_GPU_CONFIG_VALUE(QUEUE_PRIORITY_LOW);
-DECLARE_GPU_CONFIG_VALUE(QUEUE_PRIORITY_DEFAULT);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_HIGH);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
-DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_ANY);
-
-/**
  * @brief This key instructs the GPU plugin to use the OpenCL queue priority hint
  * as defined in https://www.khronos.org/registry/OpenCL/specs/opencl-2.1-extensions.pdf
  * this option should be used with an unsigned integer value (1 is lowest priority)
@@ -133,6 +86,18 @@ DECLARE_GPU_CONFIG_KEY(PLUGIN_PRIORITY);
  * 0 means no throttle hint is set and default queue created.
  */
 DECLARE_GPU_CONFIG_KEY(PLUGIN_THROTTLE);
+
+/**
+ * @brief This key instructs the GPU plugin which cpu core type of TBB affinity used in load network.
+ * This option has 3 types of levels: HIGH, LOW, and ANY. It is only affected on Hybrid CPUs.
+ * - LOW - instructs the GPU Plugin to use LITTLE cores if they are available
+ * - MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores)
+ * - HIGH - instructs the GPU Plugin to use BIG cores if they are available
+ */
+DECLARE_GPU_CONFIG_KEY(HOST_TASK_PRIORITY);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_HIGH);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_MEDIUM);
+DECLARE_GPU_CONFIG_VALUE(HOST_TASK_PRIORITY_LOW);
 
 /**
  * @brief This key should be set to correctly handle NV12 input without pre-processing.

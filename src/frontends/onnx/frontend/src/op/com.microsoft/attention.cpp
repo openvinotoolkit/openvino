@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace detail {
 namespace {
 NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
                         int64_t num_heads,
-                        const std::vector<size_t>& qkv_hidden_sizes);
+                        const std::vector<int64_t>& qkv_hidden_sizes);
 
 using NodeTuple = std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>;
 
@@ -55,7 +55,7 @@ OutputVector attention(const Node& node) {
     auto add = std::make_shared<default_opset::Add>(matmul, bias);
 
     const auto num_heads = node.get_attribute_value<int64_t>("num_heads");
-    const auto qkv_hidden_sizes = node.get_attribute_value<std::vector<size_t>>("qkv_hidden_sizes", {});
+    const auto qkv_hidden_sizes = node.get_attribute_value<std::vector<int64_t>>("qkv_hidden_sizes", {});
     const auto split_result = detail::split_to_QKV(add, num_heads, qkv_hidden_sizes);
 
     bool unidirectional = static_cast<bool>(node.get_attribute_value<int64_t>("unidirectional", 0));
@@ -108,7 +108,7 @@ std::shared_ptr<ngraph::Node> get_hidden_size(const std::shared_ptr<default_opse
 
 NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
                         int64_t num_heads,
-                        const std::vector<size_t>& qkv_hidden_sizes) {
+                        const std::vector<int64_t>& qkv_hidden_sizes) {
     OutputVector split;
     std::shared_ptr<ngraph::Node> head_size = nullptr;
     const auto& node_type = node->get_element_type();

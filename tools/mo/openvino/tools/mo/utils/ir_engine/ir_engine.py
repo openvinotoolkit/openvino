@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
@@ -58,10 +58,17 @@ class IREngine(object):
         self.graph.graph['hashes'] = {}
 
         self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
-        self.graph.graph['layout'] = 'NCHW' # We set layout to NCHW as default value and
-                                            # changing it in __rt_info_check_layout if it will be necessary
+
+        # NOTE: THis is MO internal attribute, it cannot be used for
+        # defining graph input layout. We set it to NCHW as in MO back stage
+        # during conversion for correct shape inference of layout specific
+        # operations (ExtractImagePatches, SpaceToDepth, etc.)
+        self.graph.graph['layout'] = 'NCHW'
 
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
+
+        self.graph.inputs_order = []
+        self.graph.outputs_order = []
 
         # Parse XML
         for child in xml_root:
@@ -69,6 +76,10 @@ class IREngine(object):
                 for layer in child:
                     layer_id, layer_attrs = self.__load_layer(layer)
                     xml_layers.update({layer_id: layer_attrs})
+                    if layer_attrs['type'] == 'Parameter':
+                        self.graph.inputs_order.append(layer_attrs['name'])
+                    if layer_attrs['type'] == 'Result':
+                        self.graph.outputs_order.append(layer_attrs['name'])
             elif child.tag == 'edges':
                 for edge in child:
                     xml_edges.append(Edge(edge.attrib['from-layer'], int(edge.attrib['from-port']),
@@ -237,7 +248,6 @@ class IREngine(object):
                         if dim.tag == 'rt_info':
                             for attr in dim:
                                 port_rt_info.update(self.__read_rt_info_common(attr))
-                                self.__rt_info_check_layout(attr)
 
                     input_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in input_shape])
 
@@ -259,7 +269,6 @@ class IREngine(object):
                         if dim.tag == 'rt_info':
                             for attr in dim:
                                 port_rt_info.update(self.__read_rt_info_common(attr))
-                                self.__rt_info_check_layout(attr)
 
                     output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
@@ -528,11 +537,3 @@ class IREngine(object):
             if key not in ('name', 'version'):
                 rt_info[key] = attr.attrib[key]
         return {(attr_name, version): rt_info}
-
-    def __rt_info_check_layout(self, attr):
-        graph_layout = None
-        for key in attr.attrib:
-            if key == 'layout':
-                graph_layout = attr.attrib[key].replace(',', '').strip('[] ')# .strip(']').strip(',').strip(' ')
-        if graph_layout is not None:
-            self.graph.graph['layout'] = graph_layout

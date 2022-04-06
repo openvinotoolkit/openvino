@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ void OVInferRequestWaitTests::TearDown() {
 }
 
 TEST_P(OVInferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
-    runtime::Tensor tensor;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(input));
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
@@ -40,7 +40,7 @@ TEST_P(OVInferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
 TEST_P(OVInferRequestWaitTests, canstart_asyncInferWithGetInOutWithStatusOnlyWait) {
-    runtime::Tensor tensor;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(input));
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
@@ -57,8 +57,8 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnSetTensorAfterAsyncInfer) {
     auto&& config = configuration;
     auto itConfig = config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
     if (itConfig != config.end()) {
-        if (itConfig->second != "CPU_THROUGHPUT_AUTO") {
-            if (std::stoi(itConfig->second) == 0) {
+        if (itConfig->second.as<std::string>() != "CPU_THROUGHPUT_AUTO") {
+            if (std::stoi(itConfig->second.as<std::string>()) == 0) {
                 GTEST_SKIP() << "Not applicable with disabled streams";
             }
         }
@@ -68,7 +68,7 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnSetTensorAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(try {
         req.set_tensor(input, output_tensor);
-    } catch (const ov::runtime::Busy&) {});
+    } catch (const ov::Busy&) {});
     OV_ASSERT_NO_THROW(req.wait_for({}));
     OV_ASSERT_NO_THROW(req.wait());
 }
@@ -77,7 +77,7 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnGetTensorAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(try {
         req.get_tensor(input);
-    } catch (const ov::runtime::Busy&) {});
+    } catch (const ov::Busy&) {});
     OV_ASSERT_NO_THROW(req.wait());
 }
 

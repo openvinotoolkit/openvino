@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,10 @@ using visualize_tree_ops_map_t =
 
 namespace ov {
 namespace pass {
+/**
+ * @brief VisualizeTree pass allows to serialize ov::Model to xDot format
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API VisualizeTree : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::VisualizeTree");

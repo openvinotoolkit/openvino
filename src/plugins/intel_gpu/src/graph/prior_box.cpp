@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,8 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     // All the inputs for this layer are known at this point,
     // so the output buffer is written here and not in execute().
 
-    const int layer_width = input_layout.size.spatial[0];
-    const int layer_height = input_layout.size.spatial[1];
+    const int layer_width = input_layout.spatial(0);
+    const int layer_height = input_layout.spatial(1);
     const int img_width = argument.img_size.spatial[0];
     const int img_height = argument.img_size.spatial[1];
     float step_w = argument.step_width;
@@ -39,7 +39,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     const float offset = argument.offset;
     int num_priors = argument.is_clustered() ?
         static_cast<int>(argument.widths.size()) :
-        output_mem->get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+        output_mem->get_layout().spatial(1) / 4 / layer_width / layer_height;
     int var_size = static_cast<int>(argument.variance.size());
 
     mem_lock<dtype> lock{output_mem, stream};
@@ -204,7 +204,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
     }
 
     // set the variance.
-    int count = output_mem->get_layout().size.spatial[0] * output_mem->get_layout().size.spatial[1];
+    int count = output_mem->get_layout().spatial(0) * output_mem->get_layout().spatial(1);
     int var_loop_count = argument.is_clustered() ? var_size : 4;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
@@ -359,8 +359,8 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
 
-    const int layer_width = input_layout.size.spatial[0];
-    const int layer_height = input_layout.size.spatial[1];
+    const int layer_width = input_layout.spatial(0);
+    const int layer_height = input_layout.spatial(1);
 
     int num_priors = node.is_clustered() ?
         static_cast<int>(desc->widths.size()) :

@@ -1,12 +1,11 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -23,6 +22,6 @@ class TRANSFORMATIONS_API ConvertSoftMax1ToSoftMax8;
 
 class ngraph::pass::ConvertSoftMax1ToSoftMax8 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSoftMax1ToSoftMax8", "0");
     ConvertSoftMax1ToSoftMax8();
 };

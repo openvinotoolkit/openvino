@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,8 +50,6 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
 
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposalToLegacyMatcher, "ConvertProposalToLegacyMatcher", 0);
-
 ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
     auto proposal = ngraph::pattern::wrap_type<ngraph::opset1::Proposal>();
 
@@ -67,8 +65,6 @@ ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposalToProposalIE");
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposal4ToLegacyMatcher, "ConvertProposal4ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertProposal4ToLegacyMatcher::ConvertProposal4ToLegacyMatcher() {
     auto proposal = ngraph::pattern::wrap_type<ngraph::opset4::Proposal>();

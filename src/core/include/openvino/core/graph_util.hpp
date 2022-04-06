@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace ov {
 
@@ -263,12 +264,13 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned Model ops
 OPENVINO_API
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model,
                                        std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
-// input model is cloned and returned
+/// \brief input model is cloned and returned
+/// \ingroup ov_model_cpp_api
 OPENVINO_API
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model);
 
 OPENVINO_API
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);
@@ -278,4 +280,16 @@ bool replace_output_update_name(Output<Node> node, const Output<Node>& node_inpu
 
 OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
+
+/// \brief Serialize given model into IR. The generated .xml and .bin files will be saved into provided paths.
+/// \param m Model which will be converted to IR representation.
+/// \param xml_path Path where .xml file will be saved.
+/// \param bin_path Path where .bin file will be saved (optional).
+///                 The same name as for xml_path will be used by default.
+/// \param version Version of the generated IR (optional).
+OPENVINO_API
+void serialize(const std::shared_ptr<const ov::Model>& m,
+               const std::string& xml_path,
+               const std::string& bin_path = "",
+               ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
 }  // namespace ov

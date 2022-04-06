@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/validation_util.hpp"
 
 #include <algorithm>
+#include <dimension_tracker.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
@@ -1203,31 +1204,34 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
                 auto consumer = in.get_node()->shared_from_this();
-                // FIXME: Here we have a WA in order to save some original fields
-                // if we have conflicts because Variant merge doesn't work.
-                // We can restore original fields because we don't change the operation
-                auto orig_rt_info = consumer->get_rt_info();
-
                 copy_runtime_info({curr_node, consumer}, consumer);
-
-                auto& rt_info = consumer->get_rt_info();
-                for (const auto& it : orig_rt_info) {
-                    if (rt_info.find(it.first) == rt_info.end()) {
-                        bool copy = true;
-                        if (it.second.is<ov::RuntimeAttribute>()) {
-                            copy = it.second.as<ov::RuntimeAttribute>().is_copyable();
-                        }
-                        if (copy) {
-                            rt_info[it.first] = it.second;
-                        }
-                    }
-                }
             }
         }
     }
 }
 
-HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
+bool are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs, size_t max_elements_limit = 10) {
+    if (!lhs || !rhs)
+        return false;
+    const auto& lhs_shape = lhs->get_shape();
+    const auto& rhs_shape = rhs->get_shape();
+    OPENVINO_ASSERT(lhs_shape == rhs_shape);
+    const auto& lhs_et = lhs->get_element_type();
+    const auto& rhs_et = rhs->get_element_type();
+    OPENVINO_ASSERT(lhs_et == rhs_et);
+    if (shape_size(lhs_shape) > max_elements_limit)
+        return false;
+    auto mask = std::make_shared<HostTensor>(element::boolean, lhs_shape);
+    const auto& param = std::make_shared<op::Parameter>(lhs_et, lhs_shape);
+    bool eval_status = op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
+    OPENVINO_ASSERT(eval_status);
+    auto equal = op::Constant(mask).cast_vector<bool>();
+    return std::all_of(equal.begin(), equal.end(), [](bool i) {
+        return i;
+    });
+}
+
+HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     // bound is already set in the tensor
     if (is_upper && output.get_tensor().get_upper_value() != nullptr)
         return output.get_tensor().get_upper_value();
@@ -1243,19 +1247,34 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
                 outputs.push_back(std::make_shared<HostTensor>(out));
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
                 const auto& input_values = node->input_values();
+                TensorLabelVector output_labels(outputs.size());
+
                 bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-                    return input.get_tensor().has_and_set_bound();
+                    auto& tensor = input.get_tensor();
+                    return tensor.has_and_set_bound() || are_equal(tensor.get_lower_value(), tensor.get_upper_value());
                 });
                 for (size_t i = 0; i < outputs.size(); ++i) {
-                    // TODO: should we skip setting value for tensors that have only one consumer?
                     if ((same_inputs || is_upper) && node->get_output_tensor(i).get_upper_value() == nullptr)
                         node->get_output_tensor(i).set_upper_value(outputs[i]);
                     if ((same_inputs || !is_upper) && node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
+                    if (are_equal(node->get_output_tensor(i).get_lower_value(),
+                                  node->get_output_tensor(i).get_upper_value()))
+                        node->get_output_tensor(i).set_lower_value(node->get_output_tensor(i).get_upper_value());
                 }
-                for (const auto& input : input_values)
-                    if (input.get_target_inputs().size() == 1)
-                        input.get_tensor().invalidate_values();
+                if (node->evaluate_label(output_labels))
+                    for (size_t i = 0; i < outputs.size(); ++i)
+                        node->get_output_tensor(i).set_value_label(output_labels[i]);
+                for (const auto& input : input_values) {
+                    auto& tensor = input.get_tensor();
+                    bool should_invalidate = invalidate_all_unused_values;
+                    if (tensor.get_lower_value() && shape_size(tensor.get_lower_value()->get_shape()) > 10)
+                        should_invalidate |= true;
+                    if (tensor.get_upper_value() && shape_size(tensor.get_upper_value()->get_shape()) > 10)
+                        should_invalidate |= true;
+                    if (should_invalidate && input.get_target_inputs().size() == 1)
+                        tensor.invalidate_values();
+                }
                 propagate_rt_info(node, output);
             } else {
                 break;
@@ -1279,7 +1298,9 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
-    return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
+    evaluate_bound(output, false, false);
+    evaluate_upper_bound(output);
+    return {output.get_tensor_ptr()->get_lower_value(), output.get_tensor_ptr()->get_upper_value()};
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
@@ -1290,6 +1311,9 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
         auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
         auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        const TensorLabel& labels = output.get_tensor().get_value_label();
+        NGRAPH_CHECK(labels.empty() || lower_bound.size() == labels.size());
+
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             auto low = lower_bound[i], up = upper_bound[i];
@@ -1301,11 +1325,49 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
                     low = std::numeric_limits<std::int64_t>::max();
             }
             resulting_pshape[i] = {low, up};
+            if (!labels.empty() && labels[i])
+                ov::DimensionTracker::set_label(resulting_pshape[i], labels[i]);
         }
         pshape = PartialShape(resulting_pshape);
         shape_defined = true;
     }
     return shape_defined;
+}
+
+bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    NGRAPH_CHECK(node->outputs().size() == 1);
+
+    const auto& input_values = node->input_values();
+    TensorLabel input_labels;
+
+    HostTensorVector input_tensors(input_values.size());
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const auto& input = input_values[i];
+        if (i != 0)
+            if (input.get_tensor().has_and_set_bound())
+                input_tensors[i] = input.get_tensor().get_lower_value();
+            else
+                return false;
+        else {
+            input_labels = input.get_tensor().get_value_label();
+            bool no_labels = std::all_of(input_labels.begin(), input_labels.end(), [](const size_t& l) {
+                return l == 0;
+            });
+            if (input_labels.empty() || no_labels)
+                return false;
+
+            auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
+            auto idxs_htp = std::make_shared<HostTensor>(labels_constant);
+            input_tensors[i] = idxs_htp;
+        }
+    }
+
+    // inputs are finalized
+    const auto& output = std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(0));
+    if (!node->evaluate({output}, input_tensors))
+        return false;
+    output_labels[0] = std::make_shared<op::v0::Constant>(output)->cast_vector<size_t>();
+    return true;
 }
 
 inline bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
@@ -1548,9 +1610,8 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
     NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
-    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
-    return result[0];
+    return std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {

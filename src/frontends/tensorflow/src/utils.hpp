@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2021 Intel Corporation
+/* Copyright (C) 2018-2022 Intel Corporation
  * SPDX-License-Identifier: Apache-2.0
  *
  * Copyright 2017 The TensorFlow Authors. All Rights Reserved.
@@ -21,8 +21,8 @@
 #pragma once
 
 #include "graph_iterator_proto.hpp"
-#include "node_context.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino_conversions.hpp"
@@ -91,8 +91,16 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
 template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
-    auto dt = node.get_attribute<::tensorflow::DataType>("dtype");
-    auto tensor_proto = node.get_attribute<::tensorflow::TensorProto>("value");
+    const auto* decoder = node.get_decoder();
+    auto dt = decoder->get_native_attribute("dtype").as<::tensorflow::DataType>();
+
+    // TODO: investigate why as<>() && method using std::move leads to the issue (75371) in OVTF integration with
+    //  tensorflow frontend. The current fix: replace it with as<>() & method. But in fact, both
+    //  approaches should work the same way.
+    // auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
+    auto value = decoder->get_native_attribute("value");
+    auto tensor_proto = value.as<::tensorflow::TensorProto>();
+
     const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);
@@ -166,9 +174,9 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
                                   "handle this element type";
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
-            TENSORFLOW_OP_VALIDATION(node, val_size != 0, "Empty values vector");
-
-            if (i < val_size) {
+            if (val_size == 0) {
+                (*values)[i] = static_cast<T>(0);
+            } else if (i < val_size) {
                 (*values)[i] = val_i;
                 val_lastsaved = val_i;
             } else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
@@ -86,6 +86,12 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#ifdef __unix__
+#include <sys/resource.h>
+#endif
+
+using namespace ov::runtime::intel_gpu;
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
@@ -94,7 +100,6 @@ program::program(engine& engine_ref,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream()),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr),
@@ -103,7 +108,9 @@ program::program(engine& engine_ref,
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
     } else {
@@ -116,13 +123,13 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
-      _kernels_cache(std::unique_ptr<kernels_cache>(new kernels_cache(_engine))),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
     init_primitives();
     set_options();
-    _kernels_cache->set_batch_header_str(kernel_selector::KernelBase::get_db().get_batch_header_str());
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -223,8 +230,9 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto inputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
@@ -244,15 +252,15 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
+                calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
                                                                  prim->pad,
                                                                  prim->stride,
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -268,11 +276,12 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
 
-            auto calc_output_range = calc_sliding_window_needed_input_range(prim_node.input().get_output_layout().size,
+            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
@@ -289,13 +298,18 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
+            tensor size(1);
+            for (size_t i = 0; i < prim->size.size(); i++) {
+                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+            }
             // TODO: Check compatibility of output size calculation (with caffe).
+            auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
-                prim_node.input().get_output_layout().size,
-                prim->size,
-                prim->pad,
+                primInputSize,
+                size,
+                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
                 prim->stride,
-                {1, 1, 1, 1},
+                ov::Strides(prim->stride.size(), 1),
                 true,
                 1);
 
@@ -494,6 +508,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_primitive_fusing_through>();
+
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
@@ -552,7 +568,12 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    if (!is_internal && (!options.get<build_option_type::partial_build_program>()->enabled() || !debug_config->dry_run_path.empty())) {
+#else
     if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+#endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
@@ -857,13 +878,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node);
+        user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
 
@@ -947,7 +968,7 @@ bool program::remove_if_dangling(program_node& node) {
     return true;
 }
 
-bool program::extract_and_remove(program_node& node) {
+bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
@@ -986,13 +1007,32 @@ bool program::extract_and_remove(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input);
-    else
-        remove_if_dangling(node);
+        replace_all_usages(node, input, false);
+
+    if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
+        processing_order.erase(&node);
 
     return true;
 }
 
+bool program::extract_and_remove(program_node& node) {
+    if (extract(node)) {
+        return remove_if_dangling(node);
+    }
+
+    return false;
+}
+
+bool program::move_node(program_node& node,
+                        program_node& new_prev,
+                        program_node& new_next) {
+    if (extract(node)) {
+        add_intermediate(node, new_next, new_prev);
+        return true;
+    }
+
+    return false;
+}
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
@@ -1012,8 +1052,9 @@ void program::fuse_nodes(program_node &fused_node,
         local_desc.activation_params = peer_node.get_fused_activations_params()[0];
     }
 
+    auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fused_node.get_output_layout().data_padding);
+                                                 fusedPadding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1055,7 +1096,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.emplace(dep.id(), deps_idx++);
+        local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
     local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
@@ -1442,6 +1483,13 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     memory_pool pool(get_engine());
     int64_t const_sum = 0;
 
+#ifdef __unix__
+    rlimit limit;
+    int64_t cur_vmem = -1;
+    if (getrlimit(RLIMIT_AS, &limit) == 0) {
+        cur_vmem = limit.rlim_cur;
+    }
+#endif
     std::vector<program_node*> nodes_to_allocate{};
     for (auto node : processing_order) {
         nodes_to_allocate.push_back(node);
@@ -1452,15 +1500,36 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               [](program_node* const& lhs, program_node* const& rhs) {
                   return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
-
+    auto& engine = get_engine();
+    int64_t host_alloc = 0;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
         if (out_size > max_alloc_size) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
-            continue; // to be allocated to host
+            host_alloc += out_size;
+            continue;
         }
+        #ifdef __unix__
+        // Check whether the host mem allocation might exceed avialalbe system VRAM or physical memory
+        // Temporal solution for linux OoO memory killer
+        // TODO: Ultimate solution will be the "estimation without actual allocation" mechanism for this issue,
+        // which is also expected for better estimation performance
+        int64_t max_global_mem_size = engine.get_device_info().max_global_mem_size;
+        int64_t total_host_alloc_size = out_size + host_alloc + engine.get_used_device_memory(allocation_type::usm_host);
+        if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
+            total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
+        if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                    << cur_vmem << ")" << std::endl;
+            }
+            return {-1L, -1L};
+        }
+        #endif
+
         if (node->can_be_optimized())
             continue;
         if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
@@ -1473,7 +1542,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
         }
     }
 

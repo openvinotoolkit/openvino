@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@ class CumSumKernelPartialSum : public CumSumKernelBase {
 public:
     CumSumKernelPartialSum() : CumSumKernelBase("cum_sum_partial_sum") {}
     virtual ~CumSumKernelPartialSum() = default;
+
+    ParamsKey GetSupportedKey() const override;
 protected:
     struct MultiDispatchData {
         DispatchData stage_1;

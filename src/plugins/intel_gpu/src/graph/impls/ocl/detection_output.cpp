@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,8 @@ private:
         detectOutParams.decrease_label_id = primitive->decrease_label_id;
         detectOutParams.clip_before_nms = primitive->clip_before_nms;
         detectOutParams.clip_after_nms = primitive->clip_after_nms;
-        detectOutParams.conf_size_x = arg.confidence().get_output_layout().get_buffer_size().spatial[0];
-        detectOutParams.conf_size_y = arg.confidence().get_output_layout().get_buffer_size().spatial[1];
+        detectOutParams.conf_size_x = arg.confidence().get_output_layout().get_padded_dims()[2];
+        detectOutParams.conf_size_y = arg.confidence().get_output_layout().get_padded_dims()[3];
         detectOutParams.conf_padding_x = arg.confidence().get_output_layout().data_padding.lower_size().spatial[0];
         detectOutParams.conf_padding_y = arg.confidence().get_output_layout().data_padding.lower_size().spatial[1];
     }

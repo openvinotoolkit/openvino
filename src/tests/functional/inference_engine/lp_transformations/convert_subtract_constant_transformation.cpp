@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ public:
 
 TEST_P(ConvertSubtractConstantTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(actualFunction, referenceFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -170,7 +170,7 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
             {
                 { ngraph::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {},
-                  { ov::pass::DisableConstantFolding::get_type_info_static() } },
+                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},

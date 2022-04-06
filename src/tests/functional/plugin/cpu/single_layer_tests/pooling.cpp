@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,14 +208,14 @@ TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Pooling");
+    CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "Pooling");
+    CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
 namespace {
@@ -280,6 +280,15 @@ const std::vector<InputShape> inputShapes4D = {
                 {3, 4, 64, 64},
                 {1, 16, 16, 12},
                 {1, 32, 8, 8}
+            }
+        },
+        {
+            // dynamic
+            {{1, 10}, 16, 8, 8},
+            // target
+            {
+                {1, 16, 8, 8},
+                {2, 16, 8, 8},
             }
         }
 };
@@ -459,6 +468,34 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                             ::testing::ValuesIn(inpOutPrecision),
                             ::testing::Values(false),
                             ::testing::Values(ref),
+                            ::testing::Values(emptyFusingSpec)),
+                        PoolingLayerCPUTest::getTestCaseName);
+
+const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_Large = {
+        LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {65, 65}, {65, 65}, {0, 0}, {0, 0},
+                            ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID, true },
+};
+
+const std::vector<InputShape> inputShapes4D_Large = {
+        {
+            // dynamic
+            {-1, -1, -1, -1},
+            // target
+            {
+                {1, 16, 65, 65},
+                {1, 8, 130, 130},
+                {1, 16, 65, 65}
+            }
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(paramsAvg4D_Large),
+                            ::testing::ValuesIn(inputShapes4D_Large),
+                            ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
+                            ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ inline const float& clamp(const float& v, const float& lower, const float& upper
 }
 
 inline bool hasSingleBatchOutput(const program_node& node) {
-    const auto& batch = node.get_output_layout().size.batch;
+    const auto batch = node.get_output_layout().size.batch;
 
     return batch.empty() || (batch.size() == 1 && batch[0] == 1);
 }
@@ -278,9 +278,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         bool for_deformable = instance.argument.for_deformable;
 
         // feat map sizes
-        const auto& score_size = cls_scores->get_layout().size;
-        int fm_h = score_size.spatial[1];
-        int fm_w = score_size.spatial[0];
+        const auto& score_layout = cls_scores->get_layout();
+        int fm_h = score_layout.spatial(1);
+        int fm_w = score_layout.spatial(0);
 
         int fm_sz = fm_w * fm_h;
 
@@ -289,7 +289,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
-        for (int n = 0; n < score_size.batch[0]; n++) {
+        for (int n = 0; n < score_layout.batch(); n++) {
             std::vector<proposal_t> sorted_proposals_confidence;
             size_t num_proposals = fm_h * fm_w * anchors_num;
             sorted_proposals_confidence.reserve(num_proposals);
@@ -431,7 +431,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     static primitive_impl* create(const proposal_node& arg) {
         const layout& l = arg.image_info().get_output_layout();
-        const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
+        const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
 
         // Supported image_info sizes and components meaning:
         // - image_info[3] = { img_height, img_width, img_depth }

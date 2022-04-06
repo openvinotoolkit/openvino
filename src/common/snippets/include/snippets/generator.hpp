@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,7 @@ public:
     bool has(const ngraph::DiscreteTypeInfo type) const {
         return jitters.find(type) != jitters.end();
     }
+    virtual ~TargetMachine() = default;
 
 protected:
     std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;

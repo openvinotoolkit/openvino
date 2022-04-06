@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +23,11 @@ JitConstants OneHotKernelBase::GetJitConstants(const one_hot_params& params) con
 OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params& params) {
     const auto& input = params.inputs[0];
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     DispatchData dispatchData;
-    if (params.output.GetDims().size() == 5) {
+    if (params.outputs[0].GetDims().size() == 5) {
         dispatchData.gws = { input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v };
         dims_by_gws = {{ Tensor::DataChannelName::BATCH },
                        { Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE },
