@@ -37,7 +37,7 @@ There are two ways to create a deployment package that includes inference-relate
 
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
-To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
+To launch the Deployment Manager in interactive mode, go to the Deployment Manager tool directory in new terminal window and run the tool script without parameters:
   
 @sphinxdirective
    
@@ -69,19 +69,19 @@ The target device selection dialog is displayed:
   
 ![Deployment Manager selection dialog](../img/selection_dialog.png)
 
-Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
+Use the options presented on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
-Once you accept the selection, the package generation dialog is displayed:
+The package generation dialog will display after accepting selection:
   
 ![Deployment Manager configuration dialog](../img/configuration_dialog.png)
 
-The target devices you have selected at the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
+Previously selected target devices will appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use provided options to configure the generation process, or use the default settings.
    
-* `o. Change output directory` (optional): Path to the output directory. By default, it's set to your home directory.
+* `o. Change output directory` (optional): Path to the output directory which, by default, is set to your home directory.
 
-* `u. Provide (or change) path to folder with user data` (optional): Path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it's set to `None`, which means you will separately copy the user data to the target system.
+* `u. Provide (or change) path to folder with user data` (optional): Path to a directory with user data files (IRs, models, datasets, etc.) and subdirectories required for inference, which will be added to the deployment archive. By default, it's set to `None`, which means you will separately copy the user data to the target system.
 
-* `t. Change archive name` (optional): Deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
+* `t. Change archive name` (optional): Deployment archive name without extension. Set to `openvino_deployment_package` by default.
  
 Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
