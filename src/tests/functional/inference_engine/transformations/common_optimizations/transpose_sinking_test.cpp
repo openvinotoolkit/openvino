@@ -94,6 +94,7 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
             .enable(FunctionsComparator::PRECISIONS)
             .enable(FunctionsComparator::CONST_VALUES);
     auto res = fc.compare(f, f_ref);
@@ -180,6 +181,7 @@ TEST_P(TransposeSinking, TransposeReduction) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
             .enable(FunctionsComparator::PRECISIONS)
             .enable(FunctionsComparator::CONST_VALUES);
 

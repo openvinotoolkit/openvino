@@ -39,6 +39,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

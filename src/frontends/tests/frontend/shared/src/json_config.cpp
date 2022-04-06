@@ -4,11 +4,11 @@
 
 #include "json_config.hpp"
 
+#include <common_test_utils/graph_comparator.hpp>
 #include <extension/json_config.hpp>
 #include <extension/json_transformation.hpp>
-#include <nlohmann/json-schema.hpp>
+#include <nlohmann/json.hpp>
 #include <ostream>
-#include <util/graph_comparator.hpp>
 
 #include "utils.hpp"
 

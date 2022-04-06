@@ -1,4 +1,4 @@
-# Saturation (overflow) issue workaround {#pot_saturation_issue}
+# Saturation (overflow) Issue Workaround {#pot_saturation_issue}
 
 ## Introduction
 8-bit instructions of previous generations of Intel&reg; CPUs, namely those based on SSE, AVX-2, AVX-512 instruction sets, admit so-called saturation (overflow) of the intermediate buffer when calculating the dot product which is an essential part of Convolutional or MatMul operations. This saturation can lead to an accuracy drop on the mentioned architectures during the inference of 8-bit quantized models. However, it is not possible to predict such degradation since most of the computations are executed in parallel during DL model inference which makes this process non-deterministic. This problem is typical for models with non-ReLU activation functions and low level of redundancy, for example, optimized or efficient models. It can prevent deploying the model on legacy hardware or creating cross-platform applications. The problem does not occur on the CPUs with Intel Deep Learning Boost (VNNI) technology and further generations, as well as on GPUs.

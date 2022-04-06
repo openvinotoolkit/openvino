@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+ 
 import os
 import sys
 
@@ -7,7 +10,7 @@ import paddle
 from save_model import exportModel
 
 '''
-assign w/ ouput #PASS
+assign w/ ouput
 '''
 @paddle.jit.to_static
 def test_assign_output(array):
@@ -21,7 +24,7 @@ array = np.array([[1, 1],
 exportModel('assign_output', test_assign_output, [array], target_dir=sys.argv[1])
 
 '''
-assign w/o ouput #FAIL
+assign w/o ouput
 '''
 @paddle.jit.to_static
 def test_assign_none(data):

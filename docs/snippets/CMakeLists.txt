@@ -12,6 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/vpu/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
 
 find_package(OpenCL)
@@ -52,14 +53,11 @@ if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
 endif()
 
 # try to find VA libraries
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_search_module(LIBVA QUIET libva)
-endif()
-
-# TODO: pkg_search_module finds libva not in sysroot
-if(ANDROID)
-    set(LIBVA_FOUND OFF CACHE BOOL "" FORCE)
+if(NOT CMAKE_CROSSCOMPILING)
+    find_host_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+    endif()
 endif()
 
 # remove OpenCV related sources
@@ -88,10 +86,9 @@ if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
     target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
 
-    if(LIBVA_FOUND)
+    if(libva_FOUND)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
-        target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+        target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
     endif()
 
     if(WIN32)

@@ -15,7 +15,7 @@ foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source})
 
-    target_link_libraries(${test_name} PRIVATE memory_tests_helper tests_shared_lib)
+    target_link_libraries(${test_name} PRIVATE tests_shared_lib memory_tests_helper)
 
     add_dependencies(memory_tests ${test_name})
 
