@@ -935,116 +935,119 @@ public:
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
         std::lock_guard<std::mutex> lock(get_mutex(deviceName));
-        auto it = pluginRegistry.find(deviceName);
-        if (it == pluginRegistry.end()) {
-            if (pluginName == ov::DEFAULT_DEVICE_NAME)
-                IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
-            else
-                IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+        PluginDescriptor desc;
+        {
+            std::lock_guard<std::mutex> lock_plugins(get_mutex());
+            auto it = pluginRegistry.find(deviceName);
+            if (it == pluginRegistry.end()) {
+                if (pluginName == ov::DEFAULT_DEVICE_NAME)
+                    IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
+                else
+                    IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            } else {
+                desc = it->second;
+            }
+            // Plugin is in registry, but not created, let's create
+            auto it_plugin = plugins.find(deviceName);
+            if (it_plugin != plugins.end()) {
+                return it_plugin->second;
+            }
         }
 
-        // Plugin is in registry, but not created, let's create
-        auto it_plugin = plugins.find(deviceName);
-        if (it_plugin == plugins.end()) {
-            PluginDescriptor desc = it->second;
-            std::shared_ptr<void> so;
-            try {
-                ov::InferencePlugin plugin;
+        std::shared_ptr<void> so;
+        try {
+            ov::InferencePlugin plugin;
 
-                if (desc.pluginCreateFunc) {  // static OpenVINO case
-                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                    desc.pluginCreateFunc(plugin_impl);
-                    plugin = InferencePlugin{plugin_impl, {}};
-                } else {
-                    so = ov::util::load_shared_object(desc.libraryLocation.c_str());
-                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                    reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
-                        ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
-                    plugin = InferencePlugin{plugin_impl, so};
+            if (desc.pluginCreateFunc) {  // static OpenVINO case
+                std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                desc.pluginCreateFunc(plugin_impl);
+                plugin = InferencePlugin{plugin_impl, {}};
+            } else {
+                so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
+                    ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
+                plugin = InferencePlugin{plugin_impl, so};
+            }
+            {
+                std::lock_guard<std::mutex> lock_plugins(get_mutex());
+                plugins.insert({deviceName, plugin});
+            }
+
+            {
+                plugin.set_name(deviceName);
+
+                // Set Inference Engine class reference to plugins
+                std::weak_ptr<ie::ICore> mutableCore = std::const_pointer_cast<ie::ICore>(shared_from_this());
+                plugin.set_core(mutableCore);
+            }
+
+            // Add registered extensions to new plugin
+            allowNotImplemented([&]() {
+                for (const auto& ext : extensions) {
+                    plugin.add_extension(ext);
                 }
-                {
-                    std::lock_guard<std::mutex> lock_plugins(get_mutex());
-                    plugins.insert({deviceName, plugin});
-                }
+            });
 
-                {
-                    plugin.set_name(deviceName);
-
-                    // Set Inference Engine class reference to plugins
-                    std::weak_ptr<ie::ICore> mutableCore = std::const_pointer_cast<ie::ICore>(shared_from_this());
-                    plugin.set_core(mutableCore);
-                }
-
-                // Add registered extensions to new plugin
-                allowNotImplemented([&]() {
-                    for (const auto& ext : extensions) {
-                        plugin.add_extension(ext);
+            // configuring
+            {
+                if (DeviceSupportsCacheDir(plugin)) {
+                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
+                    if (cacheConfig._cacheManager) {
+                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                     }
+                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                    // Remove "CACHE_DIR" from config if it is not supported by plugin
+                    desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
+                }
+                allowNotImplemented([&]() {
+                    // Add device specific value to support device_name.device_id cases
+                    std::vector<std::string> supportedConfigKeys =
+                        plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+                    auto config_iter = std::find(supportedConfigKeys.begin(),
+                                                 supportedConfigKeys.end(),
+                                                 CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+                    const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
+                    const std::string deviceKey =
+                        supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
+
+                    for (auto pluginDesc : pluginRegistry) {
+                        InferenceEngine::DeviceIDParser parser(pluginDesc.first);
+                        if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
+                            pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
+                            plugin.set_config(pluginDesc.second.defaultConfig);
+                        }
+                    }
+                    plugin.set_config(desc.defaultConfig);
                 });
 
-                // configuring
-                {
-                    if (DeviceSupportsCacheDir(plugin)) {
-                        auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
-                        if (cacheConfig._cacheManager) {
-                            desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
-                        }
-                    } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
-                        // Remove "CACHE_DIR" from config if it is not supported by plugin
-                        desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
+                allowNotImplemented([&]() {
+                    for (auto&& extensionLocation : desc.listOfExtentions) {
+                        plugin.add_extension(std::make_shared<ie::Extension>(extensionLocation));
                     }
-                    allowNotImplemented([&]() {
-                        // Add device specific value to support device_name.device_id cases
-                        std::vector<std::string> supportedConfigKeys =
-                            plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
-                        auto config_iter = std::find(supportedConfigKeys.begin(),
-                                                     supportedConfigKeys.end(),
-                                                     CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
-                        const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
-                        const std::string deviceKey =
-                            supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
-
-                        for (auto pluginDesc : pluginRegistry) {
-                            InferenceEngine::DeviceIDParser parser(pluginDesc.first);
-                            if (pluginDesc.first.find(deviceName) != std::string::npos &&
-                                !parser.getDeviceID().empty()) {
-                                pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
-                                plugin.set_config(pluginDesc.second.defaultConfig);
-                            }
-                        }
-                        plugin.set_config(desc.defaultConfig);
-                    });
-
-                    allowNotImplemented([&]() {
-                        for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.add_extension(std::make_shared<ie::Extension>(extensionLocation));
-                        }
-                    });
-                }
-
-                // add plugin as extension itself
-                if (desc.extensionCreateFunc) {  // static OpenVINO case
-                    try {
-                        ie::IExtensionPtr ext;
-                        desc.extensionCreateFunc(ext);
-                        AddExtensionUnsafe(ext);
-                    } catch (const ie::GeneralError&) {
-                        // the same extension can be registered multiple times - ignore it!
-                    }
-                } else {
-                    TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
-                }
-
-                return plugin;
-            } catch (const ie::Exception& ex) {
-                IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
-                           << " for device " << deviceName << "\n"
-                           << "Please, check your environment\n"
-                           << ex.what() << "\n";
+                });
             }
-        } else {
-            return it_plugin->second;
-        };
+
+            // add plugin as extension itself
+            if (desc.extensionCreateFunc) {  // static OpenVINO case
+                try {
+                    ie::IExtensionPtr ext;
+                    desc.extensionCreateFunc(ext);
+                    AddExtensionUnsafe(ext);
+                } catch (const ie::GeneralError&) {
+                    // the same extension can be registered multiple times - ignore it!
+                }
+            } else {
+                TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+            }
+
+            return plugin;
+        } catch (const ie::Exception& ex) {
+            IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation) << " for device "
+                       << deviceName << "\n"
+                       << "Please, check your environment\n"
+                       << ex.what() << "\n";
+        }
     }
 
     /**
@@ -1053,12 +1056,12 @@ public:
      */
     void UnloadPluginByName(const std::string& deviceName) {
         std::lock_guard<std::mutex> lock(get_mutex(deviceName));
+        std::lock_guard<std::mutex> lock_plugins(get_mutex());
         auto it = plugins.find(deviceName);
         if (it == plugins.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
-        std::lock_guard<std::mutex> lock_plugins(get_mutex());
         plugins.erase(deviceName);
     }
 
@@ -1068,6 +1071,7 @@ public:
      */
     void RegisterPluginByName(const std::string& pluginName, const std::string& deviceName) {
         std::lock_guard<std::mutex> lock(get_mutex(deviceName));
+        std::lock_guard<std::mutex> global_lock(get_mutex());
 
         auto it = pluginRegistry.find(deviceName);
         if (it != pluginRegistry.end()) {
@@ -1088,7 +1092,6 @@ public:
                 pluginPath = absFilePath;
         }
 
-        std::lock_guard<std::mutex> global_lock(get_mutex());
         PluginDescriptor desc{pluginPath};
         pluginRegistry[deviceName] = desc;
     }
@@ -1360,7 +1363,7 @@ private:
             // in case of shared library is not opened
         }
     }
-};
+};  // namespace ov
 
 }  // namespace ov
 
