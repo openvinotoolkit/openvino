@@ -136,7 +136,7 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
 
 void LoadNetworkCacheTestBase::SetUp() {
     nGraphFunctionWithName funcPair;
-    std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
@@ -212,4 +212,110 @@ TEST_P(LoadNetworkCacheTestBase, CompareWithRefImpl) {
     Run();
 }
 
+std::string LoadNetworkCompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj) {
+    auto param = obj.param;
+    std::string deviceName;
+    std::map<std::string, std::string> confstr;
+    std::tie(deviceName, confstr) = obj.param;
+    std::ostringstream result;
+    result << "device_name=" << deviceName << "_";
+    for (auto& tmp : confstr) {
+        result << tmp.first << "_" << tmp.second << "_";
+    }
+    return result.str();
+}
+
+TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path }});
+    try {
+        // Load CNNNetwork to target plugins
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // Check that folder contains cache files and remove them
+        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+
+TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create two CNNNetwork from same ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet1(function);
+    InferenceEngine::CNNNetwork cnnNet2(function);
+    ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path }});
+    try {
+        // Load 1st CNNNetwork
+        auto execNet1 = ie->LoadNetwork(cnnNet1, targetDevice, configuration);
+        auto n_cache_files = CommonTestUtils::listFilesWithExt(cache_path, "cl_cache").size();
+
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // Load 2nd CNNNetwork
+        auto execNet2 = ie->LoadNetwork(cnnNet2, targetDevice, configuration);
+
+        // Check that two loaded networks with same function creates same caches
+        ASSERT_EQ(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), n_cache_files);
+
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = CommonTestUtils::addUnicodePostfixToPath(cache_path, postfix);
+
+        try {
+            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+            ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
+            // Load CNNNetwork to target plugins
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+
+            // Check that directory with cached kernels exists after loading network
+            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            // Check that folder contains cache files and remove them
+            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+            // Remove directory and check that it doesn't exist anymore
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+        } catch (std::exception& ex) {
+            // Cleanup in case of any exception
+            if (CommonTestUtils::directoryExists(cache_path_w)) {
+                ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+                ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+            }
+            FAIL() << ex.what() << std::endl;
+        }
+    }
+}
+#endif
 } // namespace LayerTestsDefinitions

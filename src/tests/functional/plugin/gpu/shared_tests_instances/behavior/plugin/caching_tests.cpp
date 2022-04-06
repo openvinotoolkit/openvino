@@ -27,6 +27,23 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(std::map<std::string, std::string>())),
                             LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_KernelCachingSupportCase_GPU, LoadNetworkCompiledKernelsCacheTest,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(std::map<std::string, std::string>())),
+                            LoadNetworkCompiledKernelsCacheTest::getTestCaseName);
+
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, LoadNetworkCompiledKernelsCacheTest,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            LoadNetworkCompiledKernelsCacheTest::getTestCaseName);
 } // namespace

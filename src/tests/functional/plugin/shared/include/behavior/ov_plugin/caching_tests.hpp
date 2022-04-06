@@ -9,6 +9,10 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -24,7 +28,8 @@ using compileModelCacheParams = std::tuple<
         ovModelWithName,        // openvino model with friendly name
         ov::element::Type,      // element type
         size_t,                 // batch size
-        std::string             // device name
+        std::string,            // device name
+        ov::AnyMap              // device configuration
 >;
 
 class CompileModelCacheTestBase : public testing::WithParamInterface<compileModelCacheParams>,
@@ -44,6 +49,25 @@ public:
     bool importExportSupported(ov::Core &core) const;
     // Default functions and precisions that can be used as test parameters
     static std::vector<ovModelWithName> getStandardFunctions();
+};
+
+using compileKernelsCacheParams = std::tuple<
+        std::string,            // device name
+        ov::AnyMap              // device configuration
+>;
+class CompiledKernelsCacheTest : virtual public SubgraphBaseTest,
+                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
+protected:
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::shared_ptr<ngraph::Function> function;
+    std::string cache_path;
+    void SetUp() override {
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        cache_path = test_name + "_cache";
+        std::tie(targetDevice, configuration) = GetParam();
+    }
 };
 
 } // namespace behavior

@@ -23,6 +23,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsGNA),
                                     ::testing::ValuesIn(batchSizesGNA),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                    ::testing::Values(std::map<std::string, std::string>())),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

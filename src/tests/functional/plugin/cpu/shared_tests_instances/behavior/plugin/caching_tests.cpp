@@ -83,7 +83,8 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(std::map<std::string, std::string>())),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
@@ -91,6 +92,29 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(std::map<std::string, std::string>())),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(internal_functions_cpu()),
+                                    ::testing::ValuesIn(precisionsCPUInternal),
+                                    ::testing::ValuesIn(batchSizesCPUInternal),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

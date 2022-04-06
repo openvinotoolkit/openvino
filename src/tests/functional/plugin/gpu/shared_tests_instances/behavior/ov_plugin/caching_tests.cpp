@@ -27,6 +27,23 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(ov::AnyMap{})),
+                            CompiledKernelsCacheTest::getTestCaseName);
+
+    const std::vector<ov::AnyMap> autoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
+                            ::testing::Combine(
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            CompiledKernelsCacheTest::getTestCaseName);
 } // namespace

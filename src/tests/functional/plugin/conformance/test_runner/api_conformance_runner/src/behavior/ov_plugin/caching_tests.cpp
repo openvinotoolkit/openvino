@@ -35,6 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, CompileModelCacheTes
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(ov::test::conformance::targetDevice)),
+                                 ::testing::Values(ov::test::conformance::targetDevice),
+                                 ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace

@@ -9,6 +9,10 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -20,7 +24,8 @@ using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
         ngraph::element::Type,  // precision
         std::size_t,            // batch size
-        std::string             // device name
+        std::string,            // device name
+        std::map<std::string, std::string> //device configuration
         >;
 
 namespace LayerTestsDefinitions {
@@ -43,4 +48,22 @@ public:
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 
+using compileKernelsCacheParams = std::tuple<
+        std::string,            // device name
+        std::map<std::string, std::string>    // device configuration
+>;
+class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
+                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
+protected:
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::shared_ptr<ngraph::Function> function;
+    std::string cache_path;
+    void SetUp() override {
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        cache_path = test_name + "_cache";
+        std::tie(targetDevice, configuration) = GetParam();
+    }
+};
 } // namespace LayerTestsDefinitions
