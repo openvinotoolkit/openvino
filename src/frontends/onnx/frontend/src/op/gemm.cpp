@@ -85,16 +85,12 @@ OutputVector gemm(const Node& node) {
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
 
-    std::shared_ptr<ngraph::Node> matmul_node =
-        std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
-
-    if (alpha != 1.0f) {
-        matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
-    }
+    const auto matmul_node = std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
+    const auto matmul_times_alpha = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
 
     const auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
-    const auto gemm = std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c);
-    common::set_friendly_names(gemm, matmul_node, node);
+    const auto gemm = std::make_shared<default_opset::Add>(matmul_times_alpha, beta_times_input_c);
+    common::set_friendly_names(matmul_node, gemm, node);
 
     return {gemm};
 }
