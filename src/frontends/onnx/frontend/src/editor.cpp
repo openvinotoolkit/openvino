@@ -515,7 +515,9 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
 
 std::string onnx_editor::ONNXModelEditor::get_node_name(const EditorNode& node) const {
     if (node.m_node_index >= 0) {
-        OPENVINO_ASSERT(node.m_node_index < m_pimpl->m_model_proto->graph().node().size(), "XXX");
+        if (node.m_node_index >= m_pimpl->m_model_proto->graph().node().size()) {
+            return "";
+        }
         const auto& n = m_pimpl->m_model_proto->graph().node(node.m_node_index);
         return n.has_name() ? n.name() : "";
     } else {
