@@ -36,7 +36,7 @@ enum class AttributeSource {
  * @brief CreateAttribute transformation marks OperationType operations by AttributeType attribute.
  *
  * For more details about the transformation, refer to
- * [CreateAttribute](@ref openvino_docs_IE_DG_lpt_CreateAttribute) page in the Inference Engine Developer Guide.
+ * [CreateAttribute](@ref openvino_docs_OV_UG_lpt_CreateAttribute) page in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename OperationType = ngraph::pattern::op::Label>
 class ngraph::pass::low_precision::CreateAttribute : public ngraph::pass::low_precision::BaseMatcherPass {

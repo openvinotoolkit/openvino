@@ -103,7 +103,7 @@ std::vector<InputShape> inShapes_4D = {
         }
 };
 
-// List of precisions natively supported by mkldnn.
+// List of precisions natively supported by onednn.
 const std::vector<Precision> precisions = {
         Precision::U8,
         Precision::I8,

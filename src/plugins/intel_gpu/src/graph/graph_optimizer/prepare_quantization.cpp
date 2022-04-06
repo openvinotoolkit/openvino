@@ -153,10 +153,10 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     bool need_post_shift = false;
     int levels = quantize_node.get_primitive()->levels;
 
-    for (int b = 0; b < scales_layout.size.batch[0]; b++) {
-        for (int f = 0; f < scales_layout.size.feature[0]; f++) {
-            for (int y = 0; y < scales_layout.size.spatial[1]; y++) {
-                for (int x = 0; x < scales_layout.size.spatial[0]; x++) {
+    for (int b = 0; b < scales_layout.batch(); b++) {
+        for (int f = 0; f < scales_layout.feature(); f++) {
+            for (int y = 0; y < scales_layout.spatial(1); y++) {
+                for (int x = 0; x < scales_layout.spatial(0); x++) {
                     auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
                     auto s_offset = scales_layout.get_linear_offset(idx);
                     float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
@@ -523,9 +523,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         const auto& wl = w->get_layout();
 
         const int GS = groups;
-        const int OC = wl.size.batch[0] / GS;
-        const int IC = wl.size.feature[0];  // already divided by GS
-        const int KS = wl.size.spatial[0]*wl.size.spatial[1]*wl.size.spatial[2];
+        const int OC = wl.batch() / GS;
+        const int IC = wl.feature();  // already divided by GS
+        const int KS = wl.spatial(0)*wl.spatial(1)*wl.spatial(2);
 
         const auto& w_dt = wl.data_type;
         const auto& azp_dt = azp->get_layout().data_type;
@@ -609,8 +609,8 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     bool need_compensation = false;
 
     auto output_size = convolution_node.get_output_layout().size;
-    int ofm = in1.get_output_layout().size.batch[0];
-    int ifm = in0.get_output_layout().size.feature[0];
+    int ofm = in1.get_output_layout().batch();
+    int ifm = in0.get_output_layout().feature();
     int ofm_aligned = ((ofm + 31) / 32) * 32;
     int ifm_aligned = ((ifm + 31) / 32) * 32;
 
@@ -619,7 +619,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         new_a_zp = &in0.get_dependency(1);
 
         auto l = layout{new_a_zp->get_output_layout().data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
-        int s = new_a_zp->get_output_layout().size.feature[0];
+        int s = new_a_zp->get_output_layout().feature();
         auto azp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_a_zp->as<data>().get_attached_memory_ptr();
         mem_lock<int8_t, mem_lock_type::write> new_data{azp_aligned, stream};
@@ -642,7 +642,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         new_w_zp = &in1.get_dependency(1);
 
         auto l = layout{new_w_zp->get_output_layout().data_type, format::bfyx, tensor{ofm_aligned, 1, 1, 1}};
-        int s = new_w_zp->get_output_layout().size.batch[0];
+        int s = new_w_zp->get_output_layout().batch();
         auto wzp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_w_zp->as<data>().get_attached_memory_ptr();
         mem_lock<int8_t, mem_lock_type::write> new_data{wzp_aligned, stream};
