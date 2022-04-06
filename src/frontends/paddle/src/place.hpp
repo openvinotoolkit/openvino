@@ -40,10 +40,6 @@ public:
         return this == another.get();
     }
 
-    const ov::frontend::InputModel& get_inputnodel() const {
-        return m_input_model;
-    }
-
     std::vector<std::string> get_names() const override {
         return m_names;
     }
