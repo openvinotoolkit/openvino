@@ -29,15 +29,40 @@ layout border_inst::calc_output_layout(border_node const& node) {
     auto ret_data_t = input_layout.data_type;
     auto ret_format = input_layout.format;
 
-    if (ret_format == format::bfwzyx) {
-        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2], new_size.spatial[3])) };
-    } else if (ret_format == format::bfzyx) {
-        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2])) };
+    switch (ret_format) {
+        case format::bfwzyx:
+            return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+                spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2], new_size.spatial[3])) };
+            break;
+        case format::bfzyx:
+        case format::b_fs_zyx_fsv16:
+        case format::b_fs_zyx_fsv32:
+        case format::bs_fs_zyx_bsv16_fsv16:
+        case format::bs_fs_zyx_bsv32_fsv16:
+        case format::bs_fs_zyx_bsv32_fsv32:
+        case format::bs_fs_zyx_bsv4_fsv2:
+        case format::bs_fs_zyx_bsv4_fsv4:
+            return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+                spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2])) };
+            break;
+        case format::bfyx:
+        case format::yxfb:
+        case format::b_fs_yx_fsv4:
+        case format::b_fs_yx_fsv16:
+        case format::b_fs_yx_fsv32:
+        case format::bs_fs_yx_bsv4_fsv2:
+        case format::bs_fs_yx_bsv16_fsv16:
+        case format::bs_fs_yx_bsv32_fsv16:
+        case format::bs_fs_yx_bsv32_fsv32:
+        case format::bs_fs_yx_bsv4_fsv4:
+        case format::bs_fs_yx_bsv8_fsv2:
+        case format::bs_fs_yx_bsv8_fsv4:
+            return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+                spatial(new_size.spatial[0], new_size.spatial[1])) };
+            break;
+        default:
+            throw "Format <something> not supported";
     }
-    return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-        spatial(new_size.spatial[0], new_size.spatial[1])) };
 }
 
 std::string border_inst::to_string(border_node const& node) {
