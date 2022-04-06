@@ -113,7 +113,7 @@ def mvn(
 
 
 @nameable_op
-def reorg_yolo(input_node: Node, stride: List[int], name: Optional[str] = None) -> Node:
+def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
     :param input:   Input data.
@@ -121,12 +121,12 @@ def reorg_yolo(input_node: Node, stride: List[int], name: Optional[str] = None) 
     :param name:    Optional name for output node.
     :return: ReorgYolo node.
     """
-    return _get_node_factory_opset2().create("ReorgYolo", [input_node], {"stride": stride})
+    return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
 
 @nameable_op
 def roi_pooling(
-    input_node: NodeInput,
+    input: NodeInput,
     coords: NodeInput,
     output_size: TensorShape,
     spatial_scale: NumericData,
@@ -145,7 +145,7 @@ def roi_pooling(
     method = method.lower()
     return _get_node_factory_opset2().create(
         "ROIPooling",
-        as_nodes(input_node, coords),
+        as_nodes(input, coords),
         {
             "output_size": Shape(output_size),
             "spatial_scale": spatial_scale,

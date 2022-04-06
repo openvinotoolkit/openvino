@@ -247,11 +247,11 @@ def extract_image_patches(
 
 @nameable_op
 def gru_cell(
-    inputs: NodeInput,
+    X: NodeInput,
     initial_hidden_state: NodeInput,
-    weights_w: NodeInput,
-    weights_r: NodeInput,
-    biases: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
     hidden_size: int,
     activations: List[str] = None,
     activations_alpha: List[float] = None,
@@ -267,14 +267,14 @@ def gru_cell(
 
     Note this class represents only single *cell* and not whole *layer*.
 
-    :param inputs:                       The input tensor with shape: [batch_size, input_size].
+    :param X:                       The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state:    The hidden state tensor at current time step with shape:
                                     [batch_size, hidden_size].
-    :param weights_w:                       The weights for matrix multiplication, gate order: zrh.
+    :param W:                       The weights for matrix multiplication, gate order: zrh.
                                     Shape: [3*hidden_size, input_size].
-    :param weights_r:                       The recurrence weights for matrix multiplication.
+    :param R:                       The recurrence weights for matrix multiplication.
                                     Shape: [3*hidden_size, hidden_size].
-    :param biases:                       The sum of biases (weight and recurrence).
+    :param B:                       The sum of biases (weight and recurrence).
                                     For linear_before_reset set True the shape is [4*hidden_size].
                                     Otherwise the shape is [3*hidden_size].
     :param hidden_size:             The number of hidden units for recurrent cell.
@@ -298,7 +298,7 @@ def gru_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(inputs, initial_hidden_state, weights_w, weights_r, biases)
+    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -387,11 +387,11 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
 
 @nameable_op
 def rnn_cell(
-    inputs: NodeInput,
+    X: NodeInput,
     initial_hidden_state: NodeInput,
-    weights_w: NodeInput,
-    weights_r: NodeInput,
-    biases: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
     hidden_size: int,
     activations: List[str],
     activations_alpha: List[float],
@@ -406,13 +406,13 @@ def rnn_cell(
 
     Note this class represents only single *cell* and not whole RNN *layer*.
 
-    :param inputs:                       The input tensor with shape: [batch_size, input_size].
+    :param X:                       The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state:    The hidden state tensor at current time step with shape:
                                     [batch_size, hidden_size].
-    :param weights_w:                       The weight tensor with shape: [hidden_size, input_size].
-    :param weights_r:                       The recurrence weight tensor with shape: [hidden_size,
+    :param W:                       The weight tensor with shape: [hidden_size, input_size].
+    :param R:                       The recurrence weight tensor with shape: [hidden_size,
                                     hidden_size].
-    :param biases:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
+    :param B:                       The sum of biases (weight and recurrence) with shape: [hidden_size].
     :param hidden_size:             The number of hidden units for recurrent cell.
                                     Specifies hidden state size.
     :param activations:             The vector of activation functions used inside recurrent cell.
@@ -432,7 +432,7 @@ def rnn_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(inputs, initial_hidden_state, weights_w, weights_r, biases)
+    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -603,7 +603,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
 @nameable_op
 def topk(
     data: NodeInput,
-    k_val: NodeInput,
+    k: NodeInput,
     axis: int,
     mode: str,
     sort: str,
@@ -613,7 +613,7 @@ def topk(
     """Return a node which performs TopK.
 
     :param data: Input data.
-    :param k_val: K.
+    :param k: K.
     :param axis: TopK Axis.
     :param mode: Compute TopK largest ('max') or smallest ('min')
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
@@ -622,6 +622,6 @@ def topk(
     """
     return _get_node_factory_opset3().create(
         "TopK",
-        as_nodes(data, k_val),
+        as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},
     )

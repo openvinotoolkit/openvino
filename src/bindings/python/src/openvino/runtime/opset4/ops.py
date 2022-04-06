@@ -357,12 +357,12 @@ def reduce_l2(
 
 @nameable_op
 def lstm_cell(
-    inputs: NodeInput,
+    X: NodeInput,
     initial_hidden_state: NodeInput,
     initial_cell_state: NodeInput,
-    weights_w: NodeInput,
-    weights_r: NodeInput,
-    biases: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
     hidden_size: int,
     activations: List[str] = None,
     activations_alpha: List[float] = None,
@@ -372,12 +372,12 @@ def lstm_cell(
 ) -> Node:
     """Return a node which performs LSTMCell operation.
 
-    :param inputs: The input tensor with shape: [batch_size, input_size].
+    :param X: The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
     :param initial_cell_state: The cell state tensor with shape: [batch_size, hidden_size].
-    :param weights_w: The weight tensor with shape: [4*hidden_size, input_size].
-    :param weights_r: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
-    :param biases: The bias tensor for gates with shape: [4*hidden_size].
+    :param W: The weight tensor with shape: [4*hidden_size, input_size].
+    :param R: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
+    :param B: The bias tensor for gates with shape: [4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param activations: The list of three activation functions for gates.
     :param activations_alpha: The list of alpha parameters for activation functions.
@@ -394,7 +394,7 @@ def lstm_cell(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(inputs, initial_hidden_state, initial_cell_state, weights_w, weights_r, biases)
+    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
