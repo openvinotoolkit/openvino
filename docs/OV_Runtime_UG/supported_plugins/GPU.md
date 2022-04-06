@@ -188,7 +188,7 @@ which means that incoming infer requests can be processed simultaneously.
 > **NOTE**: Simultaneous scheduling of kernels to different queues does not mean that the kernels are actually executed in parallel on GPU device. The actual behavior depends on the hardware architecture, and in some cases the execution may be serialized inside the GPU driver.
 
 When multiple inferences of the same model need to be executed in parallel, multi-stream feature is preferrable over multiple instances of the model or application.
-The implementation of streams in GPU plugin supports memory sharing across streams, thus memory consumption may be less comparing to the other approaches.
+The implementation of streams in GPU plugin supports memory sharing across streams for the weights, thus memory consumption may be less comparing to the other approaches.
 
 See the [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
 
