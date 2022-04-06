@@ -306,6 +306,34 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     }
 }
 #endif
+
+TEST_P(CompileWithCacheNoThrowTest, CanCreateCacheDirAndNoThrow) {
+    core->set_property(ov::cache_dir(cache_path));
+    try {
+        // Load CNNNetwork to target plugins
+        ov::CompiledModel execNet;
+        ASSERT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
+
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // clear the exenetwork, so that all device can finish loading
+        execNet = {};
+        // Check that folder contains cache files and remove them
+        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
 } // namespace behavior
 } // namespace test
 } // namespace ov

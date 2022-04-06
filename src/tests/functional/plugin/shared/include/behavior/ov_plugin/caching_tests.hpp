@@ -69,7 +69,7 @@ protected:
         std::tie(targetDevice, configuration) = GetParam();
     }
 };
-
+using CompileWithCacheNoThrowTest = CompiledKernelsCacheTest;
 } // namespace behavior
 } // namespace test
 } // namespace ov

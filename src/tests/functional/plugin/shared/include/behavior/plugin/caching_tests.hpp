@@ -66,4 +66,5 @@ protected:
         std::tie(targetDevice, configuration) = GetParam();
     }
 };
+using LoadNetworkCompileWithCacheNoThrowTest = LoadNetworkCompiledKernelsCacheTest;
 } // namespace LayerTestsDefinitions
