@@ -1416,12 +1416,12 @@ def lrn(
 
 @nameable_op
 def lstm_cell(
-    input_node: NodeInput,
+    X: NodeInput,
     initial_hidden_state: NodeInput,
     initial_cell_state: NodeInput,
-    weights_w: NodeInput,
-    weights_h: NodeInput,
-    biases: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
     hidden_size: int,
     activations: List[str] = None,
     activations_alpha: List[float] = None,
@@ -1434,9 +1434,9 @@ def lstm_cell(
     :param X: The input tensor with shape: [batch_size, input_size].
     :param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
     :param initial_cell_state: The cell state tensor with shape: [batch_size, hidden_size].
-    :param weights_w: The weight tensor with shape: [4*hidden_size, input_size].
-    :param weights_h: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
-    :param biases: The bias tensor for gates with shape: [4*hidden_size].
+    :param W: The weight tensor with shape: [4*hidden_size, input_size].
+    :param R: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
+    :param B: The bias tensor for gates with shape: [4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param activations: The list of three activation functions for gates.
     :param activations_alpha: The list of alpha parameters for activation functions.
@@ -1454,12 +1454,12 @@ def lstm_cell(
         activations_beta = []
 
     node_inputs = as_nodes(
-        input_node,
+        X,
         initial_hidden_state,
         initial_cell_state,
-        weights_w,
-        weights_h,
-        biases,
+        W,
+        R,
+        B,
     )
 
     # P - nGraph additional input, no such input in the OV spec
@@ -1487,13 +1487,13 @@ def lstm_cell(
 
 @nameable_op
 def lstm_sequence(
-    input_node: NodeInput,
+    X: NodeInput,
     initial_hidden_state: NodeInput,
     initial_cell_state: NodeInput,
     sequence_lengths: NodeInput,
-    weights_w: NodeInput,
-    weights_h: NodeInput,
-    biases: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
     hidden_size: int,
     direction: str,
     activations: List[str] = None,
@@ -1511,11 +1511,11 @@ def lstm_sequence(
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param weights_w: Tensor with weights for matrix multiplication operation with input portion of data.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 4*hidden_size, input_size].
-    :param weights_h: The tensor with weights for matrix multiplication operation with hidden state.
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
               Shape: [num_directions, 4*hidden_size, hidden_size].
-    :param biases: The tensor with biases.
+    :param B: The tensor with biases.
               Shape: [num_directions, 4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
@@ -1535,13 +1535,13 @@ def lstm_sequence(
         activations_beta = []
 
     node_inputs = as_nodes(
-        input_node,
+        X,
         initial_hidden_state,
         initial_cell_state,
         sequence_lengths,
-        weights_w,
-        weights_h,
-        biases,
+        W,
+        R,
+        B,
     )
 
     # P - nGraph additional input, no such input in the OV spec
@@ -2240,7 +2240,7 @@ def proposal(
 
 @nameable_op
 def psroi_pooling(
-    input_node: NodeInput,
+    input: NodeInput,
     coords: NodeInput,
     output_dim: int,
     group_size: int,
@@ -2265,7 +2265,7 @@ def psroi_pooling(
     mode = mode.lower()
     return _get_node_factory_opset1().create(
         "PSROIPooling",
-        as_nodes(input_node, coords),
+        as_nodes(input, coords),
         {
             "output_dim": output_dim,
             "group_size": group_size,
@@ -2446,7 +2446,7 @@ def reduce_sum(
 
 @nameable_op
 def region_yolo(
-    input_node: Node,
+    input: Node,
     coords: int,
     classes: int,
     num: int,
@@ -2459,7 +2459,7 @@ def region_yolo(
 ) -> Node:
     """Return a node which produces the RegionYolo operation.
 
-    :param input_node:       Input data
+    :param input:       Input data
     :param coords:      Number of coordinates for each region
     :param classes:     Number of classes for each region
     :param num:         Number of regions
@@ -2476,7 +2476,7 @@ def region_yolo(
 
     return _get_node_factory_opset1().create(
         "RegionYolo",
-        [input_node],
+        [input],
         {
             "coords": coords,
             "classes": classes,
@@ -2526,7 +2526,7 @@ def result(data: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def reverse_sequence(
-    input_node: NodeInput,
+    input: NodeInput,
     seq_lengths: NodeInput,
     batch_axis: NumericData,
     seq_axis: NumericData,
@@ -2542,7 +2542,7 @@ def reverse_sequence(
     """
     return _get_node_factory_opset1().create(
         "ReverseSequence",
-        as_nodes(input_node, seq_lengths),
+        as_nodes(input, seq_lengths),
         {"batch_axis": batch_axis, "seq_axis": seq_axis},
     )
 
@@ -2859,7 +2859,7 @@ def tile(data: NodeInput, repeats: NodeInput, name: Optional[str] = None) -> Nod
 @nameable_op
 def topk(
     data: NodeInput,
-    k_val: NodeInput,
+    k: NodeInput,
     axis: int,
     mode: str,
     sort: str,
@@ -2868,7 +2868,7 @@ def topk(
     """Return a node which performs TopK.
 
     :param data: Input data.
-    :param k_val: K.
+    :param k: K.
     :param axis: TopK Axis.
     :param mode: Compute TopK largest ('max') or smallest ('min')
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
@@ -2876,7 +2876,7 @@ def topk(
     """
     return _get_node_factory_opset1().create(
         "TopK",
-        as_nodes(data, k_val),
+        as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort},
     )
 
