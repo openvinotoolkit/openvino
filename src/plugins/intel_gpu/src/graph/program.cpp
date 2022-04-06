@@ -261,7 +261,6 @@ bool program::analyze_output_size_handling_need() {
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -282,7 +281,7 @@ bool program::analyze_output_size_handling_need() {
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 

@@ -91,7 +91,19 @@ if(THREADING STREQUAL "OMP")
 endif()
 
 ## TBB package
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYSTEM_TBB)
+unset(_ov_download_tbb_done CACHE)
+
+#
+# The function downloads prebuilt TBB package
+# NOTE: the function should be used if system TBB is not found
+# or ENABLE_SYSTEM_TBB is OFF
+#
+function(ov_download_tbb)
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+        return()
+    endif()
+    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+
     reset_deps_cache(TBBROOT TBB_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -146,22 +158,31 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT ENABLE_SYST
         # custom downloaded or user provided TBB
         update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB cmake folder")
     else()
-        message(FATAL_ERROR "Failed to find TBBConfig.cmake in ${TBBROOT} tree")
+        message(WARNING "Failed to find TBBConfig.cmake in ${TBBROOT} tree. Custom TBBConfig.cmake will be used")
     endif()
-
-    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
 
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
 
-    if(DEFINED IE_PATH_TO_DEPS)
-        unset(IE_PATH_TO_DEPS)
-    endif()
-endif()
+    set(TBB "${TBB}" PARENT_SCOPE)
+endfunction()
 
 ## TBBBind_2_5 package
-if(ENABLE_TBBBIND_2_5)
+unset(_ov_download_tbbbind_2_5_done CACHE)
+
+#
+# The function downloads static prebuilt TBBBind_2_5 package
+# NOTE: the function should be called only we have TBB with version less 2021
+#
+function(ov_download_tbbbind_2_5)
+    if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
+        return()
+    endif()
+    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+
+    reset_deps_cache(TBBBIND_2_5_DIR)
+
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -174,6 +195,8 @@ if(ENABLE_TBBBIND_2_5)
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+    elseif(ANDROID)
+        # don't have TBBBIND_2_5
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
@@ -187,10 +210,8 @@ Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake 
 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
 
-    if(DEFINED IE_PATH_TO_DEPS)
-        unset(IE_PATH_TO_DEPS)
-    endif()
-endif()
+    set(TBBBIND_2_5 "${TBBBIND_2_5}" PARENT_SCOPE)
+endfunction()
 
 ## OpenCV
 if(ENABLE_OPENCV)
