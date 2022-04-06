@@ -34,7 +34,7 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
+This open-source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
