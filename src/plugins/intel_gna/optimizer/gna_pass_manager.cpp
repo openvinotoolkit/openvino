@@ -74,7 +74,8 @@ static const char softSignLayersCounter[] = "numSoftSignLayers";
 static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                        InferenceEngine::CNNLayerPtr nextLayer,
                                        std::shared_ptr<IPassManager> passmanager,
-                                       float fillValue) {
+                                       float fillValue,
+                                       size_t in_data_idx = invalid_data_idx) {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
     auto diagName = std::string("SyntheticScaleShift_") + std::to_string(passmanager->getIntVar(diagonalLayersCounterName)++);
     gnalog() << "Inserted Diagonal Layer " << diagName <<" between: " << prevLayer->name << " and " << nextLayer->name << "\n" << std::flush;
@@ -104,7 +105,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
-    CNNNetworkInsertLayer(prevLayer, nextLayer, diagonalWithQuant);
+    CNNNetworkInsertLayer(prevLayer, nextLayer, diagonalWithQuant, invalid_data_idx, in_data_idx);
 }
 
 /**
@@ -137,7 +138,8 @@ static bool hasNextFuncLayer(const CNNLayerPtr layer) {
             });
 }
 
-static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager) {
+static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager,
+                                                                  bool skipFq = false) {
     std::vector<CNNLayerPtr> prevLayers;
 
     // skipping memory inputs and true inputs layers
@@ -146,9 +148,9 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
     auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
     auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
 
-    auto PrevFunctionalLayer = [](CNNLayerPtr l, int idx = 0) {
-        auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](CNNLayerPtr ptr) {
-            return LayerInfo(ptr).isNonFunctional();
+    auto PrevFunctionalLayer = [skipFq](CNNLayerPtr l, int idx = 0) {
+        auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [skipFq](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional() || skipFq && LayerInfo(ptr).isFakeQuantize();
         });
         gnalog() << "CNNNetPrevLayerSkipCertain for :: " << l->name << "returned: " << prevLayer->name << std::endl;
         return prevLayer;
@@ -308,7 +310,7 @@ void InsertDiagonalLayerPass::run() {
                 continue;
         }
         auto prevDirectLayer = CNNNetPrevLayer(l, 0);
-        insertDiagonalLayerBetween(prevDirectLayer, l, getPassManager(), 1.f);
+        insertDiagonalLayerBetween(prevDirectLayer, l, getPassManager(), 1.f, 0);
     }
 }
 
@@ -820,18 +822,6 @@ void InsertIdentityLayerPass::run() {
 
             gnalog() << "Inserted "<< identityLayer->name << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
 
-            // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
-            bool notAll = false;
-            for (auto && nextData  : prev->outData) {
-                for (auto && nextLayer : getInputTo(nextData)) {
-                    if (nextLayer.second.get() == l.get())
-                        continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty() &&
-                        hasNextFuncLayer(nextLayer.second)) {
-                        notAll = true;
-                    }
-                }
-            }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("output_offset") != prev->params.end()) {
                 identityLayer->params["output_offset"] = prev->params["output_offset"];
@@ -841,7 +831,7 @@ void InsertIdentityLayerPass::run() {
                 identityLayer->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), identityLayer);
+            CNNNetworkInsertLayer(prev, CNNLayerPtr(nullptr), identityLayer);
         }
     }
 }
@@ -981,8 +971,8 @@ void InsertCopyLayerPass::run() {
     }
 
     for (auto & l : *pLayers) {
-        if (!l->outData.size() == 0 &&
-            !getInputTo(l->outData[0]).size() == 0) continue;
+        if (l->outData.size() > 0 &&
+            getInputTo(l->outData[0]).size() > 0) continue;
 
         bool bNeedInsertCopyLayer = true;
         CNNNetDFS(l, [&l, &bNeedInsertCopyLayer](CNNLayerPtr layer) {
@@ -1341,6 +1331,12 @@ void InsertSplitAligningFilterPass::run() {
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
                 } else {
+                    auto lastDimSize = GetDataDimSize(splitOutput, 1);
+                    if (lastDimSize != outputSize) {
+                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support these input dimensions: lastDimSize="
+                            << lastDimSize << ", outputSize=" << outputSize;
+                    }
+
                     // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
                     // insert the filter
                     auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
@@ -2054,32 +2050,25 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         return false;
     };
 
-    auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkip = [](CNNLayerPtr layer) {
-            return false;
+    auto allowFQFuse = [this](CNNLayerPtr layer) -> bool {
+        auto skipNonFunctionalOrMemory = [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isMemory();
         };
-
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
-            return false;
-        }
-
         auto skipNonFunctional = [](CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional();
         };
-
-        auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
-            return true;
+        // Don't fuse FQ if it's the output layer for the network
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctionalOrMemory).empty()) {
+            return false;
         }
-
+        // Fuse FQ if it's not required to change precision from int32 to int16
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
         for (auto& l : nextLayers) {
-            if (!LayerInfo(l).isActivation()) {
-                return false;
+            if (getCandidatesForIdentityInsertion(l, getPassManager(), true).empty()) {
+                return true;
             }
         }
-
-        return true;
+        return false;
     };
 
     std::function<void(QuantizedLayerParams*, CNNLayerPtr)> propagateStatistics =
@@ -2213,8 +2202,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const, memory or activation layer
-        // or a next layer is activation layer.
+        // FQ Layer is fused if it's not required for precision change.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = *prevDataIt;
 

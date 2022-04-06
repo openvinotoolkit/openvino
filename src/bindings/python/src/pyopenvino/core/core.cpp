@@ -10,9 +10,9 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
-#include <pyopenvino/graph/any.hpp>
 
 #include "common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -35,9 +35,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property({properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -52,9 +52,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
-            std::map<std::string, PyAny> properties_to_cpp;
+            std::map<std::string, ov::Any> properties_to_cpp;
             for (const auto& property : properties) {
-                properties_to_cpp[property.first] = PyAny(property.second);
+                properties_to_cpp[property.first] = ov::Any(py_object_to_any(property.second));
             }
             self.set_property(device_name, {properties_to_cpp.begin(), properties_to_cpp.end()});
         },
@@ -77,6 +77,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& properties) {
             return self.compile_model(model, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict(),
@@ -84,6 +85,8 @@ void regclass_Core(py::module m) {
             Creates a compiled model from a source model object.
             Users can create as many compiled models as they need, and use them simultaneously
             (up to the limitation of the hardware resources).
+
+            GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
@@ -102,12 +105,15 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& config) {
             return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("config") = py::dict(),
         R"(
             Creates and loads a compiled model from a source model to the default OpenVINO device
             selected by AUTO plugin. Users can create as many compiled models as they need, and use
             them simultaneously (up to the limitation of the hardware resources).
+
+            GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
@@ -125,6 +131,7 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& config) {
             return self.compile_model(model_path, device_name, {config.begin(), config.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),
@@ -132,6 +139,8 @@ void regclass_Core(py::module m) {
             Reads model and creates a compiled model from IR / ONNX / PDPD file.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
+
+            GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
             :type model_path: str
@@ -148,12 +157,15 @@ void regclass_Core(py::module m) {
         [](ov::Core& self, const std::string& model_path, const std::map<std::string, std::string>& properties) {
             return self.compile_model(model_path, ov::AnyMap{properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_path"),
         py::arg("config") = py::dict(),
         R"(
             Reads model and creates a compiled model from IR / ONNX / PDPD file with device selected by AUTO plugin.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
+
+            GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
             :type model_path: str
@@ -178,24 +190,25 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         [](ov::Core& self, py::bytes model, py::bytes weights) {
+            std::string ir(model);
             // works on view in order to omit copying bytes into string
             py::buffer_info info(py::buffer(weights).request());
             size_t bin_size = static_cast<size_t>(info.size);
+            ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
             // if weights are not empty
             if (bin_size) {
                 const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
-                ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
                 std::memcpy(tensor.data(), bin, bin_size);
-                return self.read_model(model, tensor);
             }
-            // create empty tensor of type u8
-            ov::Tensor tensor(ov::element::Type_t::u8, {});
-            return self.read_model(model, tensor);
+            py::gil_scoped_release release;
+            return self.read_model(ir, tensor);
         },
         py::arg("model"),
         py::arg("weights") = py::bytes(),
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: Bytes with model in IR / ONNX / PDPD format.
             :type model: bytes
@@ -208,10 +221,13 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights") = "",
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: A path to a model in IR / ONNX / PDPD format.
             :type model: str
@@ -228,10 +244,13 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights"),
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
@@ -244,13 +263,18 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        [](ov::Core& self, py::object model, py::object weights) {
-            return self.read_model(py::str(model), py::str(weights));
+        [](ov::Core& self, py::object model_path, py::object weights_path) {
+            std::string model_path_cpp{py::str(model_path)};
+            std::string weights_path_cpp{py::str(weights_path)};
+            py::gil_scoped_release release;
+            return self.read_model(model_path_cpp, weights_path_cpp);
         },
         py::arg("model"),
         py::arg("weights") = "",
         R"(
             Reads models from IR / ONNX / PDPD formats.
+
+            GIL is released while running this function.
 
             :param model: A string with model in IR / ONNX / PDPD format.
             :type model: str
@@ -273,11 +297,14 @@ void regclass_Core(py::module m) {
             _stream << model_stream;
             return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model_stream"),
         py::arg("device_name"),
         py::arg("properties") = py::none(),
         R"(
             Imports a compiled model from a previously exported one.
+
+            GIL is released while running this function.
 
             :param model_stream: Input stream, containing a model previously exported, using export_model method.
             :type model_stream: bytes
@@ -319,6 +346,7 @@ void regclass_Core(py::module m) {
             _stream << model_stream
                            .attr("read")()  // alternative: model_stream.attr("get_value")()
                            .cast<std::string>();
+            py::gil_scoped_release release;
             return self.import_model(_stream, device_name, {properties.begin(), properties.end()});
         },
         py::arg("model_stream"),
@@ -329,6 +357,8 @@ void regclass_Core(py::module m) {
 
             Advanced version of `import_model`. It utilizes, streams from standard
             Python library `io`.
+
+            GIL is released while running this function.
 
 
             :param model_stream: Input stream, containing a model previously exported, using export_model method.
@@ -358,7 +388,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_property",
         [](ov::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
+            return Common::utils::from_ov_any(self.get_property(device_name, name));
         },
         py::arg("device_name"),
         py::arg("name"),
@@ -419,11 +449,14 @@ void regclass_Core(py::module m) {
            const std::map<std::string, std::string>& properties) {
             return self.query_model(model, device_name, {properties.begin(), properties.end()});
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("device_name"),
         py::arg("properties") = py::dict(),
         R"(
             Query device if it supports specified model with specified properties.
+
+            GIL is released while running this function.
 
             :param model: Model object to query.
             :type model: openvino.runtime.Model
@@ -468,8 +501,11 @@ void regclass_Core(py::module m) {
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,
+                              py::call_guard<py::gil_scoped_release>(),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
+
+                                    GIL is released while running this function.
 
                                     :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
                                         If there more than one device of specific type, they are enumerated with .# suffix.

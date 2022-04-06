@@ -55,7 +55,7 @@ public:
  * FakeQuantize operations are included. The attribute is used by quantization operations.
  *
  * For more details about the attribute, refer to
- * [IntervalsAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
+ * [IntervalsAlignmentAttribute](@ref openvino_docs_OV_UG_lpt_IntervalsAlignment) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:

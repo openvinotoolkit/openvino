@@ -9,6 +9,7 @@
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"

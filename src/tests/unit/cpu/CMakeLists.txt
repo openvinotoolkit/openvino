@@ -12,29 +12,32 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
-            $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
+            PUBLIC
+                $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
+                $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
+            PRIVATE
+                $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
             gtest
             gtest_main
             gmock
-            mkldnn
+            dnnl
             inference_engine_transformations
             inference_engine_lp_transformations
             ov_shape_inference
             inference_engine_s
             unitTestUtils
-            inference_engine_snippets
             ngraphFunctions
+            snippetsNgraphFunctions
         ADD_CPPLINT
         LABELS
             CPU
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 if (WIN32)
     # Prevents defining min/max as macros
@@ -46,6 +49,6 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)

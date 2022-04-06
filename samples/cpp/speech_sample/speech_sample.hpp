@@ -96,10 +96,6 @@ static const char scale_factor_message[] =
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
 
-/// @brief message for #threads for CPU inference
-static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async"
-                                                " inference requests on the GNA.";
-
 /// @brief message for left context window argument
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
@@ -183,9 +179,6 @@ DEFINE_string(sf, "", scale_factor_message);
 
 /// @brief Batch size (default 0)
 DEFINE_int32(bs, 0, batch_size_message);
-
-/// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
-DEFINE_int32(nthreads, 1, infer_num_threads_message);
 
 /// @brief Right context window size (default 0)
 DEFINE_int32(cw_r, 0, context_window_message_r);
