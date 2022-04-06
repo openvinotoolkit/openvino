@@ -113,12 +113,12 @@ Boxes of `background_class` are skipped and thus eliminated.
 
 **Inputs**:
 
-There are 2 kinds of input formats. The first one is -
+There are 2 kinds of input formats. The first one is of two inputs. The boxes are shared by all classes.
 *   **1**: `boxes` - tensor of type *T* and shape `[num_batches, num_boxes, 4]` with box coordinates. The box coordinates are layout as `[xmin, ymin, xmax, ymax]`. **Required.**
 
 *   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. The tensor type should be same with `boxes`. **Required.**
 
-The second format is -
+The second format is of three inputs. Each class has its own boxes that are not shared.
 *   **1**: `boxes` - tensor of type *T* and shape `[num_classes, num_boxes, 4]` with box coordinates. The box coordinates are layout as `[xmin, ymin, xmax, ymax]`. **Required.**
 
 *   **2**: `scores` - tensor of type *T* and shape `[num_classes, num_boxes]` with box scores. The tensor type should be same with `boxes`. **Required.**
@@ -145,7 +145,7 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
 
 ```xml
 <layer ... type="MulticlassNonMaxSuppression" ... >
-    <data sort_result="score" output_type="i64"/>
+    <data sort_result="score" output_type="i64" sort_result_across_batch="false" iou_threshold="0.2" score_threshold="0.5" nms_top_k="-1" keep_top_k="-1" background_class="-1" normalized="false" nms_eta="0.0"/>
     <input>
         <port id="0">
             <dim>3</dim>
@@ -157,6 +157,39 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
             <dim>5</dim>
             <dim>100</dim>
         </port>
+    </input>
+    <output>
+        <port id="5" precision="FP32">
+            <dim>-1</dim> <!-- "-1" means a undefined dimension calculated during the model inference -->
+            <dim>6</dim>
+        </port>
+        <port id="6" precision="I64">
+            <dim>-1</dim>
+            <dim>1</dim>
+        </port>
+        <port id="7" precision="I64">
+            <dim>3</dim>
+        </port>
+    </output>
+</layer>
+```
+Another possible example with 3 inputs could be like:
+```xml
+<layer ... type="MulticlassNonMaxSuppression" ... >
+    <data sort_result="score" output_type="i64" sort_result_across_batch="false" iou_threshold="0.2" score_threshold="0.5" nms_top_k="-1" keep_top_k="-1" background_class="-1" normalized="false" nms_eta="0.0"/>
+    <input>
+        <port id="0">
+            <dim>3</dim>
+            <dim>100</dim>
+            <dim>4</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim>
+            <dim>100</dim>
+        </port>
+        <port id="2">
+            <dim>10</dim>
+	</port>
     </input>
     <output>
         <port id="5" precision="FP32">
