@@ -215,6 +215,7 @@ struct format {
         g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
         g_os_is_yx_isv16_osv16,
+        g_os_is_yx_osv8_isv4,
         gs_oi_yxs_gsv4_yxsv4,
         gs_oi_yxs_gsv16_yxsv4,
         gs_oi_yxs_gsv32_yxsv4,

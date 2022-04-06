@@ -964,11 +964,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
         // bool is_first_conv = input_layout.size.feature[0] < 4;
 
-        if (i8_u8_output) {
-            if (!non_grouped && is_dw) {
-                expected_format = cldnn::format::byxf;
-
-            } else if ((non_grouped || valid_grouped || valid_int8_dw) && is_2d) {
+        if (!non_grouped && is_2d) {
+            expected_format = cldnn::format::byxf;
+        } else if (i8_u8_output) {
+            if ((non_grouped || valid_grouped || valid_int8_dw) && is_2d) {
                 if (input_layout.batch() >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
