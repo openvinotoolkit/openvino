@@ -158,6 +158,29 @@ void regclass_InferRequest(py::module m) {
                             Total size of tensors needs to match with input's size.
         )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
+    cls.def(
+        "infer",
+        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+            self._request.set_input_tensor(inputs);
+            {
+                py::gil_scoped_release release;
+                self._start_time = Time::now();
+                self._request.infer();
+                self._end_time = Time::now();
+            }
+            return Common::outputs_to_dict(self._outputs, self._request);
+        },
+        py::arg("inputs"),
+        // jiwaszki TODO: docs here...
+    );
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
         [](InferRequestWrapper& self, const py::dict& inputs) {

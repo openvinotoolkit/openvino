@@ -11,8 +11,7 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-
-from openvino.runtime.utils.types import get_dtype
+from openvino.pyopenvino import Type
 
 
 def tensor_from_file(path: str) -> Tensor:
@@ -20,64 +19,35 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def convert_dict_items(inputs: dict, py_types: dict) -> dict:
-    """Helper function converting dictionary items to Tensors."""
+def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
+    """Helper function converting dictionary items to Tensors.""" # jiwaszki TODO: change desc
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
     new_inputs = {}
     for k, val in inputs.items():
         if not isinstance(k, (str, int, ConstOutput)):
-            raise TypeError("Incompatible key type for tensor: {}".format(k))
-        try:
-            ov_type = py_types[k]
-        except KeyError:
-            raise KeyError("Port for tensor {} was not found!".format(k))
-        # Convert numpy arrays or copy Tensors
-        new_inputs[k] = (
-            val
-            if isinstance(val, Tensor)
-            else Tensor(np.array(val, get_dtype(ov_type), copy=False))
-        )
+            raise TypeError("Incompatible key type for input: {}".format(k))
+        # Copy numpy arrays to already allocated Tensors.
+        if isinstance(val, np.ndarray):
+            tensor = request.get_input_tensor(k) if isinstance(k, int) else request.get_tensor(k)
+            # Update shape if there is a mismatch
+            if tensor.shape != val.shape:
+                tensor.shape = val.shape
+            # If allocated Tensor type is: FP16, jiwaszki TODO: BF16(?)
+            # jiwaszki TODO: Move to one liner if only one type fits this if
+            if tensor.element_type == Type.f16:
+                tensor.data[:] = val.view(dtype=np.int16) # jiwaszki TODO: check if correct
+            # When copying, type should be up/down-casted automatically.
+            else:
+                tensor.data[:] = val[:]
+        # If value is of Tensor type, put it into temporary dictionary.
+        elif isinstance(val, Tensor):
+            new_inputs[k] = val
+        # Throw error otherwise.
+        else:
+            raise TypeError("Incompatible input data of type {} under {} key!".format(type(val), k))
     return new_inputs
-
-
-def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
-    """Normalize a dictionary of inputs to Tensors."""
-    if isinstance(inputs, dict):
-        return convert_dict_items(inputs, py_types)
-    elif isinstance(inputs, list):
-        # Lists are required to be represented as dictionaries with int keys
-        return convert_dict_items(
-            {index: input for index, input in enumerate(inputs)}, py_types
-        )
-    else:
-        raise TypeError(
-            "Inputs should be either list or dict! Current type: {}".format(
-                type(inputs)
-            )
-        )
-
-
-def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
-    """Map all tensor names of all inputs to the data types of those tensors."""
-
-    def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
-        return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
-
-    def map_tensor_names_to_types(input: ConstOutput) -> dict:
-        return {n: input.get_element_type() for n in input.get_names()}
-
-    input_types: dict = {}
-    for idx, input in enumerate(get_inputs(obj)):
-        # Add all possible "accessing aliases" to dictionary
-        # Key as a ConstOutput port
-        input_types[input] = input.get_element_type()
-        # Key as an integer
-        input_types[idx] = input.get_element_type()
-        # Multiple possible keys as Tensor names
-        input_types.update(map_tensor_names_to_types(input))
-    return input_types
 
 
 class InferRequest(InferRequestBase):
@@ -106,8 +76,30 @@ class InferRequest(InferRequestBase):
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         return super().infer(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+            {} if inputs is None else normalize_inputs(inputs)
         )
+
+    @fun.register(dict)
+    def infer(self, inputs: dict = None) -> dict:
+        return super().infer(
+            {} if inputs is None else normalize_inputs(inputs)
+        )
+
+    @fun.register(list)
+    def infer(self, inputs: list = None) -> dict:
+        return super().infer(
+            {} if inputs is None else normalize_inputs({index: input for index, input in enumerate(inputs)})
+        )
+
+    @fun.register(Tensor)
+    def infer(self, inputs: Tensor = None) -> dict:
+        return super().infer(inputs)
+
+    @fun.register(np.ndarray)
+    def infer(self, inputs: np.ndarray = None) -> dict:
+        t = self.get_input_tensor() # it will throw error if more than one
+        return super().infer()
+
 
     def start_async(
         self, inputs: Union[dict, list] = None, userdata: Any = None
@@ -182,9 +174,12 @@ class CompiledModel(CompiledModelBase):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-        return super().infer_new_request(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        )
+        # TODO: think about solution here... as no actual request is created
+        # there is no way to run new normalize_inputs function
+        # maybe something like this?
+        # It cast to wrapped python InferReqeust and then call upon other
+        # overloaded functions of InferRequest class
+        return self.create_infer_request().infer(inputs)
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
         """Callable infer wrapper for CompiledModel.
@@ -233,6 +228,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
+        # jiwaszki TODO: think about solution here as well 
         super().start_async(
             {}
             if inputs is None
