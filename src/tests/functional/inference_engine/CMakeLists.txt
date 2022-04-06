@@ -282,8 +282,14 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    if(TBB_VERSION VERSION_EQUAL 2021.2)
+        # TBB 2021.2 has a bug in headers with CXX_STANDARD 20
+        # see https://github.com/oneapi-src/oneTBB/issues/379
+        set(skip_headers_list HEADERS_TO_SKIP "threading/ie_thread_local.hpp")
+    endif()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx20
-                                            CXX_STANDARD 20 PLUGIN_API)
+                                             ${skip_headers_list}
+                                             CXX_STANDARD 20 PLUGIN_API)
 endif()
 
 if(UNIX)

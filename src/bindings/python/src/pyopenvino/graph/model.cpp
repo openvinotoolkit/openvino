@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
@@ -262,8 +263,13 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const ov::PartialShape& partial_shape) {
             self.reshape(partial_shape);
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: openvino.runtime.PartialShape
                 :return : void
@@ -272,10 +278,16 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: list
                 :return : void
@@ -284,10 +296,16 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::tuple& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: tuple
                 :return : void
@@ -298,8 +316,13 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const std::string& partial_shape) {
             self.reshape(Common::partial_shape_from_str(partial_shape));
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: str
                 :return : void
@@ -336,6 +359,7 @@ void regclass_graph_Model(py::module m) {
                 }
                 new_shapes.insert(new_shape);
             }
+            py::gil_scoped_release release;
             self.reshape(new_shapes);
         },
         py::arg("partial_shapes"),
@@ -366,6 +390,10 @@ void regclass_graph_Model(py::module m) {
                 '1' - to define dimension which length is 1
                 '1..10' - to define bounded dimension
                 '..10' or '1..' to define dimension with only lower or only upper limit
+
+            Reshape model input.
+
+            GIL is released while running this function.
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]
@@ -654,6 +682,14 @@ void regclass_graph_Model(py::module m) {
                                        shared across nodes.
             :type evaluation_context: openvino.runtime.RTMap
             :rtype: bool
+        )");
+
+    model.def("clone",
+              &ov::Model::clone,
+              R"(
+            Return a copy of self.
+            :return: A copy of self.
+            :rtype: openvino.runtime.Model
         )");
 
     model.def("__repr__", [](const ov::Model& self) {
