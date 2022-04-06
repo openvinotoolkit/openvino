@@ -131,7 +131,7 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
 @sphinxdirective
 .. note::
 
-   You can use the FP16 IR to work with auto-device.
+   You can keep using the FP16 IR without converting it to FP32, even if some of the listed devices do not support it. The conversion will be done automatically for you.
 
    No demos are yet fully optimized for MULTI, by means of supporting the ov::optimal_number_of_infer_requests property, using the GPU streams/throttling, and so on.
 @endsphinxdirective
