@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ void OVInferConsistencyTest::SetUp() {
     std::tie(_inferReqNumPerModel, _inferNumPerInfer,
         _deviceConfigs) = WithParamInterface::GetParam();
     auto function = GetDefaultGraph();
+    // prepare model and inferRequests
     for (auto&& item : _deviceConfigs) {
         ModelContext modelContext;
         modelContext._model = core->compile_model(function, item.first, item.second);
@@ -53,6 +54,7 @@ void OVInferConsistencyTest::SetUp() {
         _modelContexts.push_back(std::move(modelContext));
     }
     ASSERT_GT(_modelContexts.size(), 1);
+    // prepare expect inferRequst results which will be compared
     std::vector<std::thread> threads;
     for (auto i = 1; i < _modelContexts.size(); i++) {
         threads.push_back(std::thread{[i, this]() {
@@ -105,6 +107,7 @@ bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
             return false;
         }
         try {
+            // if not equal will throw exception
             LayerTestsUtils::LayerTestsCommon::Compare(
                 a[j].data<float>(), b[j].data<float>(), a[j].get_size(), 1e-2f);
         } catch (...) {
@@ -142,6 +145,7 @@ void OVInferConsistencyTest::InferCheck(bool isSync) {
                 auto actualoutputs = GetAllOutputs(_modelContexts[0]._model,
                         inferContext._inferRequest);
                 bool isSame = false;
+                // compare with devices, the result is same with one of them, break loop
                 for (auto y = 1; y < _modelContexts.size(); y++) {
                     auto expectOutPuts = _modelContexts[y]._inferContexts[i]._outputs;
                     isSame = isSame || IsEqual(expectOutPuts, actualoutputs);
@@ -160,6 +164,7 @@ void OVInferConsistencyTest::InferCheck(bool isSync) {
     }
 }
 
+// different index will create different input, index shoud > 0
 void OVInferConsistencyTest::FillInput(InferContext& inferContext, int index) {
     ASSERT_GT(index, 0);
     inferContext._inputs.clear();
