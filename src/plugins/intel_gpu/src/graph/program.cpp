@@ -48,11 +48,9 @@
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
-#if 0 // TODO(taylor)
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
-#endif
 #include "mutable_data_inst.h"
 #include "normalize_inst.h"
 #include "pooling_inst.h"
@@ -71,9 +69,8 @@
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
-#if 0 // TODO(andrew)
 #include "loop_inst.h"
-#endif
+
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -513,8 +510,11 @@ void program::pre_optimize_graph(bool is_internal) {
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
+        if (!node->is_type<data>()) {
+            for (int i = 0; i < node->get_outputs_count(); ++i) {
+                node->get_output_layout(true, i);
+            }
+        }
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled()) {
@@ -523,7 +523,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     layout_optimizer lo(output_size_handling_enabled);
     set_layout_optimizer_attributes(lo);
-#if 0 // TODO(andrew)
+
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
         apply_opt_pass<pre_replace_deconv>(lo);
@@ -531,6 +531,7 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
+
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.
         // Unfortunately those passes currently happen in reverse order.
@@ -571,7 +572,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
-#endif
 }
 #if 0 // TODO(taylor)
 void program::post_optimize_graph(bool is_internal) {
@@ -729,7 +729,7 @@ void program::prepare_memory_dependencies() {
 #endif
 }
 
-#if 0
+#if 0 // TODO(andrew)
 std::string program::get_memory_dependencies_string() const {
     std::string mem_dep = "Memory dependencies/restrictions:\n";
     auto itr = processing_order.begin();
@@ -743,7 +743,7 @@ std::string program::get_memory_dependencies_string() const {
     }
     return mem_dep;
 }
-
+#endif
 void program::apply_needed_padding(program_node& node, program_node& prev_node, const padding& needed_padding) {
     auto target_layout = prev_node.get_output_layout();
 
@@ -755,14 +755,14 @@ void program::apply_needed_padding(program_node& node, program_node& prev_node, 
     if (prev_node.is_type<input_layout>() || prev_node.is_type<mutable_data>()) {
         target_layout.data_padding = needed_padding;
 
-        auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), prev_node.id(), target_layout);
+        auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), input_info(prev_node.id()), target_layout);
         add_intermediate(r_prim, node, 0);
         return;
     }
 
     prev_node.merge_output_padding(needed_padding);
 }
-
+#if 0 // TODO(andrew)
 void program::reverse_connection(program_node& dep_node, program_node& user_node) {
     if (std::find(dep_node.users.begin(), dep_node.users.end(), &user_node) != dep_node.users.end()) {
         remove_connection(dep_node, user_node);
@@ -992,13 +992,13 @@ bool program::remove_if_dangling(program_node& node) {
     }
     return true;
 }
-#if 0 // TODO(andrew)
+
 bool program::extract_and_remove(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
     if (node.is_output() && !is_debug_build()) {
-        auto& prev = node.get_dependency(0);
+        auto& prev = *node.get_dependency(0).first;
         auto node_id = node.id();
 
         node.set_output(false);
@@ -1011,7 +1011,7 @@ bool program::extract_and_remove(program_node& node) {
         outputs.push_back(&prev);
     }
 
-    auto& input = node.get_dependency(0);
+    auto& input = *node.get_dependency(0).first;
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1022,8 +1022,8 @@ bool program::extract_and_remove(program_node& node) {
         }
 
         for (auto& dep : node.dependencies) {
-            if (dep->is_type<loop>()) {
-                loop_node& loop = *dep;
+            if (dep.first->is_type<loop>()) {
+                loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
             }
         }
@@ -1038,7 +1038,6 @@ bool program::extract_and_remove(program_node& node) {
 
     return true;
 }
-
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
@@ -1072,7 +1071,7 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
+        auto& dep = *peer_node.get_dependency(i).first;
         if (dep.id() == fused_node.id()) {
             deps_idx++;
             continue;
@@ -1101,7 +1100,7 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back(&dep);
+        fused_node.dependencies.push_back({&dep, 0});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
@@ -1117,7 +1116,7 @@ void program::fuse_nodes(program_node &fused_node,
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
         for (auto& dep : user->dependencies) {
-            if (dep->id() == peer_node.id())
+            if (dep.first->id() == peer_node.id())
                 break;
             dep_idx++;
         }
@@ -1126,7 +1125,7 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Remove all edges connected with peer node
     while (peer_node.get_dependencies().size() > 0) {
-        auto& dep = peer_node.get_dependency(peer_node.get_dependencies().size() - 1);
+        auto& dep = *peer_node.get_dependency(peer_node.get_dependencies().size() - 1).first;
         remove_connection(dep, peer_node);
     }
     replace_all_usages(peer_node, fused_node);
@@ -1134,9 +1133,9 @@ void program::fuse_nodes(program_node &fused_node,
     // Update output layout. Recalculation is not needed.
     fused_node.merge_output_padding(needed_padding);
     fused_node.set_output_layout(peer_layout, false);
-    fused_node.recalc_output_layout(true);
+    fused_node.recalc_output_layouts(true);
 }
-#endif
+
 void program::remove_nodes(std::vector<program_node*>& to_remove) {
     for (auto const& node : to_remove) {
         if (node->is_input()) {

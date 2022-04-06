@@ -190,7 +190,7 @@ bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_
 
     return false;
 }
-#if 0 // TODO(taylor)
+
 bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout) {
     auto output_layout = n.get_output_layout();
     if (n.get_primitive()->mode == eltwise_mode::sum &&
@@ -201,7 +201,7 @@ bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout inp
 
     return false;
 }
-#endif
+
 
 
 

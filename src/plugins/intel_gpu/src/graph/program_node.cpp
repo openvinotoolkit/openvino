@@ -67,16 +67,16 @@ std::vector<primitive_id> program_node::get_dependencies_ids() const {
     for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
-#if 0 // TODO(taylor)
+
 void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
-    dependencies[idx]->users.remove(this);
-    myprog.remove_if_dangling(*dependencies[idx]);
+    dependencies[idx].first->users.remove(this);
+    myprog.remove_if_dangling(*dependencies[idx].first);
     dependencies.erase(dependencies.begin() + idx);
 }
-#endif
+
 std::set<input_info, input_info::cmp> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(input_info prim) { memory_dependencies.insert(prim); }
@@ -301,20 +301,18 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
     auto new_layouts = calc_output_layouts();
     return set_output_layouts(new_layouts, invalidate_users_if_changed);
 }
-#if 0 // TODO(taylor)
+
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int>& dep) {
+        return dep.first->is_padded();
     });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int>& dep) {
+        return dep.first->is_padded();
     });
 }
-
-#endif
 
 void program_node::invalidate_users() const {
     for (auto& user : users) {
@@ -330,12 +328,13 @@ void program_node::invalidate_users() const {
 void program_node::support_padding_all(bool support) {
     std::fill(_support_padding_in_axis.begin(), _support_padding_in_axis.end(), support);
 }
-#if 0 // TODO(taylor)
+
 bool program_node::is_padding_supported(int axis, int padding) const {
     if (!support_padding(axis))
         return false;
 
-    auto fmt = output_layout.format;
+    // TODO(andrew) - Need to check all format of output layouts?
+    auto fmt = output_layouts.at(0).format;
 
     // WA for known cases of padding not supported in implementations
     if (fmt == format::b_fs_yx_fsv16) {
@@ -359,7 +358,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 
     return true;
 }
-#endif
+
  void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }

@@ -70,10 +70,8 @@ struct fused_primitive_desc {
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
     size_t total_num_deps = 0;
-#if 0 // TODO(taylor)
     activation_func activation;
     activation_additional_params activation_params = { 0.f, 0.f };
-#endif
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
@@ -237,12 +235,12 @@ public:
     bool is_marked() const { return user_mark != 0; }
     bool is_marked(uint8_t val) const { return user_mark == val; }
     uint8_t get_user_mark() const { return user_mark; }
-#if 0 // TODO(taylor)
+
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {
         fused_activations.emplace_back(activation_func, additional_params);
     }
-#endif
+
     std::vector<activation_func> get_fused_activations_funcs() const {
         std::vector<activation_func> funcs;
         std::transform(fused_activations.begin(),
@@ -251,7 +249,7 @@ public:
                        [](fused_activation_params const& p) { return p.func; });
         return funcs;
     }
-#if 0 // TODO(andrew)
+
     std::vector<activation_additional_params> get_fused_activations_params() const {
         std::vector<activation_additional_params> params;
         std::transform(fused_activations.begin(),
@@ -260,10 +258,10 @@ public:
                        [](fused_activation_params const& p) { return p.params; });
         return params;
     }
+#if 0 // TODO(andrew)
     void copy_fused_activation(const program_node& rhs) {
         fused_activations = rhs.fused_activations;
     }
-
 #endif
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
@@ -281,9 +279,7 @@ public:
     // Checks if primitive supports any padding in specified axis
     bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
     // Checks whether with current format specified padding is supported;
-#if 0 // TODO(taylor)
     bool is_padding_supported(int axis, int padding) const;
-#endif
 
     primitive_id get_org_primitive_id() const { return org_id; }
 

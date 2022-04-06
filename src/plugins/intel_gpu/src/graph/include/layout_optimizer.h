@@ -12,17 +12,15 @@
 #include "reorder_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
-#if 0 // TODO(andrew)
 #include "fully_connected_inst.h"
-#endif
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
 #if 0 // TODO(andrew)
 #include "lstm_gemm_inst.h"
 #endif
 #include "generic_layer.hpp"
-#if 0 // TODO(andrew)
 #include "non_max_suppression_inst.h"
+#if 0 // TODO(andrew)
 #include "region_yolo_inst.h"
 #endif
 

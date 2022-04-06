@@ -27,13 +27,13 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     /// @param seq_axis The axis which is partially reversed.
     /// @param batch_axis The axis along which reversal is performed.
     reverse_sequence(const primitive_id& id,
-                     const primitive_id& input,
-                     const primitive_id& seq_lengths,
+                     const input_info& input,
+                     const input_info& seq_lengths,
                      const int32_t seq_axis,
                      const int32_t batch_axis = 0,
                      const primitive_id& ext_prim_id = "",
                      const padding& output_padding = padding())
-        : primitive_base(id, {input, seq_lengths}, ext_prim_id, output_padding), seq_axis(seq_axis), batch_axis(batch_axis) {
+        : primitive_base(id, {input, seq_lengths}, ext_prim_id, {output_padding}), seq_axis(seq_axis), batch_axis(batch_axis) {
         const int32_t number_of_dims = 4;
 
         int32_t batch_a = batch_axis;

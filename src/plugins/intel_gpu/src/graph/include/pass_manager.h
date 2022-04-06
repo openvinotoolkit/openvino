@@ -5,8 +5,8 @@
 #pragma once
 
 #include "intel_gpu/graph/program.hpp"
-#if 0 // TODO(taylor)
 #include "layout_optimizer.h"
+#if 0 // TODO(taylor)
 #include "split_inst.h"
 #include "lstm_inst.h"
 #include "lstm_dynamic_inst.h"
@@ -188,7 +188,7 @@ private:
     void run(program& p) override;
     void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
-
+#endif
 class prepare_primitive_fusing : public base_pass {
 public:
     explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :
@@ -237,7 +237,7 @@ private:
     void run(program& p) override;
     bool output_size_handling_enabled;
 };
-
+#if 0 // TODO(andrew)
 class post_input_reorder : public base_pass {
 public:
     post_input_reorder() : base_pass("post_input_reorder") {}
@@ -270,7 +270,7 @@ private:
     void optimize_weights(T& node, program& p);
     reorder_factory& _rf;
 };
-
+#endif
 class propagate_constants : public base_pass {
 public:
     propagate_constants() : base_pass("propagate_constants") {}
@@ -281,7 +281,7 @@ private:
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<program_node*>& node);
+    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int>>& node);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;
@@ -312,7 +312,7 @@ private:
     layout_optimizer& _lo;
     reorder_factory& _rf;
 };
-#endif
+
 class trim_to_outputs : public base_pass {
 public:
     trim_to_outputs() : base_pass("trimmed") {}
@@ -320,19 +320,19 @@ public:
 private:
     void run(program& p) override;
 };
-#if 0 // TODO(taylor)
+
 class strided_slice_optimize : public base_pass {
 public:
     strided_slice_optimize() : base_pass("strided_slice_optimize") {}
     void run(program& p) override;
 };
-#endif
+
 class reverse_optional_nodes_outputs : public base_pass {
 public:
     reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
     void run(program& p) override;
 };
-#if 0 // TODO(andrew)
+
 class concat_input_order : public base_pass {
     // This optimization changes order of inputs for concatenation to provide
     // better alignment for execution and allow for optimizing out in some cases.
@@ -354,7 +354,7 @@ public:
     concat_input_order() : base_pass("concat_input_order") {}
     void run(program& p) override;
 };
-
+#if 0 // TODO(andrew)
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
@@ -397,11 +397,11 @@ public:
 private:
     void run(program& p) override;
 };
-
+#endif
 class add_onednn_optimization_attributes : public base_pass {
 public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
     void run(program& p) override;
 };
-#endif
+
 }  // namespace cldnn

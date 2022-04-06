@@ -725,7 +725,9 @@ TEST(top_k_layer_tests, second_output_taylor) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    build_options build_opts;
+    build_opts.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opts);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
