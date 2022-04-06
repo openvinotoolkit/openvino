@@ -162,7 +162,8 @@ void regclass_frontend_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = py_object_to_any(it.second);
                 }
-                return std::make_shared<OpExtension<void>>(fw_type_name,
+                return std::make_shared<OpExtension<void>>(PaddleTag(),
+                                                           fw_type_name,
                                                            in_names_vec,
                                                            out_names_vec,
                                                            attr_names_map,
@@ -185,7 +186,8 @@ void regclass_frontend_OpExtension(py::module m) {
                     any_map[it.first] = py_object_to_any(it.second);
                 }
 
-                return std::make_shared<OpExtension<void>>(ov_type_name,
+                return std::make_shared<OpExtension<void>>(PaddleTag(),
+                                                           ov_type_name,
                                                            fw_type_name,
                                                            in_names_vec,
                                                            out_names_vec,

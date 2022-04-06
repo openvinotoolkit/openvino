@@ -94,14 +94,14 @@ core.add_extension(ov::frontend::OpExtension<CustomOperation>());
 
 //! [frontend_extension_CustomOperation_rename]
 core.add_extension(ov::frontend::OpExtension<CustomOperation>(
-    std::map<std::string, std::string>{ {"attr1", "fw_attr1"}, {"attr2", "fw_attr2"} },
+    { {"attr1", "fw_attr1"}, {"attr2", "fw_attr2"} },
     {}
 ));
 //! [frontend_extension_CustomOperation_rename]
 
 //! [frontend_extension_CustomOperation_rename_set]
 core.add_extension(ov::frontend::OpExtension<CustomOperation>(
-    std::map<std::string, std::string>{ {"attr1", "fw_attr1"} },
+    { {"attr1", "fw_attr1"} },
     { {"attr2", 5} }
 ));
 //! [frontend_extension_CustomOperation_rename_set]

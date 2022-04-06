@@ -73,14 +73,17 @@ static OpExtensionFEParam getTestDataOpExtensionViaPaddleConstructor() {
     res.m_modelName = "relu/relu.pdmodel";
     // use ov::frontend::paddle OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
-        std::make_shared<ov::frontend::paddle::OpExtension<>>("CustomRelu_5",
+        std::make_shared<ov::frontend::paddle::OpExtension<>>(PaddleTag(),
+                                                              "CustomRelu_5",
                                                               std::vector<std::string>{"X"},
                                                               std::vector<std::string>{"Out"}),
-        std::make_shared<ov::frontend::paddle::OpExtension<>>("ov_CustomRelu_6",
+        std::make_shared<ov::frontend::paddle::OpExtension<>>(PaddleTag(),
+                                                              "ov_CustomRelu_6",
                                                               "fw_CustomRelu_6",
                                                               std::vector<std::string>{"X"},
                                                               std::vector<std::string>{"Out"}),
         std::make_shared<ov::frontend::paddle::OpExtension<>>(
+            PaddleTag(),
             "ov_CustomRelu_7",
             "fw_CustomRelu_7",
             std::vector<std::string>{"X"},
@@ -88,6 +91,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaPaddleConstructor() {
             std::map<std::string, std::string>{{"ov_attribute_1", "fw_attribute_1"},
                                                {"ov_attribute_2", "fw_attribute_2"}}),
         std::make_shared<ov::frontend::paddle::OpExtension<>>(
+            PaddleTag(),
             "ov_CustomRelu_8",
             "fw_CustomRelu_8",
             std::vector<std::string>{"X"},
@@ -114,14 +118,17 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     res.m_modelName = "relu/relu.pdmodel";
     // use ov::frontend::OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
-        std::make_shared<ov::frontend::OpExtension<>>("CustomRelu_9",
+        std::make_shared<ov::frontend::OpExtension<>>(PaddleTag(),
+                                                      "CustomRelu_9",
                                                       std::vector<std::string>{"X"},
                                                       std::vector<std::string>{"Out"}),
-        std::make_shared<ov::frontend::OpExtension<>>("ov_CustomRelu_10",
+        std::make_shared<ov::frontend::OpExtension<>>(PaddleTag(),
+                                                      "ov_CustomRelu_10",
                                                       "fw_CustomRelu_10",
                                                       std::vector<std::string>{"X"},
                                                       std::vector<std::string>{"Out"}),
         std::make_shared<ov::frontend::OpExtension<>>(
+            PaddleTag(),
             "ov_CustomRelu_11",
             "fw_CustomRelu_11",
             std::vector<std::string>{"X"},
@@ -129,6 +136,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
             std::map<std::string, std::string>{{"ov_attribute_1", "fw_attribute_1"},
                                                {"ov_attribute_2", "fw_attribute_2"}}),
         std::make_shared<ov::frontend::OpExtension<>>(
+            PaddleTag(),
             "ov_CustomRelu_12",
             "fw_CustomRelu_12",
             std::vector<std::string>{"X"},

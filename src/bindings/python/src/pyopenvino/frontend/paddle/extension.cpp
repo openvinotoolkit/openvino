@@ -62,7 +62,7 @@ void regclass_frontend_paddle_OpExtension(py::module m) {
         for (const auto& it : attr_values_map) {
             any_map[it.first] = py_object_to_any(it.second);
         }
-        return std::make_shared<OpExtension<void>>(fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
+        return std::make_shared<OpExtension<void>>(ov::frontend::PaddleTag(), fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
     }), py::arg("fw_type_name"),
             py::arg("in_names_vec"),
             py::arg("out_names_vec"),
@@ -80,7 +80,7 @@ void regclass_frontend_paddle_OpExtension(py::module m) {
         for (const auto& it : attr_values_map) {
             any_map[it.first] = py_object_to_any(it.second);
         }
-        return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
+        return std::make_shared<OpExtension<void>>(ov::frontend::PaddleTag(), ov_type_name, fw_type_name, in_names_vec, out_names_vec, attr_names_map, any_map);
     }),
             py::arg("ov_type_name"),
             py::arg("fw_type_name"),
