@@ -25,9 +25,10 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
         switch (axis) {
             case 2: return kernel_selector::gather_axis::Y;
             case 3: return kernel_selector::gather_axis::X;
-            case -1: return kernel_selector::gather_axis::Y;
-            case -2: return kernel_selector::gather_axis::FEATURE;
-            case -3: return kernel_selector::gather_axis::BATCH;
+            case -1: return kernel_selector::gather_axis::X;
+            case -2: return kernel_selector::gather_axis::Y;
+            case -3: return kernel_selector::gather_axis::FEATURE;
+            case -4: return kernel_selector::gather_axis::BATCH;
             default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else if (rank == 5) {
@@ -35,10 +36,11 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case 2: return kernel_selector::gather_axis::Z;
             case 3: return kernel_selector::gather_axis::Y;
             case 4: return kernel_selector::gather_axis::X;
-            case -1: return kernel_selector::gather_axis::Y;
-            case -2: return kernel_selector::gather_axis::Z;
-            case -3: return kernel_selector::gather_axis::FEATURE;
-            case -4: return kernel_selector::gather_axis::BATCH;
+            case -1: return kernel_selector::gather_axis::X;
+            case -2: return kernel_selector::gather_axis::Y;
+            case -3: return kernel_selector::gather_axis::Z;
+            case -4: return kernel_selector::gather_axis::FEATURE;
+            case -5: return kernel_selector::gather_axis::BATCH;
             default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else if (rank == 6) {
@@ -47,11 +49,12 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case 3: return kernel_selector::gather_axis::Z;
             case 4: return kernel_selector::gather_axis::Y;
             case 5: return kernel_selector::gather_axis::X;
-            case -1: return kernel_selector::gather_axis::Y;
-            case -2: return kernel_selector::gather_axis::Z;
-            case -3: return kernel_selector::gather_axis::W;
-            case -4: return kernel_selector::gather_axis::FEATURE;
-            case -5: return kernel_selector::gather_axis::BATCH;
+            case -1: return kernel_selector::gather_axis::X;
+            case -2: return kernel_selector::gather_axis::Y;
+            case -3: return kernel_selector::gather_axis::Z;
+            case -4: return kernel_selector::gather_axis::W;
+            case -5: return kernel_selector::gather_axis::FEATURE;
+            case -6: return kernel_selector::gather_axis::BATCH;
             default: IE_THROW() << "Unsupported gather axis: " << axis;
         }
     } else {
@@ -115,6 +118,42 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
     });
 }
 

@@ -46,11 +46,24 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -159,21 +172,33 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    if (out_layout == DataLayout::bfyx) {
-        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else if (out_layout == DataLayout::bfzyx) {
-        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else {
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    switch ( out_layout ) {
+        case DataLayout::bfyx:
+        case DataLayout::b_fs_yx_fsv4:
+        case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::bs_fs_yx_bsv16_fsv16:
+            dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+            dims_by_gws = {{Tensor::DataChannelName::X},
+                        {Tensor::DataChannelName::Y},
+                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+            break;
+        case DataLayout::bfzyx:
+        case DataLayout::b_fs_zyx_fsv16:
+        case DataLayout::b_fs_zyx_fsv32:
+            dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+            dims_by_gws = {{Tensor::DataChannelName::X},
+                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+            break;
+        case DataLayout::bfwzyx:
+            dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+            dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        break;
+        default:
+            throw std::invalid_argument("Unsupported data layout for gather elements primitive");
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);

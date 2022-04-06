@@ -24,7 +24,10 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
     for (size_t i = dims_converted.size(); i < 4; i++) {
         dims_converted.push_back(1);
     }
-    auto output_format = format::get_default_format(dims_converted.size());
+    auto output_format =
+        desc->fmt == format::any
+        ?format::get_default_format(dims_converted.size())
+        :desc->fmt;
 
     auto output_type = input_layout.data_type;
     if (node.has_fused_primitives()) {
