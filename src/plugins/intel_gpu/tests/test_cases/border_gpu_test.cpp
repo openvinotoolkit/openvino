@@ -63,7 +63,7 @@ TEST(border_gpu, mytest0) {
     };
     float pad_value=0.3f;
     
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
     set_values(input, input_data);
 
     topology topology;
@@ -74,7 +74,7 @@ TEST(border_gpu, mytest0) {
         border("output", "input",
                {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
                {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::constant, 0.0f)
+               border_type::constant, pad_value)
     );
 
     cldnn::network network(engine, topology);
@@ -92,12 +92,19 @@ TEST(border_gpu, mytest0) {
         sizeof(float),
         ov::Shape(to_vec_size_t(input->get_layout().get_dims())),
         ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-        ov::CoordinateDiff({ blt_size_b, blt_size_f, blt_size_x, blt_size_y }),
-        ov::CoordinateDiff({ brb_size_b, brb_size_f, brb_size_x, brb_size_y }),
+        ov::CoordinateDiff({ blt_size_b, blt_size_f, blt_size_y, blt_size_x }),
+        ov::CoordinateDiff({ brb_size_b, brb_size_f, brb_size_y, brb_size_x }),
         ngraph::op::PadMode::CONSTANT);
 
     ASSERT_EQ(ans.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
-    EXPECT_TRUE( memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()) );
+    EXPECT_TRUE(!memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()));
+    // for(int i=0;i<out_size_y;i++,std::cout<<std::endl)
+    //     for(int j=0;j<out_size_x;j++)
+    //         std::cout<<std::setw(4)<<ans[i*out_size_x+j];
+    // std::cout<<std::endl;
+    // for(int i=0;i<out_size_y;i++,std::cout<<std::endl)
+    //     for(int j=0;j<out_size_x;j++)
+    //         std::cout<<std::setw(4)<<output_ptr[i*out_size_x+j];
 }
 
 TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
