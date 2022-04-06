@@ -2,23 +2,35 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-macro(ov_find_tbb)
+macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        find_package(TBB COMPONENTS tbb tbbmalloc)
+        if(NOT ENABLE_SYSTEM_TBB)
+            set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_SYSTEM_PATH)
+        endif()
 
-        # try to find TBB via custom scripts if have not found by default
-        if(NOT TBB_FOUND AND IEDevScripts_DIR)
+        find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                     ${_find_package_no_args})
+
+        if(NOT TBB_FOUND)
+            # system TBB failed to be found
+            set(ENABLE_SYSTEM_TBB OFF)
+
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
 
-            # use our custom scripts for old TBB versions
-            # which are exposed via `export TBBROOT=<tbbroot>`
-            # see https://github.com/openvinotoolkit/openvino/pull/1288
-            find_package(TBB COMPONENTS tbb tbbmalloc
+            # TBB on system is not found, download prebuilt one
+            # if TBBROOT env variable is not defined
+            ov_download_tbb()
+
+            # try to find one more time
+            find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                         # can be provided by ov_download_tbb
+                         HINTS ${TBB_DIR}
+                         # fallback variant for TBB 2018 and older
                          PATHS ${IEDevScripts_DIR}
-                         NO_CMAKE_FIND_ROOT_PATH
-                         NO_DEFAULT_PATH)
+                         ${_find_package_no_args})
         endif()
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
@@ -30,22 +42,31 @@ macro(ov_find_tbb)
             endforeach()
         endif()
 
+        if (NOT TBB_FOUND)
+            set(THREADING "SEQ" PARENT_SCOPE)
+            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
+                             SEQ method will be used.")
+        else()
+            message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
+        endif()
+
+        unset(_find_package_no_args)
+    endif()
+endmacro()
+
+function(set_ie_threading_interface_for TARGET_NAME)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        # find TBB
+        ov_find_package_tbb()
+
         # set variables to parent scope to prevent multiple invocations of find_package(TBB)
         # at the same CMakeLists.txt; invocations in different directories are allowed
         set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
-        if (NOT TBB_FOUND)
-            set(THREADING "SEQ" PARENT_SCOPE)
-            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
-                             SEQ method will be used.")
-        endif ()
+        set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
+        set(ENABLE_SYSTEM_TBB ${ENABLE_SYSTEM_TBB} PARENT_SCOPE)
     endif()
-endmacro()
-
-function(set_ie_threading_interface_for TARGET_NAME)
-    # find TBB
-    ov_find_tbb()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
 
