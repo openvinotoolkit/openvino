@@ -37,7 +37,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev)
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
@@ -55,6 +55,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
+# INTERFACE library for BW compatibility
+
 add_library(${TARGET_NAME} INTERFACE)
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
@@ -66,7 +68,8 @@ add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
-# Installation rules for shared version only
+# Installation rules header files
+
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT core_dev)

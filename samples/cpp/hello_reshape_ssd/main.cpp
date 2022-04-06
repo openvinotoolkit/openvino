@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
         const std::string device_name{argv[3]};
         // -------------------------------------------------------------------
 
-        // Step 1. Initialize inference engine core
+        // Step 1. Initialize OpenVINO Runtime core
         ov::Core core;
         // -------------------------------------------------------------------
 

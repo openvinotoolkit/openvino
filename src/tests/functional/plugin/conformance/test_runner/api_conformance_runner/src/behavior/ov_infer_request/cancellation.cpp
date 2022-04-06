@@ -5,13 +5,13 @@
 #include "behavior/ov_infer_request/cancellation.hpp"
 #include "ov_api_conformance_helpers.hpp"
 
-
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
+
+INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestCancellationTests,
         ::testing::Combine(
-            ::testing::Values(ov::test::conformance::targetDevice),
-            ::testing::ValuesIn(empty_config)),
+            ::testing::ValuesIn(return_all_possible_device_combination()),
+            ::testing::ValuesIn(empty_ov_config)),
         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

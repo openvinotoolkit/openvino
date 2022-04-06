@@ -67,13 +67,11 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
 ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const Config &cfg,
                          const ExtensionManager::Ptr& extMgr,
-                         NumaNodesWeights &numaNodesWeights,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
     _network(network) {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
@@ -126,12 +124,19 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
     if (_cfg.streamExecutorConfig._streams != 0) {
-        for (auto&& task : tasks) {
-            task = [this] {
-                ExecNetwork::GetGraph();
-            };
-        }
-        _taskExecutor->runAndWait(tasks);
+        auto all_graphs_ready = [&] {
+            return std::all_of(_graphs.begin(), _graphs.end(), [&] (Graph& graph) {
+                return graph.IsReady();
+            });
+        };
+        do {
+            for (auto&& task : tasks) {
+                task = [this] {
+                    ExecNetwork::GetGraph();
+                };
+            }
+            _taskExecutor->runAndWait(tasks);
+        } while (!all_graphs_ready());
     } else {
         ExecNetwork::GetGraph();
     }

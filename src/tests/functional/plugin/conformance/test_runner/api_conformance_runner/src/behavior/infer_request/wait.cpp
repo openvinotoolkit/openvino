@@ -12,33 +12,9 @@ namespace {
 using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
+INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(std::vector<std::map<std::string, std::string>>{})),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestWaitTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
-                         InferRequestWaitTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Batch_BehaviorTests, InferRequestWaitTests,
-                         ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
+                                ::testing::ValuesIn(return_all_possible_device_combination()),
+                                ::testing::ValuesIn(empty_config)),
                          InferRequestWaitTests::getTestCaseName);
 }  // namespace

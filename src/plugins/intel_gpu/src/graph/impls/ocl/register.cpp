@@ -64,6 +64,7 @@ void register_implementations() {
     REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(scatter_elements_update);
     REGISTER_OCL(select);
+    REGISTER_OCL(shape_of);
     REGISTER_OCL(shuffle_channels);
     REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);

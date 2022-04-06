@@ -9,7 +9,7 @@
    openvino_docs_OV_UG_query_api
    openvino_docs_OV_UG_supported_plugins_CPU
    openvino_docs_OV_UG_supported_plugins_GPU
-   openvino_docs_IE_DG_supported_plugins_VPU
+   openvino_docs_OV_UG_supported_plugins_VPU
    openvino_docs_OV_UG_supported_plugins_GNA
    openvino_docs_OV_UG_supported_plugins_ARM_CPU
 
@@ -36,21 +36,21 @@ OpenVINO runtime also has several execution capabilities which work on top of ot
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
-
-## Features support matrix
+@anchor features_support_matrix
+## Features Support Matrix
 The table below demonstrates support of key features by OpenVINO device plugins.
 
-| Capability | [CPU](CPU.md) | [GPU](GPU.md) | [GNA](GNA.md) | [VPU](VPU.md) | [Arm® CPU](ARM_CPU.md) |
-| ---------- | --- | --- | --- | --- | --- |
-| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | No | ? | Yes |
-| [Multi-device execution](../multi_device.md) | Yes | Yes | Partial | ? | Yes |
-| [Automatic batching](../automatic_batching.md) | No | Yes | No | ? | No |
-| [Multi-stream execution](@ref openvino_docs_optimization_guide_dldt_optimization_guide) | Yes | Yes | No | ? | Yes |
-| [Models caching](../Model_caching_overview.md) | Yes | Partial | Yes | ? | No |
-| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | No | ? | No |
-| Import/Export | Yes | No | Yes | ? | No |
-| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | No | ? | Partial |
-| [Stateful models](../network_state_intro.md) | Yes | No | Yes | ? | No |
-| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | No | ? | No |
+| Capability | [CPU](CPU.md) | [GPU](GPU.md) | [GNA](GNA.md) |[Arm® CPU](ARM_CPU.md) |
+| ---------- | --- | --- | --- | --- |
+| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | No | Yes |
+| [Multi-device execution](../multi_device.md) | Yes | Yes | Partial | Yes |
+| [Automatic batching](../automatic_batching.md) | No | Yes | No | No |
+| [Multi-stream execution](../../optimization_guide/dldt_deployment_optimization_tput.md) | Yes | Yes | No | Yes |
+| [Models caching](../Model_caching_overview.md) | Yes | Partial | Yes | No |
+| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | No | No |
+| [Import/Export](../../../tools/compile_tool/README.md) | Yes | No | Yes | No |
+| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | No | Partial |
+| [Stateful models](../network_state_intro.md) | Yes | No | Yes | No |
+| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | No | No |
 
 For more details on plugin specific feature limitation, see corresponding plugin pages.

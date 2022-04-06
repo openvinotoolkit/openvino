@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "single_layer_tests/experimental_detectron_generate_proposals_single_image.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ov::test;
 using namespace ov::test::subgraph;

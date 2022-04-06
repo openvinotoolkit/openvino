@@ -6,6 +6,7 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"

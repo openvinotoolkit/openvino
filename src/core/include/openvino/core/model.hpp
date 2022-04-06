@@ -111,6 +111,9 @@ public:
     /// Return the op that generates output i
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
+    /// \brief Clones the original model
+    std::shared_ptr<ov::Model> clone() const;
+
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
     ov::Output<ov::Node> output();
@@ -349,6 +352,9 @@ private:
     // of weak_ptr not to increase node ref counter to prevent the situation when
     // node has no consumers but still exists in a graph.
     mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
+
+    mutable std::unordered_map<std::string, Output<Node>> m_cached_output_names;
+    mutable std::unordered_map<std::string, std::weak_ptr<Node>> m_cached_op_names;
 
     // Private runtime info which is shared across nodes and used only
     // for internal purposes.

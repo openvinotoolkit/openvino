@@ -128,7 +128,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-             (layout.size.feature[0] % 32 == 0)) &&
+             (layout.feature() % 32 == 0)) &&
             !has_conflict(it->second._users, restrictions, network_id)) {
             it->second._users.insert(memory_user(id, network_id));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
@@ -162,10 +162,10 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-                 (layout.size.feature[0] % 32 == 0)) &&
+                 (layout.feature() % 32 == 0)) &&
                 // TODO: check if this condition always correct
-                layout.size.feature[0] <= rec_list._memory->get_layout().size.feature[0] &&
-                layout.size.batch[0] <= rec_list._memory->get_layout().size.batch[0] &&
+                layout.feature() <= rec_list._memory->get_layout().feature() &&
+                layout.batch() <= rec_list._memory->get_layout().batch() &&
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions, network_id)) {

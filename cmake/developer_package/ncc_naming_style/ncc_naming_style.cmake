@@ -23,7 +23,7 @@ execute_process(
     ERROR_VARIABLE error_var)
 
 if(NOT clang_find_result EQUAL "0")
-    message(WARNING "Please, install libclang-[N]-dev package (required for ncc naming style check)")
+    message(WARNING "Please, install clang-[N] libclang-[N]-dev package (required for ncc naming style check)")
     message(WARNING "find_package(Clang) output: ${output_var}")
     message(WARNING "find_package(Clang) error: ${error_var}")
     set(ENABLE_NCC_STYLE OFF)
@@ -106,9 +106,9 @@ function(ov_ncc_naming_style)
          "${NCC_STYLE_SOURCE_DIRECTORY}/*.cpp")
 
     list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_SOURCE_DIRECTORY}")
-
     # without it sources with same name from different directories will map to same .ncc_style target
     file(RELATIVE_PATH source_dir_rel ${CMAKE_SOURCE_DIR} ${NCC_STYLE_SOURCE_DIRECTORY})
+
     foreach(source IN LISTS sources)
         set(output_file "${ncc_style_bin_dir}/${source_dir_rel}/${source}.ncc_style")
         set(full_source_path "${NCC_STYLE_SOURCE_DIRECTORY}/${source}")
