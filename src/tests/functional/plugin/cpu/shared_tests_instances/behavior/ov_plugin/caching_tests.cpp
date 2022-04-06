@@ -64,7 +64,7 @@ namespace {
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         ov::op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
-        auto nms = std::make_shared<op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
+        auto nms = std::make_shared<ngraph::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;

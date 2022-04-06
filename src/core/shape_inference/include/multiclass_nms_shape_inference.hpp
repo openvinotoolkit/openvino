@@ -4,29 +4,10 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
+#include <vector>
+
 #include <openvino/op/multiclass_nms.hpp>
-
-#include "utils.hpp"
-
 #include <openvino/op/util/multiclass_nms_base.hpp>
-
-#include "utils.hpp"
-
-#include "ngraph/op/multiclass_nms.hpp"
-
-#include <cstring>
-#include <ngraph/validation_util.hpp>
-
-#include "multiclass_nms_shape_inference.hpp"
-//#include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
 
 namespace ov {
 namespace op {

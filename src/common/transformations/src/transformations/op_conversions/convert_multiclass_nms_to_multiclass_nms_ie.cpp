@@ -5,22 +5,23 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
-ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
-    MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset9::MulticlassNms>();
+using namespace ngraph;
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<ngraph::opset9::MulticlassNms>(m.get_match_root());
+pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
+    MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
+    auto nms = pattern::wrap_type<opset9::MulticlassNms>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto nms = std::dynamic_pointer_cast<opset9::MulticlassNms>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
@@ -70,11 +71,11 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulti
         }
 
         nms_new->set_friendly_name(nms->get_friendly_name());
-        ngraph::copy_runtime_info(nms, new_ops);
-        ngraph::replace_node(nms, {output_0, output_1, output_2});
+        copy_runtime_info(nms, new_ops);
+        replace_node(nms, {output_0, output_1, output_2});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

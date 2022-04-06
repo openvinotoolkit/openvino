@@ -2,21 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/multiclass_nms_base.hpp"
-
-#include <cstring>
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/util/multiclass_nms_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::MulticlassNmsBase);
 
@@ -43,7 +33,7 @@ bool op::util::MulticlassNmsBase::validate() {
     return validated;
 }
 
-bool ngraph::op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
+bool op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_MulticlassNmsBase_visit_attributes);
 
     visitor.on_attribute("sort_result_type", m_attrs.sort_result_type);

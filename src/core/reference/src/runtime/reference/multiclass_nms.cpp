@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/multiclass_nms.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <queue>
 #include <vector>
 
+#include "ngraph/op/multiclass_nms.hpp"
 #include "../shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "ngraph/shape.hpp"
-
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
 
 namespace ngraph {
 namespace runtime {
@@ -107,7 +103,7 @@ std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input, cons
         }
     } break;
     default:
-        throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
+        throw std::runtime_error("Unsupported data type");
         break;
     }
 
@@ -202,38 +198,6 @@ static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ,
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-struct SelectedIndex {
-    SelectedIndex(int64_t batch_idx, int64_t box_idx, int64_t num_box)
-        : flattened_index(batch_idx * num_box + box_idx) {}
-
-    SelectedIndex() = default;
-
-    int64_t flattened_index = 0;
-};
-
-struct SelectedOutput {
-    SelectedOutput(float class_idx, float score, float x1, float y1, float x2, float y2)
-        : class_index{class_idx},
-          box_score{score},
-          xmin{x1},
-          ymin{y1},
-          xmax{x2},
-          ymax{y2} {}
-
-    SelectedOutput() = default;
-
-    float class_index = 0.0f;
-    float box_score = 0.0f;
-    float xmin, ymin, xmax, ymax;
-};
-}  // namespace multiclass_nms_impl
-
-using SelectedIndex = multiclass_nms_impl::SelectedIndex;
-using SelectedOutput = multiclass_nms_impl::SelectedOutput;
-using BoxInfo = multiclass_nms_impl::BoxInfo;
-using Rectangle = multiclass_nms_impl::Rectangle;
-
-namespace {
 // slice an image
 // for the case when boxes are not shared among classes.
 // boxes: [in] C, M, 4 -> [out] C, M', 4
@@ -264,7 +228,7 @@ std::vector<T> slice_image(const T* data, const Shape& data_shape, const int64_t
 // nms over a class
 // boxes:       num_priors, 4
 // scores:      num_priors, 1
-const std::vector<BoxInfo> nms(const float* boxes_data,
+static const std::vector<BoxInfo> nms(const float* boxes_data,
                                const float* scoresPtr,
                                const int64_t num_priors,
                                const op::util::MulticlassNmsBase::Attributes& attrs,
@@ -321,7 +285,7 @@ const std::vector<BoxInfo> nms(const float* boxes_data,
         bool should_hard_suppress = false;
         for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index; --j) {
             float iou =
-                multiclass_nms_impl::intersectionOverUnion(next_candidate.box, selected[j].box, attrs.normalized);
+                intersectionOverUnion(next_candidate.box, selected[j].box, attrs.normalized);
             next_candidate.score *= func(iou, adaptive_threshold);
 
             if (iou >= adaptive_threshold) {
@@ -357,7 +321,7 @@ const std::vector<BoxInfo> nms(const float* boxes_data,
 // shared           Y               N
 // boxes:       1, M, 4         C, M', 4
 // scores:      1, C, M         C, M'
-const std::vector<BoxInfo> multiclass_nms(const float* boxes_data,
+static const std::vector<BoxInfo> multiclass_nms(const float* boxes_data,
                                           const Shape& boxes_data_shape,
                                           const float* scores_data,
                                           const Shape& scores_data_shape,
@@ -421,7 +385,31 @@ const std::vector<BoxInfo> multiclass_nms(const float* boxes_data,
     return selected_boxes;
 }
 
-}  // namespace
+struct SelectedIndex {
+    SelectedIndex(int64_t batch_idx, int64_t box_idx, int64_t num_box)
+        : flattened_index(batch_idx * num_box + box_idx) {}
+
+    SelectedIndex() = default;
+
+    int64_t flattened_index = 0;
+};
+
+struct SelectedOutput {
+    SelectedOutput(float class_idx, float score, float x1, float y1, float x2, float y2)
+        : class_index{class_idx},
+          box_score{score},
+          xmin{x1},
+          ymin{y1},
+          xmax{x2},
+          ymax{y2} {}
+
+    SelectedOutput() = default;
+
+    float class_index = 0.0f;
+    float box_score = 0.0f;
+    float xmin, ymin, xmax, ymax;
+};
+}  // namespace multiclass_nms_impl
 
 // compute nms over each image and each class
 // shared           Y               N
@@ -439,6 +427,8 @@ void multiclass_nms(const float* boxes_data,
                     int64_t* selected_indices,
                     const Shape& selected_indices_shape,
                     int64_t* valid_outputs) {
+    using namespace multiclass_nms_impl;
+
     const auto shared = scores_data_shape.size() == 3;  // bboxes shared among classes
     const bool has_roinum = roisnum_data;
 

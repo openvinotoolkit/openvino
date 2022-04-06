@@ -2,26 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/nms_base.hpp"
-
-#include <cstring>
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/util/nms_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
 
-ov::op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
+using namespace ov;
+
+ov::op::util::NmsBase::NmsBase(element::Type& output_type, int& nms_top_k, int& keep_top_k)
     : m_output_type(output_type),
       m_nms_top_k(nms_top_k),
       m_keep_top_k(keep_top_k) {}
 
 ov::op::util::NmsBase::NmsBase(const OutputVector& arguments,
-                               ngraph::element::Type& output_type,
+                               element::Type& output_type,
                                int& nms_top_k,
                                int& keep_top_k)
     : Op(arguments),

@@ -32,8 +32,8 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {

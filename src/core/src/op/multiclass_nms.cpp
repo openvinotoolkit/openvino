@@ -3,25 +3,15 @@
 //
 
 #include "ngraph/op/multiclass_nms.hpp"
-
-#include <cstring>
-#include <ngraph/validation_util.hpp>
+#include "multiclass_nms_shape_inference.hpp"
 
 #include "itt.hpp"
-#include "multiclass_nms_shape_inference.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
 
 using namespace ngraph;
-using namespace ov::op::util;
+using namespace op::util;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::MulticlassNms);
-BWDCMP_RTTI_DEFINITION(ov::op::v9::MulticlassNms);
+BWDCMP_RTTI_DEFINITION(op::v8::MulticlassNms);
+BWDCMP_RTTI_DEFINITION(op::v9::MulticlassNms);
 
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : MulticlassNmsBase({boxes, scores}, attrs) {
@@ -63,8 +53,8 @@ std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputV
 }
 
 namespace {
-inline bool is_float_type_admissible(const ov::element::Type& t) {
-    return t == ov::element::f32 || t == ov::element::f16 || t == ov::element::bf16;
+inline bool is_float_type_admissible(const element::Type& t) {
+    return t == element::f32 || t == element::f16 || t == element::bf16;
 }
 }  // namespace
 

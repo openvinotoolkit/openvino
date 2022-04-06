@@ -62,7 +62,7 @@ namespace {
     static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        ov::op::util::MulticlassNmsBase::Attributes attr;
+        op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
         auto nms = std::make_shared<op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ngraph::opset6::Result>(nms);

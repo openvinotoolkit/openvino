@@ -3,6 +3,7 @@
 //
 
 #include "multiclass_nms.hpp"
+#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -23,13 +24,14 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using ngNmsSortResultType = ov::op::util::NmsBase::SortResultType;
 
-bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v9::MulticlassNms::get_type_info_static(),
-                ngraph::op::v8::MulticlassNms::get_type_info_static())) {
+                ov::op::v9::MulticlassNms::get_type_info_static(),
+                ov::op::v8::MulticlassNms::get_type_info_static(),
+                ngraph::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
             errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }
@@ -39,7 +41,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
     : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -84,7 +86,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2])
             IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
     } else if (scores_dims.size() == 2) {
-        if (op->get_type_info() != ngraph::op::v9::MulticlassNms::get_type_info_static())
+        if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
             IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1])
             IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
