@@ -238,7 +238,7 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
 }
 
 ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput
-                        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+                        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                          WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -273,7 +273,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronDetectionOutput::execute(mkldnn::stream strm) {
+void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));

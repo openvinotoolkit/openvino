@@ -37,9 +37,9 @@ void dynamicToStaticShapeTranspose(std::shared_ptr<ngraph::Node> target) {
         ngraph::element::i64,
         ngraph::Shape{std::initializer_list<std::size_t>{1}},
         std::vector<std::int64_t>{0});
-    const auto scatterElementsUpdate = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(shape, transposition, shape, axis);
+    const auto gather = std::make_shared<ngraph::opset3::Gather>(shape, transposition, axis);
 
-    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, scatterElementsUpdate);
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, gather);
     outDSR->set_friendly_name(transpose->get_friendly_name());
     ngraph::replace_node(std::move(target), std::move(outDSR));
 }

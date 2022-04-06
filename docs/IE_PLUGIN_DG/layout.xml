@@ -9,10 +9,10 @@
                         <tab type="user" title="Attributes" url="@ref openvino_docs_OV_UG_lpt_attributes">
                             <tab type="user" title="AvgPoolPrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved"/>
                             <tab type="user" title="IntervalsAlignment" url="@ref openvino_docs_OV_UG_lpt_IntervalsAlignment"/>
-                            <tab type="user" title="PerTensorQuantization" url="@ref openvino_docs_OV_UG_lpt_PerTensorQuantization"/>
                             <tab type="user" title="PrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_PrecisionPreserved"/>
                             <tab type="user" title="Precisions" url="@ref openvino_docs_OV_UG_lpt_Precisions"/>
                             <tab type="user" title="QuantizationAlignment" url="@ref openvino_docs_OV_UG_lpt_QuantizationAlignment"/>
+                            <tab type="user" title="QuantizationGranularity" url="@ref openvino_docs_OV_UG_lpt_QuantizationGranularity"/>
                         </tab>
                         <tab type="user" title="Step 1. Prerequisites transformations" url="@ref openvino_docs_OV_UG_lpt_step1_prerequisites">
                             <tab type="user" title="LinOpSequenceFusion" url="@ref openvino_docs_OV_UG_lpt_LinOpSequenceFusion"/>

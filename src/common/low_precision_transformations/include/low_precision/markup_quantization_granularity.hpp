@@ -9,14 +9,15 @@
 #include <vector>
 
 #include <ngraph/pass/pass.hpp>
-#include "common/operation_per_tensor_quantization_restriction.hpp"
+#include "low_precision/common/port_quantization_granularity_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
+class LP_TRANSFORMATIONS_API MarkupQuantizationGranularity;
 
 }  // namespace low_precision
 }  // namespace pass
@@ -31,21 +32,21 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
  * [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupQuantizationGranularity : public ngraph::pass::FunctionPass {
 public:
     class PerTensorQuantization {
     public:
         explicit PerTensorQuantization(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const std::vector<size_t>& ports) {
-            portsByVersion.emplace(version, ports);
+        void add(const uint64_t version, const std::vector<PortQuantizationGranularityRestriction>& restrictions) {
+            portsByVersion.emplace(version, restrictions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, std::vector<size_t>> portsByVersion;
+        std::unordered_map<uint64_t, std::vector<PortQuantizationGranularityRestriction>> portsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPerTensorQuantization", "0");
-    explicit MarkupPerTensorQuantization(const std::vector<OperationPerTensorQuantizationRestriction>& restrictions = {});
+    explicit MarkupQuantizationGranularity(const std::vector<QuantizationGranularityRestriction>& restrictions = {});
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
