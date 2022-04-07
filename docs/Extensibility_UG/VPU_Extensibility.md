@@ -2,7 +2,7 @@
 
 To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for one the VPU, the Intel® Neural Compute Stick 2 device, which uses the MYRIAD device plugin.
 
-> **NOTES:** 
+> **NOTE:** 
 > * OpenCL custom layer support is available in the preview mode.
 > * This section assumes you are familiar with developing kernels using OpenCL.
 To customize your topology with an OpenCL layer, carry out the tasks described on this page:
@@ -133,7 +133,7 @@ Each custom layer is described with the `CustomLayer` node. It has the following
   - Each `Data` node must contain the following attributes:
     - `arg-name` – The name of a kernel parameter in the kernel signature.
     - `type` – Node type. Currently, `local_data` is the only supported value, which defines buffer allocated in fast local on-chip memory. It is limited to 100KB for all `__local` and
-    `__private` arrays defined inside the kernel as well as all `__local` parameters passed to the kernel. Note that a manual-DMA extension requires double buffering.
+    `__private` arrays defined inside the kernel as well as all `__local` parameters passed to the kernel. A manual-DMA extension requires double buffering.
     If the custom layer is detected to run out of local memory, the inference fails.
     - `dim` – The dim source with the same `direction,port` format used for `WorkSizes` bindings.
     - `size` – Amount of bytes needed. The current expression syntax supports only expression over dimensions of over selected input/output tensor or constants and may be extended in the future.
@@ -174,7 +174,7 @@ This section provides optimization guidelines on writing custom layers with Open
 | Global memory  | Mapped to DDR, used to pass execution preserved parameters for inputs, outputs, and blobs                |
 | Work group     | Executed on a single SHAVE core iterating over multiple work items      |
 
-Note that by the OpenCL specification, the work group execution order is not specified. This means it is your responsibility to ensure that race conditions among work groups are not introduced. Custom layer runtime distributes work grid evenly among available compute resources and executes them in an arbitrary order. This static scheduling approach works best if the load is evenly spread out across work groups, which is a typical case for Deep Learning kernels. The following guidelines are recommended to use for work group partitioning:
+ The work group execution order is not defined in the OpenCL specifications. This means it is your responsibility to ensure that race conditions among work groups are not introduced. Custom layer runtime distributes work grid evenly among available compute resources and executes them in an arbitrary order. This static scheduling approach works best if the load is evenly spread out across work groups, which is a typical case for Deep Learning kernels. The following guidelines are recommended to use for work group partitioning:
 
 1. Distribute work evenly across work groups.
 2. Adjust work group granularity to maintain equal workload for all compute codes.
@@ -258,7 +258,7 @@ __kernel void ocl_grn_line(__global const half* restrict src_data,  __global hal
 ```
 Both versions perform the same, but the second one has more complex code.
 
-3. If it is easy to predict the work group size, you may also use the `reqd_work_group_size` kernel attribute to ask the compiler to unroll the code up to the local size of the work group. Note that if the kernel is actually executed with the different work group configuration, the result is undefined.
+3. If it is easy to predict the work group size, you may also use the `reqd_work_group_size` kernel attribute to ask the compiler to unroll the code up to the local size of the work group. If the kernel is actually executed with the different work group configuration, the result is undefined.
 
 4. Prefer to use the `half` compute if it keeps reasonable accuracy. 16-bit float is a native type for Intel® Neural Compute Stick 2, most of the functions `half_*` are mapped to a single hardware instruction.
 Use the standard `native_*` function for the rest of types.
@@ -540,7 +540,7 @@ __kernel void grn_NCHW(
 }
 ```
 
-Note the `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it was completely limited by memory usage.
+The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it is completely limited by memory usage.
 
 An alternative method to using DMA is to use work item copy extension. Those functions are executed inside a kernel and require work groups equal to single work item.
 

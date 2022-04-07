@@ -32,7 +32,7 @@ The new OpenVINO™ introduces API 2.0 (also called OpenVINO API v2) to align th
 
 To support these features, OpenVINO has introduced IR v11, which is now the default version for Model Optimizer. The model represented in IR v11 fully matches the original model in the original framework format in terms of inputs and outputs. Also, you do not have to specify input shapes during conversion, so the resulting IR v11 contains `-1` to denote undefined dimensions. See the [Working with dynamic shapes](../ov_dynamic_shapes.md) guide to fully utilize this feature, or the [Changing input shapes](../ShapeInference.md) guide to reshape to static shapes in the application.
 
-Note that IR v11 is fully compatible with old applications written with the Inference Engine API used by older versions of OpenVINO. It is due to additional runtime information included in IR v11, allowing backward compatibility. This means that if the IR v11 is read by an application based on Inference Engine, it is internally converted to IR v10.
+The IR v11 is fully compatible with old applications written with the Inference Engine API used by older versions of OpenVINO. It is due to additional runtime information included in IR v11, allowing backward compatibility. This means that if the IR v11 is read by an application based on Inference Engine, it is internally converted to IR v10.
 
 IR v11 is supported by all OpenVINO Development tools, including Post-Training Optimization tool, Benchmark app, etc.
 
@@ -65,7 +65,7 @@ To identify the API differences between Inference Engine and API 2.0, let us def
 - **New behavior** assumes full model alignment with the framework and is implemented in OpenVINO 2022.1:
   - Model Optimizer preserves input element types, order of dimensions (layouts), and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any format (IR v10, IR v11, ONNX, PaddlePaddle, etc.).
-  - API 2.0 uses tensor names. Note that the difference between tensor names and operation names is that if a single operation has several output tensors, such tensors cannot be identified in a unique manner. Therefore, tensor names are used for addressing as it is usually done in the frameworks.
+  - API 2.0 uses tensor names. The difference between tensor names and operation names is that if a single operation has several output tensors, such tensors cannot be identified in a unique manner. Therefore, tensor names are used for addressing as it is usually done in the frameworks.
   - API 2.0 can address input and output tensors also by the index. Some model formats like ONNX are sensitive to the input and output order, which is preserved by OpenVINO 2022.1.
 
 The table below demonstrates which behavior, **old** or **new**, is used for models based on the two APIs.

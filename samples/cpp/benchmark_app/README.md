@@ -26,7 +26,7 @@ A number of execution steps is defined by one of the following parameters:
 
 During the execution, the application calculates latency (if applicable) and overall throughput:
 * By default, the median latency value is reported
-* Throughput is calculated as overall_inference_time/number_of_processed_requests. Note that the throughput value also depends on batch size.
+* Throughput is calculated as overall_inference_time/number_of_processed_requests. The throughput value also depends on batch size.
 
 The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
 enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
@@ -43,7 +43,7 @@ The application also saves executable graph information serialized to an XML fil
 
 ## Run the Tool
 
-Note that the benchmark_app usually produces optimal performance for any device out of the box.
+The benchmark_app usually produces optimal performance for any device out of the box.
 
 **In most cases, you don't need to play the app options explicitly, and the plain device name is enough.** For example, for CPU:
 ```sh
@@ -92,7 +92,7 @@ Options:
     -latency_percentile       Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
   Device-specific performance options:
-    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device. Note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device. Although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -pin ("YES"|"CORE")/"HYBRID_AWARE"/("NO"|"NONE")/"NUMA"   Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
                                 enabling threads->cores pinning("YES", which is already default for any conventional CPU),
@@ -109,7 +109,7 @@ Options:
     -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
     -pc                         Optional. Report performance counters.
     -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
+    -load_config                Optional. Path to JSON file to load custom IE parameters. Command line parameters have higher priority than parameters from configuration file.
 
    Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
@@ -118,7 +118,7 @@ Options:
     -pc                       Optional. Report performance counters.
     -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
     -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+    -load_config              Optional. Path to JSON file to load custom IE parameters. Command line parameters have higher priority then parameters from configuration file.
     -infer_precision "<element type>"Optional. Inference precission
     -ip                          <value>     Optional. Specifies precision for all input layers of the network.
     -op                          <value>     Optional. Specifies precision for all output layers of the network.

@@ -47,7 +47,7 @@ While the CPU is performing inference, AUTO continues to load the model to the d
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
 For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than the one of a GPU.
 
-Note that if you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
+If you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
      
 ![autoplugin_accelerate]
 
@@ -106,7 +106,7 @@ Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
 ### Device Candidate List
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note that OpenVINO™ Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. OpenVINO™ Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -150,7 +150,7 @@ This mode prioritizes high throughput, balancing between latency and power. It i
 
 #### ov::hint::PerformanceMode::LATENCY
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, like a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or near real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
-Note that the `ov::hint` property is currently supported by CPU and GPU devices only.
+The `ov::hint` property is currently supported by CPU and GPU devices only.
 
 To enable performance hints for your application, use the following code: 
 @sphinxdirective

@@ -67,7 +67,7 @@ Notation | Description
 
 | Attribute Name | \#  |Description|
 |-----|-----|-----|
-| `filename`     | (1) | Name of the file containing OpenCL source code. Note that the path is relative to your executable. Multiple source nodes will have their sources concatenated in order. |
+| `filename`     | (1) | Name of the file containing OpenCL source code. The path is relative to your executable. Multiple source nodes will have their sources concatenated in order. |
 
 **Sub-nodes**: None
 
