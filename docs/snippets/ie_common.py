@@ -63,7 +63,7 @@ def callback(output_blobs, _):
 for infer_request in exec_network.requests:
     infer_request.set_completion_callback(callback, py_data=infer_request.output_blobs)
 
-# Async pipline is managed by ExecutableNetwork
+# Async pipeline is managed by ExecutableNetwork
 total_frames = 100
 for _ in range(total_frames):
     # Wait for at least one free request

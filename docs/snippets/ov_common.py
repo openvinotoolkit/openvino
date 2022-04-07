@@ -27,12 +27,12 @@ infer_request = compiled_model.create_infer_request()
 input_tensor1 = infer_request.get_input_tensor(0)
 # Element types, names and layouts are aligned with framework
 assert input_tensor1.data.dtype == np.int64
-# Fill the first data ...
+# Fill the first data
 
 # Get input tensor by tensor name
 input_tensor2 = infer_request.get_tensor("data2_t")
 assert input_tensor2.data.dtype == np.int64
-# Fill the second data ...
+# Fill the second data
 #! [ov_api_2_0:get_input_tensor_aligned]
 
 #! [ov_api_2_0:get_input_tensor_v10]
@@ -40,13 +40,13 @@ assert input_tensor2.data.dtype == np.int64
 input_tensor1 = infer_request.get_input_tensor(0)
 # IR v10 works with converted precisions (i64 -> i32)
 assert input_tensor1.data.dtype == np.int32
-# Fill the first data ...
+# Fill the first data
 
 # Get input tensor by tensor name
 input_tensor2 = infer_request.get_tensor("data2_t")
 # IR v10 works with converted precisions (i64 -> i32)
 assert input_tensor2.data.dtype == np.int32
-# Fill the second data ..
+# Fill the second data
 #! [ov_api_2_0:get_input_tensor_v10]
 
 #! [ov_api_2_0:inference]
@@ -101,7 +101,7 @@ assert output_tensor.data.dtype == np.int64
 output_tensor = infer_request.get_output_tensor()
 # IR v10 works with converted precisions (i64 -> i32)
 assert output_tensor.data.dtype == np.int32
-# process output data ...
+# Process output data
 #! [ov_api_2_0:get_output_tensor_v10]
 
 #! [ov_api_2_0:load_old_extension]
