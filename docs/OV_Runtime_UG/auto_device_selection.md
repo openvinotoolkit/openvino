@@ -1,4 +1,4 @@
-# Automatic device selection {#openvino_docs_OV_UG_supported_plugins_AUTO}
+# Automatic Device Selection {#openvino_docs_OV_UG_supported_plugins_AUTO}
 
 @sphinxdirective
 
@@ -10,41 +10,48 @@
 
 @endsphinxdirective
 
-Auto Device (or `AUTO` in short) is a new special "virtual" or "proxy" device in the OpenVINO toolkit, it doesn’t bind to a specific type of HW device. AUTO solves the complexity in application required to code a logic for the HW device selection (through HW devices) and then, on the deducing the best optimization settings on that device.  It does this by self-discovering all available accelerators & capabilities in the system, matching to the user’s performance requirements by respecting new “hints” configuration API to dynamically optimize for latency or throughput respectively. Developer can write application once and deploy anywhere.
-For developer who want to limit inference on specific HW candidates, AUTO also provide device priority list as optional property. After developer set device priority list, AUTO will not discover all available accelerators in the system and only try device in list with priority order.
+The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
+which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
+It detects available devices, picks one, best-suited for the task, and configures its optimization settings. 
+This way, you can write the application once and deploy it anywhere.
 
-AUTO always choose the best device, if compiling model fails on this device, AUTO will try to compile it on next best device until one of them succeeds.
-If priority list is set, AUTO only select devices according to the list.
+The selection also depends on your performance requirements, defined by the "hints" configuration API, as well as 
+device priority list limitations, if you choose to exclude some hardware from the process.
 
-The best device is chosen using the following logic:
-
-1. Check which supported devices are available.
-2. Check the precision of the input model (for detailed information on precisions read more on the `ov::device::capabilities`) 
-3. Select the first device capable of supporting the given precision, as presented in the table below.
-4. If the model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
+The logic behind the choice is as follows: 
+1. Check what supported devices are available. 
+2. Check precisions of the input model (for detailed information on precisions read more on the `ov::device::capabilities`) 
+3. Select the highest-priority device capable of supporting the given model, as listed in the table below. 
+4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16. 
 
 +----------+------------------------------------------------------+-------------------------------------+
-| Choice   || Supported                                           || Supported                          |
+| Device   || Supported                                           || Supported                          |
 | Priority || Device                                              || model precision                    |
 +==========+======================================================+=====================================+
-| 1        || dGPU                                                || FP32, FP16, INT8, BIN              |
-|          || (e.g. Intel® Iris® Xe MAX)                          ||                                    |
+| 1        || dGPU                                                | FP32, FP16, INT8, BIN               |
+|          || (e.g. Intel® Iris® Xe MAX)                          |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 2        || iGPU                                                || FP32, FP16, BIN                    |
-|          || (e.g. Intel® UHD Graphics 620 (iGPU))               ||                                    |
+| 2        || iGPU                                                | FP32, FP16, BIN                     |
+|          || (e.g. Intel® UHD Graphics 620 (iGPU))               |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        || Intel® Movidius™ Myriad™ X VPU                      || FP16                               |
-|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  ||                                    |
+| 3        || Intel® Movidius™ Myriad™ X VPU                      | FP16                                |
+|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 4        || Intel® CPU                                          || FP32, FP16, INT8, BIN              |
-|          || (e.g. Intel® Core™ i7-1165G7)                       ||                                    |
+| 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
+|          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 
-What is important, **AUTO starts inference with the CPU by default except the priority list is set and there is no CPU in it**. CPU provides very low latency and can start inference with no additional delays. While it performs inference, the Auto-Device plugin continues to load the model to the device best suited for the purpose and transfers the task to it when ready. This way, the devices which are much slower in compile the model, GPU being the best example, do not impede inference at its initial stages. 
+Simply put, when loading the model to the first device fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
+What is important, **AUTO always starts inference with the CPU**, as it provides very low latency and can start inference with no additional delays. 
+While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
+This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
+For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than the one of a GPU.
 
+Note that if you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
+     
 ![autoplugin_accelerate]
 
-This mechanism can be easily observed in our Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
+This mechanism can be easily observed in the Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
 @sphinxdirective
 .. code-block:: sh
@@ -58,27 +65,26 @@ This mechanism can be easily observed in our Benchmark Application sample ([see 
    ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
 @endsphinxdirective 
 
-Assume there are CPU and GPU on the machine, first-inference latency of "AUTO" will be better than "GPU".
 
 @sphinxdirective
 .. note::
-   The realtime performance will be closer to the best suited device the longer the process runs.
+   The longer the process runs, the closer realtime performance will be to that of the best-suited device.
 @endsphinxdirective
 
 ## Using the Auto-Device Plugin 
 
-Inference with AUTO is configured similarly to other plugins: compile the model on the plugin whth configuration, and finally, execute inference. 
 
-Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
+Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO." It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
 @sphinxdirective
+
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
 | Property                  | Property values                               | Description                                               |
 +===========================+===============================================+===========================================================+
 | <device candidate list>   | | AUTO: <device names>                        | | Lists the devices available for selection.              |
 |                           | | comma-separated, no spaces                  | | The device sequence will be taken as priority           |
 |                           | |                                             | | from high to low.                                       |
-|                           | |                                             | | If not specified, “AUTO” will be used as default        |
+|                           | |                                             | | If not specified, "AUTO" will be used as default        |
 |                           | |                                             | | and all devices will be included.                       |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
 | ov::device:priorities     | | device names                                | | Specifies the devices for Auto-Device plugin to select. |
@@ -93,10 +99,14 @@ Following the OpenVINO™ naming convention, the Auto-Device plugin is assigned 
 |                           | | ov::hint::Priority::MEDIUM                  | | Importantly!                                            |
 |                           | | ov::hint::Priority::LOW                     | | This property is still not fully supported              |
 +---------------------------+-----------------------------------------------+-----------------------------------------------------------+
+
 @endsphinxdirective
 
-### Device candidate list
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. 
+Inference with AUTO is configured similarly to when device plugins are used:
+you compile the model on the plugin with configuration and execute inference.
+
+### Device Candidate List
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note that OpenVINO™ Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -115,7 +125,7 @@ The following commands are accepted by the API:
 
 @endsphinxdirective
 
-To check what devices are present in the system, you can use Device API. For information on how to do it, check [Query device properties and configuration](supported_plugins/config_properties.md)
+To check what devices are present in the system, you may use Device API. For information on how to do it, see the [Query device properties and configuration](supported_plugins/config_properties.md)
 
 For C++
 @sphinxdirective
@@ -139,8 +149,8 @@ The `ov::hint::performance_mode` property enables you to specify a performance m
 This mode prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, like inference of video feeds or large numbers of images.
 
 #### ov::hint::PerformanceMode::LATENCY
-This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, like a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
-Note that currently the `ov::hint` property is supported by CPU and GPU devices only.
+This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, like a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or near real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
+Note that the `ov::hint` property is currently supported by CPU and GPU devices only.
 
 To enable performance hints for your application, use the following code: 
 @sphinxdirective
@@ -179,7 +189,7 @@ The property enables you to control the priorities of models in the Auto-Device 
 @endsphinxdirective
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad (devices uncapable of utilizing the Performance Hints option). 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used when the device candidate list includes Myriad devices, uncapable of utilizing the Performance Hints option. 
 
 @sphinxdirective
 
@@ -199,7 +209,7 @@ Although the methods described above are currently the preferred way to execute 
 
 <a name="Benchmark App Info"></a>
 ## Using AUTO with OpenVINO™ Samples and the Benchmark App
-To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
+To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you may use the following commands:
 
 For unlimited device choice:
 @sphinxdirective
@@ -220,7 +230,7 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
 @sphinxdirective
 .. note::
 
-   The default CPU stream is 1 if using “-d AUTO”.
+   The default CPU stream is 1 if using "-d AUTO".
 
    You can use the FP16 IR to work with auto-device.
 

@@ -24,7 +24,7 @@ The following Python API is used in the application:
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at the [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Running
 
@@ -32,13 +32,13 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 python hello_classification.py <path_to_model> <path_to_image> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- you may use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application, or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of the [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -57,13 +57,13 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name alexnet
 ```
 
-3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the IR or ONNX format, it must be converted. You can do this, using the model converter:
 
 ```
 omz_converter --name alexnet
 ```
 
-4. Perform inference of `banana.jpg` using the `alexnet` model on a `GPU`, for example:
+4. Perform inference of `banana.jpg`, using the `alexnet` model on a `GPU`, for example:
 
 ```
 python hello_classification.py alexnet.xml banana.jpg GPU
@@ -93,7 +93,7 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] 951      0.0002427
 [ INFO ] 961      0.0002213
 [ INFO ]
-[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+[ INFO ] This sample is an API example. Use the dedicated benchmark_app tool for any performance measurements.
 ```
 
 ## See Also

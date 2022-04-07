@@ -68,7 +68,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 
 ### Example
 
-1. Install openvino-dev python package to use Open Model Zoo Tools:
+1. Install openvino-dev Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]

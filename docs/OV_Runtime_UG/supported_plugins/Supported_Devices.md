@@ -18,7 +18,7 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
 
-Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+Devices similar to the ones you have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
 ## Supported Configurations
 
@@ -62,7 +62,7 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |Arm® CPU plugin    |Supported and preferred |Supported               |Supported (partially)   |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
+the formats of supported models depend on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
 
 ### Supported Input Precision
 
@@ -76,7 +76,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 
 <br>\* - Supported via `SetBlob` only, `GetBlob` returns FP32<br>
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported input precision  depends on the actual underlying devices. _Generally, U8 is preferable as it is most ubiquitous_.
+the supported input precision depends on the actual underlying devices. _Generally, U8 is preferable as it is most ubiquitous_.
 
 ### Supported Output Precision
 
@@ -89,7 +89,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 |Arm® CPU plugin    |Supported |Supported     |
 
 For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported output precision  depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
+the supported output precision depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
 
 ### Supported Input Layout
 
@@ -261,7 +261,7 @@ The following layers are supported by the plugins:
 | Unsqueeze                      | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
 | Upsampling                     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   |
 
-\*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
+\*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section from the list of [supported devices](Supported_Devices.md).
 
 \*\*- support is implemented via [Extensibility mechanism](../../Extensibility_UG/Intro.md).
 

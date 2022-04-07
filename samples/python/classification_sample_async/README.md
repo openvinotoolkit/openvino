@@ -1,4 +1,4 @@
-# Image Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
+# Image Classification Async Python Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
 This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
 Models with only 1 input and output are supported.
@@ -53,14 +53,14 @@ Options:
                         Default value is CPU.
 ```
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- you may use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application, or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -85,7 +85,7 @@ omz_downloader --name alexnet
 omz_converter --name alexnet
 ```
 
-4. Perform inference of `banana.jpg` and `car.bmp` using the `alexnet` model on a `GPU`, for example:
+4. Perform inference of `banana.jpg` and `car.bmp`, using the `alexnet` model on a `GPU`, for example:
 
 ```
 python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
@@ -130,7 +130,7 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] 627      0.0148493
 [ INFO ] 757      0.0120964
 [ INFO ]
-[ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+[ INFO ] This sample is an API example. Use the dedicated benchmark_app tool for any performance measurements.
 ```
 
 ## See Also

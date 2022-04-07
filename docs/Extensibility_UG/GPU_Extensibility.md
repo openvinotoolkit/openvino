@@ -2,7 +2,7 @@
 
 To enable operations not supported by OpenVINO out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
-The GPU codepath abstracts many details about OpenCL\*. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
+The GPU codepath abstracts many details about OpenCL. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
 
 There are two options for using the custom operation configuration file:
 
@@ -178,7 +178,7 @@ For an example, see [Example Kernel](#example-kernel).
 | `<TENSOR>_DIMS`| An array of the tensor dimension sizes. Always ordered as `BFYX` |
 | `<TENSOR>_DIMS_SIZE`| The size of the `<TENSOR>_DIMS` array.|
 | `<TENSOR>_TYPE`| The datatype of the tensor: `float`, `half`, or `char`|
-| `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. You can use the tensor format to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
+| `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. You may use the tensor format to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
 | `<TENSOR>_LOWER_PADDING` | An array of padding elements used for the tensor dimensions before they start. Always ordered as BFYX.|
 | `<TENSOR>_LOWER_PADDING_SIZE` | The size of the `<TENSOR>_LOWER_PADDING` array  |
 | `<TENSOR>_UPPER_PADDING`   | An array of padding elements used for the tensor dimensions after they end. Always ordered as BFYX. |
@@ -222,13 +222,13 @@ __kernel void example_relu_kernel(
 
 > **NOTE**: As described in the previous section, all items like
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
-> the OpenVINO for efficiency reasons. See [Debugging
+> OpenVINO for efficiency reasons. See [Debugging
 > Tips](#debugging-tips) for information on debugging the results.
 
 ## Debugging Tips<a name="debugging-tips"></a>
 
 * **Using `printf` in the OpenCL™ Kernels**.
-To debug the specific values, you can use `printf` in your kernels.
+To debug the specific values, you may use `printf` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of

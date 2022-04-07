@@ -11,17 +11,17 @@
 @endsphinxdirective
 
 As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing of input shapes before model compilation in `Core::compile_model`.
-Reshaping models provides an ability to customize the model input shape for exactly that size that is required in the end application.
-This article explains how the ability of model to reshape can further be leveraged in more dynamic scenarios.
+Reshaping models provides an ability to customize the model input shape for exactly the size that is required in the end application.
+This article explains how the ability of a model to reshape can further be leveraged in more dynamic scenarios.
 
 ## When to Apply Dynamic Shapes
 
 Conventional "static" model reshaping works well when it can be done once per many model inference calls with the same shape.
-However, this approach doesn't perform efficiently if the input tensor shape is changed on every inference call: calling `reshape()` and `compile_model()` each time when a new size comes is extremely time-consuming.
-A popular example would be an inference of natural language processing models (like BERT) with arbitrarily-sized input sequences that come from the user.
+However, this approach does not perform efficiently if the input tensor shape is changed on every inference call: calling `reshape()` and `compile_model()` each time when a new size comes is extremely time-consuming.
+A popular example would be an inference of natural language processing models (like BERT) with arbitrarily-sized input sequences that come from a user.
 In this case, the sequence length cannot be predicted and may change every time you need to call inference.
 Below, such dimensions that can be frequently changed are called *dynamic dimensions*.
-When real shape of input is not known at `compile_model` time, that's the case when dynamic shapes should be considered.
+In the case when real shape of input is not known at `compile_model` time, the dynamic shapes should be considered.
 
 Here are several examples of dimensions that can be naturally dynamic:
  - Sequence length dimension for various sequence processing models, like BERT
@@ -30,13 +30,13 @@ Here are several examples of dimensions that can be naturally dynamic:
  - Arbitrary number of detections in object detection models output
 
 There are various tricks to address input dynamic dimensions through combining multiple pre-reshaped models and input data padding.
-The tricks are sensitive to model internals, do not always give optimal performance and cumbersome.
-Short overview of the methods you can find [here](ov_without_dynamic_shapes.md).
-Apply those methods only if native dynamic shape API described in the following sections doesn't work for you or doesn't give desired performance.
+The tricks are sensitive to model internals. They do not always give optimal performance and are cumbersome.
+You will find a short overview of the methods [here](ov_without_dynamic_shapes.md).
+Apply those methods only if the native dynamic shape API described in the following sections does not work for you or does not perform as desired.
 
-The decision about using dynamic shapes should be based on proper benchmarking of real application with real data.
-That's because unlike statically shaped models, inference of dynamically shaped ones takes different inference time depending on input data shape or input tensor content.
-Also using the dynamic shapes can bring more overheads in memory and running time per each inference call depending on hardware plugin and model used.
+The decision about using dynamic shapes should be based on proper benchmarking of a real application with a real data.
+For unlike statically shaped models, inference of dynamically shaped ones takes different inference time depending on input data shape or input tensor content.
+Also, using the dynamic shapes can bring more overheads in memory and running time per each inference call, depending on a hardware plugin and a used model.
 
 ## Dynamic Shapes without Tricks
 
@@ -48,7 +48,7 @@ There are three main parts in the flow that differ from static shapes:
 
 ### Configure the Model
 
-To avoid the tricks mentioned in the previous section there is a way to directly specify one or multiple dimensions in the model inputs to be dynamic.
+To avoid the tricks mentioned in the previous section, there is a way to directly specify one or multiple dimensions in the model inputs to be dynamic.
 This is achieved with the same reshape method that is used for alternating static shape of inputs.
 Dynamic dimensions are specified as `-1` or `ov::Dimension()` instead of a positive number used for static dimensions:
 
@@ -120,7 +120,7 @@ If users known lower and upper bounds for dimension it is recommended to specify
 
 Preparing model with the reshape method was the first step.
 The second step is passing a tensor with an appropriate shape to infer request.
-This is similar to [regular steps](integrate_with_your_application.md), but now we can pass tensors with different shapes for the same executable model and even for the same inference request:
+This is similar to the [regular steps](integrate_with_your_application.md), but now you can pass tensors with different shapes for the same executable model and even for the same inference request:
 
 @sphinxtabset
 
@@ -136,14 +136,14 @@ This is similar to [regular steps](integrate_with_your_application.md), but now 
 @endsphinxtab
 @endsphinxtabset
 
-In the example above `set_input_tensor` is used to specify input tensors.
-The real dimensions of the tensor is always static, because it is a concrete tensor and it doesn't have any dimension variations in contrast to model inputs.
+In the example above, `set_input_tensor` is used to specify input tensors.
+The real dimensions of the tensor are always static, because it is a concrete tensor and it does not have any dimension variations in contrast to model inputs.
 
 Similar to static shapes, `get_input_tensor` can be used instead of `set_input_tensor`.
 In contrast to static input shapes, when using `get_input_tensor` for dynamic inputs, `set_shape` method for the returned tensor should be called to define the shape and allocate memory.
-Without doing that, the tensor returned by `get_input_tensor` is an empty tensor, it's shape is not initialized and memory is not allocated, because infer request doesn't have information about real shape you are going to feed.
+Without doing that, the tensor returned by `get_input_tensor` is an empty tensor. Its shape is not initialized and memory is not allocated, because infer request does not have information about real shape you are going to feed.
 Setting shape for input tensor is required when the corresponding input has at least one dynamic dimension regardless of bounds information.
-The following example makes the same sequence of two infer request as the previous example but using `get_input_tensor` instead of `set_input_tensor`:
+The following example makes the same sequence of two infer requests as the previous example but using `get_input_tensor` instead of `set_input_tensor`:
 
 @sphinxtabset
 
@@ -162,12 +162,12 @@ The following example makes the same sequence of two infer request as the previo
 
 ### Dynamic Shapes in Outputs
 
-Examples above handle correctly case when dynamic dimensions in output may be implied by propagating of dynamic dimension from the inputs.
+Examples above handle correctly the case when dynamic dimensions in output may be implied by propagating of dynamic dimension from the inputs.
 For example, batch dimension in input shape is usually propagated through the whole model and appears in the output shape.
 The same is true for other dimensions, like sequence length for NLP models or spatial dimensions for segmentation models, that are propagated through the entire network.
 
-Whether or not output has dynamic dimensions can be examined by querying output partial shape after model read or reshape.
-The same is applicable for inputs. For example:
+Whether output has dynamic dimensions or not can be examined by querying output partial shape after model read or reshape.
+The same is applicable for the inputs. For example:
 
 @sphinxtabset
 
@@ -206,5 +206,5 @@ Or more programmatically:
 
 If at least one dynamic dimension exists in output of the model, shape of the corresponding output tensor will be set as the result of inference call.
 Before the first inference, memory for such a tensor is not allocated and has shape `[0]`.
-If user call `set_output_tensor` with pre-allocated tensor, the inference will call `set_shape` internally, and the initial shape is replaced by the really calculated shape.
-So setting shape for output tensors in this case is useful only if you want to pre-allocate enough memory for output tensor, because `Tensor`'s `set_shape` method will re-allocate memory only if new shape requires more storage.
+If a user calls `set_output_tensor` with pre-allocated tensor, the inference will call `set_shape` internally, and the initial shape is replaced by the calculated shape.
+Setting shape for output tensors, in this case, is useful only if you want to pre-allocate enough memory for an output tensor. The `set_shape` method of the `Tensor` will re-allocate memory only if a new shape requires more storage.

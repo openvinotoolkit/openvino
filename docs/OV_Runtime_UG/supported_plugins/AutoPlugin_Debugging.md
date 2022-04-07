@@ -68,7 +68,7 @@ All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are 
    -DENABLE_PROFILING_ITT=ON
 @endsphinxdirective
 
-For more information, you can refer to:
+For more information, you may refer to:
 * [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html)
 
 ### Analyze Code Performance on Linux
@@ -86,7 +86,7 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
    vtune-gui
 @endsphinxdirective
 
-2. select **Configure Analysis**
+2. Select **Configure Analysis**
 3. In the **where** pane, select **Local Host**
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img01-localhost.png
@@ -98,7 +98,7 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
    :align: center
 @endsphinxdirective
 5. In the **how** pane, choose and configure the analysis type you want to perform, for example, **Hotspots Analysis**:
-identify the most time-consuming functions and drill down to see time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
+identify the most time-consuming functions and analyze the time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img03-hotspots.png
    :align: center

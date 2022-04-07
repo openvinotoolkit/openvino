@@ -3,7 +3,7 @@
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 Performance can be measured for two inference modes: latency- and throughput-oriented.
 
-> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
+> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python implementation, refer to [Benchmark Python Tool](../../../tools/benchmark_tool/README.md).
 
 
 ## How It Works

@@ -20,7 +20,7 @@ Please also see the last section in this document on conducting performance meas
 
 Note that a typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to `ov::hint::PerformanceMode::LATENCY`.
 
-## Performance Hints: How Does It Work?
+## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.
 For example the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
 Additionaly, the optimal batch size is selected for the GPU and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible. (You may refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article to check whether the device supports it).

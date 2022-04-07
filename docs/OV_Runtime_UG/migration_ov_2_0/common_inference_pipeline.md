@@ -45,7 +45,7 @@ OpenVINO™ Runtime API 2.0:
 
 ### 1.1 (Optional) Load extensions
 
-To load a model with custom operations, you need to add extensions for these operations. We highly recommend using [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions you can also load them to the new OpenVINO™ Runtime:
+To load a model with custom operations, you need to add extensions for these operations. We highly recommend using [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions, you can also load them to the new OpenVINO™ Runtime:
 
 Inference Engine API:
 
@@ -75,7 +75,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-## 2. Read a model from a drive
+## 2. Read a Model from a Drive
 
 Inference Engine API:
 
@@ -109,9 +109,9 @@ Read model has the same structure as in the example from [Model Creation](./grap
 
 Note, you can combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
 
-### 2.1 (Optional) Perform model preprocessing
+### 2.1 (Optional) Perform Model Preprocessing
 
-When application's input data doesn't perfectly match the model's input format, preprocessing steps may be necessary.
+When application input data do not perfectly match the model input format, preprocessing steps may be necessary.
 See a detailed guide on [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
 
 ## 3. Load the Model to the Device
@@ -176,7 +176,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-## 5. Fill input tensors
+## 5. Fill Input Tensors
 
 The Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
