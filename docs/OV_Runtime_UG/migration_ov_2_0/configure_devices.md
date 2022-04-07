@@ -14,7 +14,7 @@ And the property can be requested from an inference device as:
 
 @snippet ov_properties_migration.cpp core_get_ro_property
 
-The snippets below explain how to migrate from an Inference Engine device configuration to OpenVINO Runtime API 2.0 steps.
+The snippets below show how to migrate from an Inference Engine device configuration to OpenVINO Runtime API 2.0 steps.
 
 ### Set configuration values
 
