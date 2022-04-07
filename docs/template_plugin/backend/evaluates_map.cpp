@@ -895,7 +895,6 @@ struct InfoForNMS9 {
     size_t out_shape_size;
     bool sort_result_descending;
     ngraph::element::Type output_type;
-    bool soft_nms_suppressed_by_iou;
 };
 
 constexpr size_t boxes_port = 0;
@@ -1011,8 +1010,6 @@ InfoForNMS9 get_info_for_nms9_eval(const std::shared_ptr<op::v9::NonMaxSuppressi
 
     result.output_type = nms9->get_output_type();
 
-    result.soft_nms_suppressed_by_iou = nms9->get_soft_nms_suppressed_by_iou();
-
     return result;
 }
 }  // namespace nms_v9
@@ -1040,17 +1037,16 @@ bool evaluate(const shared_ptr<op::v9::NonMaxSuppression>& op,
                                             selected_scores.data(),
                                             info.out_shape,
                                             &valid_outputs,
-                                            info.sort_result_descending,
-                                            info.soft_nms_suppressed_by_iou);
+                                            info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1070,7 +1066,6 @@ struct InfoForNMS5 {
     size_t out_shape_size;
     bool sort_result_descending;
     ngraph::element::Type output_type;
-    bool soft_nms_suppressed_by_iou;
 };
 
 constexpr size_t boxes_port = 0;
@@ -1186,8 +1181,6 @@ InfoForNMS5 get_info_for_nms5_eval(const std::shared_ptr<op::v5::NonMaxSuppressi
 
     result.output_type = nms5->get_output_type();
 
-    result.soft_nms_suppressed_by_iou = true;
-
     return result;
 }
 }  // namespace nms_v5
@@ -1202,30 +1195,29 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                            info.boxes_shape,
-                                            info.scores_data.data(),
-                                            info.scores_shape,
-                                            info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
-                                            selected_indices.data(),
-                                            info.out_shape,
-                                            selected_scores.data(),
-                                            info.out_shape,
-                                            &valid_outputs,
-                                            info.sort_result_descending,
-                                            info.soft_nms_suppressed_by_iou);
+    runtime::reference::non_max_suppression5(info.boxes_data.data(),
+                                             info.boxes_shape,
+                                             info.scores_data.data(),
+                                             info.scores_shape,
+                                             info.max_output_boxes_per_class,
+                                             info.iou_threshold,
+                                             info.score_threshold,
+                                             info.soft_nms_sigma,
+                                             selected_indices.data(),
+                                             info.out_shape,
+                                             selected_scores.data(),
+                                             info.out_shape,
+                                             &valid_outputs,
+                                             info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1245,7 +1237,6 @@ struct InfoForNMS4 {
     size_t out_shape_size;
     bool sort_result_descending;
     ngraph::element::Type output_type;
-    bool soft_nms_suppressed_by_iou;
 };
 
 constexpr size_t boxes_port = 0;
@@ -1361,8 +1352,6 @@ InfoForNMS4 get_info_for_nms4_eval(const std::shared_ptr<op::v4::NonMaxSuppressi
 
     result.output_type = nms4->get_output_type();
 
-    result.soft_nms_suppressed_by_iou = true;
-
     return result;
 }
 }  // namespace nms_v4
@@ -1390,17 +1379,16 @@ bool evaluate(const shared_ptr<op::v4::NonMaxSuppression>& op,
                                             selected_scores.data(),
                                             info.out_shape,
                                             &valid_outputs,
-                                            info.sort_result_descending,
-                                            info.soft_nms_suppressed_by_iou);
+                                            info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1420,7 +1408,6 @@ struct InfoForNMS3 {
     size_t out_shape_size;
     bool sort_result_descending;
     ngraph::element::Type output_type;
-    bool soft_nms_suppressed_by_iou;
 };
 
 constexpr size_t boxes_port = 0;
@@ -1536,8 +1523,6 @@ InfoForNMS3 get_info_for_nms3_eval(const std::shared_ptr<op::v3::NonMaxSuppressi
 
     result.output_type = nms3->get_output_type();
 
-    result.soft_nms_suppressed_by_iou = true;
-
     return result;
 }
 }  // namespace nms_v3
@@ -1565,17 +1550,16 @@ bool evaluate(const shared_ptr<op::v3::NonMaxSuppression>& op,
                                             selected_scores.data(),
                                             info.out_shape,
                                             &valid_outputs,
-                                            info.sort_result_descending,
-                                            info.soft_nms_suppressed_by_iou);
+                                            info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1595,7 +1579,6 @@ struct InfoForNMS1 {
     size_t out_shape_size;
     bool sort_result_descending;
     ngraph::element::Type output_type;
-    bool soft_nms_suppressed_by_iou;
 };
 
 constexpr size_t boxes_port = 0;
@@ -1711,8 +1694,6 @@ InfoForNMS1 get_info_for_nms1_eval(const std::shared_ptr<op::v1::NonMaxSuppressi
 
     result.output_type = ov::element::i64;
 
-    result.soft_nms_suppressed_by_iou = true;
-
     return result;
 }
 }  // namespace nms_v1
@@ -1740,17 +1721,16 @@ bool evaluate(const shared_ptr<op::v1::NonMaxSuppression>& op,
                                             selected_scores.data(),
                                             info.out_shape,
                                             &valid_outputs,
-                                            info.sort_result_descending,
-                                            info.soft_nms_suppressed_by_iou);
+                                            info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
