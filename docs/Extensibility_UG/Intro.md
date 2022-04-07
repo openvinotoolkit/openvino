@@ -21,7 +21,7 @@ each of the supported frameworks. To see the operations supported by your framew
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO™ out-of-the-box. The need for custom operation may appear in two cases:
 
-1. A regular framework operation that is new or rarely used is not yet supported in OpenVINO.
+1. A new or rarely used regular framework operation is not supported in OpenVINO yet.
 
 2. A new user operation that was created for some specific model topology by a model author using framework extension capabilities.
 
