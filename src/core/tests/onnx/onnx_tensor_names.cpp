@@ -148,6 +148,7 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
     const auto result1 = find_by_friendly_name<op::Result>(ops, "D/sink_port_0");
     EXPECT_NE(result1, nullptr);
     EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "D");
+    EXPECT_EQ(result1->input(0).get_source_output().get_names(), std::unordered_set<std::string>({"D"}));
 
     EXPECT_NE(nullptr, find_by_friendly_name<op::v1::Convolution>(ops, "D/WithoutBiases"));
 }
@@ -159,8 +160,8 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
 
     const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
     EXPECT_NE(result1, nullptr);
-    const auto out_op = result1->input(0).get_source_output().get_node_shared_ptr();
-    EXPECT_EQ(out_op->get_friendly_name(), "y");
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "y");
+    EXPECT_EQ(result1->input(0).get_source_output().get_names(), std::unordered_set<std::string>({"y"}));
 
     EXPECT_NE(nullptr, find_by_friendly_name<op::v0::MatMul>(ops, "y/WithoutBiases"));
 }
