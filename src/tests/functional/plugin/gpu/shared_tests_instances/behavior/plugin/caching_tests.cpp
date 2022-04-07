@@ -49,7 +49,11 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> autoConfigsMulti = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-            std::string(CommonTestUtils::DEVICE_GPU) + "," + CommonTestUtils::DEVICE_CPU}}
+            std::string(CommonTestUtils::DEVICE_GPU)}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+            std::string(CommonTestUtils::DEVICE_GPU) + "," + CommonTestUtils::DEVICE_CPU}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+            std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase, LoadNetworkCompileWithCacheNoThrowTest,

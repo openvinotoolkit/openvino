@@ -65,8 +65,9 @@ protected:
     std::string cache_path;
     void SetUp() override {
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-        cache_path = test_name + "_cache";
         std::tie(targetDevice, configuration) = GetParam();
+        test_name.erase(remove(test_name.begin(), test_name.end(), '/'), test_name.end());
+        cache_path = test_name + "_cache";
     }
 };
 using CompileWithCacheNoThrowTest = CompiledKernelsCacheTest;

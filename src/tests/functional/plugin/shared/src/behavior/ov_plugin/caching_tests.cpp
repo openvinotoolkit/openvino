@@ -150,6 +150,9 @@ void CompileModelCacheTestBase::SetUp() {
     std::stringstream ss;
     auto hash = std::hash<std::string>()(GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    for (auto& iter : configuration) {
+        ss << iter.second.as<std::string>() << "_";
+    }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
 }
@@ -319,8 +322,24 @@ TEST_P(CompileWithCacheNoThrowTest, CanCreateCacheDirAndNoThrow) {
         // clear the exenetwork, so that all device can finish loading
         execNet = {};
         // Check that folder contains cache files and remove them
-        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
-        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+        for (auto& iter : configuration) {
+            if (iter.first.find(ov::device::priorities.name()) != std::string::npos) {
+                const auto& priority = iter.second.as<std::string>();
+                auto gpuFound = priority.find(CommonTestUtils::DEVICE_GPU) != std::string::npos;
+                auto cpuFound = priority.find(CommonTestUtils::DEVICE_CPU) != std::string::npos;
+                if (cpuFound && !gpuFound) {
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+                } else if (gpuFound && !cpuFound) {
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+                } else if (gpuFound && cpuFound &&
+                            (priority.find(CommonTestUtils::DEVICE_CPU) < priority.find(CommonTestUtils::DEVICE_GPU))) {
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+                } else {
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
+                }
+            }
+        }
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
         ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
@@ -328,7 +347,7 @@ TEST_P(CompileWithCacheNoThrowTest, CanCreateCacheDirAndNoThrow) {
         // Cleanup in case of any exception
         if (CommonTestUtils::directoryExists(cache_path)) {
             ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "cl_cache"), 0);
-            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
+            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, "blob"), 0);
             ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
