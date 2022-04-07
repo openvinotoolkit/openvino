@@ -13,6 +13,15 @@
 #include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/shape.hpp"
 
+struct sProposalBox {
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+    float score;
+    float keep;
+};
+
 static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
                                              const std::vector<float>& scores,
                                              const std::vector<float>& anchors,
@@ -198,18 +207,6 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-template <typename T>
-struct sProposalBox {
-    T x0;
-    T y0;
-    T x1;
-    T y1;
-    T score;
-    T keep;
-};
-
-using GenerateProposalBox = struct sProposalBox<float>;
-
 static void generate_proposals_single_image(const std::vector<float>& im_info,
                                             const std::vector<float>& anchors,
                                             const std::vector<float>& deltas,
@@ -259,7 +256,7 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
     // bbox normalized flag
     const float coordinates_offset = attrs.normalized ? 0 : 1.0;
 
-    std::vector<GenerateProposalBox> proposals(num_proposals);
+    std::vector<sProposalBox> proposals(num_proposals);
     std::vector<float> unpacked_boxes(5 * pre_nms_topn);
     std::vector<int64_t> is_dead(pre_nms_topn);
 
@@ -279,7 +276,7 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
     std::partial_sort(proposals.begin(),
                       proposals.begin() + pre_nms_topn,
                       proposals.end(),
-                      [](const GenerateProposalBox& struct1, const GenerateProposalBox& struct2) {
+                      [](const sProposalBox& struct1, const sProposalBox& struct2) {
                           return (struct1.score > struct2.score);
                       });
 
