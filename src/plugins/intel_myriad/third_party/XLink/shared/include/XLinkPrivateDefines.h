@@ -84,7 +84,6 @@ typedef enum
     XLINK_CLOSE_STREAM_REQ,
     XLINK_PING_REQ,
     XLINK_RESET_REQ,
-    XLINK_DROP_REQ,
     XLINK_REQUEST_LAST,
     //note that is important to separate request and response
     XLINK_WRITE_RESP,
@@ -95,7 +94,6 @@ typedef enum
     XLINK_CLOSE_STREAM_RESP,
     XLINK_PING_RESP,
     XLINK_RESET_RESP,
-    XLINK_DROP_RESP,
     XLINK_RESP_LAST,
 
     /*X_LINK_IPC related events*/
@@ -132,8 +130,6 @@ typedef struct xLinkEventHeader_t{
     char                streamName[MAX_STREAM_NAME_LENGTH];
     streamId_t          streamId;
     uint32_t            size;
-    uint32_t            dropped;
-    uint32_t            canBeServed;
     union{
         uint32_t raw;
         struct{
@@ -159,8 +155,6 @@ typedef struct xLinkEvent_t {
     (event).header.streamId = (in_streamId); \
     (event).header.type = (in_type); \
     (event).header.size = (in_size); \
-    (event).header.dropped = 0; \
-    (event).header.canBeServed = 1; \
     (event).data = (in_data); \
     (event).deviceHandle = (in_deviceHandle); \
 } while(0)
