@@ -16,7 +16,7 @@ Once the [OpenVINO application development](../integrate_with_your_application.m
 - Set a dependency on existing prebuilt packages (so called _centralized distribution_):
     - Using Debian / RPM packages, a recommended way for a family of Linux operation systems
     - Using pip package manager on PyPi, default approach for Python-based applications
-    - Using Docker images. If the application should be deployed as a Docker image, developer can use a pre-built runtime OpenVINO Docker image as a base image in the Dockerfile for the application container image. You will find more info about available OpenVINO Docker images in the Install Guides for [Linux](../../install_guides/installing-openvino-docker-linux.md) and [Windows](../../install_guides/installing-openvino-docker-windows.md). 
+    - Using Docker images. If the application should be deployed as a Docker image, developer can use a pre-built runtime OpenVINO Docker image as a base image in the Dockerfile for the application container image. You will find more information about available OpenVINO Docker images in the Install Guides for [Linux](../../install_guides/installing-openvino-docker-linux.md) and [Windows](../../install_guides/installing-openvino-docker-windows.md). 
 Also, if you need to customize OpenVINO Docker image, you can use [Docker CI Framework](https://github.com/openvinotoolkit/docker_ci) to generate a Dockerfile and built it. 
 - Grab a necessary functionality of OpenVINO together with your application (so-called _local distribution_):
     - Using [OpenVINO Deployment manager](deployment-manager-tool.md), providing a convenient way create a distribution package.
