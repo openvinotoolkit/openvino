@@ -21,7 +21,7 @@ However, this approach does not perform efficiently if the input tensor shape is
 A popular example would be an inference of natural language processing models (like BERT) with arbitrarily-sized input sequences that come from a user.
 In this case, the sequence length cannot be predicted and may change every time you need to call inference.
 Below, such dimensions that can be frequently changed are called *dynamic dimensions*.
-In the case when real shape of input is not known at `compile_model` time, the dynamic shapes should be considered.
+Dynamic shapes should be considered when the real shape of input is not known at `compile_model` time.
 
 Here are several examples of dimensions that can be naturally dynamic:
  - Sequence length dimension for various sequence processing models, like BERT
