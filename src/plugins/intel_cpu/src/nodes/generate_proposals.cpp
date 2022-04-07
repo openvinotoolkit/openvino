@@ -122,11 +122,11 @@ void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead,
 }
 
 void nms_cpu(const int num_boxes, int is_dead[],
-             const float* boxes, int index_out[], int* const num_out,
+             const float* boxes, int index_out[], size_t* const num_out,
              const int base_index, const float nms_thresh, const int max_num_out,
              float coordinates_offset) {
     const int num_proposals = num_boxes;
-    int count = 0;
+    size_t count = 0;
 
     const float* x0 = boxes + 0 * num_proposals;
     const float* y0 = boxes + 1 * num_proposals;
@@ -245,7 +245,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
 
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores, uint8_t* roi_num,
-                       const int num_proposals, const int num_rois, const int post_nms_topn,
+                       const int num_proposals, const size_t num_rois, const int post_nms_topn,
                        Precision roi_num_type) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
@@ -381,7 +381,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
 
         // number of final RoIs
-        int num_rois = 0;
+        size_t num_rois = 0;
 
         // enumerate all proposals
         //   num_proposals = num_anchors * H * W
@@ -400,14 +400,14 @@ void GenerateProposals::execute(dnnl::stream strm) {
         std::vector<int> is_dead(pre_nms_topn);
 
         // Execute
-        int batch_size = scoreDims[0];
-        int total_num_rois = 0;
+        size_t batch_size = scoreDims[0];
+        size_t total_num_rois = 0;
         std::vector<float> roi_item, score_item;
         std::vector<int64_t> roi_num(batch_size);
         uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         const auto roi_num_item_size = roi_num_type == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t);
-        for (int n = 0; n < batch_size; ++n) {
+        for (size_t n = 0; n < batch_size; ++n) {
             // input image height & width
             const float img_H = p_img_info_cpu[0];
             const float img_W = p_img_info_cpu[1];
@@ -440,7 +440,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
                     nms_thresh_, post_nms_topn_, coordinates_offset_);
 
-            int new_num_rois = total_num_rois + num_rois;
+            size_t new_num_rois = total_num_rois + num_rois;
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 
@@ -453,7 +453,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             p_roi_num += roi_num_item_size;
         }
         // copy to out memory
-        redefineOutputMemory({{total_num_rois, 4}, {total_num_rois}, {batch_size}});
+        redefineOutputMemory({VectorDims{total_num_rois, 4}, VectorDims{total_num_rois}, VectorDims{batch_size}});
         float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
         float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
         uint8_t* p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetPtr());

@@ -30,7 +30,7 @@ NamedOutputs generate_proposals_v2(const NodeContext& node) {
     attrs.post_nms_count = node.get_attribute<int>("post_nms_topN", 1000);
     attrs.nms_eta = node.get_attribute<float>("eta", 1.0);
     PADDLE_OP_CHECK(node, (attrs.nms_eta == 1.0), "Only support case of eta == 1.0 currently");
-    attrs.normalized = not node.get_attribute<bool>("pixel_offset", true);
+    attrs.normalized = !node.get_attribute<bool>("pixel_offset", true);
 
     // reshape anchors from to [H, W, A, 4] if it is [H * W * A, 4]
     auto scores_shape = std::make_shared<default_opset::ShapeOf>(scores);
