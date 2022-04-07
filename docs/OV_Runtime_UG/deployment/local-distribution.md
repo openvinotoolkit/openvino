@@ -8,7 +8,7 @@ Local distribution is also appropriate for OpenVINO binaries built from sources 
 
 ### C++ or C Language
 
-Regardless of the language used to write the application, `openvino` must always be included in the final distribution since it is a core library which orshectrates with all the inference and frontend plugins.
+Regardless of the language used to write the application, `openvino` must always be included in the final distribution since it is a core library, which orchestrates with all the inference and frontend plugins.
 If your application is written with C language, then you need to include `openvino_c` additionally.
 
 The `plugins.xml` file with information about inference devices must also be taken as support file for `openvino`.
