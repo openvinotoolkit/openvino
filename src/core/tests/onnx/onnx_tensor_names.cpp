@@ -153,8 +153,7 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
 }
 
 NGRAPH_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/gemm_abc.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gemm_abc.onnx"));
 
     const auto ops = function->get_ordered_ops();
 
