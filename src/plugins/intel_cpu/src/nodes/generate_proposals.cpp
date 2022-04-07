@@ -289,7 +289,7 @@ bool GenerateProposals::isSupportedOperation
 }
 
 GenerateProposals::GenerateProposals
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                 WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -324,11 +324,11 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GenerateProposals::executeDynamicImpl(mkldnn::stream strm) {
+void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void GenerateProposals::execute(mkldnn::stream strm) {
+void GenerateProposals::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             IE_THROW() << "Incorrect number of input or output edges!";
