@@ -13,6 +13,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
+//axis_convert가 음수인덱스 처리를 이상하게 하고 있었는데, trailing one을 제거한 차원 기준으로 해야할듯?
+
 class gather8LargeFlatFixt : public ::testing::Test {
 protected:
     static const format::type fmt = format::bfzyx;
@@ -27,19 +29,15 @@ protected:
     int batch_dim=1;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of fsv
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
 
         ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -75,6 +73,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfzyx.data(),
             indbfzyx.data(),
@@ -114,21 +113,15 @@ protected:
     int batch_dim=1;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of fsv
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
         auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx,  { b0, f0, x0, y0, z0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, format::bfzyx, { b1, f1, x1, y1, z1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -166,6 +159,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfzyx.data(),
             indbfzyx.data(),
@@ -205,21 +199,15 @@ protected:
     int batch_dim=1;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of fsv
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -255,6 +243,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfzyx.data(),
             indbfzyx.data(),
@@ -294,19 +283,15 @@ protected:
     int batch_dim=1;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of fsv
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
 
         ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -342,6 +327,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfzyx.data(),
             indbfzyx.data(),
@@ -378,24 +364,18 @@ protected:
     size_t b1=2, f1=fsv, y1=3, x1=1;
     size_t b2=2, f2=fsv, y2=fsv, x2=3;
     int axis=2;//y
-    int batch_dim=-2;//NOTE: 음수일 경우 trailing 1 dimension 제거한 차원을 기준으로 사용한다. 여기선 4가 아니라 3이 기준. 이거 맞는지도 모르겠다. axis_convert가 음수인덱스 처리를 이상하게 하고 있었어서;;
+    int batch_dim=-2;//NOTE: 음수일 경우 trailing 1 dimension 제거한 차원을 기준으로 사용한다. 여기선 4가 아니라 3이 기준.
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of 4
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,-99,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -427,6 +407,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfyx.data(),
             indbfyx.data(),
@@ -465,21 +446,15 @@ protected:
     int batch_dim=1;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of 4
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -511,6 +486,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfyx.data(),
             indbfyx.data(),
@@ -549,21 +525,15 @@ protected:
     int batch_dim=0;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of 4
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -595,6 +565,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfyx.data(),
             indbfyx.data(),
@@ -633,21 +604,13 @@ protected:
     int batch_dim=0;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of 4
         auto& engine = get_test_engine();
-
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-
-        
-
         ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -679,6 +642,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             datbfyx.data(),
             indbfyx.data(),
@@ -717,10 +681,8 @@ protected:
     int batch_dim=0;
 
     void SetUp() override {
-        //NOTE: Assume f0,f1,f2 is multiple of 4
         auto& engine = get_test_engine();
 
-        //NOTE: blocked이던 flat이던 메모리에 이 순서 그대로 저장된다.
         dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
         auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
 
@@ -729,7 +691,7 @@ protected:
         
         ans=std::vector<FLOAT16>(b2*f2*x2*y2);
 
-        set_values(input0, dat);//blocked면 여기서도 순서바뀌게 저장되서 수정필요할거같다.
+        set_values(input0, dat);
         set_values(input1, ind);
 
         topology topology;
@@ -802,12 +764,8 @@ protected:
         dat=generate_random_1d<FLOAT16>(2*3*4*1,0,99);
         auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx,  { b0, f0, x0, y0 } }); // Dictionary
 
-        
-
         ind=generate_random_1d<float>(5*6*1*1,0,input0->get_layout().get_dim(axis)-1,1);
         auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(2*3*5*6);
 
         set_values(input0, dat);
         set_values(input1, ind);
@@ -826,6 +784,7 @@ protected:
         
         auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
         auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
+        ans=std::vector<FLOAT16>(2*3*5*6);
         ngraph::runtime::reference::gather<FLOAT16,float>(
             dat.data(),
             ind.data(),
