@@ -43,6 +43,144 @@ size_t total_size(const std::vector<size_t>& a){
     return ret;
 }
 
+TEST(border_gpu, mytest_bs_fs_yx_bsv32_fsv16_mirror101) {
+    ov::Shape sh_in{99,111,13,12};
+    ov::CoordinateDiff cd_lt{2,1,3,4};
+    ov::CoordinateDiff cd_rb{1,2,4,3};
+    ov::Shape sh_out{
+        sh_in[0]+cd_lt[0]+cd_rb[0],
+        sh_in[1]+cd_lt[1]+cd_rb[1],
+        sh_in[2]+cd_lt[2]+cd_rb[2],
+        sh_in[3]+cd_lt[3]+cd_rb[3]};
+    float pad_val=0.3f;
+
+    auto& engine = get_test_engine();
+    std::vector<float> input_data = generate_random_1d<float>(total_size(sh_in), -9, 9);
+    
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {sh_in[0],sh_in[1],sh_in[3],sh_in[2]}});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+
+    topology.add(
+        reorder("border_input", "input", cldnn::format::bs_fs_yx_bsv32_fsv16, cldnn::data_types::f32),
+        border("border", "border_input", to_tensor(cd_lt), to_tensor(cd_rb), border_type::mirror_101, pad_val),
+        reorder("output", "border", cldnn::format::bfyx, cldnn::data_types::f32)
+    );
+
+    cldnn::network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> ans(total_size(sh_out));
+    auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
+    ngraph::runtime::reference::pad(
+        (const char *)(input_data.data()),
+        (const char *)(&pad_val),
+        (char *)ans.data(),
+        sizeof(float),
+        sh_in, sh_out, cd_lt, cd_rb,
+        ngraph::op::PadMode::REFLECT);
+
+    ASSERT_EQ(ans.size(), total_size(sh_out));
+    EXPECT_TRUE(!memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()));
+}
+
+TEST(border_gpu, mytest_bs_fs_yx_bsv32_fsv16_edge) {
+    ov::Shape sh_in{99,111,3,2};
+    ov::CoordinateDiff cd_lt{2,1,3,4};
+    ov::CoordinateDiff cd_rb{1,2,4,3};
+    ov::Shape sh_out{
+        sh_in[0]+cd_lt[0]+cd_rb[0],
+        sh_in[1]+cd_lt[1]+cd_rb[1],
+        sh_in[2]+cd_lt[2]+cd_rb[2],
+        sh_in[3]+cd_lt[3]+cd_rb[3]};
+    float pad_val=0.3f;
+
+    auto& engine = get_test_engine();
+    std::vector<float> input_data = generate_random_1d<float>(total_size(sh_in), -9, 9);
+    
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {sh_in[0],sh_in[1],sh_in[3],sh_in[2]}});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+
+    topology.add(
+        reorder("border_input", "input", cldnn::format::bs_fs_yx_bsv32_fsv16, cldnn::data_types::f32),
+        border("border", "border_input", to_tensor(cd_lt), to_tensor(cd_rb), border_type::edge, pad_val),
+        reorder("output", "border", cldnn::format::bfyx, cldnn::data_types::f32)
+    );
+
+    cldnn::network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> ans(total_size(sh_out));
+    auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
+    ngraph::runtime::reference::pad(
+        (const char *)(input_data.data()),
+        (const char *)(&pad_val),
+        (char *)ans.data(),
+        sizeof(float),
+        sh_in, sh_out, cd_lt, cd_rb,
+        ngraph::op::PadMode::EDGE);
+
+    ASSERT_EQ(ans.size(), total_size(sh_out));
+    EXPECT_TRUE(!memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()));
+}
+
+TEST(border_gpu, mytest_bs_fs_yx_bsv32_fsv16_mirror) {
+    ov::Shape sh_in{99,111,13,12};
+    ov::CoordinateDiff cd_lt{2,1,3,4};
+    ov::CoordinateDiff cd_rb{1,2,4,3};
+    ov::Shape sh_out{
+        sh_in[0]+cd_lt[0]+cd_rb[0],
+        sh_in[1]+cd_lt[1]+cd_rb[1],
+        sh_in[2]+cd_lt[2]+cd_rb[2],
+        sh_in[3]+cd_lt[3]+cd_rb[3]};
+    float pad_val=0.3f;
+
+    auto& engine = get_test_engine();
+    std::vector<float> input_data = generate_random_1d<float>(total_size(sh_in), -9, 9);
+    
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {sh_in[0],sh_in[1],sh_in[3],sh_in[2]}});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+
+    topology.add(
+        reorder("border_input", "input", cldnn::format::bs_fs_yx_bsv32_fsv16, cldnn::data_types::f32),
+        border("border", "border_input", to_tensor(cd_lt), to_tensor(cd_rb), border_type::mirror, pad_val),
+        reorder("output", "border", cldnn::format::bfyx, cldnn::data_types::f32)
+    );
+
+    cldnn::network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> ans(total_size(sh_out));
+    auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
+    ngraph::runtime::reference::pad(
+        (const char *)(input_data.data()),
+        (const char *)(&pad_val),
+        (char *)ans.data(),
+        sizeof(float),
+        sh_in, sh_out, cd_lt, cd_rb,
+        ngraph::op::PadMode::SYMMETRIC);
+
+    ASSERT_EQ(ans.size(), total_size(sh_out));
+    EXPECT_TRUE(!memcmp(output_ptr.data(),ans.data(),sizeof(float)*ans.size()));
+}
+
 TEST(border_gpu, mytest_bs_fs_yx_bsv32_fsv16) {
     ov::Shape sh_in{99,111,3,2};
     ov::CoordinateDiff cd_lt{2,1,3,4};
