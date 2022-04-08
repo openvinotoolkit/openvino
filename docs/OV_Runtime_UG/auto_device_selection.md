@@ -13,16 +13,16 @@
 The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
 which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
 It detects available devices, picks one, best-suited for the task, and configures its optimization settings. 
-This way, you can write the application once and deploy it anywhere.
+As a result, you can write the application once and deploy it anywhere.
 
 The selection also depends on your performance requirements, defined by the "hints" configuration API, as well as 
 device priority list limitations, if you choose to exclude some hardware from the process.
 
-The logic behind the choice is as follows: 
+The selection process is as follows: 
 1. Check what supported devices are available. 
-2. Check precisions of the input model (for detailed information on precisions read more on the `ov::device::capabilities`) 
-3. Select the highest-priority device capable of supporting the given model, as listed in the table below. 
-4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16. 
+2. Check precisions of the input model (find more details on precisions in the `ov::device::capabilities`) 
+3. Select the highest-priority device capable of supporting the given model (see the table below). 
+4. If model precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16. 
 
 +----------+------------------------------------------------------+-------------------------------------+
 | Device   || Supported                                           || Supported                          |
@@ -44,14 +44,14 @@ The logic behind the choice is as follows:
 Simply put, when loading the model to the first device fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
 What is important, **AUTO always starts inference with the CPU**, as it provides very low latency and can start inference with no additional delays. 
 While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
-This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
+Therefore, the devices, like GPU, which are much slower in compiling models, do not impede inference at its initial stages.
 For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than the one of a GPU.
 
-If you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
+> **NOTE:** If you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
      
 ![autoplugin_accelerate]
 
-This mechanism can be easily observed in the Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
+This mechanism can be easily observed in the [Benchmark Application](#Benchmark App Info) sample, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
 @sphinxdirective
 .. code-block:: sh
@@ -106,7 +106,10 @@ Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
 ### Device Candidate List
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. OpenVINO™ Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. 
+
+> **NOTE**: OpenVINO™ Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. 
+
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -150,7 +153,8 @@ This mode prioritizes high throughput, balancing between latency and power. It i
 
 #### ov::hint::PerformanceMode::LATENCY
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, like a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or near real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
-The `ov::hint` property is currently supported by CPU and GPU devices only.
+
+> **NOTE:** The `ov::hint` property is currently supported by CPU and GPU devices only.
 
 To enable performance hints for your application, use the following code: 
 @sphinxdirective

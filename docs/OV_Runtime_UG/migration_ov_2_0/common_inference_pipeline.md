@@ -107,7 +107,7 @@ OpenVINO™ Runtime API 2.0:
 
 Read model has the same structure as in the example from [Model Creation](./graph_construction.md) migration guide.
 
-You may combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
+> **NOTE**: You may combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
 
 ### 2.1 (Optional) Perform Model Preprocessing
 

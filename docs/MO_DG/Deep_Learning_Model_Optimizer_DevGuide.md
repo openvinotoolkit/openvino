@@ -101,7 +101,9 @@ mo --input_model ocr.onnx --output probabilities
 ```
 For more information on ONNX model conversion,
 refer to the [Converting an ONNX Model](prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
-PyTorch models must be exported to the ONNX format before its conversion into IR.
+
+> **NOTE:** PyTorch models must be exported to the ONNX format before its conversion into IR.
+
 More details can be found in the [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md) guide.
 
 3. Launch Model Optimizer for a PaddlePaddle UNet model and apply mean-scale normalization to the input.

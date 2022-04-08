@@ -18,7 +18,7 @@ A special `ov::hint::PerformanceMode::UNDEFINED` acts the same as specifying no 
 
 Please also see the last section in this document on conducting performance measurements with the `benchmark_app`.
 
-A typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to `ov::hint::PerformanceMode::LATENCY`.
+> **NOTE:** A typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to `ov::hint::PerformanceMode::LATENCY`.
 
 ## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.

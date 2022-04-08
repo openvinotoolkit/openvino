@@ -1,7 +1,7 @@
 # Debugging Auto-Device Plugin {#openvino_docs_OV_UG_supported_plugins_AUTO_debugging}
 
 ## Using Debug Log
-In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of `ov::log::Level`.
+Auto-Device (AUTO) plugin provides the user with information on errors and exceptions that occur during execution. If the returned data is not sufficient for debugging purposes, more information may be acquired by means of `ov::log::Level`.
 
 There are six levels of logs, which can be called explicitly or set via the `OPENVINO_LOG_LEVEL` environment variable (can be overwritten by `compile_model()` or `set_property()`):
 
@@ -61,22 +61,26 @@ in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR b
 
 ## Instrumentation and Tracing Technology
 
-All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in OpenVINO™ Runtime, compile it with the following option:
+All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are equipped with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in OpenVINO™ Runtime, compile it with the following option:
+
 @sphinxdirective
 .. code-block:: sh
 
    -DENABLE_PROFILING_ITT=ON
 @endsphinxdirective
 
-For more information, you may refer to:
-* [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html)
+You will find more information in the [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html).
 
 ### Analyze Code Performance on Linux
 
-You can analyze code performance using Intel® VTune™ Profiler. For more information and installation instructions refer to the [installation guide (PDF)](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html)
-With Intel® VTune™ Profiler installed you can configure your analysis with the following steps:
+You can analyze code performance, using Intel® VTune™ Profiler. 
+
+Follow the instructions in this [guide (PDF)](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html) to install the software.
+
+You can configure your analysis with Intel® VTune™ Profiler, following these steps:
 
 1. Open Intel® VTune™ Profiler GUI on the host machine with the following command:
+
 @sphinxdirective
 
 .. code-block:: sh
@@ -87,28 +91,40 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
 @endsphinxdirective
 
 2. Select **Configure Analysis**
-3. In the **where** pane, select **Local Host**
+
+3. In the **WHERE** pane, select **Local Host**
+
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img01-localhost.png
    :align: center
 @endsphinxdirective
-4. In the **what** pane, specify your target application/script on the local system.
+
+4. In the **WHAT** pane, specify your target application/script on the local system.
+
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img02-launch.png
    :align: center
 @endsphinxdirective
-5. In the **how** pane, choose and configure the analysis type you want to perform, for example, **Hotspots Analysis**:
-identify the most time-consuming functions and analyze the time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
+
+5. In the **HOW** pane, select and configure the type of analysis you want to perform. 
+
+For example, **Hotspots Analysis** identifies the most time-consuming functions and analyzes the time spent on each line of source code. It also focuses optimization efforts on hot code for the greatest performance impact.
+
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img03-hotspots.png
    :align: center
 @endsphinxdirective
-6.	Start the analysis by clicking the start button. When it is done, you will get a summary of the run, including top hotspots and top tasks in your application:
+
+6.	Begin the analysis by clicking the **Start** button. When it is completed, you will get a summary of the run, including top hotspots and top tasks in your application:
+
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img04-vtunesummary.png
    :align: center
 @endsphinxdirective
-7. To analyze ITT info related to the Auto plugin, click on the **Bottom-up** tab, choose the **Task Domain/Task Type/Function/Call Stack** from the dropdown list - Auto plugin-related ITT info is under the MULTIPlugin task  domain:
+
+7. To analyze ITT info related to the AUTO plugin, click on the **Bottom-up** tab and select the **Task Domain/Task Type/Function/Call Stack** from the dropdown list. 
+AUTO plugin-related ITT info is under the **MULTIPlugin** task  domain:
+
 @sphinxdirective
 .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img05-vtunebottomup.png
    :align: center
