@@ -13,8 +13,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-//axis_convert가 음수인덱스 처리를 이상하게 하고 있었는데, trailing one을 제거한 차원 기준으로 해야할듯?
-
 class gather8LargeFlatFixt : public ::testing::Test {
 protected:
     static const format::type fmt = format::bfzyx;
@@ -22,8 +20,8 @@ protected:
     std::vector<FLOAT16> dat;
     std::vector<float> ind;
     std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv*16, z0=123, y0=111, x0=1;
-    size_t b1=b0, f1=fsv*2*16, z1=333, y1=1, x1=1;
+    size_t b0=1, f0=fsv*16, z0=23, y0=11, x0=1;
+    size_t b1=b0, f1=fsv*2*16, z1=33, y1=1, x1=1;
     size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
     int axis=2;//z
     int batch_dim=1;
@@ -106,8 +104,8 @@ protected:
     std::vector<FLOAT16> dat;
     std::vector<float> ind;
     std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv, z0=123, y0=111, x0=1;
-    size_t b1=b0, f1=fsv*2, z1=333, y1=1, x1=1;
+    size_t b0=1, f0=fsv, z0=23, y0=11, x0=1;
+    size_t b1=b0, f1=fsv*2, z1=33, y1=1, x1=1;
     size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
     int axis=2;//z
     int batch_dim=1;
@@ -192,8 +190,8 @@ protected:
     std::vector<FLOAT16> dat;
     std::vector<float> ind;
     std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv, z0=123, y0=111, x0=1;
-    size_t b1=b0, f1=fsv*2, z1=333, y1=1, x1=1;
+    size_t b0=1, f0=fsv, z0=23, y0=11, x0=1;
+    size_t b1=b0, f1=fsv*2, z1=33, y1=1, x1=1;
     size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
     int axis=2;//z
     int batch_dim=1;
@@ -364,7 +362,7 @@ protected:
     size_t b1=2, f1=fsv, y1=3, x1=1;
     size_t b2=2, f2=fsv, y2=fsv, x2=3;
     int axis=2;//y
-    int batch_dim=-2;//NOTE: 음수일 경우 trailing 1 dimension 제거한 차원을 기준으로 사용한다. 여기선 4가 아니라 3이 기준.
+    int batch_dim=1;
 
     void SetUp() override {
         auto& engine = get_test_engine();
