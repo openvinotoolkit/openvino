@@ -177,7 +177,46 @@ void regclass_AsyncInferQueue(py::module m) {
 
     cls.def(
         "start_async",
-        [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
+        [](AsyncInferQueue& self, const ov::Tensor& inputs, py::object userdata) {
+            // getIdleRequestId function has an intention to block InferQueue
+            // until there is at least one idle (free to use) InferRequest
+            auto handle = self.get_idle_request_id();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
+            // Set new inputs label/id from user
+            self._user_ids[handle] = userdata;
+            // Update inputs if there are any
+            self._requests[handle]._request.set_input_tensor(inputs);
+            // Now GIL can be released - we are NOT working with Python objects in this block
+            {
+                py::gil_scoped_release release;
+                self._requests[handle]._start_time = Time::now();
+                // Start InferRequest in asynchronus mode
+                self._requests[handle]._request.start_async();
+            }
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Run asynchronous inference using the next available InferRequest.
+
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
+
+            :param inputs: Data to set on input tensors of next available InferRequest from
+            AsyncInferQueue's pool.
+            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :param userdata: Any data that will be passed to a callback
+            :rtype: None
+
+            GIL is released while waiting for the next available InferRequest.
+        )");
+
+    cls.def(
+        "start_async",
+        [](AsyncInferQueue& self, const py::dict& inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();

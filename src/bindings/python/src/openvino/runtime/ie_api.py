@@ -19,6 +19,14 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
+def update_tensor(tensor: Tensor, inputs: np.ndarray):
+    # Update shape if there is a mismatch
+    if tensor.shape != inputs.shape:
+        tensor.shape = inputs.shape
+    # When copying, type should be up/down-casted automatically.
+    tensor.data[:] = inputs[:]
+
+
 def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     """Helper function converting dictionary items to Tensors.""" # jiwaszki TODO: change desc
     # Create new temporary dictionary.
@@ -30,17 +38,7 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
             raise TypeError("Incompatible key type for input: {}".format(k))
         # Copy numpy arrays to already allocated Tensors.
         if isinstance(val, np.ndarray):
-            tensor = request.get_input_tensor(k) if isinstance(k, int) else request.get_tensor(k)
-            # Update shape if there is a mismatch
-            if tensor.shape != val.shape:
-                tensor.shape = val.shape
-            # If allocated Tensor type is: FP16, jiwaszki TODO: BF16(?)
-            # jiwaszki TODO: Move to one liner if only one type fits this if
-            if tensor.element_type == Type.f16:
-                tensor.data[:] = val.view(dtype=np.int16) # jiwaszki TODO: check if correct
-            # When copying, type should be up/down-casted automatically.
-            else:
-                tensor.data[:] = val[:]
+            update_tensor(request.get_input_tensor(k) if isinstance(k, int) else request.get_tensor(k), val)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(val, Tensor):
             new_inputs[k] = val
@@ -53,7 +51,8 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Union[dict, list] = None) -> dict:
+    def infer(self, inputs: Union[dict, list, Tensor, np.ndarray] = None) -> dict:
+        # TODO: change docs
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -75,34 +74,22 @@ class InferRequest(InferRequestBase):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-        return super().infer(
-            {} if inputs is None else normalize_inputs(inputs)
-        )
-
-    @fun.register(dict)
-    def infer(self, inputs: dict = None) -> dict:
-        return super().infer(
-            {} if inputs is None else normalize_inputs(inputs)
-        )
-
-    @fun.register(list)
-    def infer(self, inputs: list = None) -> dict:
-        return super().infer(
-            {} if inputs is None else normalize_inputs({index: input for index, input in enumerate(inputs)})
-        )
-
-    @fun.register(Tensor)
-    def infer(self, inputs: Tensor = None) -> dict:
-        return super().infer(inputs)
-
-    @fun.register(np.ndarray)
-    def infer(self, inputs: np.ndarray = None) -> dict:
-        t = self.get_input_tensor() # it will throw error if more than one
-        return super().infer()
-
+        if inputs is None:
+            return super().infer({})
+        elif isinstance(inputs, dict):
+            return super().infer(normalize_inputs(self, inputs))
+        elif isinstance(inputs, list):
+            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
+        elif isinstance(inputs, Tensor):
+            return super().infer(inputs)
+        elif isinstance(inputs, np.ndarray):
+            update_tensor(self.get_input_tensor(), inputs)
+            return super().infer({})
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self, inputs: Union[dict, list, Tensor, np.ndarray] = None, userdata: Any = None
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -126,10 +113,19 @@ class InferRequest(InferRequestBase):
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
         """
-        super().start_async(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
-            userdata,
-        )
+        if inputs is None:
+            super().start_async({}, userdata)
+        elif isinstance(inputs, dict):
+            super().start_async(normalize_inputs(self, inputs), userdata)
+        elif isinstance(inputs, list):
+            super().start_async(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
+        elif isinstance(inputs, Tensor):
+            super().start_async(inputs, userdata)
+        elif isinstance(inputs, np.ndarray):
+            update_tensor(self.get_input_tensor(), inputs)
+            return super().start_async({}, userdata)
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
 
 class CompiledModel(CompiledModelBase):
@@ -149,7 +145,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list] = None) -> dict:
+    def infer_new_request(self, inputs: Union[dict, list, Tensor, np.ndarray] = None) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -208,7 +204,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         return InferRequest(super().__getitem__(i))
 
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self, inputs: Union[dict, list, Tensor, np.ndarray] = None, userdata: Any = None
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -228,15 +224,26 @@ class AsyncInferQueue(AsyncInferQueueBase):
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
-        # jiwaszki TODO: think about solution here as well 
-        super().start_async(
-            {}
-            if inputs is None
-            else normalize_inputs(
-                inputs, get_input_types(self[self.get_idle_request_id()])
-            ),
-            userdata,
-        )
+        if inputs is None:
+            super().start_async({}, userdata)
+        elif isinstance(inputs, dict):
+            super().start_async(normalize_inputs(self[self.get_idle_request_id()], inputs), userdata)
+        elif isinstance(inputs, list):
+            super().start_async
+            (
+                normalize_inputs(
+                                 self[self.get_idle_request_id()],
+                                 {index: input for index, input in enumerate(inputs)}
+                                ),
+                userdata
+            )
+        elif isinstance(Tensor):
+            super().start_async(inputs, userdata)
+        elif isinstance(inputs, np.ndarray):
+            update_tensor(self[self.get_idle_request_id()].get_input_tensor(), inputs)
+            super().start_async({}, userdata)
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
 
 class Core(CoreBase):

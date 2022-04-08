@@ -18,6 +18,16 @@ PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
+py::dict run_sync_infer(InferRequestWrapper& self) {
+    {
+        py::gil_scoped_release release;
+        self._start_time = Time::now();
+        self._request.infer();
+        self._end_time = Time::now();
+    }
+    return Common::outputs_to_dict(self._outputs, self._request);
+}
+
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
@@ -163,15 +173,9 @@ void regclass_InferRequest(py::module m) {
         "infer",
         [](InferRequestWrapper& self, const ov::Tensor& inputs) {
             self._request.set_input_tensor(inputs);
-            {
-                py::gil_scoped_release release;
-                self._start_time = Time::now();
-                self._request.infer();
-                self._end_time = Time::now();
-            }
-            return Common::outputs_to_dict(self._outputs, self._request);
+            return run_sync_infer(self);
         },
-        py::arg("inputs"),
+        py::arg("inputs")
         // jiwaszki TODO: docs here...
     );
 
@@ -187,13 +191,7 @@ void regclass_InferRequest(py::module m) {
             // Update inputs if there are any
             Common::set_request_tensors(self._request, inputs);
             // Call Infer function
-            {
-                py::gil_scoped_release release;
-                self._start_time = Time::now();
-                self._request.infer();
-                self._end_time = Time::now();
-            }
-            return Common::outputs_to_dict(self._outputs, self._request);
+            return run_sync_infer(self);
         },
         py::arg("inputs"),
         R"(
@@ -207,6 +205,39 @@ void regclass_InferRequest(py::module m) {
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        )");
+
+    cls.def(
+        "start_async",
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, py::object& userdata) {
+            // Update inputs if there are any
+            self._request.set_input_tensor(inputs);
+            if (!userdata.is(py::none())) {
+                if (self.user_callback_defined) {
+                    self.userdata = userdata;
+                } else {
+                    PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
+                }
+            }
+            py::gil_scoped_release release;
+            self._start_time = Time::now();
+            self._request.start_async();
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Starts inference of specified input(s) in asynchronous mode.
+            Returns immediately. Inference starts also immediately.
+
+            GIL is released while running the inference.
+
+            Calling any method on this InferRequest while the request is
+            running will lead to throwing exceptions.
+
+            :param inputs: Data to set on input tensors.
+            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
+            :param userdata: Any data that will be passed inside callback call.
+            :type userdata: Any
         )");
 
     cls.def(
