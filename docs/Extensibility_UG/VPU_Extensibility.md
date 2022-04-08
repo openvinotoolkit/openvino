@@ -540,7 +540,7 @@ __kernel void grn_NCHW(
 }
 ```
 
-The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it is completely limited by memory usage.
+> **NOTE:** The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it is completely limited by memory usage.
 
 An alternative method to using DMA is to use work item copy extension. Those functions are executed inside a kernel and require work groups equal to single work item.
 
