@@ -2,20 +2,20 @@
 
 ## Introduction
 
-In previous sections we've covered how to add [preprocessing steps](./preprocessing_details.md) and got the overview of [Layout](./layout_overview.md) API.
+In previous sections we've covered how to add [preprocessing steps](./preprocessing_details.md) and overviewed the [Layout](./layout_overview.md) API.
 
-For many applications it is also important to minimize model's read/load time, so performing integration of preprocessing steps every time on application startup after `ov::runtime::Core::read_model` may look not convenient. In such cases, after adding of Pre- and Post-processing steps it can be useful to store new execution model to Intermediate Representation (IR, .xml format).
+For many applications it is also necessary to minimize read/load time of models, so performing integration of preprocessing steps every time on application startup after `ov::runtime::Core::read_model` may look not convenient. In such cases, after adding of Pre- and Post-processing steps it can be useful to store new execution model to Intermediate Representation (IR, .xml format).
 
-Most part of existing preprocessing steps can also be performed via command line options using Model Optimizer tool. Refer to [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) for details os such command line options.
+Greater part of existing preprocessing steps can also be performed via command line options using Model Optimizer tool. You can find more details about those command line options in [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
 
 ## Code example - saving model with preprocessing to IR
 
-In case if you have some preprocessing steps which can't be integrated into execution graph using Model Optimizer command line options (e.g. `YUV->RGB` color space conversion, Resize, etc.) it is possible to write simple code which:
+In situation you have some preprocessing steps which can't be integrated into execution graph using Model Optimizer command line options (e.g. `YUV->RGB` color space conversion, Resize, etc.) it is possible to write simple code which:
  - Reads original model (IR, ONNX, Paddle)
  - Adds preprocessing/postprocessing steps
  - Saves resulting model as IR (.xml/.bin)
 
-Let's consider the example, there is an original `ONNX` model which takes one `float32` input with shape `{1, 3, 224, 224}` with `RGB` channels order, with mean/scale values applied. User's application can provide `BGR` image buffer with not fixed size. Additionally, we'll also imagine that our application provides input images as batches, each batch contains 2 images. Here is how model conversion code may look like in your model preparation script
+For example, there is an original `ONNX` model which takes one `float32` input with shape `{1, 3, 224, 224}` with `RGB` channels order, with mean/scale values applied. User application can provide `BGR` image buffer with not fixed size. Additionally, let's assume that our application provides input images in form of batches, each one containing 2 images. Below is presented how model conversion code may look like in your model preparation script
 
 - Includes / Imports
 
@@ -56,7 +56,7 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
 
 ## Application code - load model to target device
 
-After this, your application's code can load saved file and don't perform preprocessing anymore. In this example we'll also enable [model caching](./Model_caching_overview.md) to minimize load time when cached model is available
+After this, your application's code can load saved file and don't performs preprocessing anymore. In this example we'll also enable [model caching](./Model_caching_overview.md) to minimize load time when cached model is available
 
 @sphinxtabset
 
