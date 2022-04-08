@@ -64,8 +64,8 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
         return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
 
-    def map_tensor_names_to_types(inpt: ConstOutput) -> dict:
-        return {n: inpt.get_element_type() for n in inpt.get_names()}
+    def map_tensor_names_to_types(input_node: ConstOutput) -> dict:
+        return {n: input_node.get_element_type() for n in input_node.get_names()}
 
     input_types: dict = {}
     for idx, input_value in enumerate(get_inputs(obj)):
