@@ -75,7 +75,7 @@ You will find more information in the [Intel® VTune™ Profiler User Guide](htt
 
 You can analyze code performance, using Intel® VTune™ Profiler. 
 
-Follow the instructions in the [installation guide (PDF)](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html) to get started with the software.
+Follow instructions in the [installation guide (PDF)](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html) to get started with the software.
 
 You can configure your analysis with Intel® VTune™ Profiler, following these steps:
 
