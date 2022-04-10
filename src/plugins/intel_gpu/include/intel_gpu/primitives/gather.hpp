@@ -37,14 +37,12 @@ struct gather : public primitive_base<gather> {
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const primitive_id& ext_prim_id = "",
-           const padding& output_padding = padding(),
-           const format fmt = format::any)
+           const padding& output_padding = padding())
         : primitive_base(id, {dict, idx}, ext_prim_id, output_padding)
         , axis(axis)
         , output_shape(output_shape)
         , batch_dim(batch_dim)
-        , support_neg_ind(support_neg_ind)
-        , fmt(fmt) {}
+        , support_neg_ind(support_neg_ind) {}
 
     /// @brief Gathering axis
     int64_t axis;
@@ -54,8 +52,6 @@ struct gather : public primitive_base<gather> {
     int64_t batch_dim;
     /// @brief Support negative indexes
     bool support_neg_ind;
-    /// @brief Gather output format
-    format fmt;
 };
 /// @}
 /// @}

@@ -13,111 +13,99 @@
 using namespace cldnn;
 using namespace ::tests;
 
-class gather8LargeFlatFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::bfzyx;
-    static const int fsv=1;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv*16, z0=23, y0=11, x0=1;
-    size_t b1=b0, f1=fsv*2*16, z1=33, y1=1, x1=1;
-    size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
-    int axis=2;//z
-    int batch_dim=1;
+#define GATHER8_TEST_4D_FORMATS \
+format::type::bfyx,\
+format::type::b_fs_yx_fsv4,\
+format::type::b_fs_yx_fsv16,\
+format::type::b_fs_yx_fsv32
+#define GATHER8_TEST_5D_FORMATS \
+format::type::bfzyx,\
+format::type::b_fs_zyx_fsv16,\
+format::type::b_fs_zyx_fsv32
 
-    void SetUp() override {
-        auto& engine = get_test_engine();
+using gather8_test_4d_param=std::tuple<
+    int,//batch_dim
+    int,//axis
+    format::type,//format of input0
+    format::type,//format of input1
+    int,int,int,int,//shape of input0
+    int,int,int,int>;//shape of input1
 
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
+//TODO: data_type parameterize (Is it possible?)
+template<class T_dat, class T_ind, data_types T_dat_dt, data_types T_ind_dt>
+class gather8_test_4d : public ::testing::TestWithParam<gather8_test_4d_param>{
+public:
+    //params
+    int axis,batch_dim;
+    std::array<format::type,3> fmt;
+    std::array<int,3> fsv;
+    std::array<std::array<int,4>,3> s;
 
-        ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,z2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfzyx=dat;
-        auto indbfzyx=ind;
-        for(int i=0;i<b0;i++)
-        for(int j=0;j<f0/fsv;j++)
-        for(int k=0;k<z0;k++)
-        for(int l=0;l<y0;l++)
-        for(int m=0;m<x0;m++)
-        for(int n=0;n<fsv;n++)
-            datbfzyx[i*f0*z0*y0*x0 + (j*fsv+n)*z0*y0*x0 + k*y0*x0 + l*x0 + m]
-            = dat[i*f0/fsv*z0*y0*x0*fsv + j*z0*y0*x0*fsv + k*y0*x0*fsv + l*x0*fsv + m*fsv + n];
-        for(int i=0;i<b1;i++)
-        for(int j=0;j<f1/fsv;j++)
-        for(int k=0;k<z1;k++)
-        for(int l=0;l<y1;l++)
-        for(int m=0;m<x1;m++)
-        for(int n=0;n<fsv;n++)
-            indbfzyx[i*f1*z1*y1*x1 + (j*fsv+n)*z1*y1*x1 + k*y1*x1 + l*x1 + m]
-            = ind[i*f1/fsv*z1*y1*x1*fsv + j*z1*y1*x1*fsv + k*y1*x1*fsv + l*x1*fsv + m*fsv + n];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfzyx.data(),
-            indbfzyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-        for(int j=0;j<f2/fsv;j++)
-        for(int k=0;k<z2;k++)
-        for(int l=0;l<y2;l++)
-        for(int m=0;m<x2;m++)
-        for(int n=0;n<fsv;n++)
-            ASSERT_EQ((float)ans[i*f2*z2*y2*x2 + (j*fsv+n)*z2*y2*x2 + k*y2*x2 + l*x2 + m],
-            (float)float16_to_float32(output_ptr[i*f2/fsv*z2*y2*x2*fsv + j*z2*y2*x2*fsv + k*y2*x2*fsv + l*x2*fsv + m*fsv + n]));
+    int GetFsvFromFormat(format::type fmt){
+        switch(fmt){
+            case format::type::bfyx:
+            case format::type::bfzyx:
+                return 1;
+            case format::type::b_fs_yx_fsv4:
+                return 4;
+            case format::type::b_fs_yx_fsv16:
+            case format::type::b_fs_zyx_fsv16:
+                return 16;
+            case format::type::b_fs_yx_fsv32:
+            case format::type::b_fs_zyx_fsv32:
+                return 32;
+            default:
+                throw "Unknown format in GetFsvFromFormat()";
+        }
     }
-    // void TearDown() override {}
-};
-TEST_F(gather8LargeFlatFixt, a){}
-TEST_F(gather8LargeFlatFixt, b){}
-TEST_F(gather8LargeFlatFixt, c){}
-
-class gather8LargeByReorderFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_zyx_fsv16;
-    static const int fsv=16;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv, z0=23, y0=11, x0=1;
-    size_t b1=b0, f1=fsv*2, z1=33, y1=1, x1=1;
-    size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
-    int axis=2;//z
-    int batch_dim=1;
 
     void SetUp() override {
+        ::testing::TestWithParam<gather8_test_4d_param>::SetUp();
+        
+        //의문점: ind의 shape이 (3,2,1)이라면 gather시에 ~(3,2,1)~형태가 되야하는데 지금은 ~(3,2)~형태로 나오지 않나?
+        auto dim=[](const std::array<int,4>& a){
+            int ret=4;
+            while(ret-1>=0 && a[ret-1]==1)
+                ret--;
+            return ret;
+        };
+        auto mult=[](const std::array<int,4>& a){return a[0]*a[1]*a[2]*a[3];};
+
+        std::tie(batch_dim,axis,fmt[0],fmt[1],s[0][0],s[0][1],s[0][2],s[0][3],s[1][0],s[1][1],s[1][2],s[1][3])=GetParam();
+        fmt[2]=fmt[0];
+        for(int i=0;i<3;i++)
+            fsv[i]=GetFsvFromFormat(fmt[i]);
+
+        s[2]={1,1,1,1};
+        for(int i=0;i<batch_dim;i++)//batch_dim
+            s[2][i]=s[0][i];
+        for(int i=batch_dim;i<axis;i++)//before axis = s[0][..]
+            s[2][i]=s[0][i];
+        for(int i=batch_dim;i<dim(s[1]);i++)//axis = s[1]
+            s[2][axis+(i-batch_dim)]=s[1][i];
+        for(int i=axis+1;i<dim(s[0]);i++)//after axis = s[0][..]
+            s[2][axis+dim(s[1])-batch_dim+(i-axis-1)]=s[0][i];//batch_dim counted twice -> -batch_dim
+        // std::cout<<"batch_dim: "<<batch_dim<<std::endl;
+        // std::cout<<"axis: "<<axis<<std::endl;
+        // if(fmt[0]==format::type::bfyx)std::cout<<"fmt0: flat"<<std::endl;
+        // if(fmt[0]==format::type::b_fs_yx_fsv4)std::cout<<"fmt0: fsv4"<<std::endl;
+        // if(fmt[0]==format::type::b_fs_yx_fsv16)std::cout<<"fmt0: fsv16"<<std::endl;
+        // if(fmt[0]==format::type::b_fs_yx_fsv32)std::cout<<"fmt0: fsv32"<<std::endl;
+        // if(fmt[1]==format::type::bfyx)std::cout<<"fmt1: flat"<<std::endl;
+        // if(fmt[1]==format::type::b_fs_yx_fsv4)std::cout<<"fmt1: fsv4"<<std::endl;
+        // if(fmt[1]==format::type::b_fs_yx_fsv16)std::cout<<"fmt1: fsv16"<<std::endl;
+        // if(fmt[1]==format::type::b_fs_yx_fsv32)std::cout<<"fmt1: fsv32"<<std::endl;
+        // for(int i=0;i<3;i++,std::cout<<std::endl)
+        //     for(int j=0;j<4;j++)
+        //        std::cout<<s[i][j]<<' ';
+
         auto& engine = get_test_engine();
 
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx,  { b0, f0, x0, y0, z0 } }); // Dictionary
+        auto dat=generate_random_1d<T_dat>(mult(s[0]),-99,99);
+        auto input0 = engine.allocate_memory({ T_dat_dt, format::bfyx, {s[0][0],s[0][1],s[0][3],s[0][2]} }); // Dictionary
 
-        ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, format::bfzyx, { b1, f1, x1, y1, z1 } }); // Indexes
+        auto ind=generate_random_1d<T_ind>(mult(s[1]),-s[0][axis],s[0][axis]-1,1);
+        auto input1 = engine.allocate_memory({ T_ind_dt, format::bfyx, {s[1][0],s[1][1],s[1][3],s[1][2]} }); // Indexes
 
         set_values(input0, dat);
         set_values(input1, ind);
@@ -125,683 +113,105 @@ protected:
         topology topology;
         topology.add(input_layout("input0", input0->get_layout()));
         topology.add(input_layout("input1", input1->get_layout()));
-        topology.add(reorder("reorder0","input0", fmt, data_types::f16)),
-        topology.add(reorder("reorder1","input1",  fmt, data_types::f32)),
-        topology.add(gather("gather", "reorder0", "reorder1", axis, {b2,f2,z2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
+        topology.add(reorder("reorder0","input0", fmt[0], T_dat_dt)),
+        topology.add(reorder("reorder1","input1", fmt[1], T_ind_dt)),
+        topology.add(gather("gather", "reorder0", "reorder1", axis, ov::Shape(s[2].begin(),s[2].end()), batch_dim, true)),
+        topology.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
 
         network network(engine, topology);
         network.set_input_data("input0", input0);
         network.set_input_data("input1", input1);
 
-        auto output = network.execute().at("gather").get_memory();
+        auto output = network.execute().at("reorder2").get_memory();
         cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
         
-        auto datbfzyx=dat;
-        auto indbfzyx=ind;
-        // for(int i=0;i<b0;i++)
-        // for(int j=0;j<f0/fsv;j++)
-        // for(int k=0;k<z0;k++)
-        // for(int l=0;l<y0;l++)
-        // for(int m=0;m<x0;m++)
-        // for(int n=0;n<fsv;n++)
-        //     datbfzyx[i*f0*z0*y0*x0 + (j*fsv+n)*z0*y0*x0 + k*y0*x0 + l*x0 + m]
-        //     = dat[i*f0/fsv*z0*y0*x0*fsv + j*z0*y0*x0*fsv + k*y0*x0*fsv + l*x0*fsv + m*fsv + n];
-        // for(int i=0;i<b1;i++)
-        // for(int j=0;j<f1/fsv;j++)
-        // for(int k=0;k<z1;k++)
-        // for(int l=0;l<y1;l++)
-        // for(int m=0;m<x1;m++)
-        // for(int n=0;n<fsv;n++)
-        //     indbfzyx[i*f1*z1*y1*x1 + (j*fsv+n)*z1*y1*x1 + k*y1*x1 + l*x1 + m]
-        //     = ind[i*f1/fsv*z1*y1*x1*fsv + j*z1*y1*x1*fsv + k*y1*x1*fsv + l*x1*fsv + m*fsv + n];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfzyx.data(),
-            indbfzyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-        for(int j=0;j<f2/fsv;j++)
-        for(int k=0;k<z2;k++)
-        for(int l=0;l<y2;l++)
-        for(int m=0;m<x2;m++)
-        for(int n=0;n<fsv;n++)
-            ASSERT_EQ((float)ans[i*f2*z2*y2*x2 + (j*fsv+n)*z2*y2*x2 + k*y2*x2 + l*x2 + m],
-            (float)float16_to_float32(output_ptr[i*f2/fsv*z2*y2*x2*fsv + j*z2*y2*x2*fsv + k*y2*x2*fsv + l*x2*fsv + m*fsv + n]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8LargeByReorderFixt, a){}
-TEST_F(gather8LargeByReorderFixt, b){}
-TEST_F(gather8LargeByReorderFixt, c){}
-
-class gather8LargeFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_zyx_fsv16;
-    static const int fsv=16;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv, z0=23, y0=11, x0=1;
-    size_t b1=b0, f1=fsv*2, z1=33, y1=1, x1=1;
-    size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
-    int axis=2;//z
-    int batch_dim=1;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,z2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfzyx=dat;
-        auto indbfzyx=ind;
-        for(int i=0;i<b0;i++)
-        for(int j=0;j<f0/fsv;j++)
-        for(int k=0;k<z0;k++)
-        for(int l=0;l<y0;l++)
-        for(int m=0;m<x0;m++)
-        for(int n=0;n<fsv;n++)
-            datbfzyx[i*f0*z0*y0*x0 + (j*fsv+n)*z0*y0*x0 + k*y0*x0 + l*x0 + m]
-            = dat[i*f0/fsv*z0*y0*x0*fsv + j*z0*y0*x0*fsv + k*y0*x0*fsv + l*x0*fsv + m*fsv + n];
-        for(int i=0;i<b1;i++)
-        for(int j=0;j<f1/fsv;j++)
-        for(int k=0;k<z1;k++)
-        for(int l=0;l<y1;l++)
-        for(int m=0;m<x1;m++)
-        for(int n=0;n<fsv;n++)
-            indbfzyx[i*f1*z1*y1*x1 + (j*fsv+n)*z1*y1*x1 + k*y1*x1 + l*x1 + m]
-            = ind[i*f1/fsv*z1*y1*x1*fsv + j*z1*y1*x1*fsv + k*y1*x1*fsv + l*x1*fsv + m*fsv + n];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfzyx.data(),
-            indbfzyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-        for(int j=0;j<f2/fsv;j++)
-        for(int k=0;k<z2;k++)
-        for(int l=0;l<y2;l++)
-        for(int m=0;m<x2;m++)
-        for(int n=0;n<fsv;n++)
-            ASSERT_EQ((float)ans[i*f2*z2*y2*x2 + (j*fsv+n)*z2*y2*x2 + k*y2*x2 + l*x2 + m],
-            (float)float16_to_float32(output_ptr[i*f2/fsv*z2*y2*x2*fsv + j*z2*y2*x2*fsv + k*y2*x2*fsv + l*x2*fsv + m*fsv + n]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8LargeFixt, a){}
-TEST_F(gather8LargeFixt, b){}
-TEST_F(gather8LargeFixt, c){}
-
-class gather8_5d_Fixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_zyx_fsv16;
-    static const int fsv=16;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=1, f0=fsv, z0=3, y0=4, x0=1;
-    size_t b1=b0, f1=fsv*2, z1=2, y1=1, x1=1;
-    size_t b2=b0, f2=f0, z2=f1, y2=z1, x2=y0;
-    int axis=2;//z
-    int batch_dim=1;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0*z0,-99,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0, z0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1*z1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1, z1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,z2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfzyx=dat;
-        auto indbfzyx=ind;
-        for(int i=0;i<b0;i++)
-        for(int j=0;j<f0/fsv;j++)
-        for(int k=0;k<z0;k++)
-        for(int l=0;l<y0;l++)
-        for(int m=0;m<x0;m++)
-        for(int n=0;n<fsv;n++)
-            datbfzyx[i*f0*z0*y0*x0 + (j*fsv+n)*z0*y0*x0 + k*y0*x0 + l*x0 + m]
-            = dat[i*f0/fsv*z0*y0*x0*fsv + j*z0*y0*x0*fsv + k*y0*x0*fsv + l*x0*fsv + m*fsv + n];
-        for(int i=0;i<b1;i++)
-        for(int j=0;j<f1/fsv;j++)
-        for(int k=0;k<z1;k++)
-        for(int l=0;l<y1;l++)
-        for(int m=0;m<x1;m++)
-        for(int n=0;n<fsv;n++)
-            indbfzyx[i*f1*z1*y1*x1 + (j*fsv+n)*z1*y1*x1 + k*y1*x1 + l*x1 + m]
-            = ind[i*f1/fsv*z1*y1*x1*fsv + j*z1*y1*x1*fsv + k*y1*x1*fsv + l*x1*fsv + m*fsv + n];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2*z2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfzyx.data(),
-            indbfzyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-        for(int j=0;j<f2/fsv;j++)
-        for(int k=0;k<z2;k++)
-        for(int l=0;l<y2;l++)
-        for(int m=0;m<x2;m++)
-        for(int n=0;n<fsv;n++)
-            ASSERT_EQ((float)ans[i*f2*z2*y2*x2 + (j*fsv+n)*z2*y2*x2 + k*y2*x2 + l*x2 + m],
-            (float)float16_to_float32(output_ptr[i*f2/fsv*z2*y2*x2*fsv + j*z2*y2*x2*fsv + k*y2*x2*fsv + l*x2*fsv + m*fsv + n]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8_5d_Fixt, a){}
-TEST_F(gather8_5d_Fixt, b){}
-TEST_F(gather8_5d_Fixt, c){}
-
-class gather8fsv4ym1Fixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_yx_fsv4;
-    static const int fsv=4;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=fsv, y0=4, x0=1;
-    size_t b1=2, f1=fsv, y1=3, x1=1;
-    size_t b2=2, f2=fsv, y2=fsv, x2=3;
-    int axis=2;//y
-    int batch_dim=1;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,-99,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1,-input0->get_layout().get_dim(axis),input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfyx=dat;
-        auto indbfyx=ind;
-        for(int i=0;i<b0;i++)
-            for(int j=0;j<f0/fsv;j++)
-                for(int k=0;k<y0;k++)
-                    for(int l=0;l<x0;l++)
-                        for(int m=0;m<fsv;m++)
-                            datbfyx[i*f0*y0*x0 + (j*fsv+m)*y0*x0 + k*x0 + l]=dat[i*f0/fsv*y0*x0*fsv + j*y0*x0*fsv + k*x0*fsv + l*fsv + m];
-        for(int i=0;i<b1;i++)
-            for(int j=0;j<f1/fsv;j++)
-                for(int k=0;k<y1;k++)
-                    for(int l=0;l<x1;l++)
-                        for(int m=0;m<fsv;m++)
-                            indbfyx[i*f1*y1*x1 + (j*fsv+m)*y1*x1 + k*x1 + l]=ind[i*f1/fsv*y1*x1*fsv + j*y1*x1*fsv + k*x1*fsv + l*fsv + m];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfyx.data(),
-            indbfyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-            for(int j=0;j<f2/fsv;j++)
-                for(int k=0;k<y2;k++)
-                    for(int l=0;l<x2;l++)
-                        for(int m=0;m<fsv;m++)
-                            ASSERT_EQ((float)ans[i*f2*y2*x2 + (j*fsv+m)*y2*x2 + k*x2 + l],
-                            (float)float16_to_float32(output_ptr[i*f2/fsv*y2*x2*fsv + j*y2*x2*fsv + k*x2*fsv + l*fsv + m]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8fsv4ym1Fixt, a){}
-TEST_F(gather8fsv4ym1Fixt, b){}
-TEST_F(gather8fsv4ym1Fixt, c){}
-
-class gather8fsv4y1Fixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_yx_fsv4;
-    static const int fsv=4;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=fsv, y0=4, x0=1;
-    size_t b1=2, f1=fsv, y1=3, x1=1;
-    size_t b2=2, f2=fsv, y2=fsv, x2=3;
-    int axis=2;//y
-    int batch_dim=1;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfyx=dat;
-        auto indbfyx=ind;
-        for(int i=0;i<b0;i++)
-            for(int j=0;j<f0/fsv;j++)
-                for(int k=0;k<y0;k++)
-                    for(int l=0;l<x0;l++)
-                        for(int m=0;m<fsv;m++)
-                            datbfyx[i*f0*y0*x0 + (j*fsv+m)*y0*x0 + k*x0 + l]=dat[i*f0/fsv*y0*x0*fsv + j*y0*x0*fsv + k*x0*fsv + l*fsv + m];
-        for(int i=0;i<b1;i++)
-            for(int j=0;j<f1/fsv;j++)
-                for(int k=0;k<y1;k++)
-                    for(int l=0;l<x1;l++)
-                        for(int m=0;m<fsv;m++)
-                            indbfyx[i*f1*y1*x1 + (j*fsv+m)*y1*x1 + k*x1 + l]=ind[i*f1/fsv*y1*x1*fsv + j*y1*x1*fsv + k*x1*fsv + l*fsv + m];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfyx.data(),
-            indbfyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-            for(int j=0;j<f2/fsv;j++)
-                for(int k=0;k<y2;k++)
-                    for(int l=0;l<x2;l++)
-                        for(int m=0;m<fsv;m++)
-                            ASSERT_EQ((float)ans[i*f2*y2*x2 + (j*fsv+m)*y2*x2 + k*x2 + l],
-                            (float)float16_to_float32(output_ptr[i*f2/fsv*y2*x2*fsv + j*y2*x2*fsv + k*x2*fsv + l*fsv + m]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8fsv4y1Fixt, a){}
-TEST_F(gather8fsv4y1Fixt, b){}
-TEST_F(gather8fsv4y1Fixt, c){}
-
-class gather8fsv4bFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_yx_fsv4;
-    static const int fsv=4;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=fsv, y0=4, x0=1;
-    size_t b1=5, f1=fsv, y1=1, x1=1;
-    size_t b2=5, f2=fsv, y2=fsv, x2=4;
-    int axis=0;//b
-    int batch_dim=0;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfyx=dat;
-        auto indbfyx=ind;
-        for(int i=0;i<b0;i++)
-            for(int j=0;j<f0/fsv;j++)
-                for(int k=0;k<y0;k++)
-                    for(int l=0;l<x0;l++)
-                        for(int m=0;m<fsv;m++)
-                            datbfyx[i*f0*y0*x0 + (j*fsv+m)*y0*x0 + k*x0 + l]=dat[i*f0/fsv*y0*x0*fsv + j*y0*x0*fsv + k*x0*fsv + l*fsv + m];
-        for(int i=0;i<b1;i++)
-            for(int j=0;j<f1/fsv;j++)
-                for(int k=0;k<y1;k++)
-                    for(int l=0;l<x1;l++)
-                        for(int m=0;m<fsv;m++)
-                            indbfyx[i*f1*y1*x1 + (j*fsv+m)*y1*x1 + k*x1 + l]=ind[i*f1/fsv*y1*x1*fsv + j*y1*x1*fsv + k*x1*fsv + l*fsv + m];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfyx.data(),
-            indbfyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-            for(int j=0;j<f2/fsv;j++)
-                for(int k=0;k<y2;k++)
-                    for(int l=0;l<x2;l++)
-                        for(int m=0;m<fsv;m++)
-                            ASSERT_EQ((float)ans[i*f2*y2*x2 + (j*fsv+m)*y2*x2 + k*x2 + l],
-                            (float)float16_to_float32(output_ptr[i*f2/fsv*y2*x2*fsv + j*y2*x2*fsv + k*x2*fsv + l*fsv + m]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8fsv4bFixt, a){}
-TEST_F(gather8fsv4bFixt, b){}
-TEST_F(gather8fsv4bFixt, c){}
-
-class gather8fsv4yFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_yx_fsv4;
-    static const int fsv=4;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=fsv, y0=4, x0=1;
-    size_t b1=5, f1=fsv, y1=1, x1=1;
-    size_t b2=2, f2=fsv, y2=5, x2=fsv;
-    int axis=2;//y
-    int batch_dim=0;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-        ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfyx=dat;
-        auto indbfyx=ind;
-        for(int i=0;i<b0;i++)
-            for(int j=0;j<f0/fsv;j++)
-                for(int k=0;k<y0;k++)
-                    for(int l=0;l<x0;l++)
-                        for(int m=0;m<fsv;m++)
-                            datbfyx[i*f0*y0*x0 + (j*fsv+m)*y0*x0 + k*x0 + l]=dat[i*f0/fsv*y0*x0*fsv + j*y0*x0*fsv + k*x0*fsv + l*fsv + m];
-        for(int i=0;i<b1;i++)
-            for(int j=0;j<f1/fsv;j++)
-                for(int k=0;k<y1;k++)
-                    for(int l=0;l<x1;l++)
-                        for(int m=0;m<fsv;m++)
-                            indbfyx[i*f1*y1*x1 + (j*fsv+m)*y1*x1 + k*x1 + l]=ind[i*f1/fsv*y1*x1*fsv + j*y1*x1*fsv + k*x1*fsv + l*fsv + m];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfyx.data(),
-            indbfyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-            for(int j=0;j<f2/fsv;j++)
-                for(int k=0;k<y2;k++)
-                    for(int l=0;l<x2;l++)
-                        for(int m=0;m<fsv;m++)
-                            ASSERT_EQ((float)ans[i*f2*y2*x2 + (j*fsv+m)*y2*x2 + k*x2 + l],
-                            (float)float16_to_float32(output_ptr[i*f2/fsv*y2*x2*fsv + j*y2*x2*fsv + k*x2*fsv + l*fsv + m]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8fsv4yFixt, a){}
-TEST_F(gather8fsv4yFixt, b){}
-TEST_F(gather8fsv4yFixt, c){}
-
-class gather8fsv16yFixt : public ::testing::Test {
-protected:
-    static const format::type fmt = format::b_fs_yx_fsv16;
-    static const int fsv=16;
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=fsv, y0=4, x0=1;
-    size_t b1=5, f1=fsv, y1=1, x1=1;
-    size_t b2=2, f2=fsv, y2=5, x2=fsv;
-    int axis=2;//y
-    int batch_dim=0;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(b0*f0*x0*y0,0,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, fmt,  { b0, f0, x0, y0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(b1*f1*x1*y1,0,input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, fmt, { b1, f1, x1, y1 } }); // Indexes
-        
-        ans=std::vector<FLOAT16>(b2*f2*x2*y2);
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), fmt));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto datbfyx=dat;
-        auto indbfyx=ind;
-        for(int i=0;i<b0;i++)
-            for(int j=0;j<f0/fsv;j++)
-                for(int k=0;k<y0;k++)
-                    for(int l=0;l<x0;l++)
-                        for(int m=0;m<fsv;m++)
-                            datbfyx[i*f0*y0*x0 + (j*fsv+m)*y0*x0 + k*x0 + l]=dat[i*f0/fsv*y0*x0*fsv + j*y0*x0*fsv + k*x0*fsv + l*fsv + m];
-        for(int i=0;i<b1;i++)
-            for(int j=0;j<f1/fsv;j++)
-                for(int k=0;k<y1;k++)
-                    for(int l=0;l<x1;l++)
-                        for(int m=0;m<fsv;m++)
-                            indbfyx[i*f1*y1*x1 + (j*fsv+m)*y1*x1 + k*x1 + l]=ind[i*f1/fsv*y1*x1*fsv + j*y1*x1*fsv + k*x1*fsv + l*fsv + m];
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ngraph::runtime::reference::gather<FLOAT16,float>(
-            datbfyx.data(),
-            indbfyx.data(),
-            ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
-            axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        
-        for(int i=0;i<b2;i++)
-            for(int j=0;j<f2/fsv;j++)
-                for(int k=0;k<y2;k++)
-                    for(int l=0;l<x2;l++)
-                        for(int m=0;m<fsv;m++)
-                            ASSERT_EQ((float)ans[i*f2*y2*x2 + (j*fsv+m)*y2*x2 + k*x2 + l],
-                            (float)float16_to_float32(output_ptr[i*f2/fsv*y2*x2*fsv + j*y2*x2*fsv + k*x2*fsv + l*fsv + m]));
-    }
-    // void TearDown() override {}
-};
-TEST_F(gather8fsv16yFixt, a){}
-TEST_F(gather8fsv16yFixt, b){}
-TEST_F(gather8fsv16yFixt, c){}
-
-class gather8Fixture1 : public ::testing::Test {
-protected:
-    std::vector<FLOAT16> dat;
-    std::vector<float> ind;
-    std::vector<FLOAT16> ans;
-    size_t b0=2, f0=3, y0=4, x0=1;
-    size_t b1=5, f1=6, y1=1, x1=1;
-    size_t b2=2, f2=3, y2=5, x2=6;
-    int axis=2;//y
-    int batch_dim=0;
-
-    void SetUp() override {
-        auto& engine = get_test_engine();
-
-        dat=generate_random_1d<FLOAT16>(2*3*4*1,0,99);
-        auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx,  { b0, f0, x0, y0 } }); // Dictionary
-
-        ind=generate_random_1d<float>(5*6*1*1,0,input0->get_layout().get_dim(axis)-1,1);
-        auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { b1, f1, x1, y1 } }); // Indexes
-
-        set_values(input0, dat);
-        set_values(input1, ind);
-
-        topology topology;
-        topology.add(input_layout("InputDictionary", input0->get_layout()));
-        topology.add(input_layout("InputText", input1->get_layout()));
-        topology.add(gather("gather", "InputDictionary", "InputText", axis, {b2,f2,y2,x2}, batch_dim, true, "", cldnn::padding(), format::bfyx));
-
-        network network(engine, topology);
-        network.set_input_data("InputDictionary", input0);
-        network.set_input_data("InputText", input1);
-
-        auto output = network.execute().at("gather").get_memory();
-        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-        
-        auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
-        auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };
-        ans=std::vector<FLOAT16>(2*3*5*6);
-        ngraph::runtime::reference::gather<FLOAT16,float>(
+        auto ans=std::vector<T_dat>(mult(s[2]));
+        ngraph::runtime::reference::gather<T_dat,T_ind>(
             dat.data(),
             ind.data(),
             ans.data(),
-            ov::Shape(to_vec_size_t(input0->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(input1->get_layout().get_dims())),
-            ov::Shape(to_vec_size_t(output->get_layout().get_dims())),
+            ov::Shape(s[0].begin(),s[0].end()),
+            ov::Shape(s[1].begin(),s[1].end()),
+            ov::Shape(s[2].begin(),s[2].end()),
             axis,
-            batch_dim>=0?batch_dim:batch_dim+logical_dim(input1->get_layout().get_dims()));
-        for (size_t i = 0; i < ans.size(); ++i)
-            ASSERT_EQ((float)ans[i], (float)float16_to_float32(output_ptr[i]));
-        
+            batch_dim);
+        // for(int i=0;i<mult(s[2]);i++)
+        //     EXPECT_EQ(float(ans[i]),float16_to_float32(output_ptr[i]));
+        EXPECT_TRUE( !memcmp(ans.data(),output_ptr.data(),mult(s[2])*sizeof(T_dat)) );
     }
-    // void TearDown() override {}
 };
-TEST_F(gather8Fixture1, myfixturetest0){}
-TEST_F(gather8Fixture1, myfixturetest1){}
-TEST_F(gather8Fixture1, myfixturetest2){}
-TEST_F(gather8Fixture1, myfixturetest3){}
+
+using gather8_test_4d_f16i32=gather8_test_4d<FLOAT16,int,data_types::f16,data_types::i32>;
+TEST_P(gather8_test_4d_f16i32, gather8_test_4d_f16i32){}
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d4_i1,
+    gather8_test_4d_f16i32,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,4),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(5),testing::Values(44),testing::Values(7),testing::Values(8),
+        testing::Values(2,3,4),testing::Values(1),testing::Values(1),testing::Values(1)
+    ));
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d3_i2,
+    gather8_test_4d_f16i32,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,3),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(11),testing::Values(66),testing::Values(7),testing::Values(1),
+        testing::Values(22,33),testing::Values(3,5),testing::Values(1),testing::Values(1)
+    ));
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d2_i2,
+    gather8_test_4d_f16i32,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,2),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(8),testing::Values(66,67),testing::Values(1),testing::Values(1),
+        testing::Values(3,4),testing::Values(56),testing::Values(1),testing::Values(1)
+    ));
+
+using gather8_test_4d_f32i8=gather8_test_4d<float,char,data_types::f32,data_types::i8>;
+TEST_P(gather8_test_4d_f32i8, gather8_test_4d_f32i8){}
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d4_i1,
+    gather8_test_4d_f32i8,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,4),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(5),testing::Values(44),testing::Values(7),testing::Values(8),
+        testing::Values(2,3,4),testing::Values(1),testing::Values(1),testing::Values(1)
+    ));
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d3_i2,
+    gather8_test_4d_f32i8,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,3),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(11),testing::Values(66),testing::Values(7),testing::Values(1),
+        testing::Values(22,33),testing::Values(3,5),testing::Values(1),testing::Values(1)
+    ));
+INSTANTIATE_TEST_SUITE_P(
+    gather8_4d_bd0_d2_i2,
+    gather8_test_4d_f32i8,
+    testing::Combine(
+        testing::Values(0),
+        testing::Range(0,2),//[0,dim(dict))
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(GATHER8_TEST_4D_FORMATS),
+        testing::Values(8),testing::Values(66,67),testing::Values(1),testing::Values(1),
+        testing::Values(3,4),testing::Values(56),testing::Values(1),testing::Values(1)
+    ));
 
 TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     //  Dictionary : 3x2x3x4x2
@@ -880,7 +290,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     topology.add(input_layout("InputDictionary", input0->get_layout()));
     topology.add(input_layout("InputText", input1->get_layout()));
     topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, {3, 2, 3, 1, 2}, batch_dim, true, "", cldnn::padding(), format::bfzyx)
+        gather("gather", "InputDictionary", "InputText", axis, {3, 2, 3, 1, 2}, batch_dim, true, "", cldnn::padding())
     );
 
     network network(engine, topology);
