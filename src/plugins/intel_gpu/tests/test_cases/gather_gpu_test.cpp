@@ -31,11 +31,9 @@ using gather8_test_4d_param=std::tuple<
     int,int,int,int,//shape of input0
     int,int,int,int>;//shape of input1
 
-//TODO: data_type parameterize (Is it possible?)
 template<class T_dat, class T_ind, data_types T_dat_dt, data_types T_ind_dt>
 class gather8_test_4d : public ::testing::TestWithParam<gather8_test_4d_param>{
 public:
-    //params
     int axis,batch_dim;
     std::array<format::type,3> fmt;
     std::array<int,3> fsv;
@@ -62,7 +60,6 @@ public:
     void SetUp() override {
         ::testing::TestWithParam<gather8_test_4d_param>::SetUp();
         
-        //의문점: ind의 shape이 (3,2,1)이라면 gather시에 ~(3,2,1)~형태가 되야하는데 지금은 ~(3,2)~형태로 나오지 않나?
         auto dim=[](const std::array<int,4>& a){
             int ret=4;
             while(ret-1>=0 && a[ret-1]==1)
@@ -85,19 +82,6 @@ public:
             s[2][axis+(i-batch_dim)]=s[1][i];
         for(int i=axis+1;i<dim(s[0]);i++)//after axis = s[0][..]
             s[2][axis+dim(s[1])-batch_dim+(i-axis-1)]=s[0][i];//batch_dim counted twice -> -batch_dim
-        // std::cout<<"batch_dim: "<<batch_dim<<std::endl;
-        // std::cout<<"axis: "<<axis<<std::endl;
-        // if(fmt[0]==format::type::bfyx)std::cout<<"fmt0: flat"<<std::endl;
-        // if(fmt[0]==format::type::b_fs_yx_fsv4)std::cout<<"fmt0: fsv4"<<std::endl;
-        // if(fmt[0]==format::type::b_fs_yx_fsv16)std::cout<<"fmt0: fsv16"<<std::endl;
-        // if(fmt[0]==format::type::b_fs_yx_fsv32)std::cout<<"fmt0: fsv32"<<std::endl;
-        // if(fmt[1]==format::type::bfyx)std::cout<<"fmt1: flat"<<std::endl;
-        // if(fmt[1]==format::type::b_fs_yx_fsv4)std::cout<<"fmt1: fsv4"<<std::endl;
-        // if(fmt[1]==format::type::b_fs_yx_fsv16)std::cout<<"fmt1: fsv16"<<std::endl;
-        // if(fmt[1]==format::type::b_fs_yx_fsv32)std::cout<<"fmt1: fsv32"<<std::endl;
-        // for(int i=0;i<3;i++,std::cout<<std::endl)
-        //     for(int j=0;j<4;j++)
-        //        std::cout<<s[i][j]<<' ';
 
         auto& engine = get_test_engine();
 
@@ -135,8 +119,6 @@ public:
             ov::Shape(s[2].begin(),s[2].end()),
             axis,
             batch_dim);
-        // for(int i=0;i<mult(s[2]);i++)
-        //     EXPECT_EQ(float(ans[i]),float16_to_float32(output_ptr[i]));
         EXPECT_TRUE( !memcmp(ans.data(),output_ptr.data(),mult(s[2])*sizeof(T_dat)) );
     }
 };
