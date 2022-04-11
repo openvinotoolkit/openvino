@@ -65,7 +65,7 @@ protected:
                                                     arg.get_input_layouts(), arg.get_output_layout(),
                                                     arg.get_fused_primitives(),
                                                     arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    weights_layout, arg.bias_term(), bias_layout);
+                                                    arg.weights().get_output_layout(), arg.bias_term(), bias_layout);
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
         kernel_selector::reorder_weights_params r_params;
