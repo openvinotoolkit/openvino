@@ -175,6 +175,7 @@ void regclass_AsyncInferQueue(py::module m) {
                 :rtype: openvino.runtime.AsyncInferQueue
             )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "start_async",
         [](AsyncInferQueue& self, const ov::Tensor& inputs, py::object userdata) {
@@ -205,15 +206,21 @@ void regclass_AsyncInferQueue(py::module m) {
             This function releases the GIL, so another Python thread can
             work while this function runs in the background.
 
-            :param inputs: Data to set on input tensors of next available InferRequest from
+            :param inputs: Data to set on single input tensor of next available InferRequest from
             AsyncInferQueue's pool.
-            :type inputs: dict[Union[int, str, openvino.runtime.ConstOutput] : openvino.runtime.Tensor]
+            :type inputs: openvino.runtime.Tensor
             :param userdata: Any data that will be passed to a callback
             :rtype: None
 
             GIL is released while waiting for the next available InferRequest.
         )");
 
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
     cls.def(
         "start_async",
         [](AsyncInferQueue& self, const py::dict& inputs, py::object userdata) {
