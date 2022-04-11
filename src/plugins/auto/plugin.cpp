@@ -321,14 +321,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto supportDevices = supportDevicesByConfig;
         CNNNetwork clonedNetwork;
         std::string clonedModelPath = modelPath;
-        try {
+        if (modelPath.empty()) {
             // if network is valid
-            network.getFunction();
             LOG_INFO("[AUTOPLUGIN]:load with CNN network");
             supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
             // clone the network, in case of reshape conflict
             clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        } catch (...) {
+        } else {
             // model path, enable model load with single device situation
             if (supportDevices.size() > 1) {
                 clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
