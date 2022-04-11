@@ -34,8 +34,20 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
-    if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
-        return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
+    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
+        return ov::PartialShape::dynamic();
+    }
+    if (then_rank.get_length() != else_rank.get_length()) {
+        // Union of scalar and 1D case
+        if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
+            if (then_rank.get_length() == 0) {
+                return else_pshape;
+            } else if (else_rank.get_length() == 0) {
+                return then_pshape;
+            }
+        } else {
+            return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
+        }
     }
     std::vector<ov::Dimension> new_dims;
 
