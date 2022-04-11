@@ -13,8 +13,13 @@
 using namespace cldnn;
 using namespace ::tests;
 
-#define GATHER8_TEST_4D_FORMATS \
-    format::type::bfyx, format::type::b_fs_yx_fsv4, format::type::b_fs_yx_fsv16, format::type::b_fs_yx_fsv32
+#define GATHER8_TEST_4D_FORMATS_PLANAR format::type::bfyx
+#define GATHER8_TEST_4D_FORMATS_BLOCKED \
+    format::type::b_fs_yx_fsv4, format::type::b_fs_yx_fsv16, format::type::b_fs_yx_fsv32
+#define GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED                                                                \
+    format::type::bs_fs_yx_bsv4_fsv2, format::type::bs_fs_yx_bsv4_fsv4, format::type::bs_fs_yx_bsv8_fsv2,     \
+    format::type::bs_fs_yx_bsv8_fsv4, format::type::bs_fs_yx_bsv16_fsv16, format::type::bs_fs_yx_bsv32_fsv16, \
+    format::type::bs_fs_yx_bsv32_fsv32
 #define GATHER8_TEST_5D_FORMATS format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::b_fs_zyx_fsv32
 
 using gather8_test_4d_param = std::tuple<int,           // batch_dim
@@ -131,8 +136,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 4),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
                                           testing::Values(5),
                                           testing::Values(44),
                                           testing::Values(7),
@@ -145,8 +150,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d3_i2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 3),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
                                           testing::Values(11),
                                           testing::Values(66),
                                           testing::Values(7),
@@ -159,8 +164,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 2),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
                                           testing::Values(8),
                                           testing::Values(66, 67),
                                           testing::Values(1),
@@ -176,8 +181,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 4),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
                                           testing::Values(5),
                                           testing::Values(44),
                                           testing::Values(7),
@@ -190,8 +195,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d3_i2,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 3),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
                                           testing::Values(11),
                                           testing::Values(66),
                                           testing::Values(7),
@@ -204,8 +209,8 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 2),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
                                           testing::Values(8),
                                           testing::Values(66, 67),
                                           testing::Values(1),
@@ -291,9 +296,7 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     topology topology;
     topology.add(input_layout("InputDictionary", input0->get_layout()));
     topology.add(input_layout("InputText", input1->get_layout()));
-    topology.add(
-        gather("gather", "InputDictionary", "InputText", axis, {3, 2, 3, 1, 2}, batch_dim, true, "", cldnn::padding())
-    );
+    topology.add(gather("gather", "InputDictionary", "InputText", axis, {3, 2, 3, 1, 2}, batch_dim, true, "", cldnn::padding()));
 
     network network(engine, topology);
 
@@ -306,7 +309,9 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<FLOAT16> expected_results = {
-       1,2,9,10,17,18,31,32,35,36,41,42,51,52,59,60,67,68,77,78,81,82,95,96,103,104,107,108,113,114,125,126,129,130,139,140
+        1,   2,   9,   10,  17,  18,  31,  32,  35,  36,  41,  42,
+        51,  52,  59,  60,  67,  68,  77,  78,  81,  82,  95,  96,
+        103, 104, 107, 108, 113, 114, 125, 126, 129, 130, 139, 140
     };
     auto to_vec_size_t=[](const std::vector<int>& vec){return std::vector<size_t>(vec.begin(),vec.end());};
     auto logical_dim=[](std::vector<int> a){ while(a.size()&&a.back()==1)a.pop_back(); return a.size(); };

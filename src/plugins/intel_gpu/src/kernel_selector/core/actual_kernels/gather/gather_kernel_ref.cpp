@@ -53,7 +53,13 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
@@ -62,7 +68,13 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -177,7 +189,13 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
         case DataLayout::b_fs_yx_fsv4:
         case DataLayout::b_fs_yx_fsv16:
         case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::bs_fs_yx_bsv4_fsv2:
+        case DataLayout::bs_fs_yx_bsv4_fsv4:
+        case DataLayout::bs_fs_yx_bsv8_fsv2:
+        case DataLayout::bs_fs_yx_bsv8_fsv4:
         case DataLayout::bs_fs_yx_bsv16_fsv16:
+        case DataLayout::bs_fs_yx_bsv32_fsv16:
+        case DataLayout::bs_fs_yx_bsv32_fsv32:
             dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
             dims_by_gws = {{Tensor::DataChannelName::X},
                         {Tensor::DataChannelName::Y},
