@@ -22,7 +22,9 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key = None) -> None:
+def set_scalar_tensor(
+    request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None
+) -> None:
     if key is None:
         request.set_input_tensor(tensor)
     elif isinstance(key, int):
@@ -30,16 +32,26 @@ def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key = None) -> 
     elif isinstance(key, (str, ConstOutput)):
         request.set_tensor(key, tensor)
     else:
-        raise TypeError("Unsupported key type: {} for Tensor under key: {}".format(type(key), key))
+        raise TypeError(
+            "Unsupported key type: {} for Tensor under key: {}".format(type(key), key)
+        )
 
 
 @singledispatch
-def update_tensor(inputs: Union[np.ndarray, np.number, int, float], request: InferRequestBase, key: Union[str, int, ConstOutput] = None) -> None:
-    raise TypeError("Incompatible input data of type {} under {} key!".format(type(inputs), key))
+def update_tensor(
+    inputs: Union[np.ndarray, np.number, int, float],
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
+) -> None:
+    raise TypeError(
+        "Incompatible input data of type {} under {} key!".format(type(inputs), key)
+    )
 
 
 @update_tensor.register(np.ndarray)
-def _(inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None) -> None:
+def _(
+    inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None
+) -> None:
     # If shape is "empty", assume this is a scalar value
     if not inputs.shape:
         set_scalar_tensor(request, Tensor(inputs), key)
@@ -51,7 +63,11 @@ def _(inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = Non
         elif isinstance(key, (str, ConstOutput)):
             tensor = request.get_tensor(key)
         else:
-            raise TypeError("Unsupported key type: {} for Tensor under key: {}".format(type(key), key))
+            raise TypeError(
+                "Unsupported key type: {} for Tensor under key: {}".format(
+                    type(key), key
+                )
+            )
         # Update shape if there is a mismatch
         if tensor.shape != inputs.shape:
             tensor.shape = inputs.shape
@@ -62,13 +78,19 @@ def _(inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = Non
 @update_tensor.register(np.number)
 @update_tensor.register(float)
 @update_tensor.register(int)
-def _(inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None) -> None:
-    set_scalar_tensor(request, Tensor(np.ndarray([], type(inputs), np.array(inputs))), key)
+def _(
+    inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None
+) -> None:
+    set_scalar_tensor(
+        request, Tensor(np.ndarray([], type(inputs), np.array(inputs))), key
+    )
 
 
-def normalize_inputs(request: InferRequestBase, inputs: Union[dict, list, tuple]) -> dict:
+def normalize_inputs(
+    request: InferRequestBase, inputs: Union[dict, list, tuple]
+) -> dict:
     """Helper function to prepare inputs for inference.
-    
+
     It creates copy of Tensors or copy data to already allocated Tensors on device
     if the item is of type `np.ndarray`, `np.number`, `int`, `float`.
     """
@@ -87,14 +109,18 @@ def normalize_inputs(request: InferRequestBase, inputs: Union[dict, list, tuple]
             new_inputs[k] = val
         # Throw error otherwise.
         else:
-            raise TypeError("Incompatible input data of type {} under {} key!".format(type(val), k))
+            raise TypeError(
+                "Incompatible input data of type {} under {} key!".format(type(val), k)
+            )
     return new_inputs
 
 
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer(
+        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None
+    ) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -129,7 +155,11 @@ class InferRequest(InferRequestBase):
         # If inputs are list or tuple, enumarate inputs and save them as dictionary.
         # It is an extension of above branch with dict inputs.
         elif isinstance(inputs, (list, tuple)):
-            return super().infer(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}))
+            return super().infer(
+                normalize_inputs(
+                    self, {index: input for index, input in enumerate(inputs)}
+                )
+            )
         # If inputs are Tensor, call infer method directly.
         elif isinstance(inputs, Tensor):
             return super().infer(inputs)
@@ -143,7 +173,9 @@ class InferRequest(InferRequestBase):
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
     def start_async(
-        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None, userdata: Any = None
+        self,
+        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        userdata: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -176,7 +208,12 @@ class InferRequest(InferRequestBase):
         elif isinstance(inputs, dict):
             super().start_async(normalize_inputs(self, inputs), userdata)
         elif isinstance(inputs, (list, tuple)):
-            super().start_async(normalize_inputs(self, {index: input for index, input in enumerate(inputs)}), userdata)
+            super().start_async(
+                normalize_inputs(
+                    self, {index: input for index, input in enumerate(inputs)}
+                ),
+                userdata,
+            )
         elif isinstance(inputs, Tensor):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
@@ -203,7 +240,9 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer_new_request(
+        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None
+    ) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -263,7 +302,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
         return InferRequest(super().__getitem__(i))
 
     def start_async(
-        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None, userdata: Any = None
+        self,
+        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        userdata: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -290,15 +331,17 @@ class AsyncInferQueue(AsyncInferQueueBase):
         if inputs is None:
             super().start_async({}, userdata)
         elif isinstance(inputs, dict):
-            super().start_async(normalize_inputs(self[self.get_idle_request_id()], inputs), userdata)
+            super().start_async(
+                normalize_inputs(self[self.get_idle_request_id()], inputs), userdata
+            )
         elif isinstance(inputs, (list, tuple)):
             super().start_async
             (
                 normalize_inputs(
-                                 self[self.get_idle_request_id()],
-                                 {index: input for index, input in enumerate(inputs)}
-                                ),
-                userdata
+                    self[self.get_idle_request_id()],
+                    {index: input for index, input in enumerate(inputs)},
+                ),
+                userdata,
             )
         elif isinstance(Tensor):
             super().start_async(inputs, userdata)
