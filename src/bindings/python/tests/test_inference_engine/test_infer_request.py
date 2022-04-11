@@ -779,10 +779,22 @@ def test_inputs_list_not_replaced(device):
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-def test_invalid_inputs_container(device):
+def test_inputs_tuple_not_replaced(device):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = (arr_1, arr_2)
+    inputs_copy = deepcopy(inputs)
+
+    res = request.infer(inputs)
+
+    assert np.array_equal(inputs, inputs_copy)
+    assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
+
+
+def test_invalid_inputs(device):
+    request, _, _ = create_simple_request_and_inputs(device)
+
+    inputs = "some_input"
 
     with pytest.raises(TypeError) as e:
         request.infer(inputs)
