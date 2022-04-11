@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Union
+from typing import Any, Union, Dict
 
 import numpy as np
 
@@ -99,7 +99,7 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs = {}
+    new_inputs: Dict[Union[str, int, ConstOutput], Tensor] = {}
     for k, val in inputs.items():
         if not isinstance(k, (str, int, ConstOutput)):
             raise TypeError("Incompatible key type for input: {}".format(k))
