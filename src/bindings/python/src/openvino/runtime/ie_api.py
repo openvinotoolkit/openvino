@@ -50,7 +50,9 @@ def update_tensor(
 
 @update_tensor.register(np.ndarray)
 def _(
-    inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None
+    inputs: np.ndarray,
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
 ) -> None:
     # If shape is "empty", assume this is a scalar value
     if not inputs.shape:
@@ -79,16 +81,16 @@ def _(
 @update_tensor.register(float)
 @update_tensor.register(int)
 def _(
-    inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = None
+    inputs: Union[np.number, float, int],
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
 ) -> None:
     set_scalar_tensor(
         request, Tensor(np.ndarray([], type(inputs), np.array(inputs))), key
     )
 
 
-def normalize_inputs(
-    request: InferRequestBase, inputs: Union[dict, list, tuple]
-) -> dict:
+def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     """Helper function to prepare inputs for inference.
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
@@ -343,7 +345,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
                 ),
                 userdata,
             )
-        elif isinstance(Tensor):
+        elif isinstance(inputs, Tensor):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
             update_tensor(inputs, self[self.get_idle_request_id()])
