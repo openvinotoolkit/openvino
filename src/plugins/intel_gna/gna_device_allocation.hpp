@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -70,10 +71,10 @@ struct GnaAllocation {
         return rRegion::REGION_AUTO;
     }
 
-    int GetRegionOrder() const {
+    bool operator<(const GnaAllocation& right) const {
         const auto region = GetRegionForTag(tag);
-        const auto order = rRegionOrder(region);
-        return order;
+        const auto regionRight = GetRegionForTag(right.tag);
+        return region < regionRight;
     }
 
     std::pair<bool, size_t> getOffset(void* offset) const {
@@ -92,32 +93,38 @@ private:
     bool isTagSet = false;
 };
 
-class GnaAllAllocations : public std::list<GnaAllocation> {
+class GnaAllocations {
+    std::list<GnaAllocation> allocations;
+
 public:
-    GnaAllAllocations() = default;
+    GnaAllocations() = default;
     template<class T>
-    explicit GnaAllAllocations(T b, T e) : std::list<GnaAllocation>(b, e) {
+    explicit GnaAllocations(T b, T e) : allocations(b, e) {
     }
 
-    uint32_t getAllAllocationSize() const {
+    static uint32_t GetSizeForExport(const std::list<GnaAllocation>& allocations) {
         uint32_t total = 0;
-        for (auto& a : *this) {
+        for (auto& a : allocations) {
             total += a.sizeForExport();
         }
         return total;
     }
 
-    GnaAllAllocations orderedAllocations() const {
-        std::vector<GnaAllocation> allVector(begin(), end());
-        std::sort(allVector.begin(), allVector.end(), [](const GnaAllocation& l, const GnaAllocation& r) {
-            return l.GetRegionOrder() <= r.GetRegionOrder();
-        });
-        return GnaAllAllocations(allVector.begin(), allVector.end());
+    uint32_t GetSizeForExport() const {
+        return GetSizeForExport(allocations);
     }
 
-    std::pair<bool, uint64_t> checkAndGetAllAllocationOffsetFromBase(void* ptr) const {
+    std::list<GnaAllocation> GetAllocationsInExportOrder() const {
+        std::vector<GnaAllocation> temp(allocations.begin(), allocations.end());
+        std::stable_sort(temp.begin(), temp.end());
+        return std::list<GnaAllocation>(temp.begin(), temp.end());
+    }
+
+    static std::pair<bool, uint64_t> GetOffsetForExport(
+        const std::list<GnaAllocation>& orderedAllocations,
+        void* ptr) {
         uint64_t curOffset = 0;
-        for (auto& r : orderedAllocations()) {
+        for (auto& r : orderedAllocations) {
             auto ptrBegin = static_cast<uint8_t*>(r.ptr);
             const auto size = r.sizeForExport();
             if (ptr >= ptrBegin && ptr < ptrBegin + size) {
@@ -127,5 +134,35 @@ public:
             curOffset += size;
         }
         return {false, 0};
+    }
+
+    bool SetTagFor(void* memPtr, Gna2MemoryTag memoryTag) {
+        auto found = std::find_if(allocations.begin(), allocations.end(), [memPtr](const GnaAllocation& a) {
+            return a.ptr == memPtr;
+        });
+        if (found != allocations.end()) {
+            found->SetTag(memoryTag);
+            return true;
+        }
+        return false;
+    }
+
+    bool Remove(void* memPtr) {
+        auto found = std::find_if(allocations.begin(), allocations.end(), [memPtr](const GnaAllocation& a) {
+            return a.ptr == memPtr;
+        });
+        if (found != allocations.end()) {
+            allocations.erase(found);
+            return true;
+        }
+        return false;
+    }
+
+    void Add(void* memPtr, uint32_t sizeRequested, uint32_t sizeGranted) {
+        GnaAllocation newAllocation;
+        newAllocation.ptr = memPtr;
+        newAllocation.sizeRequested = sizeRequested;
+        newAllocation.sizeGranted = sizeGranted;
+        allocations.push_back(newAllocation);
     }
 };

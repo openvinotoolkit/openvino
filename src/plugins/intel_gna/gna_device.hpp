@@ -46,7 +46,7 @@ class GNADeviceHelper {
     }
 
     std::string modeOfOperation = "default";
-    GnaAllAllocations allAllocations;
+    GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
     bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
@@ -100,8 +100,6 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
-    static bool isGnaLibVersionSupportGna3();
-
     void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t createModel(Gna2Model& gnaModel) const;
@@ -150,7 +148,7 @@ public:
     std::string getEffectiveGnaCompileTarget() const;
     std::string GetCompileTarget() const;
 
-    const GnaAllAllocations& getAllAllocations() const {
+    const GnaAllocations& getAllAllocations() const {
         return allAllocations;
     }
 

@@ -101,10 +101,9 @@ private:
 
     /**
      * save gna graph to an outpus stream
-     * @param basePtr
-     * @param gnaGraphSize
+     * @param allocations
      * @param os
      */
-    void Export(const GnaAllAllocations& allocations,
+    void Export(const GnaAllocations& allocations,
                 std::ostream &os) const;
 };

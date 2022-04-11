@@ -370,22 +370,22 @@ void GNAModelSerial::Import(void *basePointer,
         }
     }
 
-
     // once structure has been read lets read whole gna graph
     is.read(reinterpret_cast<char*>(basePointer), gnaGraphSize);
 }
 
-void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& os) const {
+void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os) const {
     os.exceptions(std::ostream::failbit);
 
     const std::vector<Gna2Operation>
         layers(gna2model_->Operations, gna2model_->Operations + gna2model_->NumberOfOperations);
 
-    const auto gnaGraphSize = allocations.getAllAllocationSize();
+    const auto gnaGraphSize = allocations.GetSizeForExport();
+    const auto& allocationsOrdered = allocations.GetAllocationsInExportOrder();
 
-    auto getTensorWithProperOffset = [&allocations](const Gna2Tensor& tensor) {
+    auto getTensorWithProperOffset = [&allocationsOrdered](const Gna2Tensor& tensor) {
         Gna2Tensor out = tensor;
-        const auto found = allocations.checkAndGetAllAllocationOffsetFromBase(tensor.Data);
+        const auto found = GnaAllocations::GetOffsetForExport(allocationsOrdered, tensor.Data);
         if (!found.first) {
             THROW_GNA_EXCEPTION << "Tensor data pointer not found in allocations\n";
         }
@@ -393,7 +393,7 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         return out;
     };
 
-    auto convert_to_serial = [&allocations](const GNAPluginNS::GnaDesc& desc) {
+    auto convert_to_serial = [&allocationsOrdered](const GNAPluginNS::GnaDesc& desc) {
         HeaderLatest::RuntimeEndPoint ep;
         ep.elements_count = desc.num_elements;
         ep.scaleFactor = desc.scale_factor;
@@ -402,7 +402,7 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         ep.precision = desc.model_precision;
         ep.orientation = desc.orientation;
         ep.tensor_names_count = static_cast<uint8_t>(desc.tensor_names.size());
-        const auto found = allocations.checkAndGetAllAllocationOffsetFromBase(*desc.ptrs.begin());
+        const auto found = GnaAllocations::GetOffsetForExport(allocationsOrdered, *desc.ptrs.begin());
         if (!found.first) {
             THROW_GNA_EXCEPTION << "Endpoint data pointer not found in allocations\n";
         }
@@ -517,7 +517,7 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         std::string name;
         float scale_factor = 1.0f;
         std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
-        const auto found = allocations.checkAndGetAllAllocationOffsetFromBase(gna_ptr);
+        const auto found = GnaAllocations::GetOffsetForExport(allocationsOrdered, gna_ptr);
         if (!found.first) {
             THROW_GNA_EXCEPTION << "State data pointer not found in allocations\n";
         }
@@ -529,9 +529,7 @@ void GNAModelSerial::Export(const GnaAllAllocations& allocations, std::ostream& 
         writeBits(scale_factor, os);
     }
 
-    // once structure has been written lets push gna graph
-    auto allocationsOrdered = allocations.orderedAllocations();
-
+    // once structure has been written lets push gna graph memory
     for (const auto& a : allocationsOrdered) {
         os.write(reinterpret_cast<char*>(a.ptr), a.sizeForExport());
     }

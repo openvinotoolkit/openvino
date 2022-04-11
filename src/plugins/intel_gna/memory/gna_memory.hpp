@@ -74,9 +74,7 @@ protected:
         for (const auto& q : _mem_queues) {
             regionList.push_back(q.first);
         }
-        std::sort(regionList.begin(), regionList.end(), [](const rRegion& l, const rRegion& r) {
-            return rRegionOrder(l) <= rRegionOrder(r);
-        });
+        std::sort(regionList.begin(), regionList.end());
         return regionList;
     }
 

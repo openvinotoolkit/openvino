@@ -10,7 +10,9 @@ namespace GNAPluginNS {
 namespace memory {
 
 /**
- * @brief region of firmware data
+ * @brief Logical region of model memory.
+ * Needed for models for embedded GNA
+ * When model is exported for non-embedded uses its memory is exported following the enum value order
  */
 enum rRegion {
     REGION_INPUTS = 0x0,
@@ -20,11 +22,6 @@ enum rRegion {
     REGION_RO = 0x1000,
     REGION_AUTO = 0x10000,
 };
-
-// When model is exported its memory is exported following this order
-inline int rRegionOrder(const rRegion region) {
-    return static_cast<int>(region);
-}
 
 inline const char* rRegionToStr(const rRegion region) {
    const char* strRegion = "UNKNOWN";

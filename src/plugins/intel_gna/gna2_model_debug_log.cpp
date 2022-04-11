@@ -421,7 +421,7 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
 void DumpGna2Model(const Gna2Model& gnaModel,
                    const std::string dumpFolderNameGNA,
                    bool dumpData,
-                   const GnaAllAllocations& allGnaAllocations,
+                   const GnaAllocations& allAllocations,
                    std::string modeOfOperation) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
@@ -432,7 +432,7 @@ void DumpGna2Model(const Gna2Model& gnaModel,
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
 
-
+    const auto& allGnaAllocations = allAllocations.GetAllocationsInExportOrder();
     for (auto&& a : allGnaAllocations) {
         dumpFile << "Allocation: ptr=" << a.ptr << "\tsizeRequested=" << a.sizeRequested << "\tsizeGranted=" << a.sizeGranted <<
             "\t tag=" << a.GetTagName() << "\n";

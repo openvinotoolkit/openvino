@@ -32,11 +32,6 @@
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
-bool GNADeviceHelper::isGnaLibVersionSupportGna3() {
-    const auto gnaLibVersion = GetGnaLibraryVersion();
-    return (gnaLibVersion.rfind("2.1", 0) == 0) || (gnaLibVersion.rfind("3.", 0) == 0);
-}
-
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     void * memPtr = nullptr;
@@ -44,11 +39,7 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
     checkGna2Status(status, "Gna2MemoryAlloc");
 
     gnalog() << "Gna2MemoryAlloc(" << size_requested << ") -> " << *size_granted << ", " << memPtr << "\n";
-    GnaAllocation newAlloc;
-    newAlloc.ptr = memPtr;
-    newAlloc.sizeRequested = size_requested;
-    newAlloc.sizeGranted = *size_granted;
-    allAllocations.push_back(newAlloc);
+    allAllocations.Add(memPtr, size_requested, *size_granted);
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
     }
@@ -76,25 +67,19 @@ void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::r
     const auto status = Gna2MemorySetTag(memPtr, memoryTag);
     checkGna2Status(status, "Gna2MemorySetTag");
     gnalog() << "Gna2MemorySetTag(" << memPtr << ", " << memoryTag << ")\n";
-    auto found = std::find_if(allAllocations.begin(), allAllocations.end(), [memPtr](const GnaAllocation& a) {
-        return a.ptr == memPtr; });
-    if (found != allAllocations.end()) {
-        found->SetTag(memoryTag);
-    } else {
+    const auto tagSuccess = allAllocations.SetTagFor(memPtr, memoryTag);
+    if (!tagSuccess) {
         THROW_GNA_EXCEPTION << "Allocation not found when tagging memory\n";
     }
 }
 
-void GNADeviceHelper::free(void * ptr) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+void GNADeviceHelper::free(void* ptr) {
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2MemoryFree(ptr);
     checkGna2Status(status, "Gna2MemoryFree");
-    auto found = std::find_if(allAllocations.begin(), allAllocations.end(), [ptr](const GnaAllocation& a) {
-        return a.ptr == ptr; });
-    if (found != allAllocations.end()) {
-        allAllocations.erase(found);
-    } else {
-        THROW_GNA_EXCEPTION << "Allocation not found when freeing memory\n";
+    const auto removeSuccess = allAllocations.Remove(ptr);
+    if (!removeSuccess) {
+        gnawarn() << "Allocation not found when freeing memory\n";
     }
 }
 
@@ -196,7 +181,7 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     const auto execTargetDevice = getTargetDevice(true);
-    return isGnaLibVersionSupportGna3() && isUpTo20HwGnaDevice(execTargetDevice);
+    return isUpTo20HwGnaDevice(execTargetDevice);
 }
 
 Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
@@ -219,8 +204,6 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
     };
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        if (!isGnaLibVersionSupportGna3())
-            throwUnsupportedGnaTarget(", when GNA Library version is " + GetGnaLibraryVersion());
         parsed = Gna2DeviceVersion3_0;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
         throwUnsupportedGnaTarget("");
@@ -230,7 +213,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return isGnaLibVersionSupportGna3() ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+        return Gna2DeviceVersion3_0;
     return detectedGnaDevVersion;
 }
 
