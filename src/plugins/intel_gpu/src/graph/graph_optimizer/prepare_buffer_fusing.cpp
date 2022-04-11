@@ -164,7 +164,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
         // todo: we need add padding support for all optimized kernels to remove this condition
-        if (!input->is_type<pooling>() && !input->is_type<convolution>() &&
+        if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<quantize>() &&
             !input->is_type<activation>() && !input->is_type<deconvolution>() &&
             !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>() && !input->is_type<eltwise>() &&
             !input->is_type<resample>())
@@ -353,7 +353,7 @@ void prepare_buffer_fusing::run(program& p) {
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
                     auto usr_layout = usr->get_output_layout();
-                    if (usr_layout.format == format::b_fs_yx_fsv16 &&
+                    if (!usr->is_type<quantize>() && usr_layout.format == format::b_fs_yx_fsv16 &&
                         (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
                         return;
                     if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
