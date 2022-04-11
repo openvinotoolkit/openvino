@@ -17,7 +17,6 @@
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
-#include "program_node.h"
 #include "fused_primitive_desc.h"
 
 #include <cstdint>

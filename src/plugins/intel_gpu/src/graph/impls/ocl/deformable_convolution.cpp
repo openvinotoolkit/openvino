@@ -39,9 +39,6 @@ protected:
 public:
     static primitive_impl* create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
-        const auto& weights_size = weights_layout.size;
-
         const auto& split = primitive->split();
         const auto& groups = primitive->groups;
 
@@ -54,7 +51,7 @@ public:
                                                     arg.get_input_layouts(), arg.get_output_layout(),
                                                     arg.get_fused_primitives(),
                                                     arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    weights_layout, arg.bias_term(), bias_layout);
+                                                    arg.weights().get_output_layout(), arg.bias_term(), bias_layout);
 
         auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(
             param_info,
@@ -62,6 +59,9 @@ public:
             groups);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
+
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
+        const auto& weights_size = weights_layout.size;
 
         conv_params.depthwise_separable_opt = depthwise_separable_opt;
         conv_params.split = split;
