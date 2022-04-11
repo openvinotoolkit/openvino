@@ -69,8 +69,10 @@
 *   **1**: 4D input tensor of shape `[N, C, H, W]` with feature maps of type *T*. **Required.**
 
 *   **2**: 2D input tensor of shape `[NUM_ROIS, 4]` describing box consisting of 4 element tuples: `[x_1, y_1, x_2, y_2]` in relative coordinates of type *T*.
-The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`,
-`roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`. **Required.**
+The box height and width are calculated the following way:
+    * If *aligned_mode* equals *asymmetric*: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`, `roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`.
+    * else: `roi_width = x_2 - x_1`, `roi_height = y_2 - y_1`.
+    * **Required.**
 
 *   **3**: 1D input tensor of shape `[NUM_ROIS]` with batch indices of type *IND_T*. **Required.**
 
