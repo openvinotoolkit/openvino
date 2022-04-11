@@ -34,7 +34,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg) {
+    static primitive_impl* create(const arg_max_min_node& arg, const kernel_impl_params impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
@@ -44,12 +44,7 @@ public:
         const auto& values_first = primitive->values_first;
         const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
 
-        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-
-        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(param_info);
+        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
             get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
 
@@ -88,7 +83,7 @@ public:
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
         if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(arg.get_dependency(2).get_output_layout()));
+            argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         }
 
         argm_params.values_first = values_first;

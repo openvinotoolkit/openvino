@@ -131,7 +131,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg) {
+    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_fully_connected_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();

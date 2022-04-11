@@ -29,20 +29,15 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const eltwise_node& arg) {
+    static primitive_impl* create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
-       const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-
-        auto ew_params = get_default_params<kernel_selector::eltwise_params>(param_info);
+        auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param);
         auto ew_optional_params =
             get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            ew_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            ew_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
 
@@ -62,8 +57,8 @@ public:
 
         for (size_t i = 0; i < ew_params.inputs.size(); i++) {
             if (!ew_params.inputs[i].SameDims(ew_params.outputs[0])) {
-                std::vector<int32_t> input_size = arg.input(i).get_output_layout().get_tensor().raw.vector();
-                std::vector<int32_t> output_size = arg.get_output_layout().get_tensor().raw.vector();
+                std::vector<int32_t> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
+                std::vector<int32_t> output_size = impl_param.output_layout.size.raw.vector();
                 bool broadcast = false;
                 for (size_t d = 0; d < output_size.size(); d++) {
                     if (output_size[d] != 1 && input_size[d] == 1)
@@ -104,8 +99,8 @@ public:
         // TODO [LOW PRECISION]: check if this parameter's really needed. Maybe data types are enough
         bool quantization = true;
         for (size_t i = 0; i < arg.inputs_count(); i++) {
-            if (arg.input(i).get_output_layout().data_type != data_types::u8 &&
-                arg.input(i).get_output_layout().data_type != data_types::i8) {
+            if (impl_param.input_layouts[i].data_type != data_types::u8 &&
+                impl_param.input_layouts[i].data_type != data_types::i8) {
                 quantization = false;
             }
         }

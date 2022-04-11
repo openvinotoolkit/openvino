@@ -23,18 +23,14 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg) {
+    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_param) {
         auto desc = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), desc, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto gemm_params = get_default_params<kernel_selector::gemm_params>(param_info, 1);
+        auto gemm_params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
         auto gemm_optional_params =
             get_default_optional_params<kernel_selector::gemm_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            gemm_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            gemm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         gemm_params.alpha = desc->alpha;
@@ -43,8 +39,8 @@ public:
         gemm_params.transpose_input1 = desc->transpose_input1;
 
         bool is_quantized = true;
-        for (auto& input : arg.get_dependencies())
-            is_quantized &= data_type_traits::is_quantized(input->get_output_layout().data_type);
+        for (auto& input : impl_param.input_layouts)
+            is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
             gemm_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;

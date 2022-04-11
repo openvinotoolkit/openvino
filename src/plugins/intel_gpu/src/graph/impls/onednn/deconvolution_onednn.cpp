@@ -161,7 +161,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg) {
+    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_deconvolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);

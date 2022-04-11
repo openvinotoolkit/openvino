@@ -21,20 +21,15 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
         return make_unique<random_uniform_impl>(*this);
     }
 
-    static primitive_impl *create(const random_uniform_node &arg) {
+    static primitive_impl *create(const random_uniform_node &arg, const kernel_impl_params& impl_param) {
         const auto &primitive = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto params = get_default_params<kernel_selector::random_uniform_params>(
-                param_info);
+        auto params = get_default_params<kernel_selector::random_uniform_params>(impl_param);
         auto &random_uniform_kernel_selector =
                 kernel_selector::random_uniform_kernel_selector::Instance();
         params.global_seed = primitive->global_seed;
         params.op_seed = primitive->op_seed;
-        params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         auto best_kernels = random_uniform_kernel_selector.GetBestKernels(params,
                                                                           kernel_selector::random_uniform_optional_params());
         CLDNN_ERROR_BOOL(arg.id(),

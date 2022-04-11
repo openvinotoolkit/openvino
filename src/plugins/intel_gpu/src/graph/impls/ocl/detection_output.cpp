@@ -51,18 +51,15 @@ private:
     }
 
 public:
-    static primitive_impl* create(const detection_output_node& arg) {
-        const auto& param_info = kernel_impl_params(arg.get_program(), arg.get_primitive(), arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-
-        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(param_info);
+    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
+        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(impl_param);
         auto detect_out_optional_params =
             get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
 
-        detect_out_params.inputs.push_back(convert_data_tensor(arg.confidence().get_output_layout()));
-        detect_out_params.inputs.push_back(convert_data_tensor(arg.prior_box().get_output_layout()));
+        const auto confidence_idx = 1;
+        const auto prior_box_idx = 2;
+        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[confidence_idx]));
+        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[prior_box_idx]));
         set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();

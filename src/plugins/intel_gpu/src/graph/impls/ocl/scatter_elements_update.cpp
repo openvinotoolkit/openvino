@@ -43,20 +43,16 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     }
 
 public:
-    static primitive_impl* create(const scatter_elements_update_node& arg) {
+    static primitive_impl* create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(param_info);
+        auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
         auto scatter_elements_update_optional_params =
             get_default_optional_params<kernel_selector::scatter_elements_update_optional_params>(arg.get_program());
 
         scatter_elements_update_params.axis = convert_axis(prim->axis, arg);
 
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
+        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
 
         auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(scatter_elements_update_params, scatter_elements_update_optional_params);

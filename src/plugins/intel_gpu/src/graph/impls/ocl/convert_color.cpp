@@ -31,19 +31,15 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convert_color_node& arg) {
+    static primitive_impl* create(const convert_color_node& arg, const kernel_impl_params& impl_param) {
         auto primitive = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
 
-        auto convert_color_params = get_default_params<kernel_selector::convert_color_params>(param_info);
+        auto convert_color_params = get_default_params<kernel_selector::convert_color_params>(impl_param);
         auto convert_color_optional_params =
             get_default_optional_params<kernel_selector::convert_color_optional_params>(arg.get_program());
 
-        for (size_t i = 1; i < param_info.input_layouts.size(); ++i) {
-            convert_color_params.inputs.push_back(convert_data_tensor(param_info.input_layouts[i]));
+        for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
+            convert_color_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         convert_color_params.input_color_format = static_cast<kernel_selector::color_format>(primitive->input_color_format);

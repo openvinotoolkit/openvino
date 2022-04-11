@@ -40,16 +40,9 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg) {
+    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
         const auto primitive = arg.get_primitive();
-        const auto& bias_layout = arg.bias_term() ?  arg.bias().get_output_layout() : layout(data_types::f32, format::any, tensor());
-        const auto& param_info = kernel_impl_params(arg.get_program(), primitive, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    arg.weights().get_output_layout(), arg.bias_term(), bias_layout);
-
-        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(param_info);
+        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(impl_param);
         auto fc_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
                 arg.get_program());
@@ -59,8 +52,8 @@ public:
             fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
-        for (auto& input : arg.get_dependencies())
-            is_quantized &= data_type_traits::is_quantized(input->get_output_layout().data_type);
+        for (auto& input : impl_param.input_layouts)
+            is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
             fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;

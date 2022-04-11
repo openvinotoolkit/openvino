@@ -26,13 +26,9 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg) {
+    static primitive_impl* create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto params = get_default_params<kernel_selector::strided_slice_params>(param_info);
+        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 

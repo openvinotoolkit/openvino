@@ -179,7 +179,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
-static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
+static std::string get_jit_constant(const custom_gpu_primitive_node& outer, const kernel_impl_params& impl_param) {
     kernel_selector::jit_constants mem_consts{
         kernel_selector::MakeJitConstant("NUM_INPUTS", std::to_string(outer.get_dependencies().size()))};
     const auto primitive = outer.get_primitive().get();
@@ -189,11 +189,11 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
         kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", primitive->lws),
     });
 
-    for (size_t i = 0; i < outer.get_dependencies().size(); i++) {
-        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), outer.input(i).get_output_layout());
+    for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
+        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.input_layouts[i]);
     }
 
-    add_layout_to_jit(mem_consts, "OUTPUT0", outer.get_output_layout());
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.output_layout);
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";
@@ -204,14 +204,14 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg) {
+static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg);
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }

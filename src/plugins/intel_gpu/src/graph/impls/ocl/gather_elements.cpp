@@ -42,19 +42,15 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     }
 
 public:
-    static primitive_impl* create(const gather_elements_node& arg) {
+    static primitive_impl* create(const gather_elements_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(param_info);
+        auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(impl_param);
         auto gather_elements_optional_params =
             get_default_optional_params<kernel_selector::gather_elements_optional_params>(arg.get_program());
 
         gather_elements_params.axis = convert_axis(prim->axis);
 
-        gather_elements_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        gather_elements_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::gather_elements_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(gather_elements_params, gather_elements_optional_params);

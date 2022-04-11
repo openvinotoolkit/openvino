@@ -23,13 +23,9 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         return make_unique<one_hot_impl>(*this);
     }
 
-    static primitive_impl* create(const one_hot_node& arg) {
+    static primitive_impl* create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-        auto oh_params = get_default_params<kernel_selector::one_hot_params>(param_info, 1);
+        auto oh_params = get_default_params<kernel_selector::one_hot_params>(impl_param, 1);
         auto oh_optional_params =
             get_default_optional_params<kernel_selector::one_hot_optional_params>(arg.get_program());
 
@@ -37,7 +33,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         oh_params.on_value = prim->on_value;
         oh_params.off_value = prim->off_value;
 
-        auto output_sizes = arg.get_output_layout().get_dims();
+        auto output_sizes = impl_param.output_layout.get_dims();
 
         oh_params.one_hot_limit = output_sizes[oh_params.one_hot_axis];
 

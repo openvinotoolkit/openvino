@@ -68,23 +68,18 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     }
 
 public:
-    static primitive_impl* create(const gather_node& arg) {
+    static primitive_impl* create(const gather_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params());
-
-        auto gather_params = get_default_params<kernel_selector::gather_params>(param_info);
+        auto gather_params = get_default_params<kernel_selector::gather_params>(impl_param);
         auto gather_optional_params =
             get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
 
-        auto input_layout = arg.get_dependency(0).get_output_layout();
+        auto input_layout = impl_param.input_layouts[0];
         gather_params.axis = convert_axis(prim->axis, input_layout.get_rank());
         gather_params.batch_dim = size_t(prim->batch_dim);
         gather_params.support_neg_ind = prim->support_neg_ind;
 
-        gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        gather_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(gather_params, gather_optional_params);

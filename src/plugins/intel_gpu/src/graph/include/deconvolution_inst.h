@@ -73,6 +73,15 @@ public:
         return dependencies.size() == (d_idx + 1);
     }
 
+    kernel_impl_params get_kernel_impl_params(const std::vector<layout>& in_layouts,
+                                              const layout& out_layout) const override {
+        const auto& bias_layout = bias_term() ?  bias().get_output_layout() : layout(data_types::f32, format::any, tensor());
+        return kernel_impl_params(get_program(), get_primitive(), get_unique_id(),
+                                  in_layouts, out_layout,
+                                  get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
+                                  weights().get_output_layout(), bias_term(), bias_layout);
+    }
+
 private:
     int32_t split;
     bool depthwise_sep_opt;

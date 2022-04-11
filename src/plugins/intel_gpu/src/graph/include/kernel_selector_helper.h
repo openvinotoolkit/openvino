@@ -109,6 +109,7 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 struct kernel_impl_params {
+    bool has_runtime_layouts = false;
     const program& prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
@@ -141,7 +142,8 @@ struct kernel_impl_params {
                        bool   _weights_zero_points_term = false,     layout _weights_zero_points_layout = layout(data_types::f32, format::any, tensor()),
                        bool   _activations_zero_points_term = false, layout _activations_zero_points_layout = layout(data_types::f32, format::any, tensor()),
                        bool   _compensation_term = false,            layout _compensation_layout = layout(data_types::f32, format::any, tensor()))
-                       : prog(_prog), desc(_desc), unique_id(_uid),
+                       : has_runtime_layouts(true),
+                         prog(_prog), desc(_desc), unique_id(_uid),
                          input_layouts(_int_layouts), output_layout(_out_layout),
                          fused_desc(_fused_descs),
                          fused_act_funcs(_fused_act_funcs), activation_params(_act_params),
