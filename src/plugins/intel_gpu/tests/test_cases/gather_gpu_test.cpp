@@ -34,6 +34,20 @@ using gather8_test_4d_param = std::tuple<int,           // batch_dim
                                          int,           // f1
                                          int,           // y1
                                          int>;          // x1
+using gather8_test_5d_param = std::tuple<int,           // batch_dim
+                                         int,           // axis
+                                         format::type,  // format of input0
+                                         format::type,  // format of input1
+                                         int,           // b0
+                                         int,           // f0
+                                         int,           // z0
+                                         int,           // y0
+                                         int,           // x0
+                                         int,           // b1
+                                         int,           // f1
+                                         int,           // z1
+                                         int,           // y1
+                                         int>;          // x1
 
 // index 0 is input0
 // index 1 is input1
@@ -109,6 +123,103 @@ public:
                             batch_dim,
                             true));
         topology.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
+
+        network network(engine, topology);
+        network.set_input_data("input0", input0);
+        network.set_input_data("input1", input1);
+
+        auto output = network.execute().at("reorder2").get_memory();
+        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+
+        auto ans = std::vector<T_dat>(mult(shape[2]));
+        ngraph::runtime::reference::gather<T_dat, T_ind>(dat.data(),
+                                                         ind.data(),
+                                                         ans.data(),
+                                                         ov::Shape(shape[0].begin(), shape[0].end()),
+                                                         ov::Shape(shape[1].begin(), shape[1].end()),
+                                                         ov::Shape(shape[2].begin(), shape[2].end()),
+                                                         axis,
+                                                         batch_dim);
+        EXPECT_TRUE(!memcmp(ans.data(), output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
+    }
+};
+
+// index 0 is input0
+// index 1 is input1
+// index 2 is output
+template <class T_dat, class T_ind, data_types T_dat_dt, data_types T_ind_dt>
+class gather8_test_5d : public ::testing::TestWithParam<gather8_test_5d_param> {
+public:
+    int axis, batch_dim;
+    std::array<format::type, 3> fmt;
+    std::array<std::array<int, 5>, 3> shape;
+
+    void SetUp() override {
+        ::testing::TestWithParam<gather8_test_5d_param>::SetUp();
+
+        auto dim = [](const std::array<int, 5>& a) {
+            int ret = 5;
+            while (ret - 1 >= 0 && a[ret - 1] == 1)
+                ret--;
+            return ret;
+        };
+        auto mult = [](const std::array<int, 5>& a) {
+            return a[0] * a[1] * a[2] * a[3]* a[4];
+        };
+
+        std::tie(batch_dim,
+                 axis,
+                 fmt[0],
+                 fmt[1],
+                 shape[0][0],
+                 shape[0][1],
+                 shape[0][2],
+                 shape[0][3],
+                 shape[0][4],
+                 shape[1][0],
+                 shape[1][1],
+                 shape[1][2],
+                 shape[1][3],
+                 shape[1][4]) = GetParam();
+        fmt[2] = fmt[0];
+
+        shape[2] = {1, 1, 1, 1, 1};
+        for (int i = 0; i < batch_dim; i++)  // batch_dim
+            shape[2][i] = shape[0][i];
+        for (int i = batch_dim; i < axis; i++)  // before axis = shape[0][..]
+            shape[2][i] = shape[0][i];
+        for (int i = batch_dim; i < dim(shape[1]); i++)  // axis = shape[1]
+            shape[2][axis + (i - batch_dim)] = shape[1][i];
+        for (int i = axis + 1; i < dim(shape[0]); i++)  // after axis = shape[0][..]
+            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] =
+                shape[0][i];  // batch_dim counted twice -> -batch_dim
+
+        auto& engine = get_test_engine();
+
+        auto dat = generate_random_1d<T_dat>(mult(shape[0]), -99, 99);
+        auto input0 = engine.allocate_memory(
+            {T_dat_dt, format::bfzyx, {shape[0][0], shape[0][1], shape[0][4], shape[0][3], shape[0][2]}});  // Dictionary
+
+        auto ind = generate_random_1d<T_ind>(mult(shape[1]), -shape[0][axis], shape[0][axis] - 1, 1);
+        auto input1 = engine.allocate_memory(
+            {T_ind_dt, format::bfzyx, {shape[1][0], shape[1][1], shape[1][4], shape[1][3], shape[1][2]}});  // Indexes
+
+        set_values(input0, dat);
+        set_values(input1, ind);
+
+        topology topology;
+        topology.add(input_layout("input0", input0->get_layout()));
+        topology.add(input_layout("input1", input1->get_layout()));
+        topology.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
+        topology.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
+        topology.add(gather("gather",
+                            "reorder0",
+                            "reorder1",
+                            axis,
+                            ov::Shape(shape[2].begin(), shape[2].end()),
+                            batch_dim,
+                            true));
+        topology.add(reorder("reorder2", "gather", format::type::bfzyx, T_dat_dt));
 
         network network(engine, topology);
         network.set_input_data("input0", input0);
@@ -217,6 +328,41 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                                           testing::Values(1),
                                           testing::Values(3, 4),
                                           testing::Values(56),
+                                          testing::Values(1),
+                                          testing::Values(1)));
+
+using gather8_test_5d_f32i8 = gather8_test_5d<float, char, data_types::f32, data_types::i8>;
+TEST_P(gather8_test_5d_f32i8, gather8_test_5d_f32i8) {}          
+INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
+                         gather8_test_5d_f32i8,
+                         testing::Combine(testing::Values(0),
+                                          testing::Range(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(8),
+                                          testing::Values(66, 67),
+                                          testing::Values(3),
+                                          testing::Values(1),
+                                          testing::Values(1),
+                                          testing::Values(3, 4),
+                                          testing::Values(56),
+                                          testing::Values(9),
+                                          testing::Values(1),
+                                          testing::Values(1)));
+INSTANTIATE_TEST_SUITE_P(gather8_5d_bd1_d3_i3,
+                         gather8_test_5d_f32i8,
+                         testing::Combine(testing::Values(1),
+                                          testing::Range(1, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(8),
+                                          testing::Values(66, 67),
+                                          testing::Values(3),
+                                          testing::Values(1),
+                                          testing::Values(1),
+                                          testing::Values(8),
+                                          testing::Values(56),
+                                          testing::Values(9),
                                           testing::Values(1),
                                           testing::Values(1)));
 
