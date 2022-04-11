@@ -45,10 +45,8 @@ def _(inputs, request: InferRequestBase, key: Union[str, int, ConstOutput] = Non
         set_scalar_tensor(request, Tensor(inputs), key)
     else:
         if key is None:
-            print("AAAA")
             tensor = request.get_input_tensor()
         elif isinstance(key, int):
-            print("BBBB")
             tensor = request.get_input_tensor(key)
         elif isinstance(key, (str, ConstOutput)):
             tensor = request.get_tensor(key)
