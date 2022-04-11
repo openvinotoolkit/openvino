@@ -5,7 +5,7 @@
 #include <vector>
 #include "single_layer_tests/experimental_detectron_prior_grid_generator.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace ov::test;
 using namespace ov::test::subgraph;

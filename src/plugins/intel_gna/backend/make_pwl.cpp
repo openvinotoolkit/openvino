@@ -229,7 +229,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            if (fun == kActFakeQuantize && fun.fqParams.set) {
+            if ((fun == kActFakeQuantize || fun == kActIdentity) && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
                 x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
                 y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
@@ -253,7 +253,7 @@ void make_gna_pwl(const DnnActivation&  fun,
                         x_upper = FLOAT_TO_INT32(y_upper  * in_scale / out_scale);
                     }
                 }
-            } else if (fun == kActIdentity) {
+            } else if (fun == kActIdentity && !fun.fqParams.set) {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
@@ -412,27 +412,17 @@ static void make_gna_pwl(const T* m,
     }
 }
 
-template<typename T>
-static void make_gna_pwl(const std::tuple<T>& args,
-                         const std::shared_ptr<ov::op::v0::Constant>& m,
-                         const std::shared_ptr<ov::op::v0::Constant>& b,
-                         const std::shared_ptr<ov::op::v0::Constant>& alpha,
-                         double in_scale,
-                         double out_scale,
-                         std::vector<gna_pwl_segment_t> &gna_pwl) {
-    IE_ASSERT(m->get_element_type() == T::value);
-    using A = typename ngraph::element_type_traits<T::value>::value_type;
-    make_gna_pwl(m->get_data_ptr<A>(),
-                 b->get_data_ptr<A>(),
-                 alpha->get_data_ptr<A>(),
-                 m->get_byte_size() / sizeof(A),
-                 in_scale,
-                 out_scale,
-                 gna_pwl);
+static void make_gna_pwl(std::tuple<>&&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         const std::shared_ptr<ov::op::v0::Constant>&,
+                         double,
+                         double,
+                         std::vector<gna_pwl_segment_t>&) {
 }
 
 template<typename T, typename ...Types>
-static void make_gna_pwl(const std::tuple<T, Types...>& args,
+static void make_gna_pwl(std::tuple<T, Types...>&& types,
                          const std::shared_ptr<ov::op::v0::Constant>& m,
                          const std::shared_ptr<ov::op::v0::Constant>& b,
                          const std::shared_ptr<ov::op::v0::Constant>& alpha,
@@ -440,13 +430,13 @@ static void make_gna_pwl(const std::tuple<T, Types...>& args,
                          double out_scale,
                          std::vector<gna_pwl_segment_t> &gna_pwl) {
     if (m->get_element_type() != T::value) {
-        make_gna_pwl<Types...>(std::tuple<Types...>(),
-                               m,
-                               b,
-                               alpha,
-                               in_scale,
-                               out_scale,
-                               gna_pwl);
+        make_gna_pwl(std::tuple<Types...>(),
+                     m,
+                     b,
+                     alpha,
+                     in_scale,
+                     out_scale,
+                     gna_pwl);
         return;
     }
 

@@ -8,7 +8,7 @@ This provides much better performance for the networks than batching especially 
 Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, with much less synchronization within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
-Notice that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allows the implementation to select the optimal number of the streams, _depending on the model compute demands_ and CPU capabilities (including [int8 inference](../OV_Runtime_UG/Int8Inference.md) hardware acceleration, number of cores, etc).
+Note that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allows the implementation to select the optimal number of the streams, _depending on the model compute demands_ and CPU capabilities (including [int8 inference](@ref openvino_docs_model_optimization_guide) hardware acceleration, number of cores, etc).
 
 ## Automatic Batching Internals
 As explained in the section on the [automatic batching](../OV_Runtime_UG/automatic_batching.md), the feature performs on-the-fly grouping of the inference requests to improve device utilization.

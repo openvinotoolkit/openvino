@@ -20,9 +20,8 @@ namespace {
 struct gather_test_params {
     tensor dictionary_shape;
     tensor indices_shape;
-    tensor out_shape;
-    format out_format;
-    cldnn::gather::gather_axis axis;
+    ov::Shape out_shape;
+    int64_t axis;
     data_types data_type;
     format input_format;
     data_types default_type;
@@ -52,26 +51,12 @@ public:
     }
 
     size_t get_axis_dim(gather_test_params& p) {
-        switch (p.axis) {
-            case cldnn::gather::gather_axis::along_x:
-                return p.dictionary_shape.spatial[0];
-            case cldnn::gather::gather_axis::along_y:
-                return p.dictionary_shape.spatial[1];
-            case cldnn::gather::gather_axis::along_z:
-                return p.dictionary_shape.spatial[2];
-            case cldnn::gather::gather_axis::along_w:
-                return p.dictionary_shape.spatial[3];
-            case cldnn::gather::gather_axis::along_f:
-                return p.dictionary_shape.feature[0];
-            case cldnn::gather::gather_axis::along_b:
-                return p.dictionary_shape.batch[0];
-            default:
-                return 1;
-        }
+        auto in_layout = get_input_layout(p);
+        return in_layout.get_dims()[p.axis];
     }
 
     layout get_per_channel_layout(gather_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+        return layout{ p.default_type, p.default_format, tensor{ 1, static_cast<tensor::value_type>(p.out_shape[1]), 1, 1 } };
     }
 };
 }  // namespace
@@ -80,29 +65,29 @@ public:
 /* ------------------------------------------ Gather cases --------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_GATHER_FP32_1 { 2, 3, 1, 4 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4 }, format::bfyx, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_2 { 3, 2, 1, 2 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, format::bfyx, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_3 { 3, 1, 1, 2 }, { 2, 1, 1, 1 }, { 3, 2, 1, 2 }, format::bfyx, cldnn::gather::gather_axis::along_f, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 2, 3 }, format::bfyx, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GATHER_FP32_5 { 2, 3, 1, 2 }, { 1, 3, 1, 1 }, { 2, 3, 3, 1 }, format::bfyx, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_1 { 2, 3, 1, 4 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_2 { 3, 2, 1, 2 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_3 { 3, 1, 1, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_5 { 2, 3, 1, 2 }, { 1, 3, 1, 1 }, { 2, 3, 1, 3 }, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_GATHER_FP16_1 { 2, 3, 1, 4 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4 }, format::bfyx, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_2 { 3, 2, 1, 2 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, format::bfyx, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_3 { 3, 1, 1, 2 }, { 2, 1, 1, 1 }, { 3, 2, 1, 2 }, format::bfyx, cldnn::gather::gather_axis::along_f, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 2, 3 }, format::bfyx, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_GATHER_FP16_5 { 2, 3, 1, 2 }, { 1, 3, 1, 1 }, { 2, 3, 3, 1 }, format::bfyx, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_1 { 2, 3, 1, 4 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_2 { 3, 2, 1, 2 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_3 { 3, 1, 1, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_4 { 5, 3, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_5 { 2, 3, 1, 2 }, { 1, 3, 1, 1 }, { 2, 3, 1, 3 }, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
-#define CASE_GATHER_5D_FP32_1 { 2, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, format::bfzyx, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, format::bfzyx, cldnn::gather::gather_axis::along_f, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_3 { 5, 3, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, format::bfzyx, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 1, 4, 2 }, format::bfzyx, cldnn::gather::gather_axis::along_z, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_GATHER_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 2, 2, 1 }, format::bfzyx, cldnn::gather::gather_axis::along_x, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_1 { 2, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, 0, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_3 { 5, 3, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, 3, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 2, 4, 1 }, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GATHER_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 1, 2, 2 }, 4, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 
-#define CASE_GATHER_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 1 }, format::bfzyx, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, format::bfzyx, cldnn::gather::gather_axis::along_f, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_3 { 2, 3, 1, 3, 3 }, { 1, 2, 1, 1 }, { 2, 3, 1, 2, 3 }, format::bfzyx, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 2, 2 }, format::bfzyx, cldnn::gather::gather_axis::along_z, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 3, 1, 1 }, format::bfzyx, cldnn::gather::gather_axis::along_x, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 1, 2, 2 }, 0, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_3 { 2, 3, 1, 3, 3 }, { 1, 2, 1, 1 }, { 2, 3, 3, 2, 1 }, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 2, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 
 class gather_quantize : public GatherPrimitiveFusingTest {};
 TEST_P(gather_quantize, basic) {
@@ -114,7 +99,7 @@ TEST_P(gather_quantize, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather("gather_prim", "input", "gather_indices", p.axis, p.out_format, p.out_shape),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
         quantize("quantize", "gather_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -156,7 +141,7 @@ TEST_P(gather_scale_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1))),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        gather("gather_prim", "input", "gather_indices", p.axis, p.out_format, p.out_shape),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
         activation("activation", "gather_prim", activation_func::abs),
         scale("scale", "activation", "scale_data"),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)

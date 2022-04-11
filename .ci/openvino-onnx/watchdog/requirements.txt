@@ -1,6 +1,0 @@
-python-jenkins==1.7.0
-retrying==1.3.3
-pygithub==1.51
-timeout-decorator==0.4.1
-requests==2.23.0
-wheel

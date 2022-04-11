@@ -17,7 +17,7 @@ namespace node {
 
 class Reshape : public Node {
 public:
-    Reshape(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -29,7 +29,7 @@ public:
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; }
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
