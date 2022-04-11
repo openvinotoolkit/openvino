@@ -26,6 +26,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                             ::testing::Combine(
                                 ::testing::Values(ngraph::builder::subgraph::makeSplitConvConcat()),
@@ -34,5 +35,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
+                        */
 
 }  // namespace
