@@ -191,6 +191,7 @@ void op::v5::Loop::validate_and_infer_types() {
     // Body
     m_bodies[0]->validate_nodes_and_infer_types();
 
+    // if output shape is not same with input in a back-edge, here will update the input shape
     // Port map processing: output -> input
     std::map<uint64_t, uint64_t> back_edges;
     for (const auto& desc : get_input_descriptions()) {
@@ -198,45 +199,15 @@ void op::v5::Loop::validate_and_infer_types() {
             back_edges[merged_desc->m_body_value_index] = merged_desc->m_body_parameter_index;
         }
     }
-    // Output
-    bool need_reinvalidate = false;
-    // 2 pass: if output shape is not same with input in a back-edge, first pass will update the
-    //   input shape, second pass will re-compute the output shape using the changed input shape
-    // 1 pass: otherwise
-    for (int i = 0; i < 2; i++) {
+    if (!back_edges.empty()) {
+        bool need_reinvalidate = false;
         for (const auto& output_description : m_output_descriptions[0]) {
-            auto index = output_description->m_output_index;
-
             auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
-            if (auto concat_output_description =
-                    ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(output_description)) {
-                const auto& body_value_partial_shape = body_value.get_partial_shape();
-                auto out_shape = body_value_partial_shape;
-                if (zero_number_of_iter) {
-                    out_shape = ov::PartialShape{0};
-                } else if (out_shape.rank().is_static()) {
-                    const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
-                    const auto rank = out_shape.rank().get_length();
-                    if (rank == 0) {
-                        out_shape = ov::PartialShape{1};
-                    }
-
-                    if (out_shape[axis].is_static() && m_num_iterations != -1) {
-                        out_shape[axis] = Dimension{out_shape[axis].get_length() * m_num_iterations};
-                    } else {
-                        out_shape[axis] = Dimension::dynamic();
-                    }
-                }
-                set_output_type(index, body_value.get_element_type(), out_shape);
-            }
-
-            else if (auto body_output_description =
-                         ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
-                const ov::PartialShape& ps = body_value.get_partial_shape();
-                if (ps.rank().is_dynamic()) {
-                    set_output_type(index, body_value.get_element_type(), ps);
-                } else {
+            if (auto body_output_description =
+                    ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+                if (body_value_shape.rank().is_static()) {
                     // handle the case: when sub-model's output shape does not compatible input shape in a back-edge,
                     // such as
                     //          Parameter(out:-1, 1)->|
@@ -249,42 +220,69 @@ void op::v5::Loop::validate_and_infer_types() {
                             m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
                         const auto& input_param_ps = input_param->get_partial_shape();
                         if (input_param_ps.rank().is_static() &&
-                            ps.rank().get_length() == input_param_ps.rank().get_length() &&
-                            !input_param_ps.compatible(ps)) {
-                            ov::PartialShape new_ps(ps);
-                            for (auto i = 0; i < ps.size(); i++) {
-                                if (!ps[i].compatible(input_param_ps[i])) {
+                            body_value_shape.rank().get_length() == input_param_ps.rank().get_length() &&
+                            !input_param_ps.compatible(body_value_shape)) {
+                            ov::PartialShape new_ps(body_value_shape);
+                            for (auto i = 0; i < body_value_shape.size(); i++) {
+                                if (!body_value_shape[i].compatible(input_param_ps[i])) {
                                     new_ps[i] = Dimension::dynamic();
                                 }
                             }
-                            set_output_type(index, body_value.get_element_type(), new_ps);
-                            // also reset sub model input shape
+                            // reset sub model input shape
                             input_param->set_partial_shape(new_ps);
                             need_reinvalidate = true;
-                        }
-                    }
-                    // no backedge or do not change input shape in backedge
-                    if (!need_reinvalidate) {
-                        if (ps.is_dynamic()) {
-                            set_output_type(index, body_value.get_element_type(), ps);
-                        } else {
-                            auto shape = ps.get_shape();
-                            if (zero_number_of_iter) {
-                                shape.at(0) = 0;
-                            }
-                            set_output_type(index, body_value.get_element_type(), shape);
                         }
                     }
                 }
             }
         }
-
         // only input shape changed we will re-compute output shape
-        if (!need_reinvalidate) {
-            break;
+        if (need_reinvalidate) {
+            m_bodies[0]->validate_nodes_and_infer_types();
         }
-        m_bodies[0]->validate_nodes_and_infer_types();
-        need_reinvalidate = false;
+    }
+
+    // Output
+    for (const auto& output_description : m_output_descriptions[0]) {
+        auto index = output_description->m_output_index;
+
+        auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
+
+        if (auto concat_output_description =
+                ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(output_description)) {
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
+            auto out_shape = body_value_partial_shape;
+            if (zero_number_of_iter) {
+                out_shape = ov::PartialShape{0};
+            } else if (out_shape.rank().is_static()) {
+                const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                const auto rank = out_shape.rank().get_length();
+                if (rank == 0) {
+                    out_shape = ov::PartialShape{1};
+                }
+
+                if (out_shape[axis].is_static() && m_num_iterations != -1) {
+                    out_shape[axis] = Dimension{out_shape[axis].get_length() * m_num_iterations};
+                } else {
+                    out_shape[axis] = Dimension::dynamic();
+                }
+            }
+            set_output_type(index, body_value.get_element_type(), out_shape);
+        }
+
+        else if (auto body_output_description =
+                     ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+            const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+            if (body_value_shape.is_dynamic()) {
+                set_output_type(index, body_value.get_element_type(), body_value_shape);
+            } else {
+                auto shape = body_value_shape.get_shape();
+                if (zero_number_of_iter) {
+                    shape.at(0) = 0;
+                }
+                set_output_type(index, body_value.get_element_type(), shape);
+            }
+        }
     }
 
     NODE_VALIDATION_CHECK(this,
