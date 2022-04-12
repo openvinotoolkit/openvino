@@ -305,25 +305,31 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring cache_path_w = CommonTestUtils::addUnicodePostfixToPath(cache_path, postfix);
+        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
         try {
             auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
             core->set_property(ov::cache_dir(cache_path_mb));
             // Load CNNNetwork to target plugins
             auto execNet = core->compile_model(function, targetDevice, configuration);
-
+            execNet = {};
             // Check that directory with cached kernels exists after loading network
             ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
-            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+            for (auto& ext : m_extList) {
+                // Check that folder contains cache files and remove them
+                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+            }
             // Remove directory and check that it doesn't exist anymore
             ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
             ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
         } catch (std::exception& ex) {
             // Cleanup in case of any exception
             if (CommonTestUtils::directoryExists(cache_path_w)) {
-                ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+                for (auto& ext : m_extList) {
+                    // Check that folder contains cache files and remove them
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                }
                 ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
             }
             FAIL() << ex.what() << std::endl;

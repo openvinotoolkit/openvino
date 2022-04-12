@@ -317,7 +317,7 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnic
     InferenceEngine::CNNNetwork cnnNet(function);
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring cache_path_w = CommonTestUtils::addUnicodePostfixToPath(cache_path, postfix);
+        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
         try {
             auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
