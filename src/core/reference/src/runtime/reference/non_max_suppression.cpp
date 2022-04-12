@@ -445,6 +445,15 @@ void nms_postprocessing(const HostTensorVector& outputs,
         *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
     }
 }
+
+void nms5_postprocessing(const HostTensorVector& outputs,
+                         const ngraph::element::Type output_type,
+                         const std::vector<int64_t>& selected_indices,
+                         const std::vector<float>& selected_scores,
+                         int64_t valid_outputs,
+                         const ngraph::element::Type selected_scores_type) {
+    nms_postprocessing(outputs, output_type, selected_indices, selected_scores, valid_outputs, selected_scores_type);
+}
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
