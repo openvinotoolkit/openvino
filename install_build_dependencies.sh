@@ -10,6 +10,7 @@ yes_or_no() {
         return 0
     fi
 
+
     while true; do
         read -p "Add third-party Nux Dextop repository and install FFmpeg package (y) / Skip this step (N)" yn
         case $yn in
