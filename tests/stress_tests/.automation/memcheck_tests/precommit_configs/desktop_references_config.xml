@@ -47,7 +47,7 @@
         <model path="public/mtcnn/mtcnn-r/FP16/mtcnn-r.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2107846" vmpeak="2145161" vmrss="272252" vmhwm="328504" />
 
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1367288" vmpeak="1367288" vmrss="468748" vmhwm="468748" /> # values from {"commit_id": "25c76471d78628aa772f3a7e341ae915bdce6026", "commit_date": "2022-02-23 15:55"}
-        <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1829264" vmpeak="1830536" vmrss="566276" vmhwm="874426" />
+        <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1838452" vmpeak="1839724" vmrss="567696" vmhwm="874426" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1457409" vmpeak="1458782" vmrss="572577" vmhwm="572577" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="1903992" vmpeak="1941602" vmrss="582780" vmhwm="872071" />
         <model path="public/ssd300/FP16/ssd300.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1309838" vmpeak="1386434" vmrss="421626" vmhwm="421626" />
