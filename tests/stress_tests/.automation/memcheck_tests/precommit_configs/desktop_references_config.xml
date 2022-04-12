@@ -87,6 +87,6 @@
         <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="inference_with_streams" device="CPU" vmsize="829342" vmpeak="829342" vmrss="39280" vmhwm="39280" />
         <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="inference_with_streams" device="GPU" vmsize="1751364" vmpeak="1887712" vmrss="288080" vmhwm="410430" />
         <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="infer_request_inference" device="CPU" vmsize="637728" vmpeak="722924" vmrss="38490" vmhwm="38490" />
-        <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="1682732" vmpeak="1748444" vmrss="273848" vmhwm="410779" />
+        <model path="intel/vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml" precision="FP16-INT8" test="infer_request_inference" device="GPU" vmsize="1682732" vmpeak="1748444" vmrss="299372" vmhwm="410779" />
     </models>
 </attributes>
