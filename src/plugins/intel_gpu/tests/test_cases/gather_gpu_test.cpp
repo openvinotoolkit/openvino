@@ -22,32 +22,18 @@ using namespace ::tests;
     format::type::bs_fs_yx_bsv32_fsv32
 #define GATHER8_TEST_5D_FORMATS format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::b_fs_zyx_fsv32
 
-using gather8_test_4d_param = std::tuple<int,           // batch_dim
-                                         int,           // axis
-                                         format::type,  // format of input0
-                                         format::type,  // format of input1
-                                         int,           // b0
-                                         int,           // f0
-                                         int,           // y0
-                                         int,           // x0
-                                         int,           // b1
-                                         int,           // f1
-                                         int,           // y1
-                                         int>;          // x1
-using gather8_test_5d_param = std::tuple<int,           // batch_dim
-                                         int,           // axis
-                                         format::type,  // format of input0
-                                         format::type,  // format of input1
-                                         int,           // b0
-                                         int,           // f0
-                                         int,           // z0
-                                         int,           // y0
-                                         int,           // x0
-                                         int,           // b1
-                                         int,           // f1
-                                         int,           // z1
-                                         int,           // y1
-                                         int>;          // x1
+using gather8_test_4d_param = std::tuple<int,                  // batch_dim
+                                         int,                  // axis
+                                         format::type,         // format of input0
+                                         format::type,         // format of input1
+                                         std::array<int, 4>,   // bfyx0
+                                         std::array<int, 4>>;  // bfyx1
+using gather8_test_5d_param = std::tuple<int,                  // batch_dim
+                                         int,                  // axis
+                                         format::type,         // format of input0
+                                         format::type,         // format of input1
+                                         std::array<int, 5>,   // bfzyx0
+                                         std::array<int, 5>>;  // bfzyx1
 
 // index 0 is input0
 // index 1 is input1
@@ -72,18 +58,7 @@ public:
             return a[0] * a[1] * a[2] * a[3];
         };
 
-        std::tie(batch_dim,
-                 axis,
-                 fmt[0],
-                 fmt[1],
-                 shape[0][0],
-                 shape[0][1],
-                 shape[0][2],
-                 shape[0][3],
-                 shape[1][0],
-                 shape[1][1],
-                 shape[1][2],
-                 shape[1][3]) = GetParam();
+        std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
         fmt[2] = fmt[0];
 
         shape[2] = {1, 1, 1, 1};
@@ -167,20 +142,7 @@ public:
             return a[0] * a[1] * a[2] * a[3]* a[4];
         };
 
-        std::tie(batch_dim,
-                 axis,
-                 fmt[0],
-                 fmt[1],
-                 shape[0][0],
-                 shape[0][1],
-                 shape[0][2],
-                 shape[0][3],
-                 shape[0][4],
-                 shape[1][0],
-                 shape[1][1],
-                 shape[1][2],
-                 shape[1][3],
-                 shape[1][4]) = GetParam();
+        std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
         fmt[2] = fmt[0];
 
         shape[2] = {1, 1, 1, 1, 1};
@@ -248,43 +210,17 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 4),  //[0,dim(dict))
                                           testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(5),
-                                          testing::Values(44),
-                                          testing::Values(7),
-                                          testing::Values(8),
-                                          testing::Values(2, 3, 4),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(1)));
-INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d3_i2,
-                         gather8_test_4d_f16i32,
-                         testing::Combine(testing::Values(0),
-                                          testing::Range(0, 3),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
-                                          testing::Values(11),
-                                          testing::Values(66),
-                                          testing::Values(7),
-                                          testing::Values(1),
-                                          testing::Values(22, 33),
-                                          testing::Values(3, 5),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(std::array<int, 4>{5, 44, 7, 8}),
+                                          testing::Values(std::array<int, 4>{4, 1, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 2),  //[0,dim(dict))
                                           testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
                                           testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(8),
-                                          testing::Values(66, 67),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(3, 4),
-                                          testing::Values(56),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(std::array<int, 4>{8, 67, 1, 1}),
+                                          testing::Values(std::array<int, 4>{4, 56, 1, 1})));
 
 using gather8_test_4d_f32i8 = gather8_test_4d<float, char, data_types::f32, data_types::i8>;
 TEST_P(gather8_test_4d_f32i8, gather8_test_4d_f32i8) {}
@@ -293,43 +229,25 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 4),  //[0,dim(dict))
                                           testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
-                                          testing::Values(5),
-                                          testing::Values(44),
-                                          testing::Values(7),
-                                          testing::Values(8),
-                                          testing::Values(2, 3, 4),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(std::array<int, 4>{5, 44, 7, 8}),
+                                          testing::Values(std::array<int, 4>{4, 1, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d3_i2,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 3),  //[0,dim(dict))
                                           testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
                                           testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(11),
-                                          testing::Values(66),
-                                          testing::Values(7),
-                                          testing::Values(1),
-                                          testing::Values(22, 33),
-                                          testing::Values(3, 5),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(std::array<int, 4>{11, 66, 7, 1}),
+                                          testing::Values(std::array<int, 4>{33, 5, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 2),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
                                           testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(8),
-                                          testing::Values(66, 67),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(3, 4),
-                                          testing::Values(56),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
+                                          testing::Values(std::array<int, 4>{8, 67, 1, 1}),
+                                          testing::Values(std::array<int, 4>{3, 56, 1, 1})));
 
 using gather8_test_5d_f32i8 = gather8_test_5d<float, char, data_types::f32, data_types::i8>;
 TEST_P(gather8_test_5d_f32i8, gather8_test_5d_f32i8) {}          
@@ -338,33 +256,17 @@ INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, 2),  //[batch_dim,dim(dict))
                                           testing::Values(GATHER8_TEST_5D_FORMATS),
-                                          testing::Values(GATHER8_TEST_5D_FORMATS),
-                                          testing::Values(8),
-                                          testing::Values(66, 67),
-                                          testing::Values(3),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(3, 4),
-                                          testing::Values(56),
-                                          testing::Values(9),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(format::type::bfzyx),
+                                          testing::Values(std::array<int, 5>{8, 67, 3, 1, 1}),
+                                          testing::Values(std::array<int, 5>{3, 56, 9, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_5d_bd1_d3_i3,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(1),
                                           testing::Range(1, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::bfzyx),
                                           testing::Values(GATHER8_TEST_5D_FORMATS),
-                                          testing::Values(GATHER8_TEST_5D_FORMATS),
-                                          testing::Values(8),
-                                          testing::Values(66, 67),
-                                          testing::Values(3),
-                                          testing::Values(1),
-                                          testing::Values(1),
-                                          testing::Values(8),
-                                          testing::Values(56),
-                                          testing::Values(9),
-                                          testing::Values(1),
-                                          testing::Values(1)));
+                                          testing::Values(std::array<int, 5>{8, 66, 3, 1, 1}),
+                                          testing::Values(std::array<int, 5>{8, 56, 9, 1, 1})));
 
 TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     //  Dictionary : 3x2x3x4x2
@@ -410,18 +312,25 @@ TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
         FLOAT16(1.f),   FLOAT16(2.f),   FLOAT16(3.f),   FLOAT16(4.f),   FLOAT16(5.f),   FLOAT16(6.f),   FLOAT16(7.f),   FLOAT16(8.f),
         FLOAT16(9.f),   FLOAT16(10.f),  FLOAT16(11.f),  FLOAT16(12.f),  FLOAT16(13.f),  FLOAT16(14.f),  FLOAT16(15.f),  FLOAT16(16.f),
         FLOAT16(17.f),  FLOAT16(18.f),  FLOAT16(19.f),  FLOAT16(20.f),  FLOAT16(21.f),  FLOAT16(22.f),  FLOAT16(23.f),  FLOAT16(24.f),
+
         FLOAT16(25.f),  FLOAT16(26.f),  FLOAT16(27.f),  FLOAT16(28.f),  FLOAT16(29.f),  FLOAT16(30.f),  FLOAT16(31.f),  FLOAT16(32.f),
         FLOAT16(33.f),  FLOAT16(34.f),  FLOAT16(35.f),  FLOAT16(36.f),  FLOAT16(37.f),  FLOAT16(38.f),  FLOAT16(39.f),  FLOAT16(40.f),
         FLOAT16(41.f),  FLOAT16(42.f),  FLOAT16(43.f),  FLOAT16(44.f),  FLOAT16(45.f),  FLOAT16(46.f),  FLOAT16(47.f),  FLOAT16(48.f),
+
+
         FLOAT16(49.f),  FLOAT16(50.f),  FLOAT16(51.f),  FLOAT16(52.f),  FLOAT16(53.f),  FLOAT16(54.f),  FLOAT16(55.f),  FLOAT16(56.f),
         FLOAT16(57.f),  FLOAT16(58.f),  FLOAT16(59.f),  FLOAT16(60.f),  FLOAT16(61.f),  FLOAT16(62.f),  FLOAT16(63.f),  FLOAT16(64.f),
         FLOAT16(65.f),  FLOAT16(66.f),  FLOAT16(67.f),  FLOAT16(68.f),  FLOAT16(69.f),  FLOAT16(70.f),  FLOAT16(71.f),  FLOAT16(72.f),
+
         FLOAT16(73.f),  FLOAT16(74.f),  FLOAT16(75.f),  FLOAT16(76.f),  FLOAT16(77.f),  FLOAT16(78.f),  FLOAT16(79.f),  FLOAT16(80.f),
         FLOAT16(81.f),  FLOAT16(82.f),  FLOAT16(83.f),  FLOAT16(84.f),  FLOAT16(85.f),  FLOAT16(86.f),  FLOAT16(87.f),  FLOAT16(88.f),
         FLOAT16(89.f),  FLOAT16(90.f),  FLOAT16(91.f),  FLOAT16(92.f),  FLOAT16(93.f),  FLOAT16(94.f),  FLOAT16(95.f),  FLOAT16(96.f),
+
+
         FLOAT16(97.f),  FLOAT16(98.f),  FLOAT16(99.f),  FLOAT16(100.f), FLOAT16(101.f), FLOAT16(102.f), FLOAT16(103.f), FLOAT16(104.f),
         FLOAT16(105.f), FLOAT16(106.f), FLOAT16(107.f), FLOAT16(108.f), FLOAT16(109.f), FLOAT16(110.f), FLOAT16(111.f), FLOAT16(112.f),
         FLOAT16(113.f), FLOAT16(114.f), FLOAT16(115.f), FLOAT16(116.f), FLOAT16(117.f), FLOAT16(118.f), FLOAT16(119.f), FLOAT16(120.f),
+
         FLOAT16(121.f), FLOAT16(122.f), FLOAT16(123.f), FLOAT16(124.f), FLOAT16(125.f), FLOAT16(126.f), FLOAT16(127.f), FLOAT16(128.f),
         FLOAT16(129.f), FLOAT16(130.f), FLOAT16(131.f), FLOAT16(132.f), FLOAT16(133.f), FLOAT16(134.f), FLOAT16(135.f), FLOAT16(136.f),
         FLOAT16(137.f), FLOAT16(138.f), FLOAT16(139.f), FLOAT16(140.f), FLOAT16(141.f), FLOAT16(142.f), FLOAT16(143.f), FLOAT16(144.f)
