@@ -93,7 +93,7 @@ public:
     enum class AlignedMode { ASYMMETRIC, TF_HALF_PIXEL_FOR_NN, HALF_PIXEL };
 
     ROIAlign() = default;
-    /// \brief Constructs a ROIAlign node matching the ONNX ROIAlign specification
+    /// \brief Constructs a ROIAlign operation.
     ///
     /// \param input           Input feature map {N, C, H, W}
     /// \param rois            Regions of interest to pool over
