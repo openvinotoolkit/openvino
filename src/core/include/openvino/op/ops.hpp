@@ -56,6 +56,7 @@
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 #include "openvino/op/extractimagepatches.hpp"
+#include "openvino/op/eye.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
