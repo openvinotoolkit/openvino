@@ -118,13 +118,4 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
-    const std::vector<ov::AnyMap> autoConfigsMulti = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase, CompileWithCacheNoThrowTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigsMulti)),
-                            CompileWithCacheNoThrowTest::getTestCaseName);
 } // namespace

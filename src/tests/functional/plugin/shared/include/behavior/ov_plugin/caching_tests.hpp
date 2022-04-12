@@ -53,7 +53,7 @@ public:
 
 using compileKernelsCacheParams = std::tuple<
         std::string,            // device name
-        ov::AnyMap              // device configuration
+        std::pair<ov::AnyMap, std::string>    // device and cache configuration
 >;
 class CompiledKernelsCacheTest : virtual public SubgraphBaseTest,
                                  public testing::WithParamInterface<compileKernelsCacheParams> {
@@ -63,14 +63,25 @@ protected:
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::shared_ptr<ngraph::Function> function;
     std::string cache_path;
+    std::vector<std::string> m_extList;
     void SetUp() override {
         function = ngraph::builder::subgraph::makeConvPoolRelu();
-        std::tie(targetDevice, configuration) = GetParam();
-        test_name.erase(remove(test_name.begin(), test_name.end(), '/'), test_name.end());
+        std::pair<ov::AnyMap, std::string> userConfig;
+        std::tie(targetDevice, userConfig) = GetParam();
+        configuration = userConfig.first;
+        std::string ext = userConfig.second;
+        std::string::size_type pos = 0;
+        if ((pos = ext.find(",", pos)) != std::string::npos) {
+            m_extList.push_back(ext.substr(0, pos));
+            m_extList.push_back(ext.substr(pos + 1));
+        } else {
+            m_extList.push_back(ext);
+        }
+        std::replace(test_name.begin(), test_name.end(), '/', '_');
+        std::replace(test_name.begin(), test_name.end(), '\\', '_');
         cache_path = test_name + "_cache";
     }
 };
-using CompileWithCacheNoThrowTest = CompiledKernelsCacheTest;
 } // namespace behavior
 } // namespace test
 } // namespace ov

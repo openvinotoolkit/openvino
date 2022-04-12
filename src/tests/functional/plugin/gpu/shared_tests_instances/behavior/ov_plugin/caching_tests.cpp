@@ -34,11 +34,13 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                    ::testing::Values(ov::AnyMap{})),
+                                    ::testing::Values(std::make_pair(ov::AnyMap{}, "cl_cache"))),
                             CompiledKernelsCacheTest::getTestCaseName);
 
-    const std::vector<ov::AnyMap> autoConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
+    std::vector<std::pair<ov::AnyMap, std::string>> autoConfigs = {
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)}}, "cl_cache"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}}, "blob,cl_cache"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}}, "blob")
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, CompiledKernelsCacheTest,
@@ -47,15 +49,4 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             CompiledKernelsCacheTest::getTestCaseName);
 
-    const std::vector<ov::AnyMap> autoConfigsMulti = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase, CompileWithCacheNoThrowTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigsMulti)),
-                            CompileWithCacheNoThrowTest::getTestCaseName);
 } // namespace

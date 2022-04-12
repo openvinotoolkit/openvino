@@ -118,14 +118,4 @@ namespace {
                                     ::testing::ValuesIn(autoConfigs)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
-    const std::vector<std::map<std::string, std::string>> autoConfigsMulti = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-            std::string(CommonTestUtils::DEVICE_CPU)}}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase, LoadNetworkCompileWithCacheNoThrowTest,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigsMulti)),
-                            LoadNetworkCompileWithCacheNoThrowTest::getTestCaseName);
 } // namespace
