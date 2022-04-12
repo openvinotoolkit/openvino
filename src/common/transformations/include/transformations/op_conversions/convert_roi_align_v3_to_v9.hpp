@@ -10,17 +10,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertROIAlign0To9;
+class TRANSFORMATIONS_API ConvertROIAlign3To9;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertROIAlign0To9 converts v3::ROIAlign into v9::ROIAlign.
+ * @brief ConvertROIAlign3To9 converts v3::ROIAlign into v9::ROIAlign.
  */
-class ngraph::pass::ConvertROIAlign0To9 : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertROIAlign3To9 : public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertROIAlign0To9", "0");
-    ConvertROIAlign0To9();
+    OPENVINO_RTTI("ConvertROIAlign3To9", "0");
+    ConvertROIAlign3To9();
 };

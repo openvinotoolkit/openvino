@@ -11,14 +11,14 @@
 #include <ngraph/pass/manager.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_roi_align_v0_to_v9.hpp>
+#include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
 
-TEST_F(TransformationTestsF, ConvertROIAlign0To9) {
+TEST_F(TransformationTestsF, ConvertROIAlign3To9) {
     {
         const int N = 1;
         const int C = 3;
@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign0To9) {
                                                             "avg");
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign0To9>();
+        manager.register_pass<pass::ConvertROIAlign3To9>();
     }
 
     {
