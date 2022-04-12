@@ -25,12 +25,13 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
 
     with pdpd.static.program_guard(pdpd.static.Program(),
                                    pdpd.static.Program()):
+        # make model with inputs of dynamic shape
         node_boxes = pdpd.static.data(name='bboxes',
-                                      shape=bboxes.shape,
+                                      shape=[-1, -1, 4],
                                       dtype=bboxes.dtype,
                                       lod_level=1)
         node_scores = pdpd.static.data(name='scores',
-                                       shape=scores.shape,
+                                       shape=[-1] * len(scores.shape),
                                        dtype=scores.dtype,
                                        lod_level=1)
 

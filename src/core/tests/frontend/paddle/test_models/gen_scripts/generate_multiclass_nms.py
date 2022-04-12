@@ -350,11 +350,6 @@ def TEST1(N=7, M=1200, C=21):
     boxes[:, :, 0:2] = boxes[:, :, 0:2] * 0.5
     boxes[:, :, 2:4] = boxes[:, :, 2:4] * 0.5 + 0.5
 
-    # boxes[:, :, 0] = boxes[:, :, 0] * 10
-    # boxes[:, :, 1] = boxes[:, :, 1] * 10
-    # boxes[:, :, 2] = boxes[:, :, 2] * 10 + 10
-    # boxes[:, :, 3] = boxes[:, :, 3] * 10 + 10
-
     pdpd_attrs = {
         'nms_type': 'multiclass_nms3',  # PDPD Op type
         'background_label': background,
