@@ -37,7 +37,7 @@
         <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1007588" vmpeak="1008961" vmrss="168225" vmhwm="168225" />
         <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="1790564" vmpeak="1813099" vmrss="484724" vmhwm="764197" />
         <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="834516" vmpeak="834516" vmrss="128102" vmhwm="128102" />
-        <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="1712740" vmpeak="1708402" vmrss="477312" vmhwm="762455" />
+        <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="1712740" vmpeak="1708402" vmrss="479052" vmhwm="762455" />
 
         <model path="public/mtcnn/mtcnn-r/FP16/mtcnn-r.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="908169" vmpeak="908169" vmrss="42021" vmhwm="42021" />
         <model path="public/mtcnn/mtcnn-r/FP16/mtcnn-r.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2107846" vmpeak="2145161" vmrss="272996" vmhwm="329828" />
