@@ -11,14 +11,14 @@
 #include <ngraph/pass/manager.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_roi_align_v9_to_v0.hpp>
+#include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
 
-TEST_F(TransformationTestsF, ConvertROIAlign9To0) {
+TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
     {
         const int N = 1;
         const int C = 3;
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0) {
                                                             pooling_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign9To0>();
+        manager.register_pass<pass::ConvertROIAlign9To3>();
     }
 
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertROIAlign9To0_aligned_mode) {
+TEST_F(TransformationTestsF, ConvertROIAlign9To3_aligned_mode) {
     {
         const int N = 1;
         const int C = 3;
@@ -105,6 +105,6 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To0_aligned_mode) {
                                                             aligned_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign9To0>();
+        manager.register_pass<pass::ConvertROIAlign9To3>();
     }
 }

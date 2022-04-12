@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_roi_align_v0_to_v9.hpp"
+#include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset9.hpp>
@@ -11,8 +11,8 @@
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertROIAlign0To9::ConvertROIAlign0To9() {
-    MATCHER_SCOPE(ConvertROIAlign0To9);
+ngraph::pass::ConvertROIAlign3To9::ConvertROIAlign3To9() {
+    MATCHER_SCOPE(ConvertROIAlign3To9);
 
     auto roi_align_v3 = pattern::wrap_type<ngraph::opset3::ROIAlign>();
 
