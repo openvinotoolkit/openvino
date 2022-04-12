@@ -6,7 +6,7 @@ import numpy as np
 import copy  # deepcopy
 import sys
 
-from save_model import saveModel
+from save_model import saveModel, exportModel, print_alike
 
 import paddle as pdpd
 # from ppdet.modeling.ops import multiclass_nms as multiclass_nms
@@ -18,46 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(spec.origin),'modeling'))
 from ops import multiclass_nms as multiclass_nms
 from ops import matrix_nms as matrix_nms
 
-# print numpy array like vector array
-# this is to faciliate some unit test, e.g. ngraph op unit test.
-
-
-def print_alike(arr, seperator_begin='{', seperator_end='}'):
-    shape = arr.shape
-    rank = len(shape)
-
-    #print("shape: ", shape, "rank: %d" %(rank))
-
-    # for idx, value in np.ndenumerate(arr):
-    #    print(idx, value)
-
-    def print_array(arr, end=' '):
-        shape = arr.shape
-        rank = len(arr.shape)
-        if rank > 1:
-            line = seperator_begin
-            for i in range(arr.shape[0]):
-                line += print_array(
-                    arr[i, :],
-                    end=seperator_end +
-                    ",\n" if i < arr.shape[0] - 1 else seperator_end)
-            line += end
-            return line
-        else:
-            line = seperator_begin
-            for i in range(arr.shape[0]):
-                line += "{:.2f}".format(arr[i])  # str(arr[i])
-                line += ", " if i < shape[0] - 1 else ' '
-            line += end
-            # print(line)
-            return line
-
-    print(print_array(arr, seperator_end))
-
-
-# bboxes shape (N, M, 4)
-# scores shape (N, C, M)
-def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
+# bboxes shape (N, M, 4) if shared else (M, C, 4)
+# scores shape (N, C, M) if shared else (M, C)
+def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(),
@@ -147,19 +110,19 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, quite=True):
                   outputs=[x for x in output_np if x is not None],
                   target_dir=sys.argv[1])
 
-    if quite is False:
+    if verbose:
         # input
         print('\033[94m' + 'bboxes: {}'.format(bboxes.shape) + '\033[0m')
-        print_alike(bboxes, seperator_begin='', seperator_end='')
+        print_alike(bboxes, seperator_begin='', seperator_end='', verbose=True)
         print('\033[94m' + 'scores: {}'.format(scores.shape) + '\033[0m')
-        print_alike(scores, seperator_begin='', seperator_end='')
+        print_alike(scores, seperator_begin='', seperator_end='', verbose=True)
 
         # output
         print('\033[91m' + 'out_np: {}'.format(out.shape) + '\033[0m')
-        print_alike(out, seperator_begin='', seperator_end='')
+        print_alike(out, seperator_begin='', seperator_end='', verbose=True)
         print('\033[91m' + 'nms_rois_num_np: {}'.format(nms_rois_num.shape) +
               '\033[0m')
-        print_alike(nms_rois_num, seperator_begin='', seperator_end='')
+        print_alike(nms_rois_num, seperator_begin='', seperator_end='', verbose=True)
         if index is not None:
             print('\033[91m' + 'index_np: {}'.format(index.shape) + '\033[0m')
-            print_alike(index, seperator_begin='', seperator_end='')
+            print_alike(index, seperator_begin='', seperator_end='', verbose=True)
