@@ -1000,8 +1000,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     gnamem->commit(gnaFlags->compact_mode);
 
-    dnn->Init(nullptr,
-             gnamem->getTotalBytes(),
+    dnn->Init(gnamem.get(),
              gnaFlags->sw_fp32 ? kDnnFloat : kDnnInt,
              1);
 

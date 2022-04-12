@@ -205,7 +205,7 @@ void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name, const uint32
     if (cnn2dValidator) {
         cnn2dValidator->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
-        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+        THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
     }
 }
 
@@ -214,7 +214,7 @@ void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(std::string name, const ui
     if (cnn2dValidator) {
         cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
-        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
+        THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
     }
 }
 
@@ -920,6 +920,11 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         ptr_outputs);
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
+    // Need to reserve more memory otherwise the compiled model would not be
+    // backward compatible with GNA 2.0
+    // GNA 2.0 produces more outputs from 1D pooling than latter GNA generations (including GNA 3.0)
+    // When the model is compiled for some newer GNA generation (than GNA 2.0)
+    // but it does not use any specific new GNA features it should be correct to import and run using previous GNA HW
     if (!is2DPooling) {
         const auto hLegacy =
             GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy(h_dim_in, pooling._stride[X_AXIS]);

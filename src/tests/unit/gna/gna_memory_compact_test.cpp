@@ -64,7 +64,6 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushValue) {
 
     mem.commit(isCompact);
     ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 5 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 5 * sizeof(float));
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizePushValueAndReservePtr) {
@@ -257,7 +256,6 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
 
     mem.commit(isCompact);
     ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 4 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
 }
 
 class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> {

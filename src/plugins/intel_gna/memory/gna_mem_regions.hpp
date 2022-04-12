@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace GNAPluginNS {
 namespace memory {
@@ -23,29 +24,24 @@ enum rRegion {
     REGION_AUTO = 0x10000,
 };
 
-inline const char* rRegionToStr(const rRegion region) {
-   const char* strRegion = "UNKNOWN";
-   switch (region) {
-        case REGION_INPUTS:
-            strRegion = "REGION_INPUTS";
-            break;
-        case REGION_OUTPUTS:
-            strRegion = "REGION_OUTPUTS";
-            break;
-        case REGION_SCRATCH:
-            strRegion = "REGION_SCRATCH";
-            break;
-        case REGION_RO:
-            strRegion = "REGION_RO";
-            break;
-        case REGION_STATES:
-            strRegion = "REGION_STATES";
-            break;
-        case REGION_AUTO:
-            strRegion = "REGION_AUTO";
-            break;
-   }
-   return strRegion;
+inline std::map<rRegion, std::string> GetAllRegionsToStrMap() {
+    return {
+        {REGION_INPUTS,  "REGION_INPUTS"},
+        {REGION_OUTPUTS, "REGION_OUTPUTS"},
+        {REGION_SCRATCH, "REGION_SCRATCH"},
+        {REGION_STATES,  "REGION_STATES"},
+        {REGION_RO,      "REGION_RO"},
+        {REGION_AUTO,    "REGION_AUTO"}
+    };
+}
+
+inline std::string rRegionToStr(const rRegion region) {
+    const auto& map = GetAllRegionsToStrMap();
+    const auto found = map.find(region);
+    if (found == map.end()) {
+        return "UNKNOWN";
+    }
+    return found->second;
 }
 
 }  // namespace memory

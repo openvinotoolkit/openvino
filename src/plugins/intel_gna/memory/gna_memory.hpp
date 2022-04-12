@@ -38,10 +38,10 @@ class GNAFloatAllocator : public std::allocator < uint8_t > {
 class GNAMemoryInterface {
 public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
+    virtual GNAMemRequestsQueue* getQueue(void* ptr) = 0;
     virtual void commit(bool isCompact = false) = 0;
     virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
     virtual size_t getRegionBytes(rRegion region) = 0;
-    virtual size_t getTotalBytes() = 0;
     virtual ~GNAMemoryInterface() = default;
 };
 
@@ -67,15 +67,6 @@ protected:
         _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue()));
         _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue()));
         _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue()));
-    }
-
-    std::vector<rRegion> getAllRegionsOrdered() const {
-        std::vector<rRegion> regionList;
-        for (const auto& q : _mem_queues) {
-            regionList.push_back(q.first);
-        }
-        std::sort(regionList.begin(), regionList.end());
-        return regionList;
     }
 
  public:
@@ -134,18 +125,25 @@ protected:
         return _mem_queues[region].get();
     }
 
-    std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
-        const auto allRegionsOrdered = getAllRegionsOrdered();
+    GNAMemRequestsQueue* getQueue(void* ptr) override {
+        for (auto& queuePair : _mem_queues) {
+            const auto offset = queuePair.second->getOffset(ptr);
+            if (offset.first) {
+                return queuePair.second.get();
+            }
+        }
+        return nullptr;
+    }
 
+    std::pair<bool, uint32_t> getOffsetForMerged(void * ptr) override {
         uint32_t curOffset = 0;
-        for (auto region : allRegionsOrdered) {
-            auto& q = *getQueue(region);
-            auto ptrBegin = static_cast<uint8_t*>(q.getBasePtr());
-            auto size = q.getSize();
-            if (ptr >= ptrBegin && ptr < ptrBegin + size) {
-                curOffset += static_cast<uint8_t*>(ptr) - ptrBegin;
+        for (auto& queuePair : _mem_queues) {
+            const auto offset = queuePair.second->getOffset(ptr);
+            if (offset.first) {
+                curOffset += offset.second;
                 return {true, curOffset};
             }
+            const auto size = queuePair.second->getSize();
             curOffset += ALIGN64(size);
         }
         return {false, 0};
@@ -153,14 +151,6 @@ protected:
 
     size_t getRegionBytes(rRegion region) override {
         return ALIGN(getQueue(region)->calcSize(), _page_alignment);
-    }
-
-    size_t getTotalBytes() override {
-        _total = 0;
-        for (const auto &queue : _mem_queues) {
-            _total += ALIGN(queue.second->calcSize(), _page_alignment);
-        }
-        return _total;
     }
 
     template<class T>
@@ -281,7 +271,7 @@ protected:
 #ifdef GNA_HEAP_PROFILER
     void memoryDump() {
         for (const auto &queue : _mem_queues) {
-            std::ofstream dumpFile("gna_memory_requests_" + std::string(rRegionToStr(queue.first)) + ".txt", std::ios::out);
+            std::ofstream dumpFile("gna_memory_requests_" + rRegionToStr(queue.first) + ".txt", std::ios::out);
             for (auto &re : queue.second->_mem_requests) {
             dumpFile << "region: " << rRegionToStr(re._region) << ", "
                     << "type: " << std::setw(17) << rTypeToStr(re._type) << " "
