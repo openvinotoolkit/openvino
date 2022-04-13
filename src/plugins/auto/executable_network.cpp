@@ -29,28 +29,24 @@ using namespace InferenceEngine;
 
 namespace {
 std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
-    try {
-        auto nGraphFunc = network.getFunction();
-        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-        if (isINTModel) {
-            return METRIC_VALUE(INT8);
-        }
-        for (auto & node : nGraphFunc->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
-                auto layerType = node->input(1).get_element_type().get_type_name();
-                if (layerType == "f32")
-                    return METRIC_VALUE(FP32);
-                if (layerType == "f16")
-                    return METRIC_VALUE(FP16);
-            }
-        }
-        return METRIC_VALUE(FP32);
-    } catch (...) {
-        return METRIC_VALUE(FP32);
+    auto nGraphFunc = network.getFunction();
+    bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+    if (isINTModel) {
+        return METRIC_VALUE(INT8);
     }
+    for (auto & node : nGraphFunc->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+            auto layerType = node->input(1).get_element_type().get_type_name();
+            if (layerType == "f32")
+                return METRIC_VALUE(FP32);
+            if (layerType == "f16")
+                return METRIC_VALUE(FP16);
+        }
+    }
+    return METRIC_VALUE(FP32);
 }
 }  // namespace
 
@@ -187,7 +183,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
-    _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
+    if (modelPath.empty())
+        _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
             _loadContext[ACTUALDEVICE].networkPrecision, _context.modelPriority);
