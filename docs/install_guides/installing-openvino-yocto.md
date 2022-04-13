@@ -2,11 +2,48 @@
 This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 ## System Requirements
-Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
+Your host machine have to meet following requirements:
+
+- 50 GB of free disk space
+- Runs on [supported Linux distribution release](https://docs.yoctoproject.org/ref-manual/system-requirements.html#supported-linux-distributions)
+- Has installed following packages
+  * GIT 1.8.3.1 or newer
+  * Tar 1.28 or newer
+  * Pythone 3.6.0 or newer
+  * gcc 5.0 or newer
 
 ## Step 1: Set Up Environment
 
-### Set Up Git Repositories
+### Set up Host Packages
+Install essential host packages on your host machine:
+
+@sphinxdirective
+
+.. tab:: Ubuntu & Debian
+
+   .. code-block:: sh
+
+      $ sudo apt install gawk wget git diffstat unzip texinfo gcc build-essential chrpath socat cpio python3 python3-pip python3-pexpect xz-utils debianutils iputils-ping python3-git python3-jinja2 libegl1-mesa libsdl1.2-dev pylint3 xterm python3-subunit mesa-common-dev zstd liblz4-tool
+
+.. tab:: Fedora
+
+   .. code-block:: sh
+
+      $ sudo dnf install gawk make wget tar bzip2 gzip python3 unzip perl patch diffutils diffstat git cpp gcc gcc-c++ glibc-devel texinfo chrpath ccache perl-Data-Dumper perl-Text-ParseWords perl-Thread-Queue perl-bignum socat python3-pexpect findutils which file cpio python python3-pip xz python3-GitPython python3-jinja2 SDL-devel xterm rpcgen mesa-libGL-devel perl-FindBin perl-File-Compare perl-File-Copy perl-locale zstd lz4
+
+.. tab:: openSUSE
+
+   .. code-block:: sh
+
+      $ sudo yum install -y epel-release
+      $ sudo yum makecache
+      $ sudo yum install gawk make wget tar bzip2 gzip python3 unzip perl patch diffutils diffstat git cpp gcc gcc-c++ glibc-devel texinfo chrpath socat perl-Data-Dumper perl-Text-ParseWords perl-Thread-Queue python3-pip xz which SDL-devel xterm mesa-libGL-devel zstd lz4
+      $ sudo pip3 install GitPython jinja2
+
+
+@endsphinxdirective
+
+### Set up Git Repositories
 The following Git repositories are required to build a Yocto image:
 
 - [Poky](https://git.yoctoproject.org/poky)
@@ -94,3 +131,8 @@ openvino-model-optimizer
 openvino-model-optimizer-dbg
 openvino-model-optimizer-dev
 ```
+
+
+## Additional Resources
+
+- [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html)

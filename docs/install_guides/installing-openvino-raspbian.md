@@ -9,30 +9,21 @@
 
 ## Development and Target Platforms
 
-@sphinxdirective
-.. tab:: Operating Systems
-
-  * Raspbian Buster, 32-bit
-  * Raspbian Stretch, 32-bit
-
-.. tab:: Hardware
-
-  * Raspberry Pi board with ARM ARMv7-A CPU architecture. Check that `uname -m` returns `armv7l`.
-  * Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
+* Operating Systems
+  - Raspbian Buster, 32-bit
+  - Raspbian Stretch, 32-bit
+* Hardware
+  - Raspberry Pi board with ARM ARMv7-A CPU architecture. Check that `uname -m` returns `armv7l`.
+  - Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
 
   .. note::
     The current version of the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
-.. tab:: Software Requirements
+* Software Requirements
+  - CMake 3.7.2 or higher
+  - Python 3.6-3.8, 32-bit
 
-  * CMake 3.7.2 or higher
-  * Python 3.6-3.8, 32-bit
-
-@endsphinxdirective
-
-## Overview
-
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS. The following steps will be covered:
+## Installation Flow
 
 1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
 2. <a href="#install-external-dependencies">Install External Software Dependencies</a>
@@ -57,11 +48,11 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    sudo tar -xf l_openvino_toolkit_runtime_raspbian_p_<version>.tgz --strip 2 -C /opt/intel/openvino_2022
    ```
 
-Now the OpenVINO™ toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules.
+<!-- Now the OpenVINO™ toolkit components are installed. Additional configuration steps are still required. Continue to the next sections to install External Software Dependencies, configure the environment and set up USB rules. -->
 
 ## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
-CMake version 3.7.2 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
+Open a Terminal window and run the following command:
 ```sh
 sudo apt install cmake
 ```
@@ -70,22 +61,24 @@ CMake is installed. Continue to the next section to set the environment variable
 
 ## <a name="set-the-environment-variables"></a>Step 3: Set the Environment Variables
 
-You must update several environment variables before you can compile and run OpenVINO™ toolkit applications. Run the following script to temporarily set the environment variables:
+<!-- You must update several environment variables before you can compile and run OpenVINO™ toolkit applications.  -->
+Run the following script to temporarily set the environment variables:
+
+> **NOTE**:If you have more than one OpenVINO™ version on your machine, you can switch versions by sourcing `setupvars.sh` of your choice.
+
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
 ```
 
-If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
+> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your editor, and add `source /opt/intel/openvino_2022/bin/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. **Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.**
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source /opt/intel/openvino_2022/bin/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
-
-The environment variables are set. Next, you can download some additional tools.
+With environment variables set, you can download some additional tools.
 
 ## <a name="add-usb-rules"></a>Step 4 (Optional): Add USB Rules for an Intel® Neural Compute Stick 2 device
 
 @sphinxdirective
 
-Only if you want to perform inference on Intel® Neural Compute Stick 2, follow the steps on :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
+Only if you want to perform inference on Intel® Neural Compute Stick 2, follow the :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
 
 @endsphinxdirective
 

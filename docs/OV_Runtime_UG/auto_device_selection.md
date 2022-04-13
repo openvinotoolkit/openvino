@@ -10,18 +10,18 @@
 
 @endsphinxdirective
 
-The Automatic Device Selection mode (AUTO) uses a "virtual" or a "proxy" device, 
+The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
 which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
-It detects available devices, picks the best-suited one for the task, and configures its optimization settings. 
-Thanks to that, application can be written once and deployed anywhere.
+It detects available devices, picks the one best-suited for the task, and configures its optimization settings. 
+This way, you can write the application once and deploy it anywhere.
 
 The selection also depends on your performance requirements, defined by the “hints” configuration API, as well as 
 device priority list limitations, if you choose to exclude some hardware from the process.
 
-The selection process follows below steps: 
+The logic behind the choice is as follows: 
 1. Check what supported devices are available. 
-2. Check precisions of the input model (more detailed information on precisions can be found on the `ov::device::capabilities`) 
-3. Select the highest-priority device capable of supporting the given model (listed in the table below). 
+2. Check precisions of the input model (for detailed information on precisions read more on the `ov::device::capabilities`) 
+3. Select the highest-priority device capable of supporting the given model, as listed in the table below. 
 4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16. 
 
 +----------+------------------------------------------------------+-------------------------------------+
@@ -41,13 +41,13 @@ The selection process follows below steps:
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 
-To sum it up, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
+To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
 What is important, **AUTO always starts inference with the CPU**, as it provides very low latency and can start inference with no additional delays. 
-While the CPU is performing inference, AUTO continues to load the model to the device best suited for the task and (once ready) transfers the task to it.
-This way, the devices which are much slower in compiling models (like GPU) do not hinder inference at its initial stages.
+While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
+This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
 For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than GPU itself.
 
-> **NOTE**: If chosen to be excluded from the priority list, the CPU will also be unable to support the initial model compilation stage.
+Note that if you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
      
 ![autoplugin_accelerate]
 
