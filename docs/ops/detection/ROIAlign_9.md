@@ -56,10 +56,10 @@
 * *aligned_mode*
 
   * **Description**: *aligned_mode* specifies how to transform the coordinate in original tensor to the resized tensor.
-  * **Range of values**: name of the transformation mode in string format (here scale[x] is resized_shape[x] / original_shape[x], resized_shape[x] is the shape of resized tensor in axis x, original_shape[x] is the shape of original tensor in axis x and x_original is a coordinate in axis x, for any axis x from the input axes):
-    * *asymmetric* - the coordinate in the resized tensor axis x is calculated according to the formula x_original * scale[x]
-    * *half_pixel* - the coordinate in the resized tensor axis x is calculated as ((x_original + 0.5) * scale[x]) - 0.5
-    * *half_pixel_for_nn* - the coordinate in the resized tensor axis x is x_original * scale[x] - 0.5
+  * **Range of values**: name of the transformation mode in string format (here spatial_scale is resized_shape[x] / original_shape[x], resized_shape[x] is the shape of resized tensor in axis x, original_shape[x] is the shape of original tensor in axis x and x_original is a coordinate in axis x, for any axis x from the input axes):
+    * *asymmetric* - the coordinate in the resized tensor axis x is calculated according to the formula x_original * spatial_scale
+    * *tf_half_pixel_for_nn* - the coordinate in the resized tensor axis x is x_original * spatial_scale - 0.5
+    * *half_pixel* - the coordinate in the resized tensor axis x is calculated as ((x_original + 0.5) * spatial_scale) - 0.5
   * **Type**: string
   * **Default value**: asymmetric  
   * **Required**: *no*
@@ -71,7 +71,7 @@
 *   **2**: 2D input tensor of shape `[NUM_ROIS, 4]` describing box consisting of 4 element tuples: `[x_1, y_1, x_2, y_2]` in relative coordinates of type *T*.
 The box height and width are calculated the following way:
     * If *aligned_mode* equals *asymmetric*: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`, `roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`.
-    * else: `roi_width = x_2 - x_1`, `roi_height = y_2 - y_1`.
+    * else: `roi_width = spatial_scale * (x_2 - x_1)`, `roi_height = spatial_scale * (y_2 - y_1)`.
     * **Required.**
 
 *   **3**: 1D input tensor of shape `[NUM_ROIS]` with batch indices of type *IND_T*. **Required.**
