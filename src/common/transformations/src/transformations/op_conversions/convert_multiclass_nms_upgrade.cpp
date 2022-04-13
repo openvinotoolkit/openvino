@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
 
-#include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
 

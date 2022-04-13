@@ -4,17 +4,23 @@
 
 #pragma once
 
-#include "openvino/op/util/nms_base.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 /// \brief Base class for operations MulticlassNMS v8 and MulticlassNMS
 /// v9.
-class OPENVINO_API MulticlassNmsBase : public util::NmsBase {
+class OPENVINO_API MulticlassNmsBase : public Op {
 public:
-    OPENVINO_OP("MulticlassNmsBase", "util", op::util::NmsBase);
+    OPENVINO_OP("MulticlassNmsBase", "util");
     BWDCMP_RTTI_DECLARATION;
+
+    enum class SortResultType {
+        CLASSID,  // sort selected boxes by class id (ascending) in each batch element
+        SCORE,    // sort selected boxes by score (descending) in each batch element
+        NONE      // do not guarantee the order in each batch element
+    };
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -59,10 +65,29 @@ public:
         return m_attrs;
     }
 
+    void set_output_type(const element::Type& output_type) {
+        m_attrs.output_type = output_type;
+    }
+    using Node::set_output_type;
+
 protected:
     Attributes m_attrs;
-    bool validate() override;
+    void validate();  // helper
 };
 }  // namespace util
 }  // namespace op
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const op::util::MulticlassNmsBase::SortResultType& type);
+
+template <>
+class OPENVINO_API AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>
+    : public EnumAttributeAdapterBase<op::util::MulticlassNmsBase::SortResultType> {
+public:
+    AttributeAdapter(op::util::MulticlassNmsBase::SortResultType& value)
+        : EnumAttributeAdapterBase<op::util::MulticlassNmsBase::SortResultType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::util::MulticlassNmsBase::SortResultType>");
+    BWDCMP_RTTI_DECLARATION;
+};
 }  // namespace ov

@@ -6,8 +6,8 @@
 
 #include <transformations_visibility.hpp>
 
-#include "ngraph/opsets/opset9.hpp"
 #include "ngraph/op/util/multiclass_nms_base.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 namespace ngraph {
 namespace op {
@@ -35,4 +35,4 @@ public:
 };
 }  // namespace internal
 }  // namespace op
-}  // namespace ov
+}  // namespace ngraph

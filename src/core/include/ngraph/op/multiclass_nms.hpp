@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/util/nms_base.hpp"
+#include "ngraph/op/util/multiclass_nms_base.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 
 namespace ngraph {

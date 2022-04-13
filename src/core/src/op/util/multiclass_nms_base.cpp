@@ -10,16 +10,52 @@ using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::MulticlassNmsBase);
 
-op::util::MulticlassNmsBase::MulticlassNmsBase()
-    : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
+op::util::MulticlassNmsBase::MulticlassNmsBase() {}
 
 op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, const Attributes& attrs)
-    : NmsBase(arguments, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
+    : Op(arguments),
       m_attrs{attrs} {}
 
-bool op::util::MulticlassNmsBase::validate() {
+void op::util::MulticlassNmsBase::validate() {
     NGRAPH_OP_SCOPE(util_MulticlassNmsBase_validate);
-    const auto validated = NmsBase::validate();
+
+    const auto& nms_attrs = this->get_attrs();
+    const auto output_type = nms_attrs.output_type;
+    const auto nms_top_k = nms_attrs.nms_top_k;
+    const auto keep_top_k = nms_attrs.keep_top_k;
+
+    auto is_float_type_admissible = [](const element::Type& t) {
+        return t == element::f32 || t == element::f16 || t == element::bf16;
+    };
+
+    // validate dtype of each input
+    NODE_VALIDATION_CHECK(this,
+                          output_type == element::i64 || output_type == element::i32,
+                          "Output type must be i32 or i64");
+
+    NODE_VALIDATION_CHECK(this,
+                          is_float_type_admissible(this->get_input_element_type(0)),
+                          "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
+
+    NODE_VALIDATION_CHECK(this,
+                          is_float_type_admissible(this->get_input_element_type(1)),
+                          "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
+
+    NODE_VALIDATION_CHECK(this,
+                          this->get_input_element_type(0).compatible(this->get_input_element_type(1)),
+                          "Expected 'boxes', 'scores' type is same.");
+
+    if (this->get_input_size() == 3) {
+        NODE_VALIDATION_CHECK(
+            this,
+            this->get_input_element_type(2) == element::i64 || this->get_input_element_type(2) == element::i32,
+            "Expected i64 or i32 as element type for the 'roisnum' input.");
+    }
+
+    // validate attributes
+    NODE_VALIDATION_CHECK(this, nms_top_k >= -1, "The 'nms_top_k' must be great or equal -1. Got:", nms_top_k);
+
+    NODE_VALIDATION_CHECK(this, keep_top_k >= -1, "The 'keep_top_k' must be great or equal -1. Got:", keep_top_k);
 
     NODE_VALIDATION_CHECK(this,
                           m_attrs.background_class >= -1,
@@ -30,7 +66,6 @@ bool op::util::MulticlassNmsBase::validate() {
                           m_attrs.nms_eta >= 0.0f && m_attrs.nms_eta <= 1.0f,
                           "The 'nms_eta' must be in close range [0, 1.0]. Got:",
                           m_attrs.nms_eta);
-    return validated;
 }
 
 bool op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
@@ -49,3 +84,22 @@ bool op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
 
     return true;
 }
+
+std::ostream& ov::operator<<(std::ostream& s, const op::util::MulticlassNmsBase::SortResultType& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
+template <>
+NGRAPH_API EnumNames<op::util::MulticlassNmsBase::SortResultType>&
+EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
+    static auto enum_names = EnumNames<op::util::MulticlassNmsBase::SortResultType>(
+        "op::util::MulticlassNmsBase::SortResultType",
+        {{"classid", op::util::MulticlassNmsBase::SortResultType::CLASSID},
+         {"score", op::util::MulticlassNmsBase::SortResultType::SCORE},
+         {"none", op::util::MulticlassNmsBase::SortResultType::NONE}});
+    return enum_names;
+}
+
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>);
+}  // namespace ov

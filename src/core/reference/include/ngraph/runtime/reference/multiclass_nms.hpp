@@ -16,7 +16,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/multiclass_nms_base.hpp"
-#include "ngraph/op/util/nms_base.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape_util.hpp"
 

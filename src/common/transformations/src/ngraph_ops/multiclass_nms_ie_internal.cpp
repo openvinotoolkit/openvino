@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+
 #include "../../core/shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "itt.hpp"
 
@@ -39,6 +40,7 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
 
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
+    const auto output_type = get_attrs().output_type;
 
     validate();
 
@@ -55,6 +57,6 @@ void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
                                                {Dimension::dynamic()}};
     shape_infer(this, input_shapes, output_shapes, true, true);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
-    set_output_type(1, m_output_type, output_shapes[1]);
-    set_output_type(2, m_output_type, output_shapes[2]);
+    set_output_type(1, output_type, output_shapes[1]);
+    set_output_type(2, output_type, output_shapes[2]);
 }

@@ -26,6 +26,8 @@ public:
     /// \param attrs Attributes of the operation
     MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs);
 
+    void validate_and_infer_types() override;
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v8
@@ -62,9 +64,6 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-protected:
-    bool validate() override;
 };
 }  // namespace v9
 }  // namespace op

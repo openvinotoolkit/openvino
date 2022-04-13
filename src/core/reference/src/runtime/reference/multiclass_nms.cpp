@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/multiclass_nms.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <queue>
 #include <vector>
 
-#include "ngraph/op/multiclass_nms.hpp"
 #include "../shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
@@ -229,11 +230,11 @@ std::vector<T> slice_image(const T* data, const Shape& data_shape, const int64_t
 // boxes:       num_priors, 4
 // scores:      num_priors, 1
 static const std::vector<BoxInfo> nms(const float* boxes_data,
-                               const float* scoresPtr,
-                               const int64_t num_priors,
-                               const op::util::MulticlassNmsBase::Attributes& attrs,
-                               const size_t image_idx,
-                               const size_t class_idx) {
+                                      const float* scoresPtr,
+                                      const int64_t num_priors,
+                                      const op::util::MulticlassNmsBase::Attributes& attrs,
+                                      const size_t image_idx,
+                                      const size_t class_idx) {
     auto func = [](float iou, float adaptive_threshold) {
         return iou <= adaptive_threshold ? 1.0f : 0.0f;
     };
@@ -284,8 +285,7 @@ static const std::vector<BoxInfo> nms(const float* boxes_data,
 
         bool should_hard_suppress = false;
         for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index; --j) {
-            float iou =
-                intersectionOverUnion(next_candidate.box, selected[j].box, attrs.normalized);
+            float iou = intersectionOverUnion(next_candidate.box, selected[j].box, attrs.normalized);
             next_candidate.score *= func(iou, adaptive_threshold);
 
             if (iou >= adaptive_threshold) {
@@ -322,12 +322,12 @@ static const std::vector<BoxInfo> nms(const float* boxes_data,
 // boxes:       1, M, 4         C, M', 4
 // scores:      1, C, M         C, M'
 static const std::vector<BoxInfo> multiclass_nms(const float* boxes_data,
-                                          const Shape& boxes_data_shape,
-                                          const float* scores_data,
-                                          const Shape& scores_data_shape,
-                                          const op::util::MulticlassNmsBase::Attributes& attrs,
-                                          const size_t image_idx,
-                                          const bool shared) {
+                                                 const Shape& boxes_data_shape,
+                                                 const float* scores_data,
+                                                 const Shape& scores_data_shape,
+                                                 const op::util::MulticlassNmsBase::Attributes& attrs,
+                                                 const size_t image_idx,
+                                                 const bool shared) {
     int64_t num_dets = 0;
     std::vector<BoxInfo> selected_boxes;  // container for a batch element
     (void)boxes_data_shape;

@@ -24,7 +24,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ov::op::util::NmsBase::SortResultType;
+using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 
 bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {

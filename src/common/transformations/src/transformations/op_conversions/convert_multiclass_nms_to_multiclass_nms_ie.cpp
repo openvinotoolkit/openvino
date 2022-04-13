@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -41,7 +41,7 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         // vector of new nGraph operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
-        attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
+        attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
 
         std::shared_ptr<op::internal::MulticlassNmsIEInternal> nms_new;
         if (new_args.size() > 2) {

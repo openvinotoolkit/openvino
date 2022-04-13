@@ -1809,7 +1809,6 @@ def test_rnn_sequence_operator_forward(dtype):
 
 
 def test_multiclass_nms():
-    """ the case when bboxes are shared """
     boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
@@ -1833,7 +1832,6 @@ def test_multiclass_nms():
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
 
-    """ the case when bboxes are not shared """
     boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
                             [7.25, 0.47, 12.28, 17.77]],
                            [[4.06, 5.15, 16.11, 18.40],

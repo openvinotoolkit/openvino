@@ -23,7 +23,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     int32_t nmsTopK, backgroundClass, keepTopK;
     element::Type outType;
 
-    op::util::NmsBase::SortResultType sortResultType;
+    op::util::MulticlassNmsBase::SortResultType sortResultType;
 
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
@@ -343,7 +343,7 @@ void MulticlassNmsLayerTest::SetUp() {
     size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
     element::Type outType;
 
-    op::util::NmsBase::SortResultType sortResultType;
+    op::util::MulticlassNmsBase::SortResultType sortResultType;
 
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
