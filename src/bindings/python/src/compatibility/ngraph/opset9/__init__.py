@@ -94,7 +94,7 @@ from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
-from ngraph.opset8.ops import multiclass_nms
+from ngraph.opset9.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative

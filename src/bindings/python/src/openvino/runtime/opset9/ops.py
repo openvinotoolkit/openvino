@@ -146,3 +146,65 @@ def irdft(
         inputs = as_nodes(data, axes, signal_size)
 
     return _get_node_factory_opset9().create("IRDFT", inputs)
+
+
+@nameable_op
+def multiclass_nms(
+        boxes: NodeInput,
+        scores: NodeInput,
+        roisnum: NodeInput = None,
+        sort_result_type: str = "none",
+        sort_result_across_batch: bool = False,
+        output_type: str = "i64",
+        iou_threshold: float = 0.0,
+        score_threshold: float = 0.0,
+        nms_top_k: int = -1,
+        keep_top_k: int = -1,
+        background_class: int = -1,
+        nms_eta: float = 1.0,
+        normalized: bool = True
+) -> Node:
+    """Return a node which performs MulticlassNms.
+
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param roisnum: Tensor with roisnum. Specifies the number of rois in each image. Required when
+                    'scores' is a 2-dimensional tensor.    
+    :param sort_result_type: Specifies order of output elements, possible values:
+                             'class': sort selected boxes by class id (ascending)
+                             'score': sort selected boxes by score (descending)
+                             'none': do not guarantee the order.
+    :param sort_result_across_batch: Specifies whenever it is necessary to sort selected boxes
+                                     across batches or not
+    :param output_type: Specifies the output tensor type, possible values:
+                        'i64', 'i32'
+    :param iou_threshold: Specifies intersection over union threshold
+    :param score_threshold: Specifies minimum score to consider box for the processing
+    :param nms_top_k: Specifies maximum number of boxes to be selected per class, -1 meaning
+                      to keep all boxes
+    :param keep_top_k: Specifies maximum number of boxes to be selected per batch element, -1
+                       meaning to keep all boxes
+    :param background_class: Specifies the background class id, -1 meaning to keep all classes
+    :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
+    :param normalized: Specifies whether boxes are normalized or not
+    :return: The new node which performs MuticlassNms
+    """
+    if roisnum is None:
+        inputs = as_nodes(boxes, scores)
+    else:
+        inputs = as_nodes(boxes, scores, roisnum)
+
+    attributes = {
+        "sort_result_type": sort_result_type,
+        "sort_result_across_batch": sort_result_across_batch,
+        "output_type": output_type,
+        "iou_threshold": iou_threshold,
+        "score_threshold": score_threshold,
+        "nms_top_k": nms_top_k,
+        "keep_top_k": keep_top_k,
+        "background_class": background_class,
+        "nms_eta": nms_eta,
+        "normalized": normalized
+    }
+
+    return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
