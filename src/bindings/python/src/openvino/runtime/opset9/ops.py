@@ -169,7 +169,7 @@ def multiclass_nms(
     :param boxes: Tensor with box coordinates.
     :param scores: Tensor with box scores.
     :param roisnum: Tensor with roisnum. Specifies the number of rois in each image. Required when
-                    'scores' is a 2-dimensional tensor.    
+                    'scores' is a 2-dimensional tensor.
     :param sort_result_type: Specifies order of output elements, possible values:
                              'class': sort selected boxes by class id (ascending)
                              'score': sort selected boxes by score (descending)

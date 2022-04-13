@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+
 import pytest
+
 from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
@@ -1874,7 +1876,7 @@ def test_rnn_sequence_operator_forward(dtype):
 
 
 def test_multiclass_nms():
-    ''' the case when bboxes are shared '''
+    """ the case when bboxes are shared """
     boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
@@ -1898,19 +1900,19 @@ def test_multiclass_nms():
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
 
-    ''' the case when bboxes are not shared '''
-    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47 ],
-                    [7.25, 0.47, 12.28, 17.77 ]],
-                    [[4.06, 5.15, 16.11, 18.40 ],
-                    [9.66, 3.36, 18.57, 13.26 ]],
-                    [[6.50, 7.00, 13.33, 17.63 ],
-                    [0.73, 5.34, 19.97, 19.97 ]]]).astype('float32')
+    """ the case when bboxes are not shared """
+    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
+                            [7.25, 0.47, 12.28, 17.77]],
+                           [[4.06, 5.15, 16.11, 18.40],
+                            [9.66, 3.36, 18.57, 13.26]],
+                           [[6.50, 7.00, 13.33, 17.63],
+                            [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
     box = ng.constant(boxes_data, dtype=np.float)
-    scores_data = np.array([[0.34, 0.66 ],
-                    [0.45, 0.61 ],
-                    [0.39, 0.59 ]]).astype('float32')
+    scores_data = np.array([[0.34, 0.66],
+                            [0.45, 0.61],
+                            [0.39, 0.59]]).astype("float32")
     score = ng.constant(scores_data, dtype=np.float)
-    rois_num_data = np.array([3]).astype('int32')
+    rois_num_data = np.array([3]).astype("int32")
     roisnum = ng.constant(rois_num_data, dtype=np.int)
     nms_node = ng.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
@@ -1924,6 +1926,7 @@ def test_multiclass_nms():
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
+
 
 def test_matrix_nms():
     boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
