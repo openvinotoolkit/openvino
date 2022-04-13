@@ -1,16 +1,16 @@
 # Graph API Kernel API {#openvino_docs_gapi_kernel_api}
 
-The core idea behind Graph API (G-API) is portability – a pipeline built with G-API must be portable (or at least able to be portable). It means that either it works out-of-the box when compiled for new platform, or G-API provides necessary tools to make it running there, with little-to-no changes in the algorithm itself.
+Main idea behind Graph API (G-API) is mobility – a pipeline built with G-API must, at least be able to, be portable. It means that either it works out-of-the box when compiled for new platform, or G-API provides necessary tools to make it running there, with little-to-no changes in the algorithm itself.
 
-This idea can be achieved by separating kernel interface from its implementation. Once a pipeline is built using kernel interfaces, it becomes implementation-neutral – the implementation details (i.e. which kernels to use) are passed on a separate stage (graph compilation).
+This can be achieved by separating kernel interface from its implementation. Once pipeline is built, using kernel interfaces, it becomes implementation-neutral. The implementation details (i.e. which kernels to use) are passed on in a separate stage - graph compilation.
 
-Kernel-implementation hierarchy may look like:
+Examples of kernel-implementation hierarchy:
 ![Kernel API/implementation hierarchy example](../img/gapi_kernel_implementation_hierarchy.png)
 
-A pipeline itself then can be expressed only in terms of `A`, `B`, and so on, and choosing which implementation to use in execution becomes an external parameter.
+Pipeline itself then can only be expressed in terms of `A`, `B`, and so on, and choosing which implementation to use in execution becomes an external parameter.
 
 ## Define a Kernel
-G-API provides a macro to define a new kernel interface `G_TYPED_KERNEL()`:
+G-API provides a macro to define a new kernel interface - `G_TYPED_KERNEL()`:
 
 ```cpp
 #include <opencv2/gapi.hpp>
@@ -36,12 +36,12 @@ This macro is a shortcut to a new type definition. It takes three arguments to r
 
 * Kernel interface name -- Also serves as a name of new type defined with this macro;
 * Kernel signature -- An `std::function<>`-like signature which defines API of the kernel;
-* Kernel's unique name -- Used to identify kernel when its type information is stripped within the system.
-* Kernel declaration may be seen as function declaration -- In both cases a new entity must be used then according to the way it was defined.
+* Kernel unique name -- Used to identify kernel when its type information is stripped within the system;
+* Kernel declaration/Function declaration -- In both cases, a new entity must be used then according to the way it was defined.
 
-Kernel signature defines kernel's usage syntax -- which parameters it takes during graph construction. Implementations can also use this signature to derive it into backend-specific callback signatures (see next chapter).
+Kernel signature defines kernel's usage syntax, which parameters it takes during graph construction. Implementations can also use this signature to derive it into backend-specific callback signatures (check next chapter).
 
-Kernel may accept values of any type, and G-API dynamic types are handled in a special way. All other types are opaque to G-API and passed to kernel in `outMeta()` or in execution callbacks as-is.
+Kernel may accept values of any type, and G-API dynamic types are handled in a special way. All other types are unclear to G-API, and are passed to kernel in `outMeta()` or in execution callbacks as-is.
 
 Kernel's return value can only be of G-API dynamic type – `cv::GMat`, `cv::GScalar`, or `cv::GArray<T>`. If an operation has more than one output, it should be wrapped into an `std::tuple<>` (which can contain only mentioned G-API types). Arbitrary-output-number operations are not supported.
 
