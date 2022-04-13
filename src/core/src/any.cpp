@@ -20,6 +20,8 @@ bool Any::equal(std::type_index lhs, std::type_index rhs) {
     return result;
 }
 
+
+
 bool Any::Base::is(const std::type_info& other) const {
     return Any::equal(type_info(), other);
 }
