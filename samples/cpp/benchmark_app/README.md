@@ -10,11 +10,7 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-  **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order.
-  If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
-  or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
-  For more information about the argument, refer to **When to Reverse Input Channels** section of
-  [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
+> **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
@@ -73,7 +69,7 @@ Options:
                               In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
                               You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-    -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+    -extensions "<absolute_path>" Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
@@ -150,7 +146,7 @@ If a model has mixed input types, input folder should contain all required files
 
 To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO IR (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -243,6 +239,6 @@ Below are fragments of sample output static and dynamic networks:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Runtime Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)
