@@ -21,6 +21,17 @@ TEST(type_prop, random_uniform_type_shape) {
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, 4, 5}));
 }
 
+TEST(type_prop, random_uniform_param_input) {
+    auto out_shape = make_shared<opset8::Parameter>(element::i32, PartialShape{3});
+    auto min_val = make_shared<opset8::Constant>(element::i64, Shape{}, 5);
+    auto max_val = make_shared<opset8::Constant>(element::i64, Shape{}, 10);
+
+    auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i64, 100, 200);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::i64);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
 TEST(type_prop, random_uniform_dynamic_shape) {
     auto out_shape = make_shared<opset8::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
     auto min_val = make_shared<opset8::Constant>(element::i64, Shape{}, 5);

@@ -11,6 +11,7 @@ namespace op {
 namespace v1 {
 /// \brief VariadicSplit operation splits an input tensor into pieces along some axis.
 /// The pieces may have variadic lengths depending on "split_lengths" attribute.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API VariadicSplit : public Op {
 public:
     OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);

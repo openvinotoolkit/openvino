@@ -3,7 +3,7 @@
 //
 
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/insert_load_store.hpp"
@@ -230,9 +230,24 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
-    manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
-    manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
-    if (exec_domain.back() != 1) {
+    // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
+    // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
+    // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the the output does
+    // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
+    // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
+    // Parameter_0    Parameter_1        Parameter_2
+    // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
+    //   Load        BroadcastLoad         Load*       Scalar
+    //          Add                             Subtract
+    //            \___________     ___________BroadcastMove
+    //                        \   /
+    //                       Multiply
+    //                         Store
+    //                        Result
+    // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
+    if (!exec_domain.empty() && exec_domain.back() != 1) {
+        manager.register_pass<snippets::pass::ReplaceLoadsWithScalarLoads>();
+        manager.register_pass<snippets::pass::ReplaceStoresWithScalarStores>();
         manager.get_pass_config()->
         set_callback<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>(skip_matching_domain);
         manager.get_pass_config()->

@@ -25,6 +25,7 @@ namespace v1 {
 /// | Type                               | Description                                                                                                                                |
 /// | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 /// | \f$\texttt{bool}[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = 1\text{ if }\texttt{arg0}[i_1,\dots,i_n] = \texttt{arg1}[i_1,\dots,i_n]\text{, else } 0\f$ |
+/// \ingroup ov_ops_cpp_api
 // clang-format on
 class OPENVINO_API Equal : public util::BinaryElementwiseComparison {
 public:

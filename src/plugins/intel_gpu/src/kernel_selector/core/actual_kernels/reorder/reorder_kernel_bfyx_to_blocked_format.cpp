@@ -55,7 +55,7 @@ static inline std::string GetTiledInputOrder(size_t size) {
 }
 
 static inline size_t GetFsvAlignment(const reorder_params& params) {
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     int fsv_alignment = -1;
     switch (out.GetLayout()) {
     case DataLayout::b_fs_yx_fsv4:
@@ -80,14 +80,14 @@ static inline size_t GetFsvAlignment(const reorder_params& params) {
 
 static inline size_t GetTileSize(const reorder_params& params) {
     const Datatype input_type = params.inputs[0].GetDType();
-    const Datatype output_type = params.output.GetDType();
+    const Datatype output_type = params.outputs[0].GetDType();
 
     // i64 supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
         return MIN_TILE_SIZE;
     }
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv4) {
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) {
         return MIN_TILE_SIZE;
     }
 
@@ -167,12 +167,12 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", tile_size * total_lws));
 
-    if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         jit.AddConstant(MakeJitConstant("FS_B_YX_FSV", 1));
     }
 
-    if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-        params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
+    if (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
         jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
         jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, fsv_alignment)));
     }
@@ -211,7 +211,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     if (input.GetDims().size() != output.GetDims().size()) {
         return false;
@@ -242,7 +242,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p, const optio
 KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const Params& p, const optional_params& /*options*/) const {
     const reorder_params& params = static_cast<const reorder_params&>(p);
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     const size_t b = input.Batch().v;
     const size_t f = input.Feature().v;
@@ -261,7 +261,7 @@ KernelsPriority ReorderKernel_bfyx_to_blocked_format::GetKernelsPriority(const P
     }
 
     // At this condition, reorder_data_fast_b1 is faster
-    if (b == 1 && output.Batch().v == 1 && params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && f < 256) {
+    if (b == 1 && output.Batch().v == 1 && params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && f < 256) {
         return FORCE_PRIORITY_8;
     }
 

@@ -5,7 +5,8 @@
 #include "blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-using namespace ov::intel_cpu;
+namespace ov {
+namespace intel_cpu {
 
 bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
@@ -66,3 +67,6 @@ std::string BlockedMemoryDesc::serializeFormat() const {
 
     return result.str();
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

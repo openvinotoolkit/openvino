@@ -4,7 +4,7 @@
 
 #include "depth_to_space.h"
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 
 #include <cmath>
@@ -17,11 +17,14 @@
 
 #define THROW_ERROR IE_THROW() << "DepthToSpace layer with name '" << getName() << "' "
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
+using namespace dnnl::impl;
 
-size_t MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::hash() const {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
@@ -37,7 +40,7 @@ size_t MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::hash() const {
     return seed;
 }
 
-bool MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) const {
+bool DepthToSpace::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) const {
     bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
                   blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
                   dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
@@ -46,7 +49,7 @@ bool MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::operator==(const DepthToSpaceAtt
     return result;
 }
 
-bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
         if (!depthToSpace) {
@@ -64,8 +67,8 @@ bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -104,9 +107,9 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
 }
 
-void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {}
+void DepthToSpace::getSupportedDescriptors() {}
 
-void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
+void DepthToSpace::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -158,7 +161,7 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNDepthToSpaceNode::createPrimitive() {
+void DepthToSpace::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -182,7 +185,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     }
 }
 
-void MKLDNNDepthToSpaceNode::prepareParams() {
+void DepthToSpace::prepareParams() {
     attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
@@ -197,11 +200,11 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
     execPtr = result.first;
 }
 
-MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
-    if (!ov::intel_cpu::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
+DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
+    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
         IE_THROW() << "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
 
-    const bool isBlocked = ov::intel_cpu::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const size_t nDims = attrs.srcBlockedDims.size();
     const size_t reshapedRank = nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
@@ -286,7 +289,7 @@ MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthTo
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
-void MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) {
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
@@ -296,7 +299,7 @@ void MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::exec(MKLDNNMemoryPtr& srcMemP
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
+void DepthToSpace::execute(dnnl::stream strm) {
     if (!execPtr) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
@@ -305,11 +308,14 @@ void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 
-void MKLDNNDepthToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
+void DepthToSpace::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNDepthToSpaceNode::created() const {
-    return getType() == DepthToSpace;
+bool DepthToSpace::created() const {
+    return getType() == Type::DepthToSpace;
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNDepthToSpaceNode, DepthToSpace);
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

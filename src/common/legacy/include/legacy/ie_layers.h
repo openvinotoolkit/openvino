@@ -155,7 +155,7 @@ public:
      * @brief Returns the original nGraph op
      * @return A smart pointer to nGraph op
      */
-    std::shared_ptr<ngraph::Node> getNode() {
+    std::shared_ptr<ngraph::Node> getNode() const {
         return node;
     }
 

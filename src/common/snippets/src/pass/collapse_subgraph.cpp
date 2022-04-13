@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
@@ -84,12 +85,15 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
+            || ov::is_type<opset1::Floor>(n)
+            || ov::is_type<opset1::Ceiling>(n)
             || ov::is_type<opset1::Elu>(n)
             || ov::is_type<opset1::Erf>(n)
             || ov::is_type<opset1::Exp>(n)
             || ov::is_type<opset1::LogicalNot>(n)
             || ov::is_type<opset1::Negative>(n)
             || ov::is_type<opset1::Relu>(n)
+            || ov::is_type<opset5::Round>(n)
             || ov::is_type<opset1::Sigmoid>(n)
             || ov::is_type<opset1::Sqrt>(n)
             || ov::is_type<opset1::Tanh>(n)
@@ -137,7 +141,7 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
-// Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
     bool not_set = true;
@@ -148,8 +152,12 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 if (out_tensor->get_name().empty()) {
                     const auto& body_result = subgraph->get_body()->get_output_op(i);
-                    const std::string newTensorName = ngraph::op::util::get_ie_output_name(
-                            body_result->get_input_source_output(0));
+                    const auto& body_result_input = body_result->get_input_source_output(0);
+                    // Note that create_ie_output_name() checks only deprecated output.get_tensor().get_name()
+                    // However output.get_tensor().get_names() should also be updated
+                    if (!body_result_input.get_names().empty())
+                        out_tensor->add_names(body_result_input.get_names());
+                    std::string newTensorName = ngraph::op::util::get_ie_output_name(body_result_input);
                     out_tensor->set_name(newTensorName);
                 }
                 NGRAPH_SUPPRESS_DEPRECATED_END
@@ -263,8 +271,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector internal_inputs;
 
         auto input_values = node->input_values();
-        /* 
-        * Called with subgraph->input_value(i) arg and used to 
+        /*
+        * Called with subgraph->input_value(i) arg and used to
         * Check that the attached node input subgraph has the same input as the node itself.
         * If true, then ternary merge is initiated.
         *        input
@@ -320,7 +328,6 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
-        std::string newSubgraphName{};
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -335,8 +342,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     input_subgraphs.insert(input_node);
 
                     fusedNames += getFusedNames(subgraph);
-                    if (newSubgraphName.empty())
-                            newSubgraphName = subgraph->get_friendly_name();
+
                     num_result_children += has_result_child(subgraph);
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
@@ -418,8 +424,6 @@ TokenizeSnippets::TokenizeSnippets() {
         num_result_children += get_num_result_children(node);
         if (num_result_children > 1)
             return abort_with_strategy("New subgraph is created since too many Result children are detected");
-        if (newSubgraphName.empty())
-            newSubgraphName = node->get_friendly_name();
 
         auto body_node = node->copy_with_new_inputs(internal_inputs);
         body_node->set_friendly_name(node->get_friendly_name());
@@ -481,11 +485,11 @@ TokenizeSnippets::TokenizeSnippets() {
             return abort_with_strategy(message_reset, message_abort);
         }
 
-        auto body = op::create_body(newSubgraphName, body_results, body_parameters);
+        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body, newSubgraphName);
+        auto subgraph = op::build_subgraph(node, external_inputs, body);
         auto act_body = subgraph->get_body();
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -511,7 +515,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
+        subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()

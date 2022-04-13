@@ -54,7 +54,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     # to produce correct mapping
     extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.offline_transformations import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
     from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 

@@ -22,13 +22,7 @@
    Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
    Configurations for NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
    Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
-   
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Troubleshooting
-   
-   Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>
+   Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>
    
 .. toctree::
    :maxdepth: 1
@@ -43,9 +37,15 @@
    :hidden:
    :caption: OpenVINO Code Samples
 
-   openvino_docs_IE_DG_Samples_Overview
+   openvino_docs_OV_UG_Samples_Overview
 
-
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Troubleshooting
+   
+   Installation & Configuration Issues <openvino_docs_get_started_guide_troubleshooting>
+   
 @endsphinxdirective
  
 @sphinxdirective
@@ -62,7 +62,7 @@
    </p>
    <div style="clear:both;"> </div> 
    
-   <p>If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please check the additional configurations for them accordingly: <a href="openvino_docs_install_guides_configurations_for_intel_gpu.html" >Configurations for GPU</a>, <a href="openvino_docs_install_guides_installing_openvino_ivad_vpu.html" >Configurations for VPU</a> or <a href="openvino_docs_install_guides_configurations_for_ncs2.html" >Configurations for NCS2</a>.
+   <p>If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, Intel® Neural Compute Stick 2 or Intel® Gaussian &amp; Neural Accelerator (GNA), please check the additional configurations for them accordingly: <a href="openvino_docs_install_guides_configurations_for_intel_gpu.html" >Configurations for GPU</a>, <a href="openvino_docs_install_guides_installing_openvino_ivad_vpu.html" >Configurations for VPU</a>, <a href="openvino_docs_install_guides_configurations_for_ncs2.html" >Configurations for NCS2</a> or <a href="openvino_docs_install_guides_configurations_for_intel_gna.html" >Configurations for GNA</a>.
    </p>
    
    <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process: from performing sample inference with just one command, to running code samples, demo application or Jupyter notebooks. If you prefer working with GUI, you can also get started with the DL Workbench application. This way you can choose the right level for you.<br /></p>
@@ -70,10 +70,6 @@
    <h3>Choose how you want to progress:</h3>
  
    <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_scripts.html" >
-        <h4>One-command demo 		</h4>
-        <p>Execute just one command and watch all the steps happening before your eyes. </p>
-     </a>  		
      <a href="openvino_docs_get_started_get_started_demos.html" >
         <h4>Step-by-step demo		</h4>
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
@@ -86,11 +82,11 @@
         <h4>DL Workbench		</h4>
         <p>Use a web-based version of OpenVINO with a Graphical User Interface. Installing a DL Workbench container is required. </p>
      </a> 
-     <a href="openvino_docs_IE_DG_Samples_Overview.html" >
+     <a href="openvino_docs_OV_UG_Samples_Overview.html" >
         <h4>OpenVINO samples	</h4>
         <p>See ready-made applications explaining OpenVINO features and various use-cases.		</p>
      </a> 
-     <a href="openvino_docs_IE_DG_Samples_Overview.html" >
+     <a href="openvino_docs_OV_UG_Samples_Overview.html" >
         <h4>Reference Implementation For Speech Recognition Apps</h4>
         <p>Use a speech recognition demo and Kaldi* model conversion tool as reference. </p>
      </a>

@@ -4,8 +4,8 @@
 
 #include "roi_pooling.h"
 
-#include <mkldnn.hpp>
-#include <extension_utils.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include <selective_build.h>
 
 #include <ngraph/opsets/opset2.hpp>
@@ -23,15 +23,18 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
@@ -345,7 +348,7 @@ bool RoiPoolingKey::operator==(const RoiPoolingKey &rhs) const {
 }
 } // namespace
 
-bool ov::intel_cpu::jit_roi_pooling_params::operator==(const ov::intel_cpu::jit_roi_pooling_params &rhs) const noexcept {
+bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const noexcept {
     return mb == rhs.mb &&
            c == rhs.c &&
            ih == rhs.ih &&
@@ -363,7 +366,7 @@ bool ov::intel_cpu::jit_roi_pooling_params::operator==(const ov::intel_cpu::jit_
            alg == rhs.alg;
 }
 
-bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
         if (!roiPooling) {
@@ -381,8 +384,8 @@ bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -402,7 +405,7 @@ MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& 
     }
 }
 
-void MKLDNNROIPoolingNode::getSupportedDescriptors() {
+void ROIPooling::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
@@ -429,7 +432,7 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
+void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -458,7 +461,7 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
                           impl_type);
 }
 
-void MKLDNNROIPoolingNode::createPrimitive() {
+void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -478,7 +481,7 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     }
 }
 
-void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
+void ROIPooling::execute(dnnl::stream strm) {
     if (execPtr) {
         const auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -489,11 +492,11 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNROIPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+void ROIPooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNROIPoolingNode::prepareParams() {
+void ROIPooling::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& srcMemPtr1 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -527,7 +530,7 @@ void MKLDNNROIPoolingNode::prepareParams() {
 }
 
 template <typename T>
-class MKLDNNROIPoolingNode::ROIPoolingJitExecutor : public MKLDNNROIPoolingNode::ROIPoolingExecutor {
+class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
         if (mayiuse(cpu::x64::avx512_common)) {
@@ -545,9 +548,9 @@ public:
     }
 
     void exec(
-        const ov::intel_cpu::MKLDNNMemory& srcData,
-        const ov::intel_cpu::MKLDNNMemory& srcRoi,
-        const ov::intel_cpu::MKLDNNMemory& dst) override {
+        const Memory& srcData,
+        const Memory& srcRoi,
+        const Memory& dst) override {
         if (!roi_pooling_kernel)
             IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
 
@@ -664,13 +667,13 @@ private:
 };
 
 template <typename T>
-class MKLDNNROIPoolingNode::ROIPoolingRefExecutor : public MKLDNNROIPoolingNode::ROIPoolingExecutor {
+class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
     void exec(
-        const ov::intel_cpu::MKLDNNMemory& srcData,
-        const ov::intel_cpu::MKLDNNMemory& srcRoi,
-        const ov::intel_cpu::MKLDNNMemory& dst) override {
+        const Memory& srcData,
+        const Memory& srcRoi,
+        const Memory& dst) override {
         auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -817,7 +820,7 @@ private:
     jit_roi_pooling_params jpp;
 };
 
-std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::ROIPoolingExecutor::createROIPoolingNewExecutor(
+std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::createROIPoolingNewExecutor(
     const jit_roi_pooling_params& jpp) {
     ROIPoolingContext ctx = { nullptr, jpp };
 
@@ -828,7 +831,7 @@ std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::
     return ctx.executor;
 }
 
-std::tuple<int, int, int, int> MKLDNNROIPoolingNode::ROIPoolingExecutor::getBordersForMaxMode(
+std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxMode(
     const int roi_start_h, const int roi_end_h, const int roi_start_w, const int roi_end_w,
     const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
     int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
@@ -861,7 +864,7 @@ std::tuple<int, int, int, int> MKLDNNROIPoolingNode::ROIPoolingExecutor::getBord
     return std::make_tuple(hstart, hend, wstart, wend);
 }
 
-std::pair<float, float> MKLDNNROIPoolingNode::ROIPoolingExecutor::getXYForBilinearMode(
+std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(
     const float roi_start_h, const float roi_end_h, const float roi_start_w, const float roi_end_w,
     const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
@@ -887,7 +890,7 @@ std::pair<float, float> MKLDNNROIPoolingNode::ROIPoolingExecutor::getXYForBiline
 }
 
 template <typename T>
-std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::ROIPoolingExecutor::makeExecutor(
+std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
     if (mayiuse(cpu::x64::sse41))
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
@@ -895,8 +898,10 @@ std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::
         return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
 }
 
-bool MKLDNNROIPoolingNode::created() const {
-    return getType() == ROIPooling;
+bool ROIPooling::created() const {
+    return getType() == Type::ROIPooling;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, ROIPooling);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

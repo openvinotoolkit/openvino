@@ -5,11 +5,10 @@
     "IGNORE_LOGINS": [
         "openvino-ci",
         "openvino-pushbot",
-        "lab-nerval",
-        "lab-nerval-onnx-ci",
-        "onnx-watchdog-agent",
         "workbench-ci-bot",
-        "openvino-pot-ci"
+        "openvino-pot-ci",
+        "sysicvvpux",
+        "ote-ci-bot"
     ],
     "MAX_MEMBERS_TO_REMOVE": 15,
     "EMAILS_FILE_PATH": "dev_emails-test.txt",
@@ -28,7 +27,7 @@
         "openvino-ie-gna-maintainers": "category: GNA",
         "openvino-ie-gpu-maintainers": "category: GPU",
         "openvino-ie-lpt-maintainers": "category: LP transformations",
-        "openvino-ie-multi-maintainers": "category: MULTI",
+        "openvino-ie-auto-multi-maintainers": "category: MULTI",
         "openvino-ie-python-api-maintainers": "category: python api",
         "openvino-ie-template-maintainers": "category: TEMPLATE",
         "openvino-ie-tests-maintainers": "category: IE Tests",

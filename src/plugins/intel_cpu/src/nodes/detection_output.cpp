@@ -6,15 +6,17 @@
 #include <vector>
 #include <mutex>
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include <ngraph/op/detection_output.hpp>
 #include "ie_parallel.hpp"
 #include "detection_output.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 template <typename T>
@@ -31,7 +33,7 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
 
 } // namespace
 
-bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
         if (!doOp) {
@@ -49,8 +51,8 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -90,7 +92,7 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
                   CodeType::CENTER_SIZE : CodeType::CORNER);
 }
 
-void MKLDNNDetectionOutputNode::prepareParams() {
+void DetectionOutput::prepareParams() {
     const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().GetShape().getStaticDims();
     const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
     priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
@@ -136,7 +138,7 @@ void MKLDNNDetectionOutputNode::prepareParams() {
     numPriorsActual.resize(imgNum);
 }
 
-void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
+void DetectionOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -162,11 +164,11 @@ struct ConfidenceComparatorDO {
     const float* confData;
 };
 
-void MKLDNNDetectionOutputNode::executeDynamicImpl(mkldnn::stream strm) {
+void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
+void DetectionOutput::execute(dnnl::stream strm) {
     float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());
@@ -341,7 +343,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     generateOutput(reorderedConfData, indicesData, detectionsData, decodedBboxesData, dstData);
 }
 
-inline void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
+inline void DetectionOutput::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
     numPriorsActual[n] = priorsNum;
     if (!normalized) {
         int num = 0;
@@ -355,7 +357,7 @@ inline void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData,
     }
 }
 
-inline void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
+inline void DetectionOutput::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
     if (withAddBoxPred) {
         parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
@@ -380,7 +382,7 @@ inline void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, c
     });
 }
 
-inline void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
+inline void DetectionOutput::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         // in:  reorderedConf
         // out: pindices count
@@ -409,7 +411,7 @@ inline void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, in
 
 // MX filter is per image filter, max output is prior num(select max for all class within this prior)
 // NMS is per class, keep topk is per image, final output is per class
-inline void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void DetectionOutput::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
         int offB = n * priorsNum * classesNum;
@@ -471,7 +473,7 @@ inline void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const
     }
 }
 
-inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
@@ -554,7 +556,7 @@ inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const floa
     }
 }
 
-inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
         int off = n * priorsNum * classesNum;
@@ -614,7 +616,7 @@ inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const floa
     }
 }
 
-inline void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
+inline void DetectionOutput::decodeBBoxes(const float *priorData,
                                        const float *locData,
                                        const float *varianceData,
                                        float *decodedBboxes,
@@ -717,7 +719,7 @@ inline void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
     });
 }
 
-inline void MKLDNNDetectionOutputNode::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
+inline void DetectionOutput::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
     std::partial_sort_copy(indicesIn, indicesIn + n,
                            indicesOut, indicesOut + k,
                            ConfidenceComparatorDO(conf));
@@ -760,7 +762,7 @@ static inline float JaccardOverlap(const float *decodedBbox,
     return intersectSize / (bbox1Size + bbox2Size - intersectSize);
 }
 
-inline void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
+inline void DetectionOutput::NMSCF(int* indicesIn,
                                         int& detections,
                                         int* indicesOut,
                                         const float* bboxes,
@@ -787,7 +789,7 @@ inline void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
     }
 }
 
-inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
+inline void DetectionOutput::NMSMX(int* indicesIn,
                                     int* detections,
                                     int* indicesOut,
                                     const float* bboxes,
@@ -826,7 +828,7 @@ inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
     }
 }
 
-inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
+inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
     float* dstData) {
     const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const int numResults = outDims[2];
@@ -895,8 +897,10 @@ inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, 
     }
 }
 
-bool MKLDNNDetectionOutputNode::created() const {
-    return getType() == DetectionOutput;
+bool DetectionOutput::created() const {
+    return getType() == Type::DetectionOutput;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNDetectionOutputNode, DetectionOutput)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

@@ -38,7 +38,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv
     int) const {
     DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -59,13 +59,13 @@ KernelsPriority BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetKernelsPriority(con
 }
 
 bool BinaryConvolutionKernel1x1_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !ConvolutionBinaryCheckInput(p, o))
         return false;
 
     const auto& params = static_cast<const binary_convolution_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
@@ -84,9 +84,9 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetJitConstants(const bin
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
-    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.output.Feature().v, ic_pack_size)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.outputs[0].Feature().v, ic_pack_size)));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
-    jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", params.output.X().pad.Total() != 0));
+    jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", params.outputs[0].X().pad.Total() != 0));
     jit.AddConstant(MakeJitConstant("XY_BLOCK_SIZE", xy_block_size));
     if (params.inputs[0].Feature().v % ic_pack_size) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS_IC", params.inputs[0].Feature().v % ic_pack_size));
@@ -94,11 +94,11 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetJitConstants(const bin
                                         (0xFFFFFFFF >> (ic_pack_size - params.inputs[0].Feature().v % ic_pack_size))));
     }
 
-    if (params.output.Feature().v % 32 != 0) {
+    if (params.outputs[0].Feature().v % 32 != 0) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS_OC", true));
     }
 
-    if (params.output.GetDType() == Datatype::BINARY) {
+    if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
     }
 

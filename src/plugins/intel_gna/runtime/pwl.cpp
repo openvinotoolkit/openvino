@@ -28,483 +28,26 @@
 #include "gna_plugin_log.hpp"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
+#include "ops/reference/pwl.hpp"
 
-double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
-inline double first_deriv_exp(const double x) { return(exp(x)); }
-inline double first_deriv_log(const double x) { return(1.0 / x); }
-inline double neglog(const double x) { return(-1.0*log(x)); }
-inline double neghalflog(const double x) { return(-0.5*log(x)); }
-inline double first_deriv_neglog(const double x) { return(-1.0 / x); }
-inline double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
-double sigmoid(const double x) { return(0.5 * (1.0 + tanh(x / 2))); }
-double first_deriv_sigmoid(const double x) { return(sigmoid(x) * (1.0 - sigmoid(x))); }
-double softsign(const double x) { return(x / (1.0 + fabs(x))); }
-double first_deriv_softsign(const double x) { return(1.0 / ((1.0 + fabs(x)) * (1.0 + fabs(x)))); }
 double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
 double clipping(const double x, const double lbound, const double ubound) { return((x < lbound)?lbound:((x > ubound)?ubound:x)); }
-
-inline double first_deriv_power(const double x, const std::tuple<double, double, double>& args) {
-    //scale * exponent * (offset + scale * x)^(exponent - 1)
-    return (std::get<1>(args) * std::get<0>(args) * pow(std::get<2>(args) + std::get<1>(args) * x, std::get<0>(args) - 1));
-}
 
 inline double power(const double x, const std::tuple<double, double, double>& args) {
     return (pow(std::get<2>(args) + std::get<1>(args) * x, std::get<0>(args)));
 }
 
-template <typename T1, typename T2>
-double pivot_search(std::vector<pwl_t>& result,
-                    T1 f,
-                    T2 first_deriv_f,
-                    const uint32_t N,
-                    const double alpha_0,
-                    const double alpha_N,
-                    const double threshold,
-                    const bool negative,
-                    size_t iter_num) {
-    std::vector<std::vector<double>> t(N + 1);
-    std::vector<std::vector<double>> alpha(N + 1);
-    std::vector<std::vector<double>> epsilon(N + 1);
-    std::vector<std::vector<double>> d(N + 1);
-    bool same_epsilon = false;
-    double Delta;
-    double epsilon_final = 0.0;
-    double max_epsilon = 0.0;
-    double max_epsilon_prev;
-    double min_epsilon;
-    double sgn = (negative) ? -1.0 : 1.0;
-    int j;
-
-    if (threshold < 0) {
-        return epsilon_final;
-    }
-    // Figure 4:  Box #1
-    j = 0;
-    Delta = 1.0;
-
-    for (int i = 0; i < N; i++) {
-        t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
-    }
-
-    while (true) {
-        // Figure 4:  Box #2
-        alpha[0].resize(j + 1);
-        alpha[0][j] = alpha_0;
-        for (int i = 1; i < N; i++) {
-            alpha[i].resize(j + 1);
-            alpha[i][j] = (f(t[i - 1][j]) - f(t[i][j]) + first_deriv_f(t[i][j]) * t[i][j] - first_deriv_f(t[i - 1][j]) * t[i - 1][j])
-                / (first_deriv_f(t[i][j]) - first_deriv_f(t[i - 1][j]));
-        }
-        alpha[N].resize(j + 1);
-        alpha[N][j] = alpha_N;
-
-        // Figure 4:  Box #3
-        for (int i = 0; i < N; i++) {
-            epsilon[i].resize(j + 1);
-            epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
-        }
-        epsilon[N].resize(j + 1);
-        epsilon[N][j] = sgn * (first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + f(t[N - 1][j]) - f(alpha[N][j]));
-
-        // Figure 4:  Test for completion
-        max_epsilon_prev = max_epsilon;
-        max_epsilon = fabs(epsilon[0][j]);
-        min_epsilon = fabs(epsilon[0][j]);
-        for (int i = 1; i < N + 1; i++) {
-            if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
-            if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
-        }
-        if ((j == iter_num) || (max_epsilon - min_epsilon < threshold * min_epsilon)) {
-            pwl_t value;
-            result.resize(0);
-            epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
-            for (int i = 0; i < N; i++) {
-                double val, val_next;
-                value.t = t[i][j];
-                value.alpha = alpha[i][j];
-                val = sgn * first_deriv_f(value.t) * (value.alpha - value.t) + sgn * f(value.t) - epsilon_final;
-                val_next = sgn * first_deriv_f(value.t) * (alpha[i + 1][j] - value.t) + sgn * f(value.t) - epsilon_final;
-                value.beta = val;
-                value.m = (val_next - val) / (alpha[i + 1][j] - value.alpha);
-                value.b = (val - value.m * value.alpha);
-                result.push_back(value);
-            }
-            value.t = value.m = value.b = 0.0;
-            value.alpha = alpha[N][j];
-            value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
-            result.push_back(value);
-            if (j == iter_num) {
-                THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
-            }
-            return(epsilon_final);
-        }
-
-        if (j > 0) {
-            if (max_epsilon > max_epsilon_prev) {
-                j = j - 1;
-                Delta = Delta / 2;
-            } else if (max_epsilon == max_epsilon_prev) {
-                if (!same_epsilon) {
-                    same_epsilon = true;
-                } else {
-                    j = j - 1;
-                    Delta = Delta / 2;
-                    same_epsilon = false;
-                }
-            }
-        }
-
-        // Figure 4:  Box #4
-        for (int i = 0; i < N; i++) {
-            d[i].resize(j + 1);
-            d[i][j] = Delta * (epsilon[i + 1][j] - epsilon[i][j]) /
-                ((epsilon[i + 1][j] / (alpha[i + 1][j] - t[i][j])) + (epsilon[i][j] / (t[i][j] - alpha[i][j])));
-        }
-
-        // Figure 4:  Box #5
-        for (int i = 0; i < N; i++) {
-            t[i].resize(j + 2);
-            t[i][j + 1] = t[i][j] + d[i][j];
-        }
-        t[N].resize(j + 2);
-
-        j = j + 1;
-    }
-}
-
-double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
-                    double(*first_deriv_f)(const double),
-                    const uint32_t N,
-                    const double alpha_0,
-                    const double alpha_N,
-                    const double threshold,
-                    const bool negative,
-                    size_t iter_num) {
-    double epsilon_final = 0.0;
-
-    if (f == nullptr ||
-        first_deriv_f == nullptr ||
-        threshold < 0) {
-        return epsilon_final;
-    }
-
-    auto fun = [&f](double x) -> double { return f(x); };
-    auto first_deriv = [&first_deriv_f](double x) -> double { return first_deriv_f(x); };
-    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, iter_num);
-}
-
-double calculate_error_pct(const DnnActivation& activation_type,
-                            const double l_bound,
-                            const double u_bound,
-                            const double offset,
-                            const int samples) {
-    double delta = (u_bound - l_bound) / (samples + 1);
-    double min_val = 0.0;
-    double max_val = 0.0;
-
-    if ( delta < 0 ) {
-        return 0.0;
-    }
-
-    switch (activation_type) {
-        case kActSigmoid:
-            min_val = max_val = sigmoid(l_bound);
-            break;
-        case kActTanh:
-            min_val = max_val = tanh(l_bound);
-            break;
-        case kActExp:
-            min_val = max_val = exp(l_bound);
-            break;
-        case kActLog:
-            min_val = max_val = log(l_bound);
-            break;
-        case kActNegLog:
-            min_val = max_val = neglog(l_bound);
-            break;
-        case kActNegHalfLog:
-            min_val = max_val = neghalflog(l_bound);
-            break;
-        case kActSoftSign:
-            min_val = max_val = softsign(l_bound);
-            break;
-        case kActPow:
-            min_val = max_val = pow(activation_type.args.pow.offset + activation_type.args.pow.scale * l_bound, activation_type.args.pow.exponent);
-            break;
-        default:
-            break;
-    }
-
-    for (int i = 0; i < samples; i++) {
-        double arg = l_bound + i * delta;
-        double val = 0.0;
-        switch (activation_type) {
-            case kActSigmoid:
-                val = sigmoid(arg);
-                break;
-            case kActTanh:
-                val = tanh(arg);
-                break;
-            case kActSoftSign:
-                val = softsign(arg);
-                break;
-            case kActExp:
-                val = exp(arg);
-                break;
-            case kActLog:
-                val = log(arg);
-                break;
-            case kActNegLog:
-                val = neglog(arg);
-                break;
-            case kActNegHalfLog:
-                val = neghalflog(arg);
-                break;
-            case kActPow:
-                val = pow(activation_type.args.pow.offset + activation_type.args.pow.scale * arg, activation_type.args.pow.exponent);
-                break;
-            default:
-                break;
-        }
-        if (val > max_val) max_val = val;
-        if (val < min_val) min_val = val;
-    }
-
-    return(100.0 * fabs(offset) / (max_val - min_val));
-}
-
-inline double get_break_bound(const DnnActivation& activation_type) {
-    double break_bound = 0.0;
-    switch (activation_type) {
-    case kActExp:
-        break_bound = EXP_BREAK;
-        break;
-    case kActPow:
-        break_bound = POW_BREAK;
-        break;
-    default:
-        break;
-    }
-    return break_bound;
-}
-
-inline bool split_search(const DnnActivation& activation_type,
-                    const double l_bound,
-                    const double u_bound) {
-    bool is_split = false;
-    if (l_bound > u_bound) {
-        return is_split;
-    }
-    double break_bound = get_break_bound(activation_type);
-
-    switch (activation_type) {
-        case kActSigmoid:
-        case kActTanh:
-        case kActSoftSign:
-        case kActExp:
-        case kActPow:
-            is_split = ((l_bound < break_bound) && (u_bound > break_bound));
-            break;
-        default:
-            is_split = false;
-    }
-    return is_split;
-}
-
-inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl) {
-    std::vector<pwl_t> new_pwl;
-    new_pwl = pwl;
-    for (uint32_t i = 0; i < pwl.size(); i++) {
-        new_pwl[i].m = -pwl[i].m;
-        new_pwl[i].b = -pwl[i].b;
-        new_pwl[i].beta = -pwl[i].beta;
-    }
-
-    return(new_pwl);
-}
-
-std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
-                                const double l_bound,
-                                const double u_bound,
-                                const double threshold,
-                                const double allowed_err_pct,
-                                const int samples,
-                                double& err_pct) {
-    std::vector<pwl_t> pwl;
-    double err = 0.0;
-    int n_segments = 1;
-
-    if (l_bound > u_bound ||
-        threshold < 0) {
-        return pwl;
-    }
-
-    if (split_search(activation_type, l_bound, u_bound)) {
-        std::vector<pwl_t> pwl2;
-        double err_pct1 = 0.0, err_pct2 = 0.0;
-        double break_bound = get_break_bound(activation_type);
-
-        pwl = pwl_search(activation_type, l_bound, break_bound, threshold, allowed_err_pct, samples, err_pct1);
-        pwl = negative_pwl(pwl);
-        pwl2 = pwl_search(activation_type, break_bound, u_bound, threshold, allowed_err_pct, samples, err_pct2);
-
-        if (activation_type == kActExp || activation_type == kActPow) {
-            pwl2 = negative_pwl(pwl2);
-        }
-        // merge
-        pwl.pop_back();  // remove final alpha and beta from first half
-        pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
-        err_pct = (err_pct1 + err_pct2) / 2;  // this is not quite correct but should give an indication
-    } else {
-        bool negative = false;
-        switch (activation_type) {
-            case kActSigmoid:
-                if (u_bound == 0) negative = true;  // make left half convex
-                err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
-            case kActTanh:
-                if (u_bound == 0) negative = true;  // make left half convex
-                err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
-            case kActSoftSign:
-                if (u_bound == 0) negative = true;  // make left half convex
-                err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
-            case kActExp:
-                negative = true;  // make function convex
-                err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
-            case kActLog:
-                err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                break;
-            case kActNegLog:
-                negative = true;  // make function convex
-                err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                pwl = negative_pwl(pwl);
-                break;
-            case kActNegHalfLog:
-                negative = true;  // make function convex
-                err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                pwl = negative_pwl(pwl);
-                break;
-            case kActPow: {
-                negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
-                auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
-                                                                activation_type.args.pow.scale,
-                                                                activation_type.args.pow.offset };
-                auto fun = [&args](double x) -> double { return power(x, args); };
-                auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
-                err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound,
-                    threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                break;
-            }
-            default:
-                break;
-        }
-        err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-
-        while ((n_segments < PWL_MAX_NUM_SEGMENTS) && (allowed_err_pct < err_pct)) {
-            n_segments += 1;
-            switch (activation_type) {
-                case kActSigmoid:
-                    err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                    break;
-                case kActTanh:
-                    err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                    break;
-                case kActSoftSign:
-                    err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                        break;
-                case kActExp:
-                    err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                    break;
-                case kActLog:
-                    err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                    break;
-                case kActNegLog:
-                    err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                    pwl = negative_pwl(pwl);
-                    break;
-                case kActNegHalfLog:
-                    err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_LOG);
-                    pwl = negative_pwl(pwl);
-                    break;
-                case kActPow: {
-                    auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
-                                                                    activation_type.args.pow.scale,
-                                                                    activation_type.args.pow.offset };
-                    auto fun = [&args](double x) { return power(x, args); };
-                    auto first_deriv = [&args](double x) { return first_deriv_power(x, args); };
-                    err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
-                    break;
-                }
-                default:
-                    break;
-            }
-            err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-        }
-
-        if (n_segments >= PWL_MAX_NUM_SEGMENTS) {
-            THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
-        }
-    }
-    return(pwl);
-}
-
-
 void PwlDesignOpt(const DnnActivation& activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
                     const float scale_out,
-                    const float pwlMaxErrorPercent,
-                    const bool low_precision) {
+                    const bool low_precision,
+                    const std::shared_ptr<ngraph::Node>& node) {
     std::vector<pwl_t> pwl;
-    double err_pct = 0.0;
-    auto minInputStats = 0.0f;
-    auto maxInputStats = 0.0f;
-    if (activation_type.srcFQParams.set) {
-        minInputStats = std::min(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
-        maxInputStats = std::max(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
-    }
     switch (activation_type) {
-        case kActSigmoid: {
-            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
-            auto minInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? -absMax : -SIGMOID_DOMAIN;
-            auto maxInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? absMax : SIGMOID_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActTanh: {
-            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
-            auto minInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? -absMax : -TANH_DOMAIN;
-            auto maxInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? absMax : TANH_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActSoftSign: {
-            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
-            auto minInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? -absMax : -SOFTSIGN_DOMAIN;
-            auto maxInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? absMax : SOFTSIGN_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
+        case kActPwl: {
+            make_gna_pwl(node, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActRelu:
@@ -521,64 +64,14 @@ void PwlDesignOpt(const DnnActivation& activation_type,
             make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high,
                          scale_in, scale_out, low_precision, ptr_segment);
             break;
-        case kActLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActNegLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActNegHalfLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActExp: {
-            double x_min = -log(scale_out);
-            double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
         case kActSign:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActAbs:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
-        case kActPow: {
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
-
-            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
-            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-
-            auto x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f) ? input_min_value / scale_in: 0;
-            x_min = std::max(x_min, -POW_DOMAIN);
-
-            auto x_max = input_max_value / scale_in;
-            x_max = std::min(x_max, POW_DOMAIN);
-
-            if (activation_type.args.pow.exponent != 0.0f) {
-                auto maxError = pwlMaxErrorPercent > 0.015f ? 0.015f: pwlMaxErrorPercent;
-                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, maxError, PWL_DESIGN_SAMPLES, err_pct);
-            }
-
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
         default:
-            break;
+            THROW_GNA_EXCEPTION << "Unknown piecewise linear function type: " << activation_type.type;
     }
 }
 
@@ -685,6 +178,9 @@ void PwlDesign(const DnnActivation& activation_type,
             break;
         case kActSoftSign:
             {
+                auto softsign = [](const double x) {
+                    return(x / (1.0 + fabs(x)));
+                };
                 gnalog() << "=========================== SoftSign Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
@@ -785,63 +281,63 @@ void PwlDesign(const DnnActivation& activation_type,
             }
             break;
         case kActPow:
-        {
-            gnalog() << "=========================== Pow Segments===========================\n";
-            uint32_t num_segment_size = 0;
+            {
+                gnalog() << "=========================== Pow Segments===========================\n";
+                uint32_t num_segment_size = 0;
 
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
+                auto fp32eq = [](float p1, float p2) -> bool {
+                    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+                };
 
-            auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
-                                                            activation_type.args.pow.scale,
-                                                            activation_type.args.pow.offset };
+                auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
+                                                                activation_type.args.pow.scale,
+                                                                activation_type.args.pow.offset };
 
-            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
-            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-            double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
-            x_min = std::max(x_min, -POW_DOMAIN);
+                auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
+                auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
+                double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
+                x_min = std::max(x_min, -POW_DOMAIN);
 
-            double x_max = input_max_value / scale_in;
-            x_max = std::min(x_max, POW_DOMAIN);
+                double x_max = input_max_value / scale_in;
+                x_max = std::min(x_max, POW_DOMAIN);
 
-            double pow_domain = x_max - x_min;
-            ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-            num_segment_size = static_cast<int32_t>(pow_domain * scale_in / (num_segments - 2) + 0.5);
-            int32_t x_min_scaled = x_min * scale_in + 0.5;
-            int32_t offset = x_min_scaled;
-            for (uint32_t i = 1; i < num_segments; i++) {
-                ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
-                offset += num_segment_size;
+                double pow_domain = x_max - x_min;
+                ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
+                num_segment_size = static_cast<int32_t>(pow_domain * scale_in / (num_segments - 2) + 0.5);
+                int32_t x_min_scaled = x_min * scale_in + 0.5;
+                int32_t offset = x_min_scaled;
+                for (uint32_t i = 1; i < num_segments; i++) {
+                    ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
+                    offset += num_segment_size;
+                }
+                for (uint32_t i = 0; i < num_segments; i++) {
+                    int32_t xbase = static_cast<int32_t>(ptr_segment[i].xBase & XBASEMASK);
+                    int32_t xbasenext = (i < num_segments - 1) ? static_cast<int32_t>(ptr_segment[i + 1].xBase & XBASEMASK) : INT32_MAX;
+
+                    double arg = xbase / scale_in;
+                    arg = arg < x_min ? x_min : arg;
+
+                    double argnext = xbasenext / scale_in;
+                    argnext = argnext < x_min ? x_min : argnext;
+
+                    double val = power(arg, args);
+                    double valnext = power(argnext, args);
+
+                    double slope = (valnext - val) / (static_cast<double>(xbasenext - xbase) / scale_in);
+                    auto s = gna_slope(slope, scale_in, scale_out);
+
+                    ptr_segment[i].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                    ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
+
+                    ptr_segment[i].yBase = FLOAT_TO_INT16(val * scale_out);
+                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
+                        << " "
+                        << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
+                        << " "
+                        << (s.slope / scale_out)
+                        << "\n";
+                }
             }
-            for (uint32_t i = 0; i < num_segments; i++) {
-                int32_t xbase = static_cast<int32_t>(ptr_segment[i].xBase & XBASEMASK);
-                int32_t xbasenext = (i < num_segments - 1) ? static_cast<int32_t>(ptr_segment[i + 1].xBase & XBASEMASK) : INT32_MAX;
-
-                double arg = xbase / scale_in;
-                arg = arg < x_min ? x_min : arg;
-
-                double argnext = xbasenext / scale_in;
-                argnext = argnext < x_min ? x_min : argnext;
-
-                double val = power(arg, args);
-                double valnext = power(argnext, args);
-
-                double slope = (valnext - val) / (static_cast<double>(xbasenext - xbase) / scale_in);
-                auto s = gna_slope(slope, scale_in, scale_out);
-
-                ptr_segment[i].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
-
-                ptr_segment[i].yBase = FLOAT_TO_INT16(val * scale_out);
-                gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
-                    << " "
-                    << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
-                    << " "
-                    << (s.slope / scale_out)
-                    << "\n";
-            }
-        }
             break;
         default:
             fprintf(stderr, "Activation function design for %s not yet implemented!\n", intel_dnn_activation_name[activation_type]);

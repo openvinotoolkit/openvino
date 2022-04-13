@@ -13,184 +13,184 @@ using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
 
 const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl = {
-        { "Constant", Input },
-        { "Parameter", Input },
-        { "Result", Output },
-        { "Convolution", Convolution },
-        { "GroupConvolution", Convolution },
-        { "MatMul", MatMul },
-        { "FullyConnected", FullyConnected },
-        { "MaxPool", Pooling },
-        { "AvgPool", Pooling },
-        { "AdaptiveMaxPool", AdaptivePooling},
-        { "AdaptiveAvgPool", AdaptivePooling},
-        { "Add", Eltwise },
-        { "Subtract", Eltwise },
-        { "Multiply", Eltwise },
-        { "Divide", Eltwise },
-        { "SquaredDifference", Eltwise },
-        { "Maximum", Eltwise },
-        { "Minimum", Eltwise },
-        { "Mod", Eltwise },
-        { "FloorMod", Eltwise },
-        { "Power", Eltwise },
-        { "PowerStatic", Eltwise },
-        { "Equal", Eltwise },
-        { "NotEqual", Eltwise },
-        { "Greater", Eltwise },
-        { "GreaterEqual", Eltwise },
-        { "Less", Eltwise },
-        { "LessEqual", Eltwise },
-        { "LogicalAnd", Eltwise },
-        { "LogicalOr", Eltwise },
-        { "LogicalXor", Eltwise },
-        { "LogicalNot", Eltwise },
-        { "Relu", Eltwise },
-        { "LeakyRelu", Eltwise },
-        { "Gelu", Eltwise },
-        { "Elu", Eltwise },
-        { "Tanh", Eltwise },
-        { "Sigmoid", Eltwise },
-        { "Abs", Eltwise },
-        { "Sqrt", Eltwise },
-        { "Clamp", Eltwise },
-        { "Exp", Eltwise },
-        { "SwishCPU", Eltwise },
-        { "HSwish", Eltwise },
-        { "Mish", Eltwise },
-        { "HSigmoid", Eltwise },
-        { "Round", Eltwise },
-        { "PRelu", Eltwise },
-        { "Erf", Eltwise },
-        { "SoftPlus", Eltwise },
-        { "Reshape", Reshape },
-        { "Squeeze", Reshape },
-        { "Unsqueeze", Reshape },
-        { "ShapeOf", ShapeOf },
-        { "NonZero", NonZero },
-        { "Softmax", Softmax },
-        { "Reorder", Reorder },
-        { "BatchToSpace", BatchToSpace },
-        { "SpaceToBatch", SpaceToBatch },
-        { "DepthToSpace", DepthToSpace },
-        { "SpaceToDepth", SpaceToDepth },
-        { "Roll", Roll },
-        { "LRN", Lrn },
-        { "Split", Split },
-        { "VariadicSplit", Split },
-        { "Concat", Concatenation },
-        { "ConvolutionBackpropData", Deconvolution },
-        { "GroupConvolutionBackpropData", Deconvolution },
-        { "StridedSlice", StridedSlice },
-        { "Slice", StridedSlice },
-        { "Tile", Tile },
-        { "ROIAlign", ROIAlign },
-        { "ROIPooling", ROIPooling },
-        { "PSROIPooling", PSROIPooling },
-        { "DeformablePSROIPooling", PSROIPooling },
-        { "Pad", Pad },
-        { "Transpose", Transpose },
-        { "LSTMCell", RNNCell },
-        { "GRUCell", RNNCell },
-        { "RNNCell", RNNCell },
-        { "LSTMSequence", RNNSeq },
-        { "GRUSequence", RNNSeq },
-        { "RNNSequence", RNNSeq },
-        { "FakeQuantize", FakeQuantize },
-        { "BinaryConvolution", BinaryConvolution },
-        { "DeformableConvolution", DeformableConvolution },
-        { "TensorIterator", TensorIterator },
-        { "Loop", TensorIterator },
-        { "ReadValue", MemoryInput},  // for construction from name ctor, arbitrary name is used
-        { "Assign", MemoryOutput },  // for construction from layer ctor
-        { "Convert", Convert },
-        { "NV12toRGB", ColorConvert },
-        { "NV12toBGR", ColorConvert },
-        { "I420toRGB", ColorConvert },
-        { "I420toBGR", ColorConvert },
-        { "MVN", MVN},
-        { "NormalizeL2", NormalizeL2},
-        { "ScatterUpdate", ScatterUpdate},
-        { "ScatterElementsUpdate", ScatterElementsUpdate},
-        { "ScatterNDUpdate", ScatterNDUpdate},
-        { "Interpolate", Interpolate},
-        { "ReduceL1", Reduce},
-        { "ReduceL2", Reduce},
-        { "ReduceLogicalAnd", Reduce},
-        { "ReduceLogicalOr", Reduce},
-        { "ReduceMax", Reduce},
-        { "ReduceMean", Reduce},
-        { "ReduceMin", Reduce},
-        { "ReduceProd", Reduce},
-        { "ReduceSum", Reduce},
-        { "ReduceLogSum", Reduce},
-        { "ReduceLogSumExp", Reduce},
-        { "ReduceSumSquare", Reduce},
-        { "Broadcast", Broadcast},
-        { "EmbeddingSegmentsSum", EmbeddingSegmentsSum},
-        { "EmbeddingBagPackedSum", EmbeddingBagPackedSum},
-        { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum},
-        { "Gather", Gather},
-        { "GatherElements", GatherElements},
-        { "GatherND", GatherND},
-        { "OneHot", OneHot},
-        { "RegionYolo", RegionYolo},
-        { "Select", Select},
-        { "ShuffleChannels", ShuffleChannels},
-        { "DFT", DFT},
-        { "IDFT", DFT},
-        { "Abs", Math},
-        { "Acos", Math},
-        { "Acosh", Math},
-        { "Asin", Math},
-        { "Asinh", Math},
-        { "Atan", Math},
-        { "Atanh", Math},
-        { "Ceil", Math},
-        { "Ceiling", Math},
-        { "Cos", Math},
-        { "Cosh", Math},
-        { "Floor", Math},
-        { "HardSigmoid", Math},
-        { "If", If},
-        { "Log", Math},
-        { "Neg", Math},
-        { "Reciprocal", Math},
-        { "Selu", Math},
-        { "Sign", Math},
-        { "Sin", Math},
-        { "Sinh", Math},
-        { "SoftPlus", Math},
-        { "Softsign", Math},
-        { "Tan", Math},
-        { "CTCLoss", CTCLoss},
-        { "Bucketize", Bucketize},
-        { "CTCGreedyDecoder", CTCGreedyDecoder},
-        { "CTCGreedyDecoderSeqLen", CTCGreedyDecoderSeqLen},
-        { "CumSum", CumSum},
-        { "DetectionOutput", DetectionOutput},
-        { "ExperimentalDetectronDetectionOutput", ExperimentalDetectronDetectionOutput},
-        { "LogSoftmax", LogSoftmax},
-        { "TopK", TopK},
-        { "GatherTree", GatherTree},
-        { "GRN", GRN},
-        { "Range", Range},
-        { "Proposal", Proposal},
-        { "ReorgYolo", ReorgYolo},
-        { "ReverseSequence", ReverseSequence},
-        { "ExperimentalDetectronTopKROIs", ExperimentalDetectronTopKROIs},
-        { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor},
-        { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
-        { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
-        { "ExtractImagePatches", ExtractImagePatches},
-        { "NonMaxSuppression", NonMaxSuppression},
-        { "NonMaxSuppressionIEInternal", NonMaxSuppression},
-        { "MatrixNms", MatrixNms},
-        { "MulticlassNms", MulticlassNms},
-        { "Reference", Reference},
-        { "Subgraph", Subgraph},
-        { "PriorBox", PriorBox},
-        { "PriorBoxClustered", PriorBoxClustered},
+        { "Constant", Type::Input },
+        { "Parameter", Type::Input },
+        { "Result", Type::Output },
+        { "Convolution", Type::Convolution },
+        { "GroupConvolution", Type::Convolution },
+        { "MatMul", Type::MatMul },
+        { "FullyConnected", Type::FullyConnected },
+        { "MaxPool", Type::Pooling },
+        { "AvgPool", Type::Pooling },
+        { "AdaptiveMaxPool", Type::AdaptivePooling},
+        { "AdaptiveAvgPool", Type::AdaptivePooling},
+        { "Add", Type::Eltwise },
+        { "Subtract", Type::Eltwise },
+        { "Multiply", Type::Eltwise },
+        { "Divide", Type::Eltwise },
+        { "SquaredDifference", Type::Eltwise },
+        { "Maximum", Type::Eltwise },
+        { "Minimum", Type::Eltwise },
+        { "Mod", Type::Eltwise },
+        { "FloorMod", Type::Eltwise },
+        { "Power", Type::Eltwise },
+        { "PowerStatic", Type::Eltwise },
+        { "Equal", Type::Eltwise },
+        { "NotEqual", Type::Eltwise },
+        { "Greater", Type::Eltwise },
+        { "GreaterEqual", Type::Eltwise },
+        { "Less", Type::Eltwise },
+        { "LessEqual", Type::Eltwise },
+        { "LogicalAnd", Type::Eltwise },
+        { "LogicalOr", Type::Eltwise },
+        { "LogicalXor", Type::Eltwise },
+        { "LogicalNot", Type::Eltwise },
+        { "Relu", Type::Eltwise },
+        { "LeakyRelu", Type::Eltwise },
+        { "Gelu", Type::Eltwise },
+        { "Elu", Type::Eltwise },
+        { "Tanh", Type::Eltwise },
+        { "Sigmoid", Type::Eltwise },
+        { "Abs", Type::Eltwise },
+        { "Sqrt", Type::Eltwise },
+        { "Clamp", Type::Eltwise },
+        { "Exp", Type::Eltwise },
+        { "SwishCPU", Type::Eltwise },
+        { "HSwish", Type::Eltwise },
+        { "Mish", Type::Eltwise },
+        { "HSigmoid", Type::Eltwise },
+        { "Round", Type::Eltwise },
+        { "PRelu", Type::Eltwise },
+        { "Erf", Type::Eltwise },
+        { "SoftPlus", Type::Eltwise },
+        { "Reshape", Type::Reshape },
+        { "Squeeze", Type::Reshape },
+        { "Unsqueeze", Type::Reshape },
+        { "ShapeOf", Type::ShapeOf },
+        { "NonZero", Type::NonZero },
+        { "Softmax", Type::Softmax },
+        { "Reorder", Type::Reorder },
+        { "BatchToSpace", Type::BatchToSpace },
+        { "SpaceToBatch", Type::SpaceToBatch },
+        { "DepthToSpace", Type::DepthToSpace },
+        { "SpaceToDepth", Type::SpaceToDepth },
+        { "Roll", Type::Roll },
+        { "LRN", Type::Lrn },
+        { "Split", Type::Split },
+        { "VariadicSplit", Type::Split },
+        { "Concat", Type::Concatenation },
+        { "ConvolutionBackpropData", Type::Deconvolution },
+        { "GroupConvolutionBackpropData", Type::Deconvolution },
+        { "StridedSlice", Type::StridedSlice },
+        { "Slice", Type::StridedSlice },
+        { "Tile", Type::Tile },
+        { "ROIAlign", Type::ROIAlign },
+        { "ROIPooling", Type::ROIPooling },
+        { "PSROIPooling", Type::PSROIPooling },
+        { "DeformablePSROIPooling", Type::PSROIPooling },
+        { "Pad", Type::Pad },
+        { "Transpose", Type::Transpose },
+        { "LSTMCell", Type::RNNCell },
+        { "GRUCell", Type::RNNCell },
+        { "RNNCell", Type::RNNCell },
+        { "LSTMSequence", Type::RNNSeq },
+        { "GRUSequence", Type::RNNSeq },
+        { "RNNSequence", Type::RNNSeq },
+        { "FakeQuantize", Type::FakeQuantize },
+        { "BinaryConvolution", Type::BinaryConvolution },
+        { "DeformableConvolution", Type::DeformableConvolution },
+        { "TensorIterator", Type::TensorIterator },
+        { "Loop", Type::TensorIterator },
+        { "ReadValue", Type::MemoryInput},  // for construction from name ctor, arbitrary name is used
+        { "Assign", Type::MemoryOutput },  // for construction from layer ctor
+        { "Convert", Type::Convert },
+        { "NV12toRGB", Type::ColorConvert },
+        { "NV12toBGR", Type::ColorConvert },
+        { "I420toRGB", Type::ColorConvert },
+        { "I420toBGR", Type::ColorConvert },
+        { "MVN", Type::MVN},
+        { "NormalizeL2", Type::NormalizeL2},
+        { "ScatterUpdate", Type::ScatterUpdate},
+        { "ScatterElementsUpdate", Type::ScatterElementsUpdate},
+        { "ScatterNDUpdate", Type::ScatterNDUpdate},
+        { "Interpolate", Type::Interpolate},
+        { "ReduceL1", Type::Reduce},
+        { "ReduceL2", Type::Reduce},
+        { "ReduceLogicalAnd", Type::Reduce},
+        { "ReduceLogicalOr", Type::Reduce},
+        { "ReduceMax", Type::Reduce},
+        { "ReduceMean", Type::Reduce},
+        { "ReduceMin", Type::Reduce},
+        { "ReduceProd", Type::Reduce},
+        { "ReduceSum", Type::Reduce},
+        { "ReduceLogSum", Type::Reduce},
+        { "ReduceLogSumExp", Type::Reduce},
+        { "ReduceSumSquare", Type::Reduce},
+        { "Broadcast", Type::Broadcast},
+        { "EmbeddingSegmentsSum", Type::EmbeddingSegmentsSum},
+        { "EmbeddingBagPackedSum", Type::EmbeddingBagPackedSum},
+        { "EmbeddingBagOffsetsSum", Type::EmbeddingBagOffsetsSum},
+        { "Gather", Type::Gather},
+        { "GatherElements", Type::GatherElements},
+        { "GatherND", Type::GatherND},
+        { "OneHot", Type::OneHot},
+        { "RegionYolo", Type::RegionYolo},
+        { "Select", Type::Select},
+        { "ShuffleChannels", Type::ShuffleChannels},
+        { "DFT", Type::DFT},
+        { "IDFT", Type::DFT},
+        { "Abs", Type::Math},
+        { "Acos", Type::Math},
+        { "Acosh", Type::Math},
+        { "Asin", Type::Math},
+        { "Asinh", Type::Math},
+        { "Atan", Type::Math},
+        { "Atanh", Type::Math},
+        { "Ceil", Type::Math},
+        { "Ceiling", Type::Math},
+        { "Cos", Type::Math},
+        { "Cosh", Type::Math},
+        { "Floor", Type::Math},
+        { "HardSigmoid", Type::Math},
+        { "If", Type::If},
+        { "Log", Type::Math},
+        { "Neg", Type::Math},
+        { "Reciprocal", Type::Math},
+        { "Selu", Type::Math},
+        { "Sign", Type::Math},
+        { "Sin", Type::Math},
+        { "Sinh", Type::Math},
+        { "SoftPlus", Type::Math},
+        { "Softsign", Type::Math},
+        { "Tan", Type::Math},
+        { "CTCLoss", Type::CTCLoss},
+        { "Bucketize", Type::Bucketize},
+        { "CTCGreedyDecoder", Type::CTCGreedyDecoder},
+        { "CTCGreedyDecoderSeqLen", Type::CTCGreedyDecoderSeqLen},
+        { "CumSum", Type::CumSum},
+        { "DetectionOutput", Type::DetectionOutput},
+        { "ExperimentalDetectronDetectionOutput", Type::ExperimentalDetectronDetectionOutput},
+        { "LogSoftmax", Type::LogSoftmax},
+        { "TopK", Type::TopK},
+        { "GatherTree", Type::GatherTree},
+        { "GRN", Type::GRN},
+        { "Range", Type::Range},
+        { "Proposal", Type::Proposal},
+        { "ReorgYolo", Type::ReorgYolo},
+        { "ReverseSequence", Type::ReverseSequence},
+        { "ExperimentalDetectronTopKROIs", Type::ExperimentalDetectronTopKROIs},
+        { "ExperimentalDetectronROIFeatureExtractor", Type::ExperimentalDetectronROIFeatureExtractor},
+        { "ExperimentalDetectronPriorGridGenerator", Type::ExperimentalDetectronPriorGridGenerator},
+        { "ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
+        { "ExtractImagePatches", Type::ExtractImagePatches},
+        { "NonMaxSuppression", Type::NonMaxSuppression},
+        { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
+        { "MatrixNms", Type::MatrixNms},
+        { "MulticlassNms", Type::MulticlassNms},
+        { "Reference", Type::Reference},
+        { "Subgraph", Type::Subgraph},
+        { "PriorBox", Type::PriorBox},
+        { "PriorBoxClustered", Type::PriorBoxClustered},
 };
 
 Type TypeFromName(const std::string& type) {
@@ -198,183 +198,183 @@ Type TypeFromName(const std::string& type) {
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
     } else {
-        return Unknown;
+        return Type::Unknown;
     }
 }
 
 std::string NameFromType(const Type type) {
     switch (type) {
-        case Generic:
+        case Type::Generic:
             return "Generic";
-        case Reorder:
+        case Type::Reorder:
             return "Reorder";
-        case Input:
+        case Type::Input:
             return "Input";
-        case Output:
+        case Type::Output:
             return "Output";
-        case Convolution:
+        case Type::Convolution:
             return "Convolution";
-        case Deconvolution:
+        case Type::Deconvolution:
             return "Deconvolution";
-        case Lrn:
+        case Type::Lrn:
             return "Lrn";
-        case Pooling:
+        case Type::Pooling:
             return "Pooling";
-        case AdaptivePooling:
+        case Type::AdaptivePooling:
             return "AdaptivePooling";
-        case FullyConnected:
+        case Type::FullyConnected:
             return "FullyConnected";
-        case MatMul:
+        case Type::MatMul:
             return "MatMul";
-        case Softmax:
+        case Type::Softmax:
             return "Softmax";
-        case Split:
+        case Type::Split:
             return "Split";
-        case Concatenation:
+        case Type::Concatenation:
             return "Concatenation";
-        case StridedSlice:
+        case Type::StridedSlice:
             return "StridedSlice";
-        case Reshape:
+        case Type::Reshape:
             return "Reshape";
-        case ShapeOf:
+        case Type::ShapeOf:
             return "ShapeOf";
-        case NonZero:
+        case Type::NonZero:
             return "NonZero";
-        case Tile:
+        case Type::Tile:
             return "Tile";
-        case ROIAlign:
+        case Type::ROIAlign:
             return "ROIAlign";
-        case ROIPooling:
+        case Type::ROIPooling:
             return "ROIPooling";
-        case PSROIPooling:
+        case Type::PSROIPooling:
             return "PSROIPooling";
-        case DepthToSpace:
+        case Type::DepthToSpace:
             return "DepthToSpace";
-        case BatchToSpace:
+        case Type::BatchToSpace:
             return "BatchToSpace";
-        case Pad:
+        case Type::Pad:
             return "Pad";
-        case Transpose:
+        case Type::Transpose:
             return "Transpose";
-        case SpaceToDepth:
+        case Type::SpaceToDepth:
             return "SpaceToDepth";
-        case SpaceToBatch:
+        case Type::SpaceToBatch:
             return "SpaceToBatch";
-        case MemoryOutput:
+        case Type::MemoryOutput:
             return "MemoryOutput";
-        case MemoryInput:
+        case Type::MemoryInput:
             return "MemoryInput";
-        case RNNSeq:
+        case Type::RNNSeq:
             return "RNNSeq";
-        case RNNCell:
+        case Type::RNNCell:
             return "RNNCell";
-        case Eltwise:
+        case Type::Eltwise:
             return "Eltwise";
-        case FakeQuantize:
+        case Type::FakeQuantize:
             return "FakeQuantize";
-        case BinaryConvolution:
+        case Type::BinaryConvolution:
             return "BinaryConvolution";
-        case DeformableConvolution:
+        case Type::DeformableConvolution:
             return "DeformableConvolution";
-        case MVN:
+        case Type::MVN:
             return "MVN";
-        case TensorIterator:
+        case Type::TensorIterator:
             return "TensorIterator";
-        case Convert:
+        case Type::Convert:
             return "Convert";
-        case ColorConvert:
+        case Type::ColorConvert:
             return "ColorConvert";
-        case NormalizeL2:
+        case Type::NormalizeL2:
             return "NormalizeL2";
-        case ScatterUpdate:
+        case Type::ScatterUpdate:
             return "ScatterUpdate";
-        case ScatterElementsUpdate:
+        case Type::ScatterElementsUpdate:
             return "ScatterElementsUpdate";
-        case ScatterNDUpdate:
+        case Type::ScatterNDUpdate:
             return "ScatterNDUpdate";
-        case Interpolate:
+        case Type::Interpolate:
             return "Interpolate";
-        case Reduce:
+        case Type::Reduce:
             return "Reduce";
-        case Broadcast:
+        case Type::Broadcast:
             return "Broadcast";
-        case EmbeddingSegmentsSum:
+        case Type::EmbeddingSegmentsSum:
             return "EmbeddingSegmentsSum";
-        case EmbeddingBagPackedSum:
+        case Type::EmbeddingBagPackedSum:
             return "EmbeddingBagPackedSum";
-        case EmbeddingBagOffsetsSum:
+        case Type::EmbeddingBagOffsetsSum:
             return "EmbeddingBagOffsetsSum";
-        case Gather:
+        case Type::Gather:
             return "Gather";
-        case GatherElements:
+        case Type::GatherElements:
             return "GatherElements";
-        case GatherND:
+        case Type::GatherND:
             return "GatherND";
-        case OneHot:
+        case Type::OneHot:
             return "OneHot";
-        case RegionYolo:
+        case Type::RegionYolo:
             return "RegionYolo";
-        case Select:
+        case Type::Select:
             return "Select";
-        case Roll:
+        case Type::Roll:
             return "Roll";
-        case ShuffleChannels:
+        case Type::ShuffleChannels:
             return "ShuffleChannels";
-        case DFT:
+        case Type::DFT:
             return "DFT";
-        case Math:
+        case Type::Math:
             return "Math";
-        case CTCLoss:
+        case Type::CTCLoss:
             return "CTCLoss";
-        case Bucketize:
+        case Type::Bucketize:
             return "Bucketize";
-        case CTCGreedyDecoder:
+        case Type::CTCGreedyDecoder:
             return "CTCGreedyDecoder";
-        case CTCGreedyDecoderSeqLen:
+        case Type::CTCGreedyDecoderSeqLen:
             return "CTCGreedyDecoderSeqLen";
-        case CumSum:
+        case Type::CumSum:
             return "CumSum";
-        case DetectionOutput:
+        case Type::DetectionOutput:
             return "DetectionOutput";
-        case ExperimentalDetectronDetectionOutput:
+        case Type::ExperimentalDetectronDetectionOutput:
             return "ExperimentalDetectronDetectionOutput";
-        case If:
+        case Type::If:
             return "If";
-        case LogSoftmax:
+        case Type::LogSoftmax:
             return "LogSoftmax";
-        case TopK:
+        case Type::TopK:
             return "TopK";
-        case GatherTree:
+        case Type::GatherTree:
             return "GatherTree";
-        case GRN:
+        case Type::GRN:
             return "GRN";
-        case Range:
+        case Type::Range:
             return "Range";
-        case Proposal:
+        case Type::Proposal:
             return "Proposal";
-        case ReorgYolo:
+        case Type::ReorgYolo:
             return "ReorgYolo";
-        case ReverseSequence:
+        case Type::ReverseSequence:
             return "ReverseSequence";
-        case ExperimentalDetectronTopKROIs:
+        case Type::ExperimentalDetectronTopKROIs:
             return "ExperimentalDetectronTopKROIs";
-        case ExperimentalDetectronROIFeatureExtractor:
+        case Type::ExperimentalDetectronROIFeatureExtractor:
             return "ExperimentalDetectronROIFeatureExtractor";
-        case ExperimentalDetectronPriorGridGenerator:
+        case Type::ExperimentalDetectronPriorGridGenerator:
             return "ExperimentalDetectronPriorGridGenerator";
-        case ExperimentalDetectronGenerateProposalsSingleImage:
+        case Type::ExperimentalDetectronGenerateProposalsSingleImage:
             return "ExperimentalDetectronGenerateProposalsSingleImage";
-        case ExtractImagePatches:
+        case Type::ExtractImagePatches:
             return "ExtractImagePatches";
-        case NonMaxSuppression:
+        case Type::NonMaxSuppression:
             return "NonMaxSuppression";
-        case MatrixNms:
+        case Type::MatrixNms:
             return "MatrixNms";
-        case MulticlassNms:
+        case Type::MulticlassNms:
             return "MulticlassNms";
-        case Reference:
+        case Type::Reference:
             return "Reference";
-        case Subgraph:
+        case Type::Subgraph:
             return "Subgraph";
         default:
             return "Unknown";
@@ -382,8 +382,8 @@ std::string NameFromType(const Type type) {
 }
 
 std::string algToString(const Algorithm alg) {
-#define CASE(_alg) do {                     \
-    if (alg == _alg) return #_alg;          \
+#define CASE(_alg) do {                         \
+    if (alg == Algorithm::_alg) return #_alg;   \
 } while (0)
     CASE(Default);
     CASE(PoolingMax);

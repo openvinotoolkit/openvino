@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 using namespace std;
 
 TEST(StaticShapeInferenceTest, EmbeddingBagOffsetsSumV3) {
@@ -21,6 +22,6 @@ TEST(StaticShapeInferenceTest, EmbeddingBagOffsetsSumV3) {
 
     check_static_shape(
         ebos.get(),
-        {ov::StaticShape{5, 2}, ov::StaticShape{4}, ov::StaticShape{3}, ov::StaticShape{}, ov::StaticShape{4}},
-        {ov::StaticShape{3, 2}});
+        {StaticShape{5, 2}, StaticShape{4}, StaticShape{3}, StaticShape{}, StaticShape{4}},
+        {StaticShape{3, 2}});
 }

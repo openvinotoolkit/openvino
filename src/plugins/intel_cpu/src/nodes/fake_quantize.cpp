@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
@@ -31,14 +31,17 @@
 // Uncomment it to compute scales and shifts in double precision
 // #define FQ_DOUBLE_PRECISION
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_quantize_call_args, field)
 
@@ -222,7 +225,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
     };
 
     void generate() override {
-        do_dequantization = jqp_.op_type == FQCommon;
+        do_dequantization = jqp_.op_type == Algorithm::FQCommon;
         do_rounding = do_dequantization || jqp_.dst_prc == Precision::FP32;
 
         this->preamble();
@@ -825,7 +828,7 @@ private:
     }
 };
 
-bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
         if (!fq) {
@@ -911,11 +914,11 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        algorithm = FQCommon;
+        algorithm = Algorithm::FQCommon;
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
@@ -1022,7 +1025,7 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         }
 
         if (binarization) {
-            algorithm = FQBinarization;
+            algorithm = Algorithm::FQBinarization;
 
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
@@ -1156,14 +1159,14 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                     quantizationOnly = false;
             }
 
-            algorithm = quantizationOnly ? FQQuantization : FQCommon;
+            algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
+std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     // Special case for first FQ in the network
     const auto &dims = getInputShapeAtPort(0).getDims();
     if (dims[getAxis()] == 3) {
@@ -1186,7 +1189,7 @@ std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     }
 }
 
-void MKLDNNFakeQuantizeNode::init() {
+void FakeQuantize::init() {
     if (binarization) {
         inputPrecision = Precision::FP32;
         outputPrecision = Precision::BIN;
@@ -1202,7 +1205,7 @@ void MKLDNNFakeQuantizeNode::init() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::getSupportedDescriptors() {
+void FakeQuantize::getSupportedDescriptors() {
     if (getParentEdges().size() != 5)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -1231,7 +1234,7 @@ void MKLDNNFakeQuantizeNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
+void FakeQuantize::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1284,7 +1287,7 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
+bool FakeQuantize::needPrepareParams() const {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -1301,7 +1304,7 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
                                                  axisSize != currentAxisSize);
 }
 
-void MKLDNNFakeQuantizeNode::prepareParams() {
+void FakeQuantize::prepareParams() {
     const size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
     const size_t newPaddedSize = rnd_up(axisSize, 16);
     IE_ASSERT(newPaddedSize != 0);
@@ -1328,7 +1331,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
             }
 
             if (internalBlobMemory.empty() || needUpdThr) {
-                auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine());
                 binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
@@ -1338,7 +1341,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
             }
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
-                auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine());
                 binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
@@ -1350,7 +1353,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
             constexpr size_t numFqIntBlob = 6;
 
             auto pushInternalBlob = [&](std::vector<float>& data, size_t idx) {
-                auto memory = std::make_shared<MKLDNNMemory>(getEngine());
+                auto memory = std::make_shared<Memory>(getEngine());
                 bool needOverwrite = getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
                 if (needOverwrite) {
                     memory->Create(weightsDataDesc);
@@ -1414,7 +1417,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::executeReference() {
+void FakeQuantize::executeReference() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1531,7 +1534,7 @@ void MKLDNNFakeQuantizeNode::executeReference() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
+void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1571,7 +1574,7 @@ void MKLDNNFakeQuantizeNode::executeBinarization(const std::unique_ptr<jit_uni_q
     });
 }
 
-void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
+void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1702,11 +1705,11 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
     }
 }
 
-void MKLDNNFakeQuantizeNode::executeDynamicImpl(mkldnn::stream strm) {
+void FakeQuantize::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
+void FakeQuantize::execute(dnnl::stream strm) {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -1718,11 +1721,11 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment) {
+void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment) {
     if (isPostOpDataInitialized)
         return;
 
-    if (getAlgorithm() == FQBinarization) {
+    if (getAlgorithm() == Algorithm::FQBinarization) {
         const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
         const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
         if (!isPostOpDataInitialized) {
@@ -1763,11 +1766,11 @@ void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const 
     isPostOpDataInitialized = true;
 }
 
-void MKLDNNFakeQuantizeNode::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
+void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
     if (isPostOpDataInitialized)
         return;
 
-    if (getAlgorithm() == FQBinarization) {
+    if (getAlgorithm() == Algorithm::FQBinarization) {
         const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
         const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
         if (!isPostOpDataInitialized) {
@@ -1799,9 +1802,9 @@ void MKLDNNFakeQuantizeNode::initializePostOpDataLegacy(const VectorDims &dims, 
     isPostOpDataInitialized = true;
 }
 
-void MKLDNNFakeQuantizeNode::appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new MKLDNNMemory(getEngine()));
+        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
         memPtr->Create(memoryDesc, data);
 
@@ -1809,24 +1812,24 @@ void MKLDNNFakeQuantizeNode::appendMemory(const size_t dataSize, const void *dat
     }
 }
 
-void MKLDNNFakeQuantizeNode::appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem) {
+void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem) {
     postOpsMem.push_back(data);
 }
 
 template <typename T>
-void MKLDNNFakeQuantizeNode::appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
-    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
+    // oneDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
     const size_t bufferAlignment = 16;
 
     initializePostOpDataLegacy(postOpDims, bufferAlignment);
 
-    if (getAlgorithm() == FQBinarization) {
-        ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
+    if (getAlgorithm() == Algorithm::FQBinarization) {
+        ops.append_binarization(dnnl::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
     } else {
-        mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
-                                                             mkldnn::algorithm::quantization_quantize;
+        dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon ? dnnl::algorithm::quantization_quantize_dequantize :
+                                                                        dnnl::algorithm::quantization_quantize;
 
         std::array<bool, 6> per_channel = {cropLowSize > 1, cropHighSize > 1, inputScaleSize > 1,
                                            inputShiftSize > 1, outputScaleSize > 1, outputShiftSize > 1};
@@ -1852,49 +1855,49 @@ void MKLDNNFakeQuantizeNode::appendPostOpsImpl(mkldnn::post_ops& ops, const Vect
     }
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-void MKLDNNFakeQuantizeNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {
+void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
     static const size_t bufferAlignment = 1;
 
     initializePostOpData(postOpDims, bufferAlignment);
 
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
+    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
         ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
         if (!memPtr) {
-            memPtr.reset(new MKLDNNMemory(getEngine()));
+            memPtr.reset(new Memory(getEngine()));
             memPtr->Create(memoryDesc, data);
 
             binaryPostOpsMem.push_back(memPtr);
         }
     };
 
-    mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
-                                                         mkldnn::algorithm::quantization_quantize;
+    dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon ? dnnl::algorithm::quantization_quantize_dequantize :
+                                                                    dnnl::algorithm::quantization_quantize;
 
-    appendBinary(mkldnn::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
-    appendBinary(mkldnn::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
-    appendBinary(mkldnn::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-    appendBinary(mkldnn::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
-    if (alg == mkldnn::algorithm::quantization_quantize_dequantize) {
-        ops.append_eltwise(1.0f, mkldnn::algorithm::eltwise_round_half_to_even, 0, 0);
+    appendBinary(dnnl::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
+    appendBinary(dnnl::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
+    appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
+    appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+    if (alg == dnnl::algorithm::quantization_quantize_dequantize) {
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
     }
-    appendBinary(mkldnn::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
-    appendBinary(mkldnn::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+    appendBinary(dnnl::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
+    appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
-MKLDNNFakeQuantizeNode::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
-    bool isBinarization = _jqp.op_type == FQBinarization;
+FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
+    bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_common)) {
         if (isBinarization)
             pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_common>(_jqp));
@@ -1918,19 +1921,21 @@ MKLDNNFakeQuantizeNode::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const j
     }
 }
 
-void MKLDNNFakeQuantizeNode::FakeQuantizeJitExecutor::exec(const MKLDNNFakeQuantizeNode& node) {
+void FakeQuantize::FakeQuantizeJitExecutor::exec(const FakeQuantize& node) {
     if (!pKernel)
         IE_THROW() << "Can't execute, kernel for fake quantize node is not compiled";
 
-    if (pKernel->jqp_.op_type == FQBinarization) {
+    if (pKernel->jqp_.op_type == Algorithm::FQBinarization) {
         node.executeBinarization(pKernel);
     } else {
         node.executeQuantization(pKernel);
     }
 }
 
-bool MKLDNNFakeQuantizeNode::created() const {
-    return getType() == FakeQuantize;
+bool FakeQuantize::created() const {
+    return getType() == Type::FakeQuantize;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNFakeQuantizeNode, FakeQuantize);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

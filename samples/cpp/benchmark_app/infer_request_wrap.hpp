@@ -23,7 +23,8 @@
 #include "utils.hpp"
 // clang-format on
 
-typedef std::function<void(size_t id, size_t group_id, const double latency)> QueueCallbackFunction;
+typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
+    QueueCallbackFunction;
 
 /// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
 /// time.
@@ -40,9 +41,8 @@ public:
           _callbackQueue(callbackQueue),
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
-            // TODO: Add exception ptr rethrow in proper thread
             _endTime = Time::now();
-            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
+            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), ptr);
         });
     }
 
@@ -59,7 +59,7 @@ public:
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
+        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), nullptr);
     }
 
     std::vector<ov::ProfilingInfo> get_performance_counts() {
@@ -116,7 +116,8 @@ public:
                                                                         this,
                                                                         std::placeholders::_1,
                                                                         std::placeholders::_2,
-                                                                        std::placeholders::_3)));
+                                                                        std::placeholders::_3,
+                                                                        std::placeholders::_4)));
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);
@@ -146,20 +147,34 @@ public:
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void put_idle_request(size_t id, size_t lat_group_id, const double latency) {
+    void put_idle_request(size_t id,
+                          size_t lat_group_id,
+                          const double latency,
+                          const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
-        _latencies.push_back(latency);
-        if (enable_lat_groups) {
-            _latency_groups[lat_group_id].push_back(latency);
+        if (ptr) {
+            inferenceException = ptr;
+        } else {
+            _latencies.push_back(latency);
+            if (enable_lat_groups) {
+                _latency_groups[lat_group_id].push_back(latency);
+            }
+            _idleIds.push(id);
+            _endTime = std::max(Time::now(), _endTime);
         }
-        _idleIds.push(id);
-        _endTime = std::max(Time::now(), _endTime);
         _cv.notify_one();
     }
 
     InferReqWrap::Ptr get_idle_request() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
+            if (inferenceException) {
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    throw ex;
+                }
+            }
             return _idleIds.size() > 0;
         });
         auto request = requests.at(_idleIds.front());
@@ -171,6 +186,13 @@ public:
     void wait_all() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
+            if (inferenceException) {
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    throw ex;
+                }
+            }
             return _idleIds.size() == requests.size();
         });
     }
@@ -194,4 +216,5 @@ private:
     std::vector<double> _latencies;
     std::vector<std::vector<double>> _latency_groups;
     bool enable_lat_groups;
+    std::exception_ptr inferenceException = nullptr;
 };

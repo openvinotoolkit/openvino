@@ -154,4 +154,5 @@ int main() {
 reshape_with_dynamics();
 get_tensor();
 set_tensor();
+return 0;
 }

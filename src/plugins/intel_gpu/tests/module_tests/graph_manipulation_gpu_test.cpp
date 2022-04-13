@@ -46,7 +46,7 @@ TEST(basic, test1) {
     topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
     topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(concatenation("concat", { "reorder1", "weights2" }, concatenation::along_x));
+    topology.add(concatenation("concat", { "reorder1", "weights2" }, 3));
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false);

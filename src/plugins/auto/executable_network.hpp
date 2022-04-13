@@ -75,9 +75,9 @@ enum AutoLoadContextIndex {
      CONTEXTNUM = 2
 };
 
+using Time = std::chrono::time_point<std::chrono::steady_clock>;
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
-
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public InferenceEngine::ITaskExecutor {
 public:
@@ -86,7 +86,8 @@ public:
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
-        unsigned int                              _inferCount = 0;
+        std::list<Time>                           _startTimes;
+        std::list<Time>                           _endTimes;
         int                                       _index = 0;
     };
     using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
@@ -116,7 +117,8 @@ public:
     std::shared_ptr<InferenceEngine::ICore> GetCore() const;
     ~MultiDeviceExecutableNetwork() override;
 
-    void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
+    // return true if current schedule success, fail otherwise
+    bool ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
@@ -160,7 +162,10 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
-    int                                                                 _cpuHelpInferCount = 0;
+    unsigned int                                                        _cpuHelpInferCount = 0;
+    double                                                              _cpuHelpFps = 0.0;
+    Time                                                                _cpuHelpReleaseTime;
+    InferenceEngine::SoExecutableNetworkInternal                        _passthroughExeNet;
 };
 
 }  // namespace MultiDevicePlugin

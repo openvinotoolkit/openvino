@@ -4,7 +4,7 @@
 
 #include "average_unpooling_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils_legacy.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
@@ -51,8 +51,8 @@ layout average_unpooling_inst::calc_output_layout(average_unpooling_node const& 
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature(),
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1]);
     return {input_layout.data_type, input_layout.format, output_size};

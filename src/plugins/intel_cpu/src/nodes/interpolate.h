@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum InterpolateLayoutType {
     planar,
@@ -54,8 +55,8 @@ enum class InterpolateShapeCalcMode {
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    dnnl::memory::data_type src_dt;
+    dnnl::memory::data_type dst_dt;
     int src_data_size;
     int dst_data_size;
     int indices_size;
@@ -82,30 +83,30 @@ struct jit_uni_interpolate_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_interpolate_kernel(jit_interpolate_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_interpolate_kernel(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_interpolate_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_interpolate_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
 
-class MKLDNNInterpolateNode : public MKLDNNNode {
+class Interpolate : public Node {
 public:
-    MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -115,11 +116,11 @@ public:
     void prepareParams() override;
 
     struct InterpolateAttrs {
-        InterpolateMode mode;
-        InterpolateCoordTransMode coordTransMode;
-        InterpolateNearestMode nearestMode;
-        bool antialias;
-        float cubeCoeff;
+        InterpolateMode mode = InterpolateMode::nearest;
+        InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
+        InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
+        bool antialias = false;
+        float cubeCoeff = -0.75;
         std::vector<int> padBegin;
         std::vector<int> padEnd;
         InferenceEngine::Precision inPrc;
@@ -175,7 +176,7 @@ private:
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
                                    const std::vector<float> &dataScales,
-                                   const mkldnn::primitive_attr &attr);
+                                   const dnnl::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
@@ -228,7 +229,7 @@ private:
             std::vector<float> dataScales;
     };
 
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
     std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
@@ -259,5 +260,6 @@ private:
     std::string errorPrefix;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

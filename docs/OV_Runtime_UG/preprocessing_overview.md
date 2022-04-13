@@ -1,4 +1,4 @@
-# Overview of Preprocessing API {#openvino_docs_OV_Runtime_UG_Preprocessing_Overview}
+# Optimize Preprocessing {#openvino_docs_OV_UG_Preprocessing_Overview}
 
 @sphinxdirective
 
@@ -6,8 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_Runtime_UG_Preprocessing_Details
-   openvino_docs_OV_Runtime_UG_Layout_Overview
+   openvino_docs_OV_UG_Preprocessing_Details
+   openvino_docs_OV_UG_Layout_Overview
+   openvino_docs_OV_UG_Preprocess_Usecase_save
 
 @endsphinxdirective
 
@@ -44,42 +45,41 @@ Intuitively, Preprocessing API consists of the following parts:
 
 `ov::preprocess::PrePostProcessor` class allows specifying preprocessing and postprocessing steps for model read from disk.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:create]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:create
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:create]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:create
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Declare user's data format
 
 To address particular input of model/preprocessor, use `ov::preprocess::PrePostProcessor::input(input_name)` method
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:tensor]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:tensor
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:tensor]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:tensor
 
+@endsphinxtab
+
+@endsphinxtabset
 
 Here we've specified all information about user's input:
  - Precision is U8 (unsigned 8-bit integer)
@@ -87,25 +87,26 @@ Here we've specified all information about user's input:
  - [Layout](./layout_overview.md) is "NHWC". It means that 'height=480, width=640, channels=3'
  - Color format is `BGR`
 
+@anchor declare_model_s_layout
 ### Declare model's layout
 
 Model's input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input's data [layout](./layout_overview.md)
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:model]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:model
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:model
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 Now, if model's input has `{1,3,224,224}` shape, preprocessing will be able to identify that model's `height=224`, `width=224`, `channels=3`. Height/width information is necessary for 'resize', and `channels` is needed for mean/scale normalization
@@ -114,21 +115,21 @@ Now, if model's input has `{1,3,224,224}` shape, preprocessing will be able to i
 
 Now we can define sequence of preprocessing steps:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:steps]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:steps
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:steps]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:steps
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Here:
  - Convert U8 to FP32 precision
@@ -142,21 +143,21 @@ Here:
 
 We've finished with preprocessing steps declaration, now it is time to build it. For debugging purposes it is possible to print `PrePostProcessor` configuration on screen:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:build]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:build
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:build]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:build
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 After this, `model` will accept U8 input with `{1, 480, 640, 3}` shape, with `BGR` channels order. All conversion steps will be integrated into execution graph. Now you can load model on device and pass your image to model as is, without any data manipulation on application's side

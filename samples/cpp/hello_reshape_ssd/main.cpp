@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
         const std::string device_name{argv[3]};
         // -------------------------------------------------------------------
 
-        // Step 1. Initialize inference engine core
+        // Step 1. Initialize OpenVINO Runtime core
         ov::Core core;
         // -------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
         // try to find it.
         ov::NodeVector ops = model->get_ops();
         auto it = std::find_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> node) {
-            return node->get_type_info().name == ngraph::op::DetectionOutput::get_type_info_static().name;
+            return node->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static();
         });
         if (it == ops.end()) {
             throw std::logic_error("model does not contain DetectionOutput layer");

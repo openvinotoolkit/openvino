@@ -145,6 +145,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("alg"));
 
     steps.def(
+        "crop",
+        [](ov::preprocess::PreProcessSteps& self, const std::vector<int>& begin, const std::vector<int>& end) {
+            return &self.crop(begin, end);
+        },
+        py::arg("begin"),
+        py::arg("end"));
+
+    steps.def(
         "convert_layout",
         [](ov::preprocess::PreProcessSteps& self, const ov::Layout& layout = {}) {
             return &self.convert_layout(layout);
@@ -287,6 +295,21 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             return &self.set_memory_type(memory_type);
         },
         py::arg("memory_type"));
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, const ov::Tensor& tensor) {
+            return &self.set_from(tensor);
+        },
+        py::arg("runtime_tensor"));
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, py::array& numpy_array) {
+            // Convert to contiguous array if not already C-style.
+            return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
+        },
+        py::arg("runtime_tensor"));
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
@@ -457,7 +480,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build);
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;

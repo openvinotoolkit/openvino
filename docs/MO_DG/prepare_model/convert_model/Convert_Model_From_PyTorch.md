@@ -1,23 +1,19 @@
 # Converting a PyTorch* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
 ## Typical Steps to Convert PyTorch Model <a name="typical-pytorch"></a>
-
 PyTorch* framework is supported through export to ONNX\* format. A summary of the steps for optimizing and deploying a model that was trained with the PyTorch\* framework:
 
-1. [Configure the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md) for ONNX\*.
-2. [Export PyTorch model to ONNX\*](#export-to-onnx).
-3. [Convert an ONNX\* model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
-4. Test the model in the Intermediate Representation format using the [OpenVINO™ Runtime](../../../OV_Runtime_UG/openvino_intro.md) in the target environment via provided [sample applications](../../../OV_Runtime_UG/Samples_Overview.md).
-5. [Integrate OpenVINO Runtime](../../../OV_Runtime_UG/integrate_with_your_application.md) in your application to deploy the model in the target environment.
+1. [Export PyTorch model to ONNX\*](#export-to-onnx).
+2. [Convert an ONNX\* model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 
 ## Export PyTorch\* Model to ONNX\* Format <a name="export-to-onnx"></a>
-
 PyTorch models are defined in a Python\* code, to export such models use `torch.onnx.export()` method. Usually code to
 evaluate or test the model is provided with the model code and can be used to initialize and export model.
 Only the basics will be covered here, the step to export to ONNX\* is crucial but it is covered by PyTorch\* framework.
-For more information, please refer to [PyTorch\* documentation](https://pytorch.org/docs/stable/onnx.html).
+For more information, please refer to [Exporting PyTorch models to ONNX format](https://pytorch.org/docs/stable/onnx.html).
 
 To export a PyTorch\* model you need to obtain the model as an instance of `torch.nn.Module` class and call the `export` function.
+
 ```python
 import torch
 

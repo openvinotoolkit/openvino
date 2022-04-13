@@ -13,15 +13,16 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGatherNode : public MKLDNNNode {
+class Gather : public Node {
 public:
-    MKLDNNGatherNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Gather(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -45,7 +46,7 @@ public:
     };
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
     void prepareParams() override;
     std::vector<VectorDims> shapeInfer() const override;
@@ -87,5 +88,6 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

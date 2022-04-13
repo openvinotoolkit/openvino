@@ -1,67 +1,59 @@
-#include <openvino/runtime/core.hpp>
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
-int main() {
-//! [get_available_devices]
-ov::Core core;
-std::vector<std::string> available_devices = core.get_available_devices();
-//! [get_available_devices]
+from openvino.runtime import Core
 
-//! [hetero_priorities]
-auto device_priorites = core.get_property("HETERO", ov::device::priorities);
-//! [hetero_priorities]
+# [get_available_devices]
+core = Core()
+available_devices = core.available_devices
+# [get_available_devices]
 
-//! [cpu_device_name]
-auto cpu_device_name = core.get_property("CPU", ov::device::full_name);
-//! [cpu_device_name]
+# [hetero_priorities]
+device_priorites = core.get_property("HETERO", "MULTI_DEVICE_PRIORITIES")
+# [hetero_priorities]
 
-auto model = core.read_model("sample.xml");
-{
-//! [compile_model_with_property]
-auto compiled_model = core.compile_model(model, "CPU",
-    ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::hint::inference_precision(ov::element::f32));
-//! [compile_model_with_property]
-}
+# [cpu_device_name]
+cpu_device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+# [cpu_device_name]
 
-{
-//! [optimal_number_of_infer_requests]
-auto compiled_model = core.compile_model(model, "CPU");
-auto nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
-//! [optimal_number_of_infer_requests]
-}
-{
-//! [core_set_property_then_compile]
-// set letency hint is a default for CPU
-core.set_property("CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
-// compiled with latency configuration hint
-auto compiled_model_latency = core.compile_model(model, "CPU");
-// compiled with overriden ov::hint::performance_mode value
-auto compiled_model_thrp = core.compile_model(model, "CPU",
-    ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
-//! [core_set_property_then_compile]
-}
+model = core.read_model(model="sample.xml")
+# [compile_model_with_property]
+config = {"PERFORMANCE_HINT": "THROUGHPUT",
+        "INFERENCE_PRECISION_HINT": "f32"}
+compiled_model = core.compile_model(model, "CPU", config)
+# [compile_model_with_property]
 
-{
-//! [device_thermal]
-auto compiled_model = core.compile_model(model, "MYRIAD");
-float temperature = compiled_model.get_property(ov::device::thermal);
-//! [device_thermal]
-}
+# [optimal_number_of_infer_requests]
+compiled_model = core.compile_model(model, "CPU")
+nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
+# [optimal_number_of_infer_requests]
 
-{
-//! [inference_num_threads]
-auto compiled_model = core.compile_model(model, "CPU");
-auto nthreads = compiled_model.get_property(ov::inference_num_threads);
-//! [inference_num_threads]
-}
 
-{
-//! [multi_device]
-auto compiled_model = core.compile_model(model, "MULTI",
-    ov::device::priorities("CPU", "GPU"));
-// change the order of priorities
-compiled_model.set_property(ov::device::priorities("GPU", "CPU"));
-//! [multi_device]
-}
-return 0;
-}
+# [core_set_property_then_compile]
+# latency hint is a default for CPU
+core.set_property("CPU", {"PERFORMANCE_HINT": "LATENCY"})
+# compiled with latency configuration hint
+compiled_model_latency = core.compile_model(model, "CPU")
+# compiled with overriden performance hint value
+config = {"PERFORMANCE_HINT": "THROUGHPUT"}
+compiled_model_thrp = core.compile_model(model, "CPU", config)
+# [core_set_property_then_compile]
+
+# [device_thermal]
+compiled_model = core.compile_model(model, "MYRIAD")
+temperature = compiled_model.get_property("DEVICE_THERMAL")
+# [device_thermal]
+
+
+# [inference_num_threads]
+compiled_model = core.compile_model(model, "CPU")
+nthreads = compiled_model.get_property("INFERENCE_NUM_THREADS")
+# [inference_num_threads]
+
+# [multi_device]
+config = {"MULTI_DEVICE_PRIORITIES": "CPU,GPU"}
+compiled_model = core.compile_model(model, "MULTI", config)
+# change the order of priorities
+compiled_model.set_property({"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
+# [multi_device]

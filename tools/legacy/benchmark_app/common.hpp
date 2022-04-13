@@ -86,6 +86,7 @@ static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfil
 
 static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap, std::ostream& stream,
                                           std::string deviceName, bool bshowHeader = true) {
+    std::ios::fmtflags fmt(stream.flags());
     long long totalTime = 0;
     // Print performance counts
     if (bshowHeader) {
@@ -127,6 +128,7 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceE
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request, std::ostream& stream, std::string deviceName, bool bshowHeader = true) {

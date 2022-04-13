@@ -11,6 +11,7 @@ namespace op {
 namespace v8 {
 /// \brief MulticlassNms operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MulticlassNms : public util::NmsBase {
 public:
     OPENVINO_OP("MulticlassNms", "opset8", op::util::NmsBase);
