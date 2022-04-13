@@ -288,9 +288,7 @@ private:
 
     void run_graph_compilation();
     void pre_optimize_graph(bool is_internal);
-#if 0 // TODO(Taylor)  temporally removed for multiple output PoC to reduce scope
     void post_optimize_graph(bool is_internal);
-#endif
     void cleanup();
     void transfer_memory_to_device();
 

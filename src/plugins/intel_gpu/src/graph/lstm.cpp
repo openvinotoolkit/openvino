@@ -16,7 +16,7 @@ primitive_type_id lstm::type_id() {
 }
 
 layout lstm_inst::calc_output_layout(lstm_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+    assert(!node.get_primitive()->output_data_types.empty() &&
            "Output data type forcing is not supported for lstm_node!");
     auto input_layout = node.input().get_output_layout();
     auto hidden_layout = node.inital_hidden().get_output_layout();

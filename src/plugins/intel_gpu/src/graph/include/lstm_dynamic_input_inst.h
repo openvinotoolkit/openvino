@@ -19,13 +19,13 @@ struct typed_program_node<lstm_dynamic_input> : public typed_program_node_base<l
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& dyn_length() const { return get_dependency(1); }
-    program_node& weights() const { return get_dependency(2); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& dyn_length() const { return *get_dependency(1).first; }
+    program_node& weights() const { return *get_dependency(2).first; }
 
     program_node& bias() const {
         CLDNN_ERROR_BOOL(id(), "Bias term", !bias_term(), "Trying to get non existing bias.");
-        return get_dependency(3);
+        return *get_dependency(3).first;
     }
 
     int32_t direction() const { return weights().get_output_layout().size.feature[0]; }

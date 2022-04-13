@@ -6,22 +6,19 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#if 0 // TODO(taylor)
+
 #include "split_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
 #include "lstm_inst.h"
 #include "reshape_inst.h"
 #include "resample_inst.h"
-#endif
 #include "permute_inst.h"
-#if 0 // TODO(taylor)
 #include "depth_to_space_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
 #include "lstm_dynamic_timeloop_inst.h"
 #include "mutable_data_inst.h"
-#endif
 #include "arg_max_min_inst.h"
 #include "kernel_selector_utils.h"
 
@@ -40,7 +37,7 @@ std::string get_id_string(size_t i) {
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
-#if 0 // TODO(taylor)
+
 void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {
         throw std::logic_error("Split layer cannot be used directly! Please use split output \"" + node.id() +
@@ -152,7 +149,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
                 primitive_id crop_id = input.id() + ":crop:" + get_id_string(sequence_element);
                 tensor crop_tensor{input_size.batch[0], 1, input_size.spatial[0], input_size.spatial[1]};
                 tensor offset_tensor{0, static_cast<tensor::value_type>(sequence_element), 0, 0};
-                auto input_crop = std::make_shared<crop>(crop_id, input.id(), crop_tensor, offset_tensor);
+                auto input_crop = std::make_shared<crop>(crop_id, input_info(input.id()), crop_tensor, offset_tensor);
                 auto& input_crop_node = p.get_or_create(input_crop);
 
                 // Add the crop nodes as user for input
@@ -217,10 +214,10 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             // primitive_id lstm_gemm_input_id = node->get_dependency(input_idx).get_primitive()->id;
             // the line below requires an attention: get_org_primitive_id() might not be an actual id of a node
             // (see rename method) ToDO: ensure that get_org_primitive_id() is suitable here
-            primitive_id lstm_gemm_input_id = node.get_dependency(input_idx).get_org_primitive_id();
+            primitive_id lstm_gemm_input_id = node.get_dependency(input_idx).first->get_org_primitive_id();
 
             auto lstm_gemm_node = std::make_shared<lstm_gemm>(lstm_gemm_id,
-                                                              lstm_gemm_input_id,
+                                                              input_info(lstm_gemm_input_id),
                                                               weights_id,
                                                               recurrent_id,
                                                               bias_id,
@@ -229,7 +226,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             auto& n1 = p.get_or_create(lstm_gemm_node);
 
             auto lstm_elt_node = std::make_shared<lstm_elt>(lstm_elt_id,
-                                                            lstm_gemm_id,
+                                                            input_info(lstm_gemm_id),
                                                             cell_id,
                                                             lstm_prim->clip,
                                                             lstm_prim->input_forget,
@@ -242,7 +239,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             p.add_connection(n1, n2);
             // adding dependecy to lstm_gemm node
             // input
-            p.add_connection(node.get_dependency(input_idx), n1);
+            p.add_connection(*node.get_dependency(input_idx).first, n1);
             // adding weights and initial values to lstm_gemm
             p.add_connection(p.get_node(weights_id), n1);
             p.add_connection(p.get_node(recurrent_id), n1);
@@ -264,7 +261,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             {
                 hidden_id = crop_id + ":hidden";
                 auto crop_hidden =
-                    std::make_shared<crop>(hidden_id, lstm_elt_id, hidden_size, tensor{0, 0, 0, 0});
+                    std::make_shared<crop>(hidden_id, input_info(lstm_elt_id), hidden_size, tensor{0, 0, 0, 0});
                 auto& n3 = p.get_or_create(crop_hidden);
                 // adding eltwise as dependency to hidden
                 p.add_connection(n2, n3);
@@ -284,7 +281,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             // lstm_cell
             if (i < sequence_len - 1 || emit_last_cell) {
                 cell_id = crop_id + ":cell";
-                auto crop_cell = std::make_shared<crop>(cell_id, lstm_elt_id, hidden_size, tensor{0, 1, 0, 0});
+                auto crop_cell = std::make_shared<crop>(cell_id, input_info(lstm_elt_id), hidden_size, tensor{0, 1, 0, 0});
                 auto& n4 = p.get_or_create(crop_cell);
                 p.add_connection(n2, n4);
                 cell_list[i * directions + dir] = &n4;
@@ -296,9 +293,9 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     }
     // if there is no next lstm, concatenation is created
     if (!has_lstm_children) {
-        std::vector<primitive_id> output_ids_offsets;
+        std::vector<input_info> output_ids_offsets;
         for (auto& e : output_map) {
-            output_ids_offsets.push_back(e.second.first);
+            output_ids_offsets.push_back(input_info(e.second.first));
         }
         primitive_id concatenation_id = node.id() + ":concat";
         auto concatenation_primitive =
@@ -319,7 +316,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
                                static_cast<int32_t>(concatenate_len),
                                hidden_size.spatial[0],
                                (int32_t)directions};
-            auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", concatenation_id, output_size);
+            auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", input_info(concatenation_id), output_size);
             auto& reshape_node = p.get_or_create(reshape_primitive);
             p.add_connection(concatenation_node, reshape_node);
             p.replace_all_usages(node, reshape_node);
@@ -345,12 +342,12 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
     // [1] Add lstm_dynamic_input
     auto lstm_dynamic_input_primitive =
         std::make_shared<lstm_dynamic_input>(node_id + suffix + "input",
-                                             input_id,
+                                             input_info(input_id),
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
                                              "",
-                                             node.get_primitive()->output_padding);
+                                             node.get_primitive()->output_paddings.at(0));
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
     // connect other deps
@@ -367,7 +364,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
     auto last_cell_id = node.last_cell_state_id();
     auto lstm_dynamic_timeloop_primitive =
         std::make_shared<lstm_dynamic_timeloop>(node_id + suffix + "timeloop",
-                                                lstm_dynamic_input_node.id(),
+                                                input_info(lstm_dynamic_input_node.id()),
                                                 dyn_length_id,
                                                 recurrent_id,
                                                 last_hidden_id,
@@ -377,7 +374,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                                 node.clip(),
                                                 node.input_forget(),
                                                 "",
-                                                lstm_dynamic_input_primitive->output_padding);
+                                                lstm_dynamic_input_primitive->output_paddings.at(0));
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
     // connect other deps
@@ -406,7 +403,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
 
     // we dont have to set output since it will be done in next graph_opts step
 }
-#endif
+
 void graph_initializations::set_outputs(program& p) {
     auto outputs_option = p.get_options().get<build_option_type::outputs>();
     if (!outputs_option->outputs.empty()) {
@@ -425,7 +422,6 @@ void graph_initializations::set_outputs(program& p) {
 }
 
 void graph_initializations::run(program& p) {
-#if 0 // TODO(taylor)
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
@@ -438,7 +434,6 @@ void graph_initializations::run(program& p) {
             handle_dynamic_lstm_node(p, node->as<lstm_dynamic>());
         }
     }
-#endif
     set_outputs(p);
     p.get_processing_order().calc_processing_order(p);
 }

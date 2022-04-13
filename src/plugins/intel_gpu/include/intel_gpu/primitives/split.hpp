@@ -44,11 +44,11 @@ struct split : public primitive_base<split> {
     /// @param input Input primitive id.
     /// @param output_ids_offsets Pairs of output_ids and offsets
     split(const primitive_id& id,
-          const primitive_id& input,
+          const input_info& input,
           const std::vector<std::pair<primitive_id, tensor> >& output_ids_offsets,
           const primitive_id& ext_prim_id = "",
           const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, {output_padding}),
           output_offsets(extract_tensor_vector(output_ids_offsets)),
           output_ids(extract_primitive_vector(output_ids_offsets)) {}
 

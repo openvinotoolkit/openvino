@@ -26,7 +26,7 @@ void calculate_prior_boxes::run(program& p) {
 
         auto result = pb_node.get_result_buffer();
 
-        auto& data_node = p.get_or_create(std::make_shared<data>("_cldnn_tmp_" + pb_node.id() + "_result", result));
+        auto& data_node = p.get_or_create(std::make_shared<data>("_cldnn_tmp_" + pb_node.id() + "_result", std::vector<memory::ptr>{result}));
         p.replace(pb_node, data_node);
     }
 }

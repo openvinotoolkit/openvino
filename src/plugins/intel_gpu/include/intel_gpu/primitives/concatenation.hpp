@@ -55,7 +55,7 @@ struct concatenation : public primitive_base<concatenation> {
     /// @param axis Selected dimension for concatenation.
     concatenation(
         const primitive_id& id,
-        const input_info& input,
+        const std::vector<input_info>& input,
         const concatenation_axis axis,
         const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())

@@ -34,7 +34,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto& weights_reorder_params = impl->_weights_reorder_params;
 
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
-        auto& weights_node = node.get_dependency(i);
+        auto& weights_node = *node.get_dependency(i).first;
         auto weights_layout = weights_node.get_output_layout();
 
         auto reorders = _rf.get_weights_reorder(weights_node.id(), weights_layout, weights_reorder_params);
@@ -43,7 +43,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             // insert new generic_layer node to topology
             p.add_intermediate(reorder.first, node, i, !reorder.second);
             // set generic_layer's node output layout and implementation
-            auto& g_node = node.get_dependency(i);
+            auto& g_node = *node.get_dependency(i).first;
             g_node.get_output_layout(false);
 
             // Don't run impl selection to avoid double compilation of reorder kernels

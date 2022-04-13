@@ -35,13 +35,13 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     /// @param recurrent Primitive id containing recurrent data.
     /// @param bias Primitive id containing bias data. Provide empty string if using lstm_dynamic without bias.
     lstm_dynamic_input(const primitive_id& id,
-                       const primitive_id& input,
+                       const input_info& input,
                        const primitive_id& dyn_length,
                        const primitive_id& weights,
                        const primitive_id& bias = "",
                        const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), dyn_length(dyn_length), weights(weights), bias(bias) {}
+        : primitive_base(id, {input}, ext_prim_id, {output_padding}), dyn_length(dyn_length), weights(weights), bias(bias) {}
 
     /// @brief Primitive id containing the dynamic sequence lengths.
     primitive_id dyn_length;
@@ -51,13 +51,13 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     primitive_id bias;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.push_back(dyn_length);
-        ret.push_back(weights);
+    std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies() const override {
+        std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> ret;
+        ret.push_back({std::ref(dyn_length), 0});
+        ret.push_back({std::ref(weights), 0});
 
         if (!bias.empty()) {
-            ret.push_back(bias);
+            ret.push_back({std::ref(bias), 0});
         }
         return ret;
     }
