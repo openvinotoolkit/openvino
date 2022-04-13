@@ -13,15 +13,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-#define GATHER8_TEST_4D_FORMATS_PLANAR format::type::bfyx
-#define GATHER8_TEST_4D_FORMATS_BLOCKED \
-    format::type::b_fs_yx_fsv4, format::type::b_fs_yx_fsv16, format::type::b_fs_yx_fsv32
-#define GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED                                                                \
-    format::type::bs_fs_yx_bsv4_fsv2, format::type::bs_fs_yx_bsv4_fsv4, format::type::bs_fs_yx_bsv8_fsv2,     \
-    format::type::bs_fs_yx_bsv8_fsv4, format::type::bs_fs_yx_bsv16_fsv16, format::type::bs_fs_yx_bsv32_fsv16, \
-    format::type::bs_fs_yx_bsv32_fsv32
-#define GATHER8_TEST_5D_FORMATS format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::b_fs_zyx_fsv32
-
 using gather8_test_4d_param = std::tuple<int,                  // batch_dim
                                          int,                  // axis
                                          format::type,         // format of input0
@@ -208,17 +199,17 @@ TEST_P(gather8_test_4d_f16i32, gather8_test_4d_f16i32) {}
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Range(0, 4),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(0),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::bfyx),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
                                           testing::Values(std::array<int, 4>{4, 1, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Range(0, 2),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_DOUBLE_BLOCKED),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::b_fs_yx_fsv4),
+                                          testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::array<int, 4>{8, 67, 1, 1}),
                                           testing::Values(std::array<int, 4>{4, 56, 1, 1})));
 
@@ -227,44 +218,28 @@ TEST_P(gather8_test_4d_f32i8, gather8_test_4d_f32i8) {}
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Range(0, 4),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
+                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
+                                          testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
                                           testing::Values(std::array<int, 4>{4, 1, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d3_i2,
-                         gather8_test_4d_f32i8,
-                         testing::Combine(testing::Values(0),
-                                          testing::Range(0, 3),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_PLANAR),
-                                          testing::Values(std::array<int, 4>{11, 66, 7, 1}),
-                                          testing::Values(std::array<int, 4>{33, 5, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
-                         gather8_test_4d_f32i8,
-                         testing::Combine(testing::Values(0),
-                                          testing::Range(0, 2),  //[0,dim(dict))
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(GATHER8_TEST_4D_FORMATS_BLOCKED),
-                                          testing::Values(std::array<int, 4>{8, 67, 1, 1}),
-                                          testing::Values(std::array<int, 4>{3, 56, 1, 1})));
 
 using gather8_test_5d_f32i8 = gather8_test_5d<float, char, data_types::f32, data_types::i8>;
 TEST_P(gather8_test_5d_f32i8, gather8_test_5d_f32i8) {}          
 INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Range(0, 2),  //[batch_dim,dim(dict))
-                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::array<int, 5>{8, 67, 3, 1, 1}),
                                           testing::Values(std::array<int, 5>{3, 56, 9, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_5d_bd1_d3_i3,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(1),
-                                          testing::Range(1, 2),  //[batch_dim,dim(dict))
-                                          testing::Values(format::type::bfzyx),
-                                          testing::Values(GATHER8_TEST_5D_FORMATS),
+                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::b_fs_zyx_fsv32),
+                                          testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::array<int, 5>{8, 66, 3, 1, 1}),
                                           testing::Values(std::array<int, 5>{8, 56, 9, 1, 1})));
 
