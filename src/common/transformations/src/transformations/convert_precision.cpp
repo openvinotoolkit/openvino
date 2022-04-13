@@ -450,7 +450,7 @@ bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::
 
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     std::shared_ptr<ov::op::util::MulticlassNmsBase> nms;
-    if (node->get_type_info() == opset8::MulticlassNms::get_type_info_static()) {
+    if (ov::is_type<ov::op::v8::MulticlassNms>(node)) {
         nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
     } else {
         nms = ov::as_type_ptr<opset9::MulticlassNms>(node);
