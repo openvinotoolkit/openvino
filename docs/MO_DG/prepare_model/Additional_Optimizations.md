@@ -17,7 +17,7 @@ Layout defines the meaning of dimensions in shape and can be specified for both 
 For the layout syntax, check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
 To specify the layout, you can use `--layout` option followed by the layout value. 
 
-For example, for Tensorflow\* `nasnet_large` model that was exported to ONNX format and thus has input with `NHWC` layout:
+For example, for Tensorflow `nasnet_large` model that was exported to ONNX format and thus has input with `NHWC` layout:
 
 ```
 mo --input_model tf_nasnet_large.onnx --layout nhwc
@@ -26,7 +26,7 @@ mo --input_model tf_nasnet_large.onnx --layout nhwc
 Additionally, if a model has more than one input or needs both input and output layouts specified,
 you need to provide the name of each input or output to which you apply the layout.
 
-For example, for ONNX\* `Yolo v3 Tiny` model that has first input `input_1` in `NCHW` layout and second input `image_shape`
+For example, for ONNX `Yolo v3 Tiny` model that has first input `input_1` in `NCHW` layout and second input `image_shape`
 with 2 dimensions: batch and size of the image which can be expressed as `N?` layout:
 
 ```
@@ -38,7 +38,7 @@ mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
 Changing the model layout may be necessary if it differs from the one presented by input data. 
 To change the layout, you can use either `--layout` or `--source_layout` with `--target_layout`.
 
-For example, for the same `nasnet_large` that were mentioned previously we may want to provide data in `NCHW` layout:
+For example, for the same `nasnet_large` that was mentioned previously, you may provide data in `NCHW` layout:
 
 ```
 mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
@@ -55,8 +55,8 @@ mo --input_model yolov3-tiny.onnx --layout "input_1(nchw->nhwc),image_shape(n?)"
 ```
 
 ## When to Specify Mean and Scale Values
-Usually neural network models are trained with the normalized input data. This means that the input data values are converted to be in a specific range,
-for example, `[0, 1]` or `[-1, 1]`. Sometimes the mean values (mean images) are subtracted from the input data values as part of the pre-processing.
+Neural network models are usually trained with the normalized input data. This means that the input data values are converted to be in a specific range,
+for example, `[0, 1]` or `[-1, 1]`. Sometimes, the mean values (mean images) are subtracted from the input data values as part of the pre-processing.
 There are two cases of how the input data pre-processing is implemented.
  * The input pre-processing operations are a part of a model. In this case, the application does not pre-process the input data as a separate step: everything is embedded into the model itself.
  * The input pre-processing operations are not a part of a model and the pre-processing is performed within the application which feeds the model with input data.
@@ -66,9 +66,9 @@ In the first case, the Model Optimizer generates the IR with required pre-proces
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides command-line parameters to specify the values: `--mean_values`, `--scale_values`, `--scale`.
 Using these parameters, Model Optimizer embeds the corresponding preprocessing block for mean-value normalization of the input data
-and optimizes this block so that the preprocessing takes negligible time for inference.
+and optimizes this block so that the preprocessing takes a little time for inference.
 
-For example, run the Model Optimizer for the PaddlePaddle* UNet model and apply mean-scale normalization to the input data.
+For example, run the Model Optimizer for the PaddlePaddle UNet model and apply mean-scale normalization to the input data.
 
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
@@ -84,9 +84,9 @@ The `--reverse_input_channels` parameter applies to an input of the model in two
  * One dimension has an undefined size and is marked as `C` channel using `layout` parameters.
 
 Using the `--reverse_input_channels` parameter, Model Optimizer embeds the corresponding preprocessing block for reverting
-the input data along channel dimension and optimizes this block so that the preprocessing takes negligible time for inference.
+the input data along channel dimension and optimizes this block so that the preprocessing takes a little time for inference.
 
-For example, launch the Model Optimizer for the TensorFlow* AlexNet model and embed `reverse_input_channel` preprocessing block into IR.
+For example, launch the Model Optimizer for the TensorFlow AlexNet model and embed `reverse_input_channel` preprocessing block into IR.
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels
