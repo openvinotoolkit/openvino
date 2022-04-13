@@ -546,10 +546,38 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (port == 1) {
-        return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    switch (port) {
+        case 1: {
+            return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+        }
+        case 2: {
+            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+            // image information {225, 225, 1, 1}
+            if (elemType == ov::element::f32) {
+                auto *dataPtr = tensor.data<float>();
+                dataPtr[0] = 225.0f;
+                dataPtr[1] = 225.0f;
+                dataPtr[2] = 1.0f;
+                if (tensor.get_size() == 4) {
+                    dataPtr[3] = 1.0f;
+                }
+            } else if (elemType == ov::element::f16) {
+                auto *dataPtr = tensor.data<float16>();
+                dataPtr[0] = 225.0f;
+                dataPtr[1] = 225.0f;
+                dataPtr[2] = 1.0f;
+                if (tensor.get_size() == 4) {
+                    dataPtr[3] = 1.0f;
+                }
+            } else {
+                OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+            }
+
+            return tensor;
+        }
+        default:
+            return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.5f, 0.2f, 7235346); // probabilites
     }
-    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::SoftPlus>& node,
