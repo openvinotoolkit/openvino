@@ -57,6 +57,26 @@ TEST_F(TransformationTestsF, DisableRemoveConcatZeroDimInputStaticShape) {
     }
 }
 
+TEST_F(TransformationTestsF, DisableRemoveConcatZeroDimInputPartiallyKnowShape) {
+    auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
+    auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 0, -1});
+    auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
+    int64_t axis = 1;
+    {
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
+        ov::pass::disable_remove_concat_zerodim_input(concat);
+
+        function = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+
+        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    }
+
+    {
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+    }
+}
+
 TEST_F(TransformationTestsF, RemoveConcatZeroDimInputSubgraph) {
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});

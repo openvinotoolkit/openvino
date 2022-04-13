@@ -19,7 +19,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
-        auto& rt_info = concat->get_rt_info();
+        const auto& rt_info = concat->get_rt_info();
         if (rt_info.count(DisableRemoveConcatZeroDimInput::get_type_info_static())) {
             return false;
         }
