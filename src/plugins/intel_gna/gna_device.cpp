@@ -111,7 +111,7 @@ void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
 
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t modelId;
+    uint32_t modelId = 0;
     const auto legacyExecTarget = enforceLegacyCnnNeeded();
     if (legacyExecTarget) {
         enforceLegacyCnns(gnaModel);
@@ -231,7 +231,7 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
                 decoratedGnaLibVersion();
         }
 
-        Gna2ModelError error;
+        Gna2ModelError error{};
         auto getLastErrorStatus = Gna2ModelGetLastError(&error);
         checkGna2Status(getLastErrorStatus, "Gna2ModelGetLastError");
 
