@@ -58,7 +58,7 @@ For more details on plugin specific feature limitation, see corresponding plugin
 
 
 ## Enumerating Available Devices
-The OpenVINO Runtime API features dedicated methods of enumerating devices and their capabilities. See the [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
+The OpenVINO Runtime API features dedicated methods of enumerating devices and their capabilities. See the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md). This is example output from the sample (truncated to device names only):
 
 ```sh
   ./hello_query_device
