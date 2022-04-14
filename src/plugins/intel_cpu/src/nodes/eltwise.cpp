@@ -2107,7 +2107,7 @@ void Eltwise::appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, st
 }
 
 template <typename T>
-void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem, const size_t channelAxis) {
+void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem, const int channelAxis) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
@@ -2137,9 +2137,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
-        size_t channelSize = 1;
-        if (static_cast<int>(channelAxis) >= 0) {
-            const size_t chIdx = postOpDims.size() > 1 ? channelAxis : 0;
+        int channelSize = 1;
+        if (channelAxis >= 0) {
+            const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
             channelSize = postOpDims[chIdx];
         }
         // since legacy depthwise post ops mechanism requires broadcasted data we need to reinitilize it in case of changed shape
@@ -2199,11 +2199,11 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
     }
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const size_t channelAxis) {
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const size_t channelAxis) {
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 

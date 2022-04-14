@@ -1856,12 +1856,12 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
 }
 
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem,
-                                 const size_t channelAxis) {
+                                 const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem,
-                                 const size_t channelAxis) {
+                                 const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 

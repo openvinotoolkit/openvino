@@ -2921,14 +2921,14 @@ bool Reduce::canApplyJIT(const Precision &input_prec, const Precision &output_pr
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) != std::end(supportedPrecisions);
 }
 
-size_t Reduce::getFusingAxis() const {
-    size_t channelAxis = 1;
+int Reduce::getFusingAxis() const {
+    int channelAxis = 1;
     if (!keep_dims) {
         for (auto &raw_axis : raw_axes) {
             int axis = raw_axis >= 0 ? raw_axis : raw_axis + static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
             if (axis == 1) {
                 // channel axis has been reduced and doesn't exist any more
-                channelAxis = static_cast<size_t>(-1);
+                channelAxis = -1;
                 break;
             } else if (axis == 0) {
                 channelAxis = 0;

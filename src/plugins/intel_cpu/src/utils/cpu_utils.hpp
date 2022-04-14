@@ -46,7 +46,7 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 */
 inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
                                                  const InferenceEngine::SizeVector& secondInputDims,
-                                                 size_t channelAxis,
+                                                 int channelAxis,
                                                  bool weakComparison = false) {
     bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
                                                          static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
@@ -56,7 +56,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
         return true;
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
-    if (static_cast<int>(channelAxis) >= 0) {
+    if (channelAxis >= 0) {
         for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
             if ((i == channelAxis && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[i])) || (i != channelAxis && normalizedSecondInputDims[i] != 1))
                 return false;
