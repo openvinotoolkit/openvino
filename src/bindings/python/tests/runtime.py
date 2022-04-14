@@ -114,7 +114,6 @@ class Computation(object):
 
         param_names = [param.friendly_name for param in self.parameters]
         input_shapes = [get_shape(input_value) for input_value in input_values]
-
         if self.network_cache.get(str(input_shapes)) is None:
             function = self.function
             if self.function.is_dynamic():
@@ -124,7 +123,6 @@ class Computation(object):
             function = self.network_cache[str(input_shapes)]
 
         executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
-
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
             input_shape = PartialShape([]) if isinstance(input, (int, float)) else PartialShape(input.shape)

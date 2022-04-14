@@ -16,7 +16,6 @@ from tests import (
     xfail_issue_37957,
     xfail_issue_39669,
     xfail_issue_37973,
-    xfail_issue_47430,
     xfail_issue_47495,
     xfail_issue_48145,
     xfail_issue_48190,
@@ -98,6 +97,8 @@ tolerance_map = {
     "mobilenetv2-1": {"atol": 1e-04, "rtol": 0.001},
     "resnet101v1": {"atol": 1e-04, "rtol": 0.001},
     "resnet101v2": {"atol": 1e-5, "rtol": 0.001},
+    "fcn-resnet50-11": {"atol": 1e-04, "rtol": 0.001},
+    "fcn-resnet101-11": {"atol": 1e-04, "rtol": 0.001},
     "resnet152v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet18v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet34v2": {"atol": 1e-05, "rtol": 0.001},
@@ -148,7 +149,6 @@ if len(zoo_models) > 0:
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
-
     # import all test cases at global scope to make them visible to pytest
     backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR)
     test_cases = backend_test.test_cases["OnnxBackendModelImportTest"]
@@ -173,8 +173,6 @@ if len(zoo_models) > 0:
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
-            (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
-            (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
             (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
