@@ -38,10 +38,16 @@ Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_
     };
     std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
 
-    for (const auto& id : opset_imports) {
-        const auto domain = id.has_domain() ? id.domain() == "ai.onnx" ? "" : id.domain() : "";
-        m_opset[domain] = OperatorsBridge::get_operator_set(domain, id.version());
-    }
+    std::for_each(opset_imports.rbegin(),
+                  opset_imports.rend(),
+                  [this](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                      const auto domain =
+                          onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
+                      if (m_opset.find(domain) == std::end(m_opset)) {
+                          m_opset[domain] = OperatorsBridge::get_operator_set(domain, onnx_opset.version());
+                      }
+                  });
+
     // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
     // implies the operator set that is defined as part of the ONNX specification.
     const auto dm = m_opset.find("");
@@ -85,10 +91,6 @@ void Model::enable_opset_domain(const std::string& domain) {
         }
         m_opset.emplace(domain, opset);
     }
-}
-
-const OpsetImports& Model::get_opset_imports() const {
-    return m_model_proto->opset_import();
 }
 
 }  // namespace onnx_import

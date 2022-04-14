@@ -41,7 +41,10 @@ public:
     std::int64_t get_model_version() const {
         return m_model_proto->model_version();
     }
-    const OpsetImports& get_opset_imports() const;
+    const OpsetImports& get_opset_imports() const {
+        return m_model_proto->opset_import();
+    }
+    
     const std::string& get_producer_version() const {
         return m_model_proto->producer_version();
     }
