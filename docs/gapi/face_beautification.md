@@ -1,7 +1,7 @@
 # Implementing a Face Beautification Algorithm {#openvino_docs_gapi_face_beautification}
 
 ## Introduction
-In this tutorial you will learn:
+Purpouse of this tutorial is to describe:
 
 * Basics of a sample face beautification algorithm;
 * How to infer different networks inside a pipeline with G-API;
@@ -19,38 +19,37 @@ This sample requires:
 To download the models from the Open Model Zoo, use the [Model Downloader](@ref omz_tools_downloader) tool.
 
 ## Face Beautification Algorithm
-We will implement a simple face beautification algorithm using a combination of modern Deep Learning techniques and traditional Computer Vision. The general idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. The algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:
+Simple face beautification algorithm will be implemented by using combination of modern Deep Learning techniques and traditional Computer Vision. General idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. Algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:
 
 ![Face Beautification Algorithm](../img/gapi_face_beautification_algorithm.png)
 
-Briefly the algorithm is described as follows:
-
-Briefly the algorithm is described as follows:
+Algorithm is briefly described as follows:
 - Input image \f$I\f$ is passed to unsharp mask and bilateral filters
   (\f$U\f$ and \f$L\f$ respectively);
 - Input image \f$I\f$ is passed to an SSD-based face detector;
 - SSD result (a \f$[1 \times 1 \times 200 \times 7]\f$ blob) is parsed and converted to an array of faces;
 - Every face is passed to a landmarks detector;
 - Based on landmarks found for every face, three image masks are generated:
-  - A background mask \f$b\f$ -- indicating which areas from the original image to keep as-is;
-  - A face part mask \f$p\f$ -- identifying regions to preserve (sharpen).
-  - A face skin mask \f$s\f$ -- identifying regions to blur;
+  - Background mask \f$b\f$ -- indicating which areas from the original image to keep as-is;
+  - Face part mask \f$p\f$ -- identifying regions to preserve (sharpen).
+  - Face skin mask \f$s\f$ -- identifying regions to blur;
 - The final result \f$O\f$ is a composition of features above calculated as \f$O = b*I + p*U + s*L\f$.
 
-Generating face element masks based on a limited set of features (just 35 per face, including all its parts) is not very trivial and is described in the sections below.
+Generating face element masks based on a limited set of features (just 35 per face, including all its parts) is not trivial and is described in the sections below.
 
 ## Constructing a G-API Pipeline
 
 ### Declare Deep Learning Topologies
-This sample is using two DNN detectors. Every network takes one input and produces one output. In G-API, networks are defined with macro G_API_NET():
+This sample uses two DNN detectors. Every network takes one input and produces one output. In G-API, networks are defined with macro G_API_NET():
 ```cpp
 G_API_NET(FaceDetector,  <cv::GMat(cv::GMat)>, "face_detector");
 G_API_NET(LandmDetector, <cv::GMat(cv::GMat)>, "landm_detector");
 ```
-To get more information, see Declaring Deep Learning topologies described in the "Face Analytics pipeline" tutorial.
+For more details, check [Declaring Deep Learning topologies](@ref gapi_ifd_declaring_nets) tutorial.
+<!-- described in the "Face Analytics pipeline" tutorial. -->
 
 ### Describe the Processing Graph
-The code below generates a graph for the algorithm above:
+Following code generates a graph for the above algorithm:
 ```cpp
 cv::GComputation pipeline([=]()
 {
@@ -70,7 +69,7 @@ cv::GComputation pipeline([=]()
     cv::GMat mskBlur         = custom::GFillPolyGContours::on(gimgIn, garFaceConts);            // |
     cv::GMat mskBlurG        = cv::gapi::gaussianBlur(mskBlur, config::kGKernelSize,            // |
                                                       config::kGSigma);                         // |draw masks
-    // The first argument in mask() is Blur as we want to subtract from                         // |
+    // The first argument in mask() is Blur, as we want to subtract from                        // |
     // BlurG the next step:                                                                     // |
     cv::GMat mskBlurFinal    = mskBlurG - cv::gapi::mask(mskBlurG, mskSharpG);                  // |
     cv::GMat mskFacesGaussed = mskBlurFinal + mskSharpG;                                        // |
@@ -94,18 +93,23 @@ cv::GComputation pipeline([=]()
                                                       garRects));
 });
 ```
-The resulting graph is a mixture of G-API's standard operations, user-defined operations (namespace custom::), and DNN inference. The generic function `cv::gapi::infer<>()` allows you to trigger inference within the pipeline; networks to infer are specified as template parameters. The sample code is using two versions of `cv::gapi::infer<>()`:
+The resulting graph is a mixture of G-API's standard operations, user-defined operations (namespace custom::), and DNN inference. The generic function `cv::gapi::infer<>()` allows you to trigger inference within the pipeline. Infering networks are specified as template parameters. The sample code is using two versions of `cv::gapi::infer<>()`:
 
 * A frame-oriented one is used to detect faces on the input frame.
 * An ROI-list oriented one is used to run landmarks inference on a list of faces – this version produces an array of landmarks per every face.
-More on this in "Face Analytics pipeline" ([Building a GComputation](@ref gapi_ifd_gcomputation) section).
+More information on this are presented in [Building a GComputation](@ref gapi_ifd_gcomputation) tutorial.
 
 ### Unsharp mask in G-API
 The unsharp mask \f$U\f$ for image \f$I\f$ is defined as:
 
 \f[U = I - s * L(M(I)),\f]
 
-where \f$M()\f$ is a median filter, \f$L()\f$ is the Laplace operator, and \f$s\f$ is a strength coefficient. While G-API doesn't provide this function out-of-the-box, it is expressed naturally with the existing G-API operations:
+Where:
+ * \f$M()\f$ is a median filter;
+ * \f$L()\f$ is the Laplace operator;
+ * \f$s\f$ is a strength coefficient. 
+
+While G-API do not provide this function out-of-the-box, it is expressed naturally with the existing G-API operations:
 
 ```cpp
 inline cv::GMat custom::unsharpMask(const cv::GMat &src,
@@ -117,10 +121,10 @@ inline cv::GMat custom::unsharpMask(const cv::GMat &src,
     return (src - (laplacian * strength));
 }
 ```
-Note that the code snipped above is a regular C++ function defined with G-API types. Users can write functions like this to simplify graph construction; when called, this function just puts the relevant nodes to the pipeline it is used in.
+Notice that the snipped above code is a regular C++ function defined with G-API types. Users can write functions like that to simplify graph construction. When called, this function just puts the relevant nodes to the pipeline it is used in.
 
 ## Custom Operations
-The face beautification graph is using custom operations extensively. This chapter focuses on the most interesting kernels, refer to G-API Kernel API for general information on defining operations and implementing kernels in G-API.
+The face beautification graph uses custom operations extensively. This chapter focus on the most interesting kernels. For information on defining operations and implementing kernels in G-API refer to [G-API Kernel API](kernel_api.md).
 
 ### Face detector post-processing
 A face detector output is converted to an array of faces with the following kernel:
@@ -157,8 +161,8 @@ GAPI_OCV_KERNEL(GCPUFacePostProc, GFacePostProc)
                 const float top    = data[i * kObjectSize + 4];
                 const float right  = data[i * kObjectSize + 5];
                 const float bottom = data[i * kObjectSize + 6];
-                // These are normalized coordinates and are between 0 and 1;
-                //  to get the real pixel coordinates we should multiply it by
+                // These are normalized coordinates between 0 and 1;
+                //  to get the real pixel coordinates, multiply it by
                 //  the image sizes respectively to the directions:
                 cv::Point tl(toIntRounded(left   * imgCols),
                              toIntRounded(top    * imgRows));
@@ -172,7 +176,7 @@ GAPI_OCV_KERNEL(GCPUFacePostProc, GFacePostProc)
 ```
 
 ### Facial Landmarks Post-Processing
-The algorithm infers locations of face elements (like the eyes, the mouth and the head contour itself) using a generic facial landmarks detector (details) from OpenVINO™ Open Model Zoo. However, the detected landmarks as-is are not enough to generate masks — this operation requires regions of interest on the face represented by closed contours, so some interpolation is applied to get them. This landmarks processing and interpolation is performed by the following kernel:
+The algorithm gather locations of face elements (like eyes, mouth and head contour) using a generic facial landmarks detector (details) from OpenVINO™ Open Model Zoo. However, the detected landmarks are not enough to generate masks. This operation requires regions of interest on the face represented by closed contours, so some interpolation is applied to get them. This landmarks processing and interpolation is performed by the following kernel:
 ```cpp
 GAPI_OCV_KERNEL(GCPUGetContours, GGetContours)
 {
@@ -186,7 +190,7 @@ GAPI_OCV_KERNEL(GCPUGetContours, GGetContours)
         CV_Assert(vctElemsContours.size() == 0ul);
         CV_Assert(vctFaceContours.size()  == 0ul);
         // vctFaceElemsContours will store all the face elements' contours found
-        //  in an input image, namely 4 elements (two eyes, nose, mouth) for every detected face:
+        //  in an input image. 4 elements (two eyes, nose, mouth) for every detected face:
         vctElemsContours.reserve(numFaces * 4);
         // vctFaceElemsContours will store all the faces' contours found in an input image:
         vctFaceContours.reserve(numFaces);
@@ -221,7 +225,7 @@ GAPI_OCV_KERNEL(GCPUGetContours, GGetContours)
             // The face contour:
             // Approximating the forehead contour by half-ellipse (using jaw points) and storing in vctFace:
             cntFace = getForeheadEllipse(vctCntJaw[i][0], vctCntJaw[i][16], vctCntJaw[i][8]);
-            // The ellipse is drawn clock-wise, but jaw contour points goes vice versa, so it's necessary to push
+            // The ellipse is drawn clock-wise, but jaw contour points goes vice versa. It's necessary to push
             //  cntJaw from the end to the begin using a reverse iterator:
             std::copy(vctCntJaw[i].crbegin(), vctCntJaw[i].crend(), std::back_inserter(cntFace));
             // Storing the face contour in another vector:
@@ -230,7 +234,7 @@ GAPI_OCV_KERNEL(GCPUGetContours, GGetContours)
     }
 };
 ```
-The kernel takes two arrays of denormalized landmarks coordinates and returns an array of elements' closed contours and an array of faces' closed contours; in other words, outputs are, the first, an array of contours of image areas to be sharpened and, the second, another one to be smoothed.
+The kernel takes two arrays of denormalized landmark coordinates and returns an array of elements' closed contours and an array of faces' closed contours. In other words, elements outputs are an array of contours of image areas to be sharpened and, faces outputs are the ones to be smoothed.
 
 Here and below `Contour` is a vector of points.
 
@@ -251,10 +255,10 @@ inline Contour custom::getEyeEllipse(const cv::Point &ptLeft, const cv::Point &p
     const cv::Point ptEyeCenter((ptRight + ptLeft) / 2);
     const int angle = getLineInclinationAngleDegrees(ptLeft, ptRight);
     const int axisX = toIntRounded(cv::norm(ptRight - ptLeft) / 2.0);
-    // According to research, in average a Y axis of an eye is approximately
+    // According to research - Y axis of an eye is, in average, approximately
     //  1/3 of an X one.
     const int axisY = axisX / 3;
-    // We need the lower part of an ellipse:
+    // Need the lower part of an ellipse:
     static constexpr int kAngEyeStart = 0;
     static constexpr int kAngEyeEnd   = 180;
     cv::ellipse2Poly(ptEyeCenter, cv::Size(axisX, axisY), angle, kAngEyeStart, kAngEyeEnd, config::kAngDelta,
@@ -262,14 +266,14 @@ inline Contour custom::getEyeEllipse(const cv::Point &ptLeft, const cv::Point &p
     return cntEyeBottom;
 }
 ```
-Briefly, this function restores the bottom side of an eye by a half-ellipse based on two points in left and right eye corners. In fact, `cv::ellipse2Poly()` is used to approximate the eye region, and the function only defines ellipse parameters based on just two points: 
-- The ellipse center and the \f$X\f$ half-axis calculated by two eye Points.
-- The \f$Y\f$ half-axis calculated according to the assumption that an average eye width is \f$1/3\f$ of its length.
-- The start and the end angles which are 0 and 180 (refer to `cv::ellipse()` documentation).
-- The angle delta: how much points to produce in the contour.
+This function restores the bottom side of an eye by a half-ellipse, based on two points in left and right eye corners. `cv::ellipse2Poly()` is used to approximate the eye region, and the function only defines ellipse parameters based on just two points:
+- The ellipse center and the \f$X\f$ half-axis calculated by two eye points,
+- The \f$Y\f$ half-axis are calculated according to the assumption that an average eye width is \f$1/3\f$ of its length,
+- The start and the end angles, which are 0 and 180 (refer to `cv::ellipse()` documentation),
+- The angle delta - how much points are to produce in the contour,
 - The inclination angle of the axes.
 
-The use of the `atan2()` instead of just `atan()` in function `custom::getLineInclinationAngleDegrees()` is essential as it allows to return a negative value depending on the `x` and the `y` signs so we can get the right angle even in case of upside-down face arrangement (if we put the points in the right order, of course).
+It is essential use of the `atan2()` instead of just `atan()` in function `custom::getLineInclinationAngleDegrees()`, since it allows to return a negative value depending on the `x` and the `y` signs, so we can get the right angle even in case of upside-down face arrangement (Only if points are put in the right order).
 
 #### Get a Forehead Contour
 The function approximates the forehead contour:
@@ -301,10 +305,10 @@ inline Contour custom::getForeheadEllipse(const cv::Point &ptJawLeft,
     return cntForehead;
 }
 ```
-As we have only jaw points in our detected landmarks, we have to get a half-ellipse based on three points of a jaw: the leftmost, the rightmost and the lowest one. The jaw width is assumed to be equal to the forehead width and the latter is calculated using the left and the right points. Speaking of the \f$Y\f$ axis, we have no points to get it directly, and instead assume that the forehead height is about \f$2/3\f$ of the jaw height, which can be figured out from the face center (the middle between the left and right points) and the lowest jaw point.
+As only jaw points are present in our detected landmarks, it is required to get a half-ellipse based on three points of a jaw -- leftmost, rightmost and the lowest one. The jaw width is assumed to be equal to the forehead width, and the latter is calculated using left, and right points. \f$Y\f$ axis have no points to get it directly, and instead it is assumed that the forehead height is about \f$2/3\f$ of the jaw height. This can be figured out from the face center (the middle between the left and right points) and the lowest jaw point.
 
 ### Draw Masks
-When we have all the contours needed, you are able to draw masks:
+When the needed contours are defined, mask drawing can begin:
 
 ```cpp
 cv::GMat mskSharp        = custom::GFillPolyGContours::on(gimgIn, garElsConts);             // |
@@ -313,7 +317,7 @@ cv::GMat mskSharpG       = cv::gapi::gaussianBlur(mskSharp, config::kGKernelSize
 cv::GMat mskBlur         = custom::GFillPolyGContours::on(gimgIn, garFaceConts);            // |
 cv::GMat mskBlurG        = cv::gapi::gaussianBlur(mskBlur, config::kGKernelSize,            // |
                                                   config::kGSigma);                         // |draw masks
-// The first argument in mask() is Blur as we want to subtract from                         // |
+// The first argument in mask() is Blur to subtract from                                    // |
 // BlurG the next step:                                                                     // |
 cv::GMat mskBlurFinal    = mskBlurG - cv::gapi::mask(mskBlurG, mskSharpG);                  // |
 cv::GMat mskFacesGaussed = mskBlurFinal + mskSharpG;                                        // |
@@ -322,20 +326,20 @@ cv::GMat mskNoFaces      = cv::gapi::bitwise_not(mskFacesWhite);                
 ```
 
 The steps to get the masks are:
-* the "sharp" mask calculation:
-    * fill the contours that should be sharpened;
-    * blur that to get the "sharp" mask (`mskSharpG`);
-* the "bilateral" mask calculation:
-    * fill all the face contours fully;
-    * blur that;
-    * subtract areas which intersect with the "sharp" mask --- and get the "bilateral" mask (`mskBlurFinal`);
-* the background mask calculation:
-    * add two previous masks
-    * set all non-zero pixels of the result as 255 (by `cv::gapi::threshold()`)
-    * revert the output (by `cv::gapi::bitwise_not`) to get the background mask (`mskNoFaces`).
+* "Sharp" mask calculation:
+    * Filling of contours that should be sharpened;
+    * Bluring them to get the "sharp" mask (`mskSharpG`);
+* "Bilateral" mask calculation:
+    * Fully filling all the face contours;
+    * Bluring them;
+    * Subtracting areas which intersect with the "sharp" mask -- and getting the "bilateral" mask (`mskBlurFinal`);
+* Background mask calculation:
+    * Adding two previous masks
+    * Setting all non-zero pixels of the result as 255 (by `cv::gapi::threshold()`)
+    * Reverting the output (by `cv::gapi::bitwise_not`) to get the background mask (`mskNoFaces`).
 
 ## Configuring and Running the Pipeline
-Once the graph is fully expressed, we can finally compile it and run on real data. G-API graph compilation is the stage where the G-API framework actually understands which kernels and networks to use. This configuration happens via G-API compilation arguments.
+Once the graph is fully expressed, compilation of it and running on real data can start. G-API graph compilation is the stage where the G-API framework actually recognizes which kernels and networks to use. This configuration happens via G-API compilation arguments.
 
 ### DNN Parameters
 This sample is using OpenVINO™ Toolkit OpenVINO Runtime backend for DL inference, which is configured the following way:
@@ -353,17 +357,17 @@ auto landmParams = cv::gapi::ie::Params<custom::LandmDetector>
     /*std::string*/ landmDevice
 };
 ```
-Every `cv::gapi::ie::Params<>` object is related to the network specified in its template argument. We should pass there the network type we have defined in `G_API_NET()` in the early beginning of the tutorial.
+Every `cv::gapi::ie::Params<>` object is related to the network specified in its template argument. The network type defined in `G_API_NET()` in the early beginning of the guide should be passed here.
 
 Network parameters are then wrapped in `cv::gapi::NetworkPackage`:
 ```cpp
 auto networks      = cv::gapi::networks(faceParams, landmParams);
 ```
 
-More details in "Face Analytics Pipeline" ([Configuring the Pipeline](@ref gapi_ifd_configuration) section).
+For more details, check ([Configuring the Pipeline](@ref gapi_ifd_configuration) section).
 
 ### Kernel Packages
-In this example we use a lot of custom kernels, in addition to that we use Fluid backend to optimize out memory for G-API's standard kernels where applicable. The resulting kernel package is formed like this:
+Below example uses a lot of custom kernels, in addition to that Fluid backend is also used to optimize out memory for G-API's standard kernels where applicable. The resulting kernel package is formed like this:
 ```cpp
 auto customKernels = cv::gapi::kernels<custom::GCPUBilateralFilter,
                                        custom::GCPULaplacian,
@@ -383,10 +387,10 @@ G-API optimizes execution for video streams when compiled in the "Streaming" mod
 ```cpp
 cv::GStreamingCompiled stream = pipeline.compileStreaming(cv::compile_args(kernels, networks));
 ```
-More on this in "Face Analytics Pipeline" ([Configuring the pipeline](@ref gapi_ifd_configuration) section).
+For more details, check ([Configuring the pipeline](@ref gapi_ifd_configuration) section).
 
 ### Running the streaming pipeline
-In order to run the G-API streaming pipeline, all we need is to specify the input video source, call `cv::GStreamingCompiled::start()`, and then fetch the pipeline processing results:
+In order to run the G-API streaming pipeline, it is required to specify the input video source. Call `cv::GStreamingCompiled::start()`, and then fetch the pipeline processing results:
 ```cpp
 if (parser.has("input"))
 {
@@ -400,7 +404,7 @@ if (parser.has("input"))
     {
         if (!stream.try_pull(std::move(out_vector)))
         {
-            // Use a try_pull() to obtain data.
+            // Use try_pull() to obtain data.
             // If there's no data, let UI refresh (and handle keypress)
             if (cv::waitKey(1) >= 0) break;
             else continue;
@@ -421,15 +425,17 @@ if (parser.has("input"))
         cv::imshow(config::kWinFaceBeautification, imgBeautif);
     }
 ```
-Once results are ready and can be pulled from the pipeline we display it on the screen and handle GUI events.
+Once results are ready and can be pulled from the pipeline, display it on the screen and handle GUI events.
 
-See [Running the pipeline](@ref gapi_ifd_running) section in the "Face Analytics Pipeline" tutorial for more details.
+For more details check [Running the pipeline](@ref gapi_ifd_running) section.
 
 ## Conclusion
-The tutorial has two goals: to show the use of brand new features of G-API introduced in OpenCV 4.2, and give a basic understanding on a sample face beautification algorithm.
+The tutorial had two goals: 
+* To show the use of brand new features of G-API introduced in OpenCV 4.2;
+* Present a basic understanding of a sample face beautification algorithm.
 
 The result of the algorithm application:
 
 ![Face Beautification example](../img/gapi_face_beautification_example.jpg)
 
-On the test machine (Intel® Core™ i7-8700) the G-API-optimized video pipeline outperforms its serial (non-pipelined) version by a factor of 2.7 – meaning that for such a non-trivial graph, the proper pipelining can bring almost 3x increase in performance.
+On the test machine (Intel® Core™ i7-8700) the G-API-optimized video pipeline outperforms its serial (non-pipelined) version by a factor of 2.7. This meaning that for such a non-trivial graph, the proper pipelining can bring almost 3x increase in performance.
