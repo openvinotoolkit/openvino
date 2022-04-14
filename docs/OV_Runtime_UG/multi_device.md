@@ -119,7 +119,7 @@ using the [configure devices](supported_plugins/config_properties.md) property:
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
 
-To see how the Multi-Device execution is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the `-d` command-line option (which stands for “device”) will accept the MULTI mode natively. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. 
+To see how the Multi-Device execution is used in practice and test its performance, take a look at OpenVINO's Benchmark Application which presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. 
 Here is an example command to evaluate performance of HDDL+GPU: 
 
 ```sh
