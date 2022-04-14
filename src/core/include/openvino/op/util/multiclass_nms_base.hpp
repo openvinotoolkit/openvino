@@ -50,7 +50,7 @@ public:
     };
 
     /// \brief Constructs a conversion operation.
-    MulticlassNmsBase();
+    MulticlassNmsBase() = default;
 
     /// \brief Constructs a MulticlassNmsBase operation
     ///

@@ -1454,18 +1454,14 @@ std::shared_ptr<ov::Model> generateMultiSubGraph(const std::shared_ptr<ov::op::O
     }
 }
 
-std::shared_ptr<ov::Model> generateNmsBase(const std::shared_ptr<ov::op::Op> &node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::MatrixNms> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f16, {{1, 2, 4}, {1, 2, 2}});
     const auto outputs =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-    if (ov::is_type<ov::op::v8::MatrixNms>(node)) {
-        const auto nms =
-            std::make_shared<ov::op::v8::MatrixNms>(outputs[0], outputs[1], ov::op::v8::MatrixNms::Attributes());
-        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-        return std::make_shared<ov::Model>(results, params, "MatrixNms");
-    } else {
-        return nullptr;
-    }
+    const auto nms =
+        std::make_shared<ov::op::v8::MatrixNms>(outputs[0], outputs[1], ov::op::v8::MatrixNms::Attributes());
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
+    return std::make_shared<ov::Model>(results, params, "MatrixNms");
 }
 
 std::shared_ptr<ov::Model> generateMulticlassNmsBase(const std::shared_ptr<ov::op::Op> &node) {
@@ -1787,8 +1783,6 @@ std::shared_ptr<ov::Model> generateGraph() {
     } else if (ov::is_type<ov::op::util::ConvertColorNV12Base>(node) ||
                ov::is_type<ov::op::util::ConvertColorI420Base>(node)) {
         return generateConvertColor(node);
-    } else if (ov::is_type<ov::op::util::NmsBase>(node)) {
-        return generateNmsBase(node);
     } else if (ov::is_type<ov::op::util::MulticlassNmsBase>(node)) {
         return generateMulticlassNmsBase(node);
     } else if (ov::is_type<ov::op::util::ReadValueBase>(node)) {

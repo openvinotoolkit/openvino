@@ -1797,8 +1797,11 @@ std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores
 InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::v8::MatrixNms>& nms,
                                  const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForNMS result;
+    const auto& nms_attrs = nms->get_attrs();
+    const auto nms_top_k = nms_attrs.nms_top_k;
+    const auto keep_top_k = nms_attrs.keep_top_k;
 
-    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
+    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms_top_k, keep_top_k);
     result.selected_outputs_shape = selected_outputs_shape.to_shape();
     result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
 
@@ -1855,7 +1858,7 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
     runtime::reference::nms_common::nms_common_postprocessing(prois,
                                                               pscores,
                                                               pselected_num,
-                                                              op->get_output_type(),
+                                                              op->get_attrs().output_type,
                                                               selected_outputs,
                                                               selected_indices,
                                                               valid_outputs,

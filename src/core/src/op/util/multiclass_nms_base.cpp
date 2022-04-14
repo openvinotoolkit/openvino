@@ -10,8 +10,6 @@ using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::MulticlassNmsBase);
 
-op::util::MulticlassNmsBase::MulticlassNmsBase() {}
-
 op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, const Attributes& attrs)
     : Op(arguments),
       m_attrs{attrs} {}
