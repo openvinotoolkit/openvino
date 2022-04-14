@@ -1,9 +1,9 @@
-# Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
+# Converting a TensorFlow Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
 ## Convert TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
 
 ### Convert Frozen Model Format <a name="Convert_From_TF"></a>
-To convert a TensorFlow model, use the `mo` script to simply convert a model with the path to the input model `.pb` file:
+To convert a TensorFlow model, use the `mo` script to simply convert a model with a path to the input model `.pb` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.pb
@@ -13,18 +13,18 @@ To convert a TensorFlow model, use the `mo` script to simply convert a model wit
 There are three ways to store non-frozen TensorFlow models and convert them by Model Optimizer:
 
 1. **Checkpoint**. In this case, a model consists of two files: `inference_graph.pb` (or `inference_graph.pbtxt`) and `checkpoint_file.ckpt`.
-If you do not have an inference graph file, refer to [Freezing Custom Models in Python](#freeze-the-tensorflow-model).
-To convert the model with the inference graph in `.pb` format, run the `mo` script with the path to the checkpoint file to convert a model:
+If you do not have an inference graph file, refer to the [Freezing Custom Models in Python](#freeze-the-tensorflow-model) section.
+To convert the model with the inference graph in `.pb` format, run the `mo` script with a path to the checkpoint file:
 ```sh
  mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
 ```
-To convert the model with the inference graph in `.pbtxt` format, run the `mo` script with the path to the checkpoint file to convert a model:
+To convert the model with the inference graph in `.pbtxt` format, run the `mo` script with a path to the checkpoint file:
 ```sh
  mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
 ```
 
 2. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: `model_name.meta`, `model_name.index`,
-`model_name.data-00000-of-00001` (digit part may vary), and `checkpoint` (optional).
+`model_name.data-00000-of-00001` (number part may vary), and `checkpoint` (optional).
 To convert such TensorFlow model, run the `mo` script with a path to the MetaGraph `.meta` file:
 ```sh
  mo --input_meta_graph <INPUT_META_GRAPH>.meta
