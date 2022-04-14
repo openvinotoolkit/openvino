@@ -78,6 +78,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devicesWithRequests;
+    const auto& deviceList = GetCore()->GetAvailableDevices();
     // parsing the string and splitting the comma-separated tokens
     std::string::size_type i = 0;
     std::string::size_type idelimeter;
@@ -87,6 +88,41 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     }
     // last token in the string (which has no comma after that)
     devicesWithRequests.push_back(priorities.substr(i, priorities.length() - i));
+
+    // handle the case of "AUTO:-CPU or AUTO:GPU,-GPU.0" cases
+    std::vector<std::string> devicesToBeDeleted;
+    auto updateDeviceList = [&](const std::string& delPattern) {
+        auto iter = devicesWithRequests.begin();
+        while (iter != devicesWithRequests.end()) {
+            if ((*iter).find(delPattern) != std::string::npos) {
+                if ((*iter).find("-") != std::string::npos)
+                    devicesToBeDeleted.push_back((*iter).erase(0, 1));
+                iter = devicesWithRequests.erase(iter);
+            } else {
+                iter++;
+            }
+        }
+    };
+    auto mergeDeviceList = [&]() {
+        std::vector<std::string> mergedList;
+        for (auto&& iter : devicesWithRequests) {
+            for (auto& viter : deviceList) {
+                if (viter.find(iter) != std::string::npos)
+                    mergedList.push_back(viter);
+            }
+        }
+        return mergedList;
+    };
+
+    updateDeviceList("-");
+    auto prioritiesIter = config.find(ov::device::priorities.name());
+    bool enableDevicePriority = (prioritiesIter != config.end()) && devicesWithRequests.size();
+    devicesWithRequests = devicesWithRequests.size() == 0 ? deviceList : mergeDeviceList();
+
+    for (auto& iter : devicesToBeDeleted) {
+        LOG_INFO("AUTOPLUGIN:remove %s from device list", iter.c_str());
+        updateDeviceList(iter);
+    }
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
@@ -116,9 +152,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     unsigned int devicePriority = 0;
-    auto prioritiesIter = config.find(ov::device::priorities.name());
-    bool enableDevicePriority = (prioritiesIter != config.end());
-    auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
