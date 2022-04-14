@@ -17,13 +17,22 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
 }
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain) {
+    // copy the opsets and sort them (descending order)
+    // then return the version from the first occurence of a given domain
+    auto opset_imports = model_proto.opset_import();
+    std::sort(std::begin(opset_imports),
+              std::end(opset_imports),
+              [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs, const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+                  return lhs.version() > rhs.version();
+              });
+
     for (const auto& opset_import : model_proto.opset_import()) {
         if (domain == opset_import.domain()) {
             return opset_import.version();
         }
     }
 
-    throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
+    throw ov::Exception("Couldn't find operator set's version for domain: " + domain + ".");
 }
 
 Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {
