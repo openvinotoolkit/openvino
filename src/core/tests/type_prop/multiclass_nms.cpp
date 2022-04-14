@@ -118,15 +118,26 @@ TYPED_TEST(type_prop, multiclass_nms_incorrect_scheme_num_boxes) {
 TEST(type_prop2, multiclass_nms_incorrect_scheme_num_boxes) {
     try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 3, 3});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 3});
         const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1});
 
         const auto unused =
             make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "'boxes' and 'scores' input shapes must match at the second and third "
-                             "dimension respectively");
+        EXPECT_HAS_SUBSTRING(error.what(), "'boxes' and 'scores' input shapes must match.");
+    }
+}
+
+TEST(type_prop2, multiclass_nms_incorrect_scheme_num_boxes2) {
+    try {
+        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
+        const auto roisnum = make_shared<op::Parameter>(element::i32, Shape{1});
+
+        const auto unused =
+            make_shared<op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::util::MulticlassNmsBase::Attributes());
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "'boxes' and 'scores' input shapes must match.");
     }
 }
 

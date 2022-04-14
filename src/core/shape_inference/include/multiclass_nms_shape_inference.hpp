@@ -53,11 +53,19 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
                           "The third dimension of the 'boxes' must be 4. Got: ",
                           boxes_ps[2]);
 
-    NODE_VALIDATION_CHECK(
-        op,
-        scores_ps.rank().is_static() && (scores_ps.rank().get_length() == 3 || scores_ps.rank().get_length() == 2),
-        "Expected a 2D or 3D tensor for the 'scores' input. Got: ",
-        scores_ps);
+    if (ov::is_type<ov::op::v8::MulticlassNms>(op)) {
+        NODE_VALIDATION_CHECK(
+            op,
+            scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+            "Expected a 3D tensor for the 'scores' input. Got: ",
+            scores_ps);
+    } else {
+        NODE_VALIDATION_CHECK(
+            op,
+            scores_ps.rank().is_static() && (scores_ps.rank().get_length() == 3 || scores_ps.rank().get_length() == 2),
+            "Expected a 2D or 3D tensor for the 'scores' input. Got: ",
+            scores_ps);
+    }
 
     if (op->get_input_size() == 3) {
         const auto& roisnum_ps = input_shapes[2];
