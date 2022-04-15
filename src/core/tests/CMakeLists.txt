@@ -12,13 +12,6 @@ endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
-if(ENABLE_TESTS)
-    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    if (ENABLE_OV_ONNX_FRONTEND)
-        add_subdirectory(onnx_test_util)
-    endif()
-endif()
-
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
     message(STATUS "nGraph unit tests disabled")
     return()
@@ -585,7 +578,10 @@ install(TARGETS ov_core_unit_tests
         EXCLUDE_FROM_ALL)
 
 add_subdirectory(frontend)
-add_subdirectory(onnx)
+
+if (ENABLE_OV_ONNX_FRONTEND)
+    add_subdirectory(onnx)
+endif()
 
 # process models
 add_dependencies(ov_core_unit_tests test_model_zoo)

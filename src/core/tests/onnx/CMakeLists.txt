@@ -14,9 +14,9 @@ add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    # ?? if (ENABLE_OV_ONNX_FRONTEND)
-    #     add_subdirectory(onnx_test_util)
-    # endif()
+    if (ENABLE_OV_ONNX_FRONTEND)
+        add_subdirectory(test_util)
+    endif()
 endif()
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
@@ -91,12 +91,6 @@ if (ENABLE_OV_ONNX_FRONTEND)
         onnx_transformations.cpp
         onnx_editor.cpp)
 endif()
-
-# SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
-list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
