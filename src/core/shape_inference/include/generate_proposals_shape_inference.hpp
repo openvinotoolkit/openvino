@@ -64,6 +64,13 @@ void shape_infer(const GenerateProposals* op,
                               scores_shape[0]);
         
         NODE_VALIDATION_CHECK(op,
+                              deltas_shape[1].compatible(scores_shape[1] * 4),
+                              "Anchor number for inputs 'input_deltas' and 'input_scores' should be "
+                              "equal. Got: ",
+                              deltas_shape[1] / 4,
+                              scores_shape[1]);
+
+        NODE_VALIDATION_CHECK(op,
                               deltas_shape[2].compatible(scores_shape[2]),
                               "Heights for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
@@ -85,6 +92,29 @@ void shape_infer(const GenerateProposals* op,
                                 deltas_shape[0],
                                 im_info_shape[0]);
         }
+    }
+
+    if (scores_shape_rank.is_static() && anchors_shape_rank.is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              anchors_shape[0].compatible(scores_shape[2]),
+                              "Heights for inputs 'input_anchors' and 'input_scores' should be "
+                              "equal. Got: ",
+                              anchors_shape[0],
+                              scores_shape[2]);
+
+        NODE_VALIDATION_CHECK(op,
+                              anchors_shape[1].compatible(scores_shape[3]),
+                              "Width for inputs 'input_anchors' and 'input_scores' should be "
+                              "equal. Got: ",
+                              anchors_shape[1],
+                              scores_shape[3]);
+
+        NODE_VALIDATION_CHECK(op,
+                              anchors_shape[2].compatible(scores_shape[1]),
+                              "Anchor number for inputs 'input_anchors' and 'input_scores' should be "
+                              "equal. Got: ",
+                              anchors_shape[2],
+                              scores_shape[1]);
     }
 
     output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});

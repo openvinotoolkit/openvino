@@ -15,7 +15,7 @@ op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
                                              const Output<Node>& deltas,
                                              const Output<Node>& scores,
                                              const Attributes& attrs,
-                                             const element::Type roi_num_type)
+                                             const element::Type& roi_num_type)
     : Op({im_info, anchors, deltas, scores}),
       m_attrs(attrs),
       m_roi_num_type(roi_num_type) {
@@ -61,7 +61,7 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
     const auto& input_et = get_input_element_type(0);
     set_output_type(0, input_et, output_shapes[0]);
     set_output_type(1, input_et, output_shapes[1]);
-    const auto roi_num_type = get_roi_num_type();
+    const auto& roi_num_type = get_roi_num_type();
     NODE_VALIDATION_CHECK(this,
                           (roi_num_type == element::i64) || (roi_num_type == element::i32),
                           "The third output type must be int64 or int32.");

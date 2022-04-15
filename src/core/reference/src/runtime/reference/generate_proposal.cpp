@@ -39,9 +39,13 @@ static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
 
     for (int64_t h = 0; h < bottom_H; ++h) {
         for (int64_t w = 0; w < bottom_W; ++w) {
+            // base index for anchors: anchors shape is [bottom_H, bottom_W, anchors_num, 4]
             int64_t a_idx = (h * bottom_W + w) * anchors_num * 4;
+            // base index for proposals: proposals shape is [bottom_H, bottom_W, anchors_num, 6]
             int64_t p_idx = (h * bottom_W + w) * anchors_num * 6;
+            // base index for scores: scores shape is [anchors_num, bottom_H, bottom_W]
             int64_t sc_idx = h * bottom_W + w;
+            // base index for deltas: anchors shape is [anchors_num, 4, bottom_H, bottom_W]
             int64_t d_idx = h * bottom_W + w;
 
             for (int64_t anchor = 0; anchor < anchors_num; ++anchor) {
@@ -95,10 +99,13 @@ static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
                 proposals[p_idx + 4] = score;
                 proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
 
-                a_idx += 4;
-                p_idx += 6;
-                sc_idx += bottom_area;
-                d_idx += 4 * bottom_area;
+                // update index for next anchor iter
+                a_idx += 4;  // anchors shape is [bottom_H, bottom_W, anchors_num, 4], so add 4 for next anchor iter
+                p_idx += 6;  // proposals shape is [bottom_H, bottom_W, anchors_num, 6], so add 6 for next anchor iter
+                sc_idx += bottom_area;  // scores shape is [anchors_num, bottom_H, bottom_W], so add bottom_H * bottom_W
+                                        // for next anchor iter
+                d_idx += 4 * bottom_area;  // deltas shape is [anchors_num, 4, bottom_H, bottom_W], so add 4 * bottom_H
+                                           // * bottom_W for next anchor iter
             }
         }
     }

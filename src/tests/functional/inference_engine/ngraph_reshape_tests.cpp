@@ -944,7 +944,7 @@ TEST_F(NGraphReshapeTests, ReshapeGenerateProposals) {
             </output>
         </layer>
         <layer name="in1" type="Parameter" id="1" version="opset1">
-            <data shape="3,50,84,4" element_type="f32"/>
+            <data shape="50,84,3,4" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>50</dim>
@@ -1053,14 +1053,14 @@ TEST_F(NGraphReshapeTests, ReshapeGenerateProposals) {
     Blob::Ptr weights;
     auto network = ie.ReadNetwork(model, weights);
     InferenceEngine::ICNNNetwork::InputShapes newShapes;
-    newShapes["in1"] = {4, 100, 100, 4};
+    newShapes["in1"] = {100, 100, 4, 4};
     newShapes["in2"] = {8, 16, 100, 100};
     newShapes["in3"] = {8, 4, 100, 100};
     ASSERT_NO_THROW(network.reshape(newShapes));
 
     InferenceEngine::ICNNNetwork::InputShapes newShapes2;
     newShapes2["in0"] = {2, 4};
-    newShapes2["in1"] = {4, 100, 100, 4};
+    newShapes2["in1"] = {100, 100, 4, 4};
     newShapes2["in2"] = {2, 16, 100, 100};
     newShapes2["in3"] = {2, 4, 100, 100};
     ASSERT_NO_THROW(network.reshape(newShapes2));

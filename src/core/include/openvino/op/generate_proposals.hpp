@@ -48,7 +48,7 @@ public:
                       const Output<Node>& deltas,
                       const Output<Node>& scores,
                       const Attributes& attrs,
-                      const element::Type roi_num_type = element::i64);
+                      const element::Type& roi_num_type = element::i64);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -73,7 +73,7 @@ public:
 
 private:
     Attributes m_attrs;
-    ov::element::Type m_roi_num_type;
+    ov::element::Type m_roi_num_type = ov::element::i64;
 };
 }  // namespace v9
 }  // namespace op

@@ -47,4 +47,7 @@ TEST(attributes, generate_proposals) {
     EXPECT_EQ(g_proposals->get_attrs().nms_threshold, proposals->get_attrs().nms_threshold);
     EXPECT_EQ(g_proposals->get_attrs().post_nms_count, proposals->get_attrs().post_nms_count);
     EXPECT_EQ(g_proposals->get_attrs().pre_nms_count, proposals->get_attrs().pre_nms_count);
+    EXPECT_EQ(g_proposals->get_attrs().normalized, proposals->get_attrs().normalized);
+    EXPECT_EQ(g_proposals->get_attrs().nms_eta, proposals->get_attrs().nms_eta);
+    EXPECT_EQ(g_proposals->get_roi_num_type(), proposals->get_roi_num_type());
 }

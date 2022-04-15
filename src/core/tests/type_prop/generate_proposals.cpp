@@ -49,6 +49,52 @@ TEST(type_prop, generate_proposals) {
     EXPECT_EQ(proposals->get_output_partial_shape(0), (PartialShape{dyn_dim, 4}));
     EXPECT_EQ(proposals->get_output_partial_shape(1), (PartialShape{dyn_dim}));
     EXPECT_EQ(proposals->get_output_partial_shape(2), (PartialShape{dyn_dim}));
+
+    // assert throw
+    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<op::Parameter>(element::f32, Shape{100, 336, 3, 4});
+    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 200, 336});
+
+    ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
+                 ngraph::CheckFailure)
+        << "GenerateProposals node was created with invalid data.";
+
+    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 300});
+    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 200, 336});
+
+    ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
+                 ngraph::CheckFailure)
+        << "GenerateProposals node was created with invalid data.";
+
+    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 4});
+    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+
+    ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
+                 ngraph::CheckFailure)
+        << "GenerateProposals node was created with invalid data.";
+
+    im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 2});
+    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+
+    ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
+                 ngraph::CheckFailure)
+        << "GenerateProposals node was created with invalid data.";
+
+    im_info = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    anchors = std::make_shared<op::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    deltas = std::make_shared<op::Parameter>(element::f32, Shape{1, 12, 200, 336});
+    scores = std::make_shared<op::Parameter>(element::f32, Shape{1, 4, 200, 336});
+
+    ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
+                 ngraph::CheckFailure)
+        << "GenerateProposals node was created with invalid data.";
 }
 
 TEST(type_prop, generate_proposals_dynamic) {
