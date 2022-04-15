@@ -92,7 +92,7 @@ The `height` and `width` from inputs `anchors`, `boxesdeltas` and `scores` are t
 
 **Outputs**
 
-* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs. The proposals are layouted as `[xmin, ymin, xmax, ymax]`. The `num_rois` means the total proposals number of all the images in one batch.
+* **1**: `rpnrois` - tensor of type *T* with shape `[num_rois, 4]` providing proposed ROIs. The proposals are layouted as `[xmin, ymin, xmax, ymax]`. The `num_rois` means the total proposals number of all the images in one batch. `num_rois` is a dynamic dimension.
 
 * **2**: `rpnscores` - tensor of type *T* with shape `[num_rois]` providing proposed ROIs scores.
 
