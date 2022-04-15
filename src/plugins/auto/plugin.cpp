@@ -78,7 +78,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devicesWithRequests;
-    const auto& deviceList = GetCore()->GetAvailableDevices();
     // parsing the string and splitting the comma-separated tokens
     std::string::size_type i = 0;
     std::string::size_type idelimeter;
@@ -88,41 +87,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     }
     // last token in the string (which has no comma after that)
     devicesWithRequests.push_back(priorities.substr(i, priorities.length() - i));
-
-    // handle the case of "AUTO:-CPU or AUTO:GPU,-GPU.0" cases
-    std::vector<std::string> devicesToBeDeleted;
-    auto updateDeviceList = [&](const std::string& delPattern) {
-        auto iter = devicesWithRequests.begin();
-        while (iter != devicesWithRequests.end()) {
-            if ((*iter).find(delPattern) != std::string::npos) {
-                if ((*iter).find("-") != std::string::npos)
-                    devicesToBeDeleted.push_back((*iter).erase(0, 1));
-                iter = devicesWithRequests.erase(iter);
-            } else {
-                iter++;
-            }
-        }
-    };
-    auto mergeDeviceList = [&]() {
-        std::vector<std::string> mergedList;
-        for (auto&& iter : devicesWithRequests) {
-            for (auto& viter : deviceList) {
-                if (viter.find(iter) != std::string::npos)
-                    mergedList.push_back(viter);
-            }
-        }
-        return mergedList;
-    };
-
-    updateDeviceList("-");
-    auto prioritiesIter = config.find(ov::device::priorities.name());
-    bool enableDevicePriority = (prioritiesIter != config.end()) && devicesWithRequests.size();
-    devicesWithRequests = devicesWithRequests.size() == 0 ? deviceList : mergeDeviceList();
-
-    for (auto& iter : devicesToBeDeleted) {
-        LOG_INFO("AUTOPLUGIN:remove %s from device list", iter.c_str());
-        updateDeviceList(iter);
-    }
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
@@ -150,8 +114,26 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         return "";
     };
-
+    auto checkPriorityConfig = [&] (const std::string& priString) {
+        std::string::size_type pos = 0;
+        std::string::size_type endpos = 0;
+        while ((endpos = priString.find(",", pos)) != std::string::npos) {
+            auto subStr = priString.substr(pos, endpos - pos);
+            if (subStr.find("-") != 0)
+                return true;
+            pos = endpos + 1;
+        }
+        if (priString.substr(pos, priString.length() - pos).find("-") != 0 )
+            return true;
+        return false;
+    };
     unsigned int devicePriority = 0;
+    auto prioritiesIter = config.find(ov::device::priorities.name());
+    // if AUTO:-***,-***...., also do not need to enable device priority
+    bool enableDevicePriority = (prioritiesIter != config.end()) &&
+                                checkPriorityConfig(prioritiesIter->second);
+
+    auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
         auto closingBracket = d.find_first_of(')', openingBracket);
@@ -629,16 +611,73 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
-
+    auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (deviceListConfig == config.end()) {
-        auto deviceList = GetCore()->GetAvailableDevices();
         for (auto&& device : deviceList) {
             allDevices += device;
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
         }
     } else {
-        allDevices = deviceListConfig->second;
+        // parsing the string and splitting the comma-separated tokens
+        std::string::size_type i = 0;
+        std::string::size_type idelimeter;
+        std::vector<std::string> deviceVec;
+        auto priorities = deviceListConfig->second;
+        while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
+            deviceVec.push_back(priorities.substr(i, idelimeter - i));
+            i = idelimeter + 1;
+        }
+        // last token in the string (which has no comma after that)
+        deviceVec.push_back(priorities.substr(i, priorities.length() - i));
+        std::vector<std::string> devicesToBeDeleted;
+        auto updateDeviceVec = [&](const std::string& delPattern = "") {
+            auto iter = deviceVec.begin();
+            while (iter != deviceVec.end()) {
+                if (delPattern.empty()) {
+                    if ((*iter).find("-") == 0) {
+                        devicesToBeDeleted.push_back((*iter).erase(0, 1));
+                        iter = deviceVec.erase(iter);
+                    } else {
+                        iter++;
+                    }
+                } else {
+                    if ((*iter).find(delPattern) != std::string::npos)
+                        iter = deviceVec.erase(iter);
+                    else
+                        iter++;
+                }
+            }
+        };
+        updateDeviceVec();
+        if (devicesToBeDeleted.size() == 0) {
+            allDevices = deviceListConfig->second;
+        } else {
+            auto mergeDeviceList = [&]() {
+                std::vector<std::string> mergedList;
+                auto prevSize = mergedList.size();
+                for (auto&& iter : deviceVec) {
+                    for (auto& viter : deviceList) {
+                        if (viter.find(iter) != std::string::npos)
+                            mergedList.push_back(viter);
+                    }
+                    // if virtual devices or mock devices
+                    if (mergedList.size() == prevSize)
+                        mergedList.push_back(iter);
+                    prevSize = mergedList.size();
+                }
+                return mergedList;
+            };
+            deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
+            for (auto& iter : devicesToBeDeleted) {
+                LOG_INFO("[AUTOPLUGIN]:remove %s from device candidate list", iter.c_str());
+                updateDeviceVec(iter);
+            }
+            for (auto&& device : deviceVec) {
+                allDevices += device;
+                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+            }
+        }
     }
 
     if (allDevices.empty()) {
