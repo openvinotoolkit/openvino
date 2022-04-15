@@ -4,7 +4,9 @@
 from openvino.runtime import Model
 from openvino.runtime import Shape, Type
 from openvino.runtime.op import Parameter
+from typing import Tuple, Union
 import openvino.runtime.opset8 as ops
+import numpy as np
 
 
 def get_test_function():
@@ -24,3 +26,8 @@ def test_compare_functions():
         assert status
     except RuntimeError:
         print("openvino.test_utils.compare_functions is not available")
+
+
+def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 'float32'):
+    np.random.seed(42)
+    return np.random.rand(*shape).astype(dtype)

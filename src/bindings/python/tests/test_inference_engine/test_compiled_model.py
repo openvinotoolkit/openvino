@@ -5,7 +5,8 @@ import os
 import pytest
 import numpy as np
 
-from ..conftest import model_path, read_image, get_model_with_template_extension
+from ..conftest import model_path, get_model_with_template_extension
+from ..test_utils.test_utils import generate_image
 from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
@@ -50,10 +51,10 @@ def test_export_import():
 
     new_compiled = core.import_model(user_stream, "CPU")
 
-    img = read_image()
+    img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+    assert np.argmax(res[new_compiled.outputs[0]]) == 9
 
 
 def test_export_import_advanced():
@@ -69,10 +70,10 @@ def test_export_import_advanced():
 
     new_compiled = core.import_model(user_stream, "CPU")
 
-    img = read_image()
+    img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+    assert np.argmax(res[new_compiled.outputs[0]]) == 9
 
 
 def test_get_input_i(device):
@@ -245,41 +246,41 @@ def test_inputs_docs(device):
 def test_infer_new_request_numpy(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_tensor_numpy_shared_memory(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_new_request_wrong_port_name(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
     with pytest.raises(KeyError) as e:
@@ -290,7 +291,7 @@ def test_infer_new_request_wrong_port_name(device):
 def test_infer_tensor_wrong_input_data(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
@@ -306,10 +307,10 @@ def test_infer_numpy_model_from_buffer(device):
     with open(test_net_xml, "rb") as f:
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    img = generate_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_infer_tensor_model_from_buffer(device):
@@ -319,11 +320,11 @@ def test_infer_tensor_model_from_buffer(device):
     with open(test_net_xml, "rb") as f:
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_direct_infer(device):
@@ -333,11 +334,11 @@ def test_direct_infer(device):
     with open(test_net_xml, "rb") as f:
         xml = f.read()
     model = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     comp_model = core.compile_model(model, device)
     res = comp_model({"data": tensor})
-    assert np.argmax(res[comp_model.outputs[0]]) == 2
+    assert np.argmax(res[comp_model.outputs[0]]) == 9
     ref = comp_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
 

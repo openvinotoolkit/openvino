@@ -8,34 +8,21 @@ import warnings
 import time
 
 from openvino.inference_engine import ie_api as ie
-from tests_compatibility.conftest import model_path, image_path
+from tests_compatibility.conftest import model_path
+from tests.test_utils.test_utils import generate_image
 
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-path_to_image = image_path()
 test_net_xml, test_net_bin = model_path(is_myriad)
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_image)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1))
-    image = image.reshape((n, c, h, w))
-    return image
 
 
 def test_infer(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 2
+    assert np.argmax(res['fc_out'][0]) == 9
     del exec_net
     del ie_core
 
@@ -50,7 +37,7 @@ def test_infer_net_from_buffer(device):
     net2 = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     exec_net2 = ie_core.load_network(net2, device)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
     res2 = exec_net2.infer({'data': img})
     del ie_core
@@ -63,7 +50,7 @@ def test_infer_wrong_input_name(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     with pytest.raises(AssertionError) as e:
         exec_net.infer({'_data_': img})
     assert "No input with name _data_ found in network" in str(e.value)
@@ -108,11 +95,11 @@ def test_async_infer_one_req(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request_handler = exec_net.start_async(request_id=0, inputs={'data': img})
     request_handler.wait()
     res = request_handler.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     del exec_net
     del ie_core
 
@@ -121,12 +108,12 @@ def test_async_infer_many_req(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
-    img = read_image()
+    img = generate_image()
     for id in range(5):
         request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
         request_handler.wait()
         res = request_handler.output_blobs['fc_out'].buffer
-        assert np.argmax(res) == 2
+        assert np.argmax(res) == 9
     del exec_net
     del ie_core
 
@@ -136,7 +123,7 @@ def test_async_infer_many_req_get_idle(device):
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     num_requests = 5
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)
-    img = read_image()
+    img = generate_image()
     check_id = set()
     for id in range(2*num_requests):
         request_id = exec_net.get_idle_request_id()
@@ -151,7 +138,7 @@ def test_async_infer_many_req_get_idle(device):
     assert status == ie.StatusCode.OK
     for id in range(num_requests):
         if id in check_id:
-            assert np.argmax(exec_net.requests[id].output_blobs['fc_out'].buffer) == 2
+            assert np.argmax(exec_net.requests[id].output_blobs['fc_out'].buffer) == 9
     del exec_net
     del ie_core
 
@@ -161,7 +148,7 @@ def test_wait_before_start(device):
   net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
   num_requests = 5
   exec_net = ie_core.load_network(net, device, num_requests=num_requests)
-  img = read_image()
+  img = generate_image()
   requests = exec_net.requests
   for id in range(num_requests):
       status = requests[id].wait()
@@ -169,7 +156,7 @@ def test_wait_before_start(device):
       request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
       status = requests[id].wait()
       assert status == ie.StatusCode.OK
-      assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
+      assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 9
   del exec_net
   del ie_core
 
@@ -185,7 +172,7 @@ def test_wait_for_callback(device):
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)
     callbacks_info = {}
     callbacks_info['finished'] = 0
-    img = read_image()
+    img = generate_image()
     for request in exec_net.requests:
         request.set_completion_callback(callback, callbacks_info)
         request.async_infer({'data': img})
@@ -198,7 +185,7 @@ def test_wrong_request_id(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     with pytest.raises(ValueError) as e:
         exec_net.start_async(request_id=20, inputs={'data': img})
     assert "Incorrect request_id specified!" in str(e.value)
@@ -230,9 +217,9 @@ def test_plugin_accessible_after_deletion(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 2
+    assert np.argmax(res['fc_out'][0]) == 9
     del exec_net
     del ie_core
 
@@ -244,7 +231,7 @@ def test_exec_graph(device):
             pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
     exec_graph = exec_net.get_exec_graph_info()
     exec_graph_file = 'exec_graph.xml'
@@ -267,7 +254,7 @@ def test_export_import():
     assert os.path.exists(exported_net_file)
     exec_net = ie_core.import_network(exported_net_file, "MYRIAD")
     os.remove(exported_net_file)
-    img = read_image()
+    img = generate_image()
     res = exec_net.infer({'data': img})
     assert np.argmax(res['fc_out'][0]) == 3
     del exec_net
