@@ -38,7 +38,8 @@ static const char model_message[] =
 static const char hint_message[] =
     "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
     "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
-    "                               'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.\n"
+    "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
+    "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
     "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
@@ -376,7 +377,8 @@ static void show_usage() {
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
     std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+              << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
