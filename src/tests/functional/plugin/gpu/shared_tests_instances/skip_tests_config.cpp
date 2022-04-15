@@ -67,7 +67,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
-            // Issue connected with OV2.0
+            // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 67486
             R"(.*(SoftMaxLayerTest).*)",
