@@ -28,11 +28,11 @@ ngraph::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         const auto new_args = nms_9->input_values();
         const std::size_t num_of_inputs = new_args.size();
 
-        const auto& arg2 =
+        const auto& max_per_class =
             num_of_inputs > 2 ? new_args.at(2) : ngraph::opset9::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 =
+        const auto& iou_threshold =
             num_of_inputs > 3 ? new_args.at(3) : ngraph::opset9::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 =
+        const auto& score_threshold =
             num_of_inputs > 4 ? new_args.at(4) : ngraph::opset9::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
@@ -50,13 +50,13 @@ ngraph::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         Output<Node> new_shape_for_score_threshold = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
         Output<Node> new_shape_for_soft_nms_sigma = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
 
-        new_max_per_class = std::make_shared<opset1::Reshape>(arg2, new_shape_for_max_per_class, true);
+        new_max_per_class = std::make_shared<opset1::Reshape>(max_per_class, new_shape_for_max_per_class, true);
         new_ops.emplace_back(new_max_per_class.get_node_shared_ptr());
 
-        new_iou_threshold = std::make_shared<opset1::Reshape>(arg3, new_shape_for_iou_threshold, true);
+        new_iou_threshold = std::make_shared<opset1::Reshape>(iou_threshold, new_shape_for_iou_threshold, true);
         new_ops.emplace_back(new_iou_threshold.get_node_shared_ptr());
 
-        new_score_threshold = std::make_shared<opset1::Reshape>(arg4, new_shape_for_score_threshold, true);
+        new_score_threshold = std::make_shared<opset1::Reshape>(score_threshold, new_shape_for_score_threshold, true);
         new_ops.emplace_back(new_score_threshold.get_node_shared_ptr());
 
         int center_point_box = 0;

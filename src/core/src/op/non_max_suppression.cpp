@@ -15,6 +15,7 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
+#include "nms_shape_inference.hpp"
 
 using namespace ngraph;
 
@@ -987,16 +988,6 @@ void op::v9::NonMaxSuppression::validate() {
                           is_float_type_admissible(get_input_element_type(1)),
                           "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
 
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'boxes' input. Got: ",
-                          boxes_ps);
-
-    NODE_VALIDATION_CHECK(this,
-                          scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'scores' input. Got: ",
-                          scores_ps);
-
     if (inputs().size() >= 3) {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
@@ -1042,30 +1033,6 @@ void op::v9::NonMaxSuppression::validate() {
                               "Expected 0D or 1D tensor for the 'soft_nms_sigma' input. Got: ",
                               soft_nms_sigma);
     }
-
-    const auto num_batches_boxes = boxes_ps[0];
-    const auto num_batches_scores = scores_ps[0];
-    NODE_VALIDATION_CHECK(this,
-                          num_batches_boxes.same_scheme(num_batches_scores),
-                          "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
-                          num_batches_boxes,
-                          "; Scores: ",
-                          num_batches_scores);
-
-    const auto num_boxes_boxes = boxes_ps[1];
-    const auto num_boxes_scores = scores_ps[2];
-    NODE_VALIDATION_CHECK(this,
-                          num_boxes_boxes.same_scheme(num_boxes_scores),
-                          "'boxes' and 'scores' input shapes must match at the second and third "
-                          "dimension respectively. Boxes: ",
-                          num_boxes_boxes,
-                          "; Scores: ",
-                          num_boxes_scores);
-
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
-                          "The last dimension of the 'boxes' input must be equal to 4. Got:",
-                          boxes_ps[2]);
 }
 
 int64_t op::v9::NonMaxSuppression::max_boxes_output_from_input() const {
@@ -1142,28 +1109,18 @@ void op::v9::NonMaxSuppression::validate_and_infer_types() {
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    ov::PartialShape out_shape = {Dimension::dynamic(), 3};
-
     validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            has_and_set_equal_bounds(input_value(2))) {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 3},
+                                               {Dimension::dynamic(), 3},
+                                               {Dimension::dynamic()}};
 
-            out_shape[0] =
-                Dimension(0, std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length());
-        }
-    }
+    shape_infer(this, input_shapes, output_shapes);
 
-    set_output_type(0, m_output_type, out_shape);
-    set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, ov::Shape{1});
+    set_output_type(0, m_output_type, output_shapes[0]);
+    set_output_type(1, element::f32, output_shapes[1]);
+    set_output_type(2, m_output_type, output_shapes[2]);
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v9::NonMaxSuppression::BoxEncodingType& type) {

@@ -205,9 +205,10 @@ void non_max_suppression5(const float* boxes_data,
 
     if (sort_result_descending) {
         std::sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
-            return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
+            bool is_score_equal = std::fabs(l.score - r.score) < 1e-6;
+            return (l.score > r.score) || (is_score_equal && l.batch_index < r.batch_index) ||
+                   (is_score_equal && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                   (is_score_equal && l.batch_index == r.batch_index && l.class_index == r.class_index &&
                     l.index < r.index);
         });
     }
@@ -258,7 +259,7 @@ void non_max_suppression(const float* boxes_data,
         soft_nms = true;
     }
 
-    auto func = [iou_threshold, scale, soft_nms](float iou) {
+    auto get_score_scale = [iou_threshold, scale, soft_nms](float iou) {
         const float weight = std::exp(scale * iou * iou);
         return (soft_nms || iou <= iou_threshold) ? weight : 0.0f;
     };
@@ -309,7 +310,7 @@ void non_max_suppression(const float* boxes_data,
                 for (int64_t j = static_cast<int64_t>(selected.size()) - 1; j >= next_candidate.suppress_begin_index;
                      --j) {
                     float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
-                    next_candidate.score *= func(iou);
+                    next_candidate.score *= get_score_scale(iou);
 
                     if ((iou > iou_threshold) && !soft_nms) {
                         should_hard_suppress = true;
@@ -342,9 +343,10 @@ void non_max_suppression(const float* boxes_data,
 
     if (sort_result_descending) {
         std::sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
-            return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
+            bool is_score_equal = std::fabs(l.score - r.score) < 1e-6;
+            return (l.score > r.score) || (is_score_equal && l.batch_index < r.batch_index) ||
+                   (is_score_equal && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                   (is_score_equal && l.batch_index == r.batch_index && l.class_index == r.class_index &&
                     l.index < r.index);
         });
     }
