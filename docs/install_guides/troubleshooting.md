@@ -1,4 +1,4 @@
-# Troubleshooting Issues with OpenVINO™ Installation & Configuration {#openvino_docs_get_started_guide_troubleshooting}
+# Troubleshooting Issues with OpenVINO™ Installation & Configuration {#openvino_docs_get_started_guide_troubleshooting_issues}
 
 <!-- this part was from Docker installation -->
 

@@ -44,7 +44,7 @@
    :hidden:
    :caption: Troubleshooting
    
-   Installation & Configuration Issues <openvino_docs_get_started_guide_troubleshooting>
+   Installation & Configuration Issues <openvino_docs_get_started_guide_troubleshooting_issues>
    
 @endsphinxdirective
  
