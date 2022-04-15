@@ -83,11 +83,14 @@ struct format {
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
         b_fs_zyx_fsv32,                         ///< format used for blocked int8 3d convolution
+        bs_fs_zyx_bsv16_fsv32,                  ///< format used for 3D blocked convolution (batch and features blocked by 16 and 32)
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv4_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 4)
         bs_fs_yx_bsv8_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 4)
+        bs_fs_zyx_bsv8_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 8 and 4)
         bs_fs_yx_bsv8_fsv2,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 2)
+        bs_fs_zyx_bsv8_fsv2,                    ///< format used for 3D blocked convolution (batch and features blocked by 8 and 2)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -160,6 +163,7 @@ struct format {
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa2_isa8_osv8_isv2,
+        os_is_zyx_osa2_isa8_osv8_isv2,
         os_is_yx_osa2_isa8_osv16_isv2,
         os_is_yx_osa2_isa8_osv16_isv4,
         os_is_yx_isa8_osv8_isv2,
@@ -173,7 +177,9 @@ struct format {
         os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv8_isv4,                           ///< format used for convolution i8 weights
+        os_is_zyx_osv8_isv4,                          ///< format used for convolution i8 weights
         os_is_yx_osv8_isv2,                           ///< format used for convolution fp16 weights
+        os_is_zyx_osv8_isv2,                          ///< format used for convolution fp16 weights
         os_is_zyx_osv16_isv16,                        ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4,                          ///< format for weights for IMAD convolutions
@@ -200,6 +206,7 @@ struct format {
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
         gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
+        gs_oizyx_gsv32,                               ///< format used for weights for 3D convolution
         g_is_os_zyx_isv16_osv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
         g_os_is_zyx_osv16_isv16,

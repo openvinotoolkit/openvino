@@ -591,10 +591,17 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         if (conv_node.impl_type == impl_types::onednn &&
             lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
             auto new_layout = input_layout;
+            auto dims = new_layout.format.dimension();
             if (new_layout.data_type == data_types::f16) {
-                new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
+                if (dims == 5)
+                    new_layout.format = format::bs_fs_zyx_bsv8_fsv2;
+                else
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
             } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
-                new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
+                if (dims == 5)
+                    new_layout.format = format::bs_fs_zyx_bsv8_fsv4;
+                else
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
             }
             // TODO: handling other types for first conv
 

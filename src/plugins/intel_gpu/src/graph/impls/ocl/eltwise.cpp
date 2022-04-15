@@ -227,6 +227,20 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv32_fsv16),
     });
 }
 

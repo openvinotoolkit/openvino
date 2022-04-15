@@ -33,7 +33,7 @@
     (f)*CAT(prefix, _FEATURE_PITCH) +       \
     (b)*CAT(prefix, _BATCH_PITCH)
 
-#define GET_DATA_INDEX_RAW_5D(prefix, i0, i1, i2, i3, i4) \
+#define GET_DATA_INDEX_5D_RAW(prefix, i0, i1, i2, i3, i4) \
     CAT(prefix, _OFFSET) + \
     (i0)*CAT(prefix, _PITCHES)[0] + \
     (i1)*CAT(prefix, _PITCHES)[1] + \
@@ -67,7 +67,7 @@
     (f % CAT(prefix, _FEATURE_NUM))*CAT(prefix, _FEATURE_PITCH) +   \
     (b % CAT(prefix, _BATCH_NUM  ))*CAT(prefix, _BATCH_PITCH)
 
-#define GET_DATA_INDEX_RAW_6D(prefix, i0, i1, i2, i3, i4, i5) \
+#define GET_DATA_INDEX_6D_RAW(prefix, i0, i1, i2, i3, i4, i5) \
     CAT(prefix, _OFFSET) + \
     (i0)*CAT(prefix, _PITCHES)[0] + \
     (i1)*CAT(prefix, _PITCHES)[1] + \
@@ -553,6 +553,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 16, 16)
 
+#define GET_DATA_BS_FS_ZYX_BSV32_FSV32_INDEX(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, z, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 32, 32)
+
 #define GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(prefix, b, f, y, x)     \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
         b, f, 0, y, x,                                              \
@@ -585,6 +601,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 4, 4)
 
+#define GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX(prefix, b, f, z, y, x)   \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, z, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
+
 #define GET_DATA_BS_FS_YX_BSV8_FSV4_INDEX(prefix, b, f, y, x)       \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
         b, f, 0, y, x,                                              \
@@ -600,6 +632,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
+
+#define GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(prefix, b, f, z, y, x)   \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, z, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 2)
 
 #define GET_DATA_BS_FS_YX_BSV8_FSV2_INDEX(prefix, b, f, y, x)       \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
@@ -633,6 +681,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 4, 2)
 
+#define GET_DATA_BS_FS_ZYX_BSV32_FSV16_INDEX(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, z, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
+
 #define GET_DATA_BS_FS_YX_BSV32_FSV16_INDEX(prefix, b, f, y, x)     \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
         b, f, 0, y, x,                                              \
@@ -648,6 +712,22 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
         CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
+
+#define GET_DATA_BS_FS_ZYX_BSV16_FSV32_INDEX(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index(                                    \
+        b, f, z, y, x,                                              \
+        CAT(prefix, _SIZE_X),                                       \
+        CAT(prefix, _SIZE_Y),                                       \
+        CAT(prefix, _SIZE_Z),                                       \
+        CAT(prefix, _FEATURE_NUM),                                  \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                       \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                            \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 16, 32)
 
 #define GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(prefix, b, f, z, y, x) \
     get_bs_fs_zyx_bsv_fsv_index(                                    \
@@ -681,6 +761,23 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_Y),                              \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
         CAT(prefix, _PAD_AFTER_SIZE_X), 16, 16)
+
+#define GET_DATA_BS_FS_ZYX_BSV32_FSV32_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                    \
+        b, f, z, y, x,                                                   \
+        CAT(prefix, _SIZE_X),                                            \
+        CAT(prefix, _SIZE_Y),                                            \
+        CAT(prefix, _SIZE_Z),                                            \
+        CAT(prefix, _FEATURE_NUM),                                       \
+        CAT(prefix, _BATCH_NUM),                                         \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                            \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 32, 32)
 
 #define GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX_SAFE(prefix, b, f, y, x) \
     get_bs_fs_zyx_bsv_fsv_index_safe(                                \
@@ -733,6 +830,23 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
         CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
 
+#define GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                  \
+        b, f, z, y, x,                                                 \
+        CAT(prefix, _SIZE_X),                                          \
+        CAT(prefix, _SIZE_Y),                                          \
+        CAT(prefix, _SIZE_Z),                                          \
+        CAT(prefix, _FEATURE_NUM),                                     \
+        CAT(prefix, _BATCH_NUM),                                       \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                          \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                               \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                                \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                               \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                                \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                               \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 4)
+
 #define GET_DATA_BS_FS_YX_BSV8_FSV2_INDEX_SAFE(prefix, b, f, y, x)   \
     get_bs_fs_zyx_bsv_fsv_index_safe(                                \
         b, f, 0, y, x,                                               \
@@ -748,6 +862,23 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_Y),                             \
         CAT(prefix, _PAD_AFTER_SIZE_Y),                              \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 8, 2)
+
+#define GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                  \
+        b, f, z, y, x,                                                 \
+        CAT(prefix, _SIZE_X),                                          \
+        CAT(prefix, _SIZE_Y),                                          \
+        CAT(prefix, _SIZE_Z),                                          \
+        CAT(prefix, _FEATURE_NUM),                                     \
+        CAT(prefix, _BATCH_NUM),                                       \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                          \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                               \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                                \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                               \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                                \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                               \
         CAT(prefix, _PAD_AFTER_SIZE_X), 8, 2)
 
 #define GET_DATA_BS_FS_YX_BSV4_FSV2_INDEX_SAFE(prefix, b, f, y, x)   \
@@ -767,6 +898,23 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
         CAT(prefix, _PAD_AFTER_SIZE_X), 4, 2)
 
+#define GET_DATA_BS_FS_ZYX_BSV32_FSV16_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                    \
+        b, f, z, y, x,                                                   \
+        CAT(prefix, _SIZE_X),                                            \
+        CAT(prefix, _SIZE_Y),                                            \
+        CAT(prefix, _SIZE_Z),                                            \
+        CAT(prefix, _FEATURE_NUM),                                       \
+        CAT(prefix, _BATCH_NUM),                                         \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                            \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
+
 #define GET_DATA_BS_FS_YX_BSV32_FSV16_INDEX_SAFE(prefix, b, f, y, x) \
     get_bs_fs_zyx_bsv_fsv_index_safe(                                \
         b, f, 0, y, x,                                               \
@@ -784,10 +932,27 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                             \
         CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
 
+#define GET_DATA_BS_FS_ZYX_BSV16_FSV32_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                                    \
+        b, f, z, y, x,                                                   \
+        CAT(prefix, _SIZE_X),                                            \
+        CAT(prefix, _SIZE_Y),                                            \
+        CAT(prefix, _SIZE_Z),                                            \
+        CAT(prefix, _FEATURE_NUM),                                       \
+        CAT(prefix, _BATCH_NUM),                                         \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                            \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                             \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                                  \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                                 \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 16, 32)
+
 #define GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX_SAFE(prefix, b, f, z, y, x) \
     get_bs_fs_zyx_bsv_fsv_index_safe(                                    \
         b, f, z, y, x,                                                   \
-        CAT(prefix, _SIZE_X ),                                           \
+        CAT(prefix, _SIZE_X),                                            \
         CAT(prefix, _SIZE_Y),                                            \
         CAT(prefix, _SIZE_Z),                                            \
         CAT(prefix, _FEATURE_NUM),                                       \

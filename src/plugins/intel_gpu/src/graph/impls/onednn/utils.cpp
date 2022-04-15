@@ -119,7 +119,12 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bs_fs_yx_bsv8_fsv2: return dnnl::memory::format_tag::ABcd8a2b;
         case cldnn::format::bs_fs_yx_bsv4_fsv2: return dnnl::memory::format_tag::ABcd4a2b;
         case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
+        case cldnn::format::bs_fs_zyx_bsv32_fsv16: return dnnl::memory::format_tag::NCdhw32n16c;
+        case cldnn::format::bs_fs_zyx_bsv32_fsv32: return dnnl::memory::format_tag::NCdhw32n32c;
+        // case cldnn::format::bs_fs_zyx_bsv16_fsv32: return dnnl::memory::format_tag::NCdhw16n32c;
         case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
+        case cldnn::format::bs_fs_zyx_bsv8_fsv4: return dnnl::memory::format_tag::ABcde8a4b;
+        case cldnn::format::bs_fs_zyx_bsv8_fsv2: return dnnl::memory::format_tag::ABcde8a2b;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout " + fmt_to_str(fmt));
     }
 }
@@ -341,8 +346,10 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         switch (fmt) {
         case dnnl::memory::format_tag::abcde: return cldnn::format::goiyx;
         case dnnl::memory::format_tag::abcdef: return cldnn::format::goizyx;
+        case dnnl::memory::format_tag::Abcdef16a: return cldnn::format::gs_oizyx_gsv16;
         case dnnl::memory::format_tag::Abcde16a: return cldnn::format::gs_oiyx_gsv16;
         case dnnl::memory::format_tag::Abcde32a: return cldnn::format::gs_oiyx_gsv32;
+        case dnnl::memory::format_tag::Abcdef32a: return cldnn::format::gs_oizyx_gsv32;
         case dnnl::memory::format_tag::aCBde16c16b: return cldnn::format::g_is_os_yx_isv16_osv16;
         case dnnl::memory::format_tag::aBCde2b8c8b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case dnnl::memory::format_tag::aBCde4b8c8b4c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
@@ -369,8 +376,11 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::ABcde4a8b8a2b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
         case dnnl::memory::format_tag::ABcde4a8b8a4b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
         case dnnl::memory::format_tag::ABcd8a4b: return cldnn::format::os_is_yx_osv8_isv4;
+        case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::os_is_zyx_osv8_isv4;
+        case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::os_is_zyx_osv8_isv2;
         case dnnl::memory::format_tag::ABcd8a2b: return cldnn::format::os_is_yx_osv8_isv2;
         case dnnl::memory::format_tag::Acdb16a: return cldnn::format::os_yxi_osv16;
+        case dnnl::memory::format_tag::Acdeb16a: return cldnn::format::os_zyxi_osv16;
         case dnnl::memory::format_tag::ABcde16b16a: return cldnn::format::os_is_zyx_isv16_osv16;
         case dnnl::memory::format_tag::aBcd16b: return cldnn::format::o_is_yx_isv16;
         case dnnl::memory::format_tag::ABcd2a8b8a2b: return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
@@ -436,6 +446,10 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 } else {
                     throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));
                 }
+            } else if (desc.data.ndims == 5 && desc.data.format_desc.blocking.inner_nblks == 4 &&
+                blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
+                return cldnn::format::os_is_zyx_osa2_isa8_osv8_isv2;
             } else {
                 std::stringstream msg;
                 msg << "Unsupported onednn dnnl::memory::desc find_format. "
