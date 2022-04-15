@@ -307,21 +307,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
 
-        // Fuse reorder if the following onednn convolution supports bfyx input
-        if (next.is_type<convolution>() && fmt_prev == format::bfyx && prev_dt == next_dt &&
-            needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
-            auto& conv = next.as<convolution>();
-            if (conv.input().get_output_layout().format == fmt_next)
-                return true;
-        }
-
-        // Remove reorder to support mixed format convolutions of bsv32fsv16 or bsv32fsv32 output
-        if (next.is_type<convolution>() && (prev.is_type<eltwise>() || prev.is_type<quantize>()) &&
-            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            ((fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4))))
-            return true;
-
         // Remove reorder to support blocked input for first convolution
         if (next.is_type<convolution>() && needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
             ((prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() < 8 && fmt_prev == format::b_fs_yx_fsv2) ||
@@ -332,7 +317,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
         // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
         //                                 b_fs_yx_fsv16 (fp32/fp16) -> b_fs_yx_fsv32 (i8/u8)
-        if (next.is_type<convolution>()) {
+        if (next.is_type<convolution>() && !needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
             const bool fsv32_to_fsv16 = (((fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16) ||
                                           (fmt_prev == format::bs_fs_yx_bsv32_fsv32 && fmt_next == format::bs_fs_yx_bsv32_fsv16)) &&
                                           data_type_traits::is_i8_u8(prev_dt) && data_type_traits::is_floating_point(next_dt));
@@ -794,17 +779,13 @@ bool layout_optimizer::needs_all_usr_onednn_small_ic_to_blocked(const program_no
 
 bool layout_optimizer::needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node) {
     auto next_output_layout = node.get_output_layout();
-    if (!(prev_output_layout.data_type == next_output_layout.data_type ||
-        (prev_output_layout.data_type == data_types::i8 && next_output_layout.data_type == data_types::u8) ||
-        (prev_output_layout.data_type == data_types::u8 && next_output_layout.data_type == data_types::i8)))
-        return false;
 
     // Target output_layout format
     if (!(fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16 ||
         fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return false;
 
-    if (next_output_layout.feature() >= 8 && prev_output_layout.feature() <= 4)
+    if (prev_output_layout.feature() <= 8)
         return true;
 
     return false;
@@ -962,9 +943,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
-        // bool is_first_conv = input_layout.size.feature[0] < 4;
 
-        if (!non_grouped && is_2d) {
+        // oneDNNv.26 needs acdb format for shallow group conv
+        if (!non_grouped && !is_dw && ifm_per_group <= 8 && is_2d) {
             expected_format = cldnn::format::byxf;
         } else if (i8_u8_output) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && is_2d) {

@@ -173,6 +173,7 @@ enum WeightsLayout {
     gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
     gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
     gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
+    g_os_is_yx_osv8_isv2,
     g_os_is_yx_osv8_isv4,
     g_os_is_yx_osv16_isv4,
 
