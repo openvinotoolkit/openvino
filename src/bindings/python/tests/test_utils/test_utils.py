@@ -28,6 +28,6 @@ def test_compare_functions():
         print("openvino.test_utils.compare_functions is not available")
 
 
-def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 'float32'):
+def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
