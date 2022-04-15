@@ -219,18 +219,27 @@ void op::v5::Loop::validate_and_infer_types() {
                         auto input_param =
                             m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
                         const auto& input_param_ps = input_param->get_partial_shape();
-                        if (input_param_ps.rank().is_static() &&
-                            body_value_shape.rank().get_length() == input_param_ps.rank().get_length() &&
-                            !input_param_ps.compatible(body_value_shape)) {
-                            ov::PartialShape new_ps(body_value_shape);
-                            for (auto i = 0; i < body_value_shape.size(); i++) {
-                                if (!body_value_shape[i].compatible(input_param_ps[i])) {
-                                    new_ps[i] = Dimension::dynamic();
+                        if (input_param_ps.rank().is_static()) {
+                            const auto body_rank_len = body_value_shape.rank().get_length();
+                            const auto input_rank_len = input_param_ps.rank().get_length();
+                            // if input and output shape are {n} or {} and not compatible, make output shape dynamic
+                            if (body_rank_len <= 1 && input_rank_len <= 1 &&
+                                !input_param_ps.compatible(body_value_shape)) {
+                                // reset sub model input shape
+                                input_param->set_partial_shape({-1});
+                                need_reinvalidate = true;
+                            } else if (body_rank_len == input_rank_len &&
+                                       !input_param_ps.compatible(body_value_shape)) {
+                                ov::PartialShape new_ps(body_value_shape);
+                                for (auto i = 0; i < body_value_shape.size(); i++) {
+                                    if (!body_value_shape[i].compatible(input_param_ps[i])) {
+                                        new_ps[i] = Dimension::dynamic();
+                                    }
                                 }
+                                // reset sub model input shape
+                                input_param->set_partial_shape(new_ps);
+                                need_reinvalidate = true;
                             }
-                            // reset sub model input shape
-                            input_param->set_partial_shape(new_ps);
-                            need_reinvalidate = true;
                         }
                     }
                 }

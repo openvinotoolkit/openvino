@@ -1299,3 +1299,171 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes2_inputs_dynamic_shape
     EXPECT_EQ(loop->get_output_partial_shape(2), out1_shape);
     EXPECT_EQ(loop->get_output_partial_shape(3), out1_shape);
 }
+
+// dynamic output
+// trip_count = dynamic
+// execution_condition = true
+// body_condition = true
+// input is 1D shape, sub-model output shapes has one dynamic dimension and this output is a backedge to a
+// parameter, one dynamic shape and one static shape
+TEST(type_prop, loop_operation_dynamic_iter_1d_shapes_inputs_dynamic_shape_outputs) {
+    // That which we iterate over
+    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{1});
+    auto T = make_shared<opset5::Parameter>(element::i64, Shape{});
+
+    // Set up the cell body, a function from (Xi) -> Concat(Xi, Xi, 1) -> (Zo)
+    // Body parameters
+    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape{1});
+
+    auto body_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+
+    // Body
+    auto X0 = make_shared<opset5::Reshape>(Xi, opset5::Constant::create(ov::element::i32, {1}, {-1}), false);
+    auto Zo = make_shared<opset5::Concat>(NodeVector{X0, X0}, 0);
+    auto Z = make_shared<opset5::Result>(Zo);
+    auto body = make_shared<Function>(OutputVector{Z, body_condition}, ParameterVector{Xi});
+
+    auto loop = make_shared<opset5::Loop>(T, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(opset5::Loop::SpecialBodyPorts{-1, 1});
+    loop->set_merged_input(Xi, X, Z);
+
+    // check input descriptors
+    for (auto& desc : loop->get_input_descriptions()) {
+        auto type_info = desc->get_type_info();
+        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        }
+    }
+
+    // Output 1 is last Z
+    auto out0 = loop->get_iter_value(body_condition, -1);
+    auto out1 = loop->get_iter_value(Z, -1);
+
+    // check output descriptors
+    for (auto& desc : loop->get_output_descriptions()) {
+        auto type_info = desc->get_type_info();
+        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            EXPECT_NE(output_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            EXPECT_NE(output_desc, nullptr);
+        }
+    }
+    auto result0 = make_shared<opset5::Result>(out0);
+    auto result1 = make_shared<opset5::Result>(out1);
+    Shape out0_shape{};
+    PartialShape out1_shape{-1};
+
+    auto results = ResultVector{result0, result1};
+    auto f = make_shared<Function>(results, ParameterVector{X, T});
+    EXPECT_EQ(f->get_output_size(), 2);
+    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    // should be dynamic
+    EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
+
+    const auto inp0_shape = PartialShape{-1};
+    const auto inp1_shape = Shape{};
+    EXPECT_EQ(body->get_parameters().size(), 1);
+    // backedge, should be also dynamic
+    EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
+
+    EXPECT_EQ(loop->get_output_size(), 2);
+    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    // map from the submodel, should be dynamic
+    EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
+}
+
+// dynamic output
+// trip_count = dynamic
+// execution_condition = true
+// body_condition = true
+// input is scalar shape, sub-model output shapes has one dynamic dimension and this output is a backedge to a
+// parameter, one dynamic shape and one static shape
+TEST(type_prop, loop_operation_dynamic_iter_scalar_shapes_inputs_dynamic_shape_outputs) {
+    // That which we iterate over
+    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{});
+    auto T = make_shared<opset5::Parameter>(element::i64, Shape{});
+
+    // Set up the cell body, a function from (Xi) -> Concat(Xi, Xi, 1) -> (Zo)
+    // Body parameters
+    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape{});
+
+    auto body_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+
+    // Body
+    auto X0 = make_shared<opset5::Reshape>(Xi, opset5::Constant::create(ov::element::i32, {1}, {-1}), false);
+    auto Zo = make_shared<opset5::Concat>(NodeVector{X0, X0}, 0);
+    auto Z = make_shared<opset5::Result>(Zo);
+    auto body = make_shared<Function>(OutputVector{Z, body_condition}, ParameterVector{Xi});
+
+    auto loop = make_shared<opset5::Loop>(T, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(opset5::Loop::SpecialBodyPorts{-1, 1});
+    loop->set_merged_input(Xi, X, Z);
+
+    // check input descriptors
+    for (auto& desc : loop->get_input_descriptions()) {
+        auto type_info = desc->get_type_info();
+        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
+            auto input_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            EXPECT_NE(input_desc, nullptr);
+        }
+    }
+
+    // Output 1 is last Z
+    auto out0 = loop->get_iter_value(body_condition, -1);
+    auto out1 = loop->get_iter_value(Z, -1);
+
+    // check output descriptors
+    for (auto& desc : loop->get_output_descriptions()) {
+        auto type_info = desc->get_type_info();
+        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            EXPECT_NE(output_desc, nullptr);
+        } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
+            auto output_desc = ov::as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            EXPECT_NE(output_desc, nullptr);
+        }
+    }
+    auto result0 = make_shared<opset5::Result>(out0);
+    auto result1 = make_shared<opset5::Result>(out1);
+    Shape out0_shape{};
+    PartialShape out1_shape{-1};
+
+    auto results = ResultVector{result0, result1};
+    auto f = make_shared<Function>(results, ParameterVector{X, T});
+    EXPECT_EQ(f->get_output_size(), 2);
+    EXPECT_EQ(result0->get_output_shape(0), out0_shape);
+    // should be dynamic
+    EXPECT_EQ(result1->get_output_partial_shape(0), out1_shape);
+
+    const auto inp0_shape = PartialShape{-1};
+    const auto inp1_shape = Shape{};
+    EXPECT_EQ(body->get_parameters().size(), 1);
+    // backedge, should be also dynamic
+    EXPECT_EQ(body->get_parameters().at(0)->get_partial_shape(), inp0_shape);
+
+    EXPECT_EQ(loop->get_output_size(), 2);
+    EXPECT_EQ(loop->get_output_shape(0), out0_shape);
+    // map from the submodel, should be dynamic
+    EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
+}
