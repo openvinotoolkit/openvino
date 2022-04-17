@@ -31,8 +31,6 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         output_type = node.get_fused_output_layout().data_type;
     }
 
-    //명세에는 output_shape가 어떤 포맷으로 들어오는지 명시되있지 않음.
-    //지금까지 bfyx로 입력해서 잘 되었으므로 bfyx로 입력된다고 가정함.
     //base = bfyx
     auto d = dims_converted;
     //handle other orders

@@ -26,7 +26,6 @@ using gather8_test_5d_param = std::tuple<int,                  // batch_dim
                                          std::array<int, 5>,   // bfzyx0
                                          std::array<int, 5>>;  // bfzyx1
 
-// assume bfwzyx order
 // index 0 is input0
 // index 1 is input1
 // index 2 is output
@@ -111,7 +110,6 @@ public:
     }
 };
 
-// assume bfwzyx order
 // index 0 is input0
 // index 1 is input1
 // index 2 is output
