@@ -9,8 +9,8 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
-#include "plugin_loader.hpp"
 #include "openvino/op/constant.hpp"
+#include "plugin_loader.hpp"
 #include "so_extension.hpp"
 #include "utils.hpp"
 

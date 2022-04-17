@@ -40,6 +40,7 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
  * @param ov_exts vector with OpenVINO extensions
  * @param newAPI Whether this function is called from OpenVINO 2.0 API
  * @param frontEndManager FrontEndManager to load corresponding frontend plugin
+ * @param frontendMode read network without post-processing or other transformations
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& model,
@@ -47,7 +48,8 @@ CNNNetwork ReadNetwork(const std::string& model,
                        const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
                        bool newAPI,
-                       ov::frontend::FrontEndManager& frontEndManager);
+                       ov::frontend::FrontEndManager& frontEndManager,
+                       bool frontendMode = false);
 
 }  // namespace details
 }  // namespace InferenceEngine

@@ -27,6 +27,7 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
+        CONFIG_KEY(TBB_TERMINATE_ENABLE),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
@@ -150,6 +151,12 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers (#threads)";
         }
         _threadsPerStream = val_i;
+    } else if (key == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
+        if (value == CONFIG_VALUE(NO)) {
+            _tbbTerminateFlag = false;
+        } else {
+            _tbbTerminateFlag = true;
+        }
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -188,6 +195,12 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_threadsPerStream)};
+    } else if (key == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
+        if (_tbbTerminateFlag) {
+            return CONFIG_VALUE(YES);
+        } else {
+            return CONFIG_VALUE(NO);
+        }
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }

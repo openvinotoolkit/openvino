@@ -21,9 +21,11 @@ public:
     size_t getExecutorsNumber() const override;
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
+    void setTbbFlag(bool flag) override;
 
 private:
     tbb::task_scheduler_init init;
+    bool tbbTerminateFlag = true;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
@@ -32,8 +34,14 @@ private:
 
 }  // namespace
 
+void ExecutorManagerImpl::setTbbFlag(bool flag) {
+    tbbTerminateFlag = flag;
+}
+
 ExecutorManagerImpl::~ExecutorManagerImpl() {
-    init.blocking_terminate();
+    if (tbbTerminateFlag == true) {
+        init.blocking_terminate();
+    }
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {

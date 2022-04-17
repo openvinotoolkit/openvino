@@ -526,7 +526,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI,
-                                ov::frontend::FrontEndManager& frontEndManager) {
+                                ov::frontend::FrontEndManager& frontEndManager,
+                                bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
