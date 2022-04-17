@@ -7,6 +7,27 @@
 #include <string>
 #include <vector>
 
+#define CASE_4D \
+    case DataLayout::yxfb:\
+    case DataLayout::fyxb:\
+    case DataLayout::fs_b_yx_fsv32:\
+    case DataLayout::bfyx:\
+    case DataLayout::b_fs_yx_fsv4:\
+    case DataLayout::b_fs_yx_fsv16:\
+    case DataLayout::b_fs_yx_fsv32:\
+    case DataLayout::bs_fs_yx_bsv4_fsv2:\
+    case DataLayout::bs_fs_yx_bsv4_fsv4:\
+    case DataLayout::bs_fs_yx_bsv8_fsv2:\
+    case DataLayout::bs_fs_yx_bsv8_fsv4:\
+    case DataLayout::bs_fs_yx_bsv16_fsv16:\
+    case DataLayout::bs_fs_yx_bsv32_fsv16:\
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+#define CASE_5D \
+    case DataLayout::bfzyx:\
+    case DataLayout::b_fs_zyx_fsv16:\
+    case DataLayout::b_fs_zyx_fsv32:
+#define CASE_6D case DataLayout::bfwzyx:
+
 namespace kernel_selector {
 static size_t GetGatherChannelIndex(const gather_params& params) {
     Tensor::DataChannelName name = Tensor::DataChannelName::X;
@@ -82,7 +103,7 @@ static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
     return std::to_string(params.inputs[0].GetDims().at(params.inputs[0].GetDims().size() - GetGatherChannelIndex(params) - 1).v);
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
+static inline std::string GetOrderString(const std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
         order_str += ", " + order[i];
@@ -90,21 +111,27 @@ static inline std::string GetOrderString(std::vector<std::string>& order) {
     return order_str;
 }
 
-static inline std::vector<std::string> GetOrder(size_t size) {
-    std::vector<std::string> idx_order;
-    if (size <= 4) {
-        idx_order = {"b", "f", "y", "x"};
-    } else if (size == 5) {
-        idx_order = {"b", "f", "z", "y", "x"};
-    } else if (size == 6) {
-        idx_order = {"b", "f", "w", "z", "y", "x"};
+static inline std::vector<std::string> GetOrder(DataLayout fmt) {
+    // if (fmt == DataLayout::yxfb)
+    //     return {"y", "x", "f", "b"};
+    // if (fmt == DataLayout::fyxb)
+    //     return {"f", "y", "x", "b"};
+    // if (fmt == DataLayout::fs_b_yx_fsv32)
+    //     return {"f", "b", "y", "x"};
+    switch (fmt) {
+    CASE_4D
+        return {"b", "f", "y", "x"};
+    CASE_5D
+        return {"b", "f", "z", "y", "x"};
+    CASE_6D
+        return {"b", "f", "w", "z", "y", "x"};
+    default:
+        throw "Unknown format";
     }
-
-    return idx_order;
 }
 
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
-    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
+    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetLayout());
 
     const std::string input_axis_index_macro = "INPUT_AXIS_INDEX";
     const std::string zeroVal = "0";
@@ -129,7 +156,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 }
 
 static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
-    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
+    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetLayout());
 
     const std::string zero_val = "0";
 
@@ -156,39 +183,28 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
+    auto d = output.LogicalDims();
     switch ( out_layout ) {
-        case DataLayout::bfyx:
-        case DataLayout::b_fs_yx_fsv4:
-        case DataLayout::b_fs_yx_fsv16:
-        case DataLayout::b_fs_yx_fsv32:
-        case DataLayout::bs_fs_yx_bsv4_fsv2:
-        case DataLayout::bs_fs_yx_bsv4_fsv4:
-        case DataLayout::bs_fs_yx_bsv8_fsv2:
-        case DataLayout::bs_fs_yx_bsv8_fsv4:
-        case DataLayout::bs_fs_yx_bsv16_fsv16:
-        case DataLayout::bs_fs_yx_bsv32_fsv16:
-        case DataLayout::bs_fs_yx_bsv32_fsv32:
-            dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
-            dims_by_gws = {{Tensor::DataChannelName::X},
-                        {Tensor::DataChannelName::Y},
-                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-            break;
-        case DataLayout::bfzyx:
-        case DataLayout::b_fs_zyx_fsv16:
-        case DataLayout::b_fs_zyx_fsv32:
-            dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
-            dims_by_gws = {{Tensor::DataChannelName::X},
-                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-            break;
-        case DataLayout::bfwzyx:
-            dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-            dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    CASE_4D
+        dispatchData.gws = {d[0], d[1], d[2] * d[3]};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                   {Tensor::DataChannelName::Y},
+                   {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    break;
+    CASE_5D
+        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                    {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                    {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
-        default:
-            throw std::invalid_argument("Unsupported data layout for gather elements primitive");
+    CASE_6D
+        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                    {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                    {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        break;
+    default:
+        throw std::invalid_argument("Unsupported data layout for gather elements primitive");
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
@@ -205,7 +221,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
+        std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetLayout());
 
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));

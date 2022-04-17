@@ -26,6 +26,7 @@ using gather8_test_5d_param = std::tuple<int,                  // batch_dim
                                          std::array<int, 5>,   // bfzyx0
                                          std::array<int, 5>>;  // bfzyx1
 
+// assume bfwzyx order
 // index 0 is input0
 // index 1 is input1
 // index 2 is output
@@ -110,6 +111,7 @@ public:
     }
 };
 
+// assume bfwzyx order
 // index 0 is input0
 // index 1 is input1
 // index 2 is output
@@ -223,6 +225,22 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
                                           testing::Values(std::array<int, 4>{4, 1, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32,
+                         gather8_test_4d_f32i8,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::fs_b_yx_fsv32),
+                                          testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
+                                          testing::Values(std::array<int, 4>{5, 44, 7, 8}),
+                                          testing::Values(std::array<int, 4>{4, 1, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8yxfb,
+                         gather8_test_4d_f32i8,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::yxfb),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(std::array<int, 4>{5, 44, 7, 8}),
+                                          testing::Values(std::array<int, 4>{4, 1, 1, 1})));
 
 using gather8_test_5d_f32i8 = gather8_test_5d<float, char, data_types::f32, data_types::i8>;
 TEST_P(gather8_test_5d_f32i8, gather8_test_5d_f32i8) {}          
@@ -234,10 +252,10 @@ INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::array<int, 5>{8, 67, 3, 1, 1}),
                                           testing::Values(std::array<int, 5>{3, 56, 9, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8_5d_bd1_d3_i3,
+INSTANTIATE_TEST_SUITE_P(b_fs_zyx_fsv32,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(2),  //[batch_dim,dim(dict))
                                           testing::Values(format::type::b_fs_zyx_fsv32),
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::array<int, 5>{8, 66, 3, 1, 1}),
