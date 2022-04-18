@@ -39,6 +39,7 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 }
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {
+    clear();
     if (tbbTerminateFlag == true) {
         init.blocking_terminate();
     }
@@ -109,7 +110,7 @@ namespace {
 
 class ExecutorManagerHolder {
     std::mutex _mutex;
-    std::weak_ptr<ExecutorManager> _manager;
+    std::shared_ptr<ExecutorManager> _manager = NULL;
 
     ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
@@ -119,10 +120,9 @@ public:
 
     ExecutorManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
-        auto manager = _manager.lock();
-        if (!manager)
-            _manager = manager = std::make_shared<ExecutorManagerImpl>();
-        return manager;
+        if (!_manager)
+            _manager = std::make_shared<ExecutorManagerImpl>();
+        return _manager;
     }
 };
 
