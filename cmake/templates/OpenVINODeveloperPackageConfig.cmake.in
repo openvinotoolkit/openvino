@@ -72,6 +72,8 @@ if(NOT MSVC)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
         endif()
     endif()
+elseif(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zm256")
 endif()
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
