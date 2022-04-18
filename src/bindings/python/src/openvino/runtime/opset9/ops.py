@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Factory functions for all ngraph ops."""
+"""Factory functions for all openvino ops."""
 from functools import partial
 from typing import Optional
 
-import numpy as np
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
@@ -152,17 +151,17 @@ def irdft(
 def multiclass_nms(
         boxes: NodeInput,
         scores: NodeInput,
-        roisnum: NodeInput = None,
-        sort_result_type: str = "none",
-        sort_result_across_batch: bool = False,
-        output_type: str = "i64",
-        iou_threshold: float = 0.0,
-        score_threshold: float = 0.0,
-        nms_top_k: int = -1,
-        keep_top_k: int = -1,
-        background_class: int = -1,
-        nms_eta: float = 1.0,
-        normalized: bool = True
+        roisnum: Optional[NodeInput] = None,
+        sort_result_type: Optional[str] = "none",
+        sort_result_across_batch: Optional[bool] = False,
+        output_type: Optional[str] = "i64",
+        iou_threshold: Optional[float] = 0.0,
+        score_threshold: Optional[float] = 0.0,
+        nms_top_k: Optional[int] = -1,
+        keep_top_k: Optional[int] = -1,
+        background_class: Optional[int] = -1,
+        nms_eta: Optional[float] = 1.0,
+        normalized: Optional[bool] = True
 ) -> Node:
     """Return a node which performs MulticlassNms.
 

@@ -99,6 +99,10 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
     }
 
     if (scores_ps.rank().is_static() && scores_ps.rank().get_length() == 2) {  // if scores shape (C, M)
+        NODE_VALIDATION_CHECK(op,
+                              op->get_input_size() == 3,
+                              "Expected the 'roisnum' input when the input 'scores' is a 2D tensor.");
+
         const auto num_classes_boxes = boxes_ps[0];
         const auto num_classes_scores = scores_ps[0];
         NODE_VALIDATION_CHECK(op,
@@ -116,10 +120,6 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
                               num_boxes_boxes,
                               "; Scores: ",
                               num_boxes_scores);
-
-        NODE_VALIDATION_CHECK(op,
-                              op->get_input_size() == 3,
-                              "Expected the 'roisnum' input when the input 'scores' is a 2D tensor.");
     }
 
     /* rank of inputs have been static since here. */
