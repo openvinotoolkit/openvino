@@ -42,11 +42,6 @@ def test_any_float_list():
     assert isinstance(v[0], float)
 
 
-def test_any_tuple():
-    v = OVAny((2, 1))
-    assert isinstance(v.value, tuple)
-
-
 def test_any_bool():
     v = OVAny(False)
     assert isinstance(v.value, bool)

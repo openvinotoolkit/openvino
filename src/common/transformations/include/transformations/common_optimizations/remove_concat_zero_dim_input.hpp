@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API RemoveConcatZeroDimInput;
 
 class ov::pass::RemoveConcatZeroDimInput : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RemoveConcatZeroDimInput", "0");
     RemoveConcatZeroDimInput();
 };

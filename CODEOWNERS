@@ -39,8 +39,10 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # IE CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/plugins/intel_cpu/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/thirdparty/onednn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+
+#IE LPT
+/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers
 
 # IE GPU:
 /src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
@@ -66,6 +68,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
+# IE ARM CPU:
+/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md  @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+
 # IE Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 /src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
@@ -74,8 +79,8 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 
 # IE Tests:
-/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
-/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
 /src/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 /src/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 
@@ -85,6 +90,6 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies
-**/*requirements*.*  @openvino-configuration-mgmt
-**/setup.py  @openvino-configuration-mgmt
-/scripts/install_dependencies/  @openvino-configuration-mgmt
+**/*requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/scripts/install_dependencies/  @openvinotoolkit/openvino-configuration-mgmt

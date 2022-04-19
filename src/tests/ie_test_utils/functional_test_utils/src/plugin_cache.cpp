@@ -30,6 +30,7 @@ PluginCache &PluginCache::get() {
 }
 
 std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
+    // TODO: Remove it after fixing issue 69529
     // w/a for myriad (cann't store 2 caches simultaneously)
     ov::test::utils::PluginCache::get().reset();
 

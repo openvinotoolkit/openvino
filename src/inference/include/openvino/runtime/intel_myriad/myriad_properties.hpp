@@ -10,17 +10,33 @@
 namespace ov {
 
 /**
+ * @defgroup ov_runtime_myriad_hddl_prop_cpp_api Intel MYRIAD & HDDL specific properties
+ * @ingroup ov_runtime_cpp_api
+ * Set of Intel MYRIAD & HDDL specific properties.
+ *
+ * @defgroup ov_runtime_myriad_prop_cpp_api Intel MYRIAD specific properties
+ * @ingroup ov_runtime_cpp_api
+ * Set of Intel MYRIAD specific properties.
+ *
+ * @defgroup ov_runtime_hddl_prop_cpp_api Intel HDDL specific properties
+ * @ingroup ov_runtime_cpp_api
+ * Set of Intel HDDL specific properties.
+ */
+
+/**
  * @brief Namespace with Intel MYRIAD specific properties
  */
 namespace intel_myriad {
 
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
+ * @ingroup ov_runtime_myriad_hddl_prop_cpp_api
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_hw_acceleration{"MYRIAD_ENABLE_HW_ACCELERATION"};
 
 /**
  * @brief The flag for adding to the profiling information the time of obtaining a tensor.
+ * @ingroup ov_runtime_myriad_hddl_prop_cpp_api
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_receiving_tensor_time{
     "MYRIAD_ENABLE_RECEIVING_TENSOR_TIME"};
@@ -28,11 +44,13 @@ static constexpr Property<bool, PropertyMutability::RW> enable_receiving_tensor_
 /**
  * @brief This option allows to pass custom layers binding xml.
  * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
+ * @ingroup ov_runtime_myriad_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> custom_layers{"MYRIAD_CUSTOM_LAYERS"};
 
 /**
  * @brief Enum to define possible device protocols
+ * @ingroup ov_runtime_myriad_hddl_prop_cpp_api
  */
 enum class Protocol {
     PCIE = 0,  //!< Will use a device with PCIE protocol
@@ -68,16 +86,19 @@ inline std::istream& operator>>(std::istream& is, Protocol& protocol) {
 
 /**
  * @brief This option allows to specify protocol.
+ * @ingroup ov_runtime_myriad_prop_cpp_api
  */
 static constexpr Property<Protocol, PropertyMutability::RW> protocol{"MYRIAD_PROTOCOL"};
 
 /**
  * @brief The flag to reset stalled devices.
+ * @ingroup ov_runtime_myriad_prop_cpp_api
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_force_reset{"MYRIAD_ENABLE_FORCE_RESET"};
 
 /**
  * @brief Enum to define possible device mymory types
+ * @ingroup ov_runtime_myriad_prop_cpp_api
  */
 enum class DDRType {
     MYRIAD_DDR_AUTO = 0,         //!<  Automatic setting of DDR memory type
@@ -127,8 +148,8 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
 
 /**
  * @brief This option allows to specify device memory type.
+ * @ingroup ov_runtime_myriad_prop_cpp_api
  */
-
 static constexpr Property<DDRType, PropertyMutability::RW> ddr_type{"MYRIAD_DDR_TYPE"};
 }  // namespace intel_myriad
 }  // namespace ov

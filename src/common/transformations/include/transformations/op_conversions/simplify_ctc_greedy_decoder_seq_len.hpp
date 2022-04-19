@@ -36,6 +36,6 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
  */
 class ngraph::pass::SimplifyCTCGreedyDecoderSeqLen : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SimplifyCTCGreedyDecoderSeqLen", "0");
     SimplifyCTCGreedyDecoderSeqLen();
 };

@@ -26,7 +26,7 @@ static void formatNodeName(std::string& name) {
     std::replace(name.begin(), name.end(), ':', '-');
 }
 
-static bool shouldBeDumped(const MKLDNNNodePtr& node, const Config& config, const std::string& portsKind) {
+static bool shouldBeDumped(const NodePtr& node, const Config& config, const std::string& portsKind) {
     const auto& dumpFilters = config.blobDumpFilters;
 
     if (dumpFilters.empty())
@@ -94,7 +94,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const Config& co
     }
 }
 
-static void dumpInternalBlobs(const MKLDNNNodePtr& node, const Config& config) {
+static void dumpInternalBlobs(const NodePtr& node, const Config& config) {
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -109,14 +109,14 @@ static void dumpInternalBlobs(const MKLDNNNodePtr& node, const Config& config) {
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        MKLDNNMemoryPtr memory = std::make_shared<MKLDNNMemory>(node->getEngine());
+        MemoryPtr memory = std::make_shared<Memory>(node->getEngine());
         memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
         BlobDumper dumper(memory);
         dump(dumper, dump_file, config);
     }
 }
 
-void dumpInputBlobs(const MKLDNNNodePtr& node, const Config& config, int count) {
+void dumpInputBlobs(const NodePtr& node, const Config& config, int count) {
     if (!shouldBeDumped(node, config, "IN"))
         return;
 
@@ -150,7 +150,7 @@ void dumpInputBlobs(const MKLDNNNodePtr& node, const Config& config, int count) 
     dumpInternalBlobs(node, config);
 }
 
-void dumpOutputBlobs(const MKLDNNNodePtr& node, const Config& config, int count) {
+void dumpOutputBlobs(const NodePtr& node, const Config& config, int count) {
     if (!shouldBeDumped(node, config, "OUT"))
         return;
 

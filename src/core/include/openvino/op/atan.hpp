@@ -13,6 +13,7 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise inverse tangent (arctan) operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Atan : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Atan", "opset1", util::UnaryElementwiseArithmetic);

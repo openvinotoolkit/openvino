@@ -20,8 +20,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(BroadcastAddMultiplyConst, "BroadcastAddMultiplyConst", 0);
-
 using Node = std::shared_ptr<ngraph::Node>;
 using Nodes = std::vector<Node>;
 using Input = ngraph::Input<ngraph::Node>;

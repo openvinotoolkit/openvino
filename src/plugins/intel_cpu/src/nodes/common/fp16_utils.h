@@ -4,6 +4,9 @@
 
 #pragma once
 
+namespace ov {
+namespace intel_cpu {
+
 typedef short ie_fp16;
 
 // Function to convert F32 into F16
@@ -80,3 +83,5 @@ inline float f16tof32(ie_fp16 x) {
     return asfloat(u);
 }
 
+}   // namespace intel_cpu
+}   // namespace ov

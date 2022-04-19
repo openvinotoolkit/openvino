@@ -154,8 +154,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
             if (!variable_context.get_variable_value(variable)) {
                 auto h_tensor = std::make_shared<ngraph::HostTensor>(cloned_node->get_input_element_type(0),
                                                                      cloned_node->get_input_shape(0));
-                std::vector<float> data(ov::shape_size(cloned_node->get_input_shape(0)), 0);
-                h_tensor->write(data.data(), data.size() * sizeof(float));
+                h_tensor->write(h_tensor->get_data_ptr(), h_tensor->get_size_in_bytes());
                 variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
             }
         }

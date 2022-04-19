@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
-
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
     auto dts_node =

@@ -27,7 +27,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
             get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
 
         auto& input = sm_params.inputs[0];
-        auto& output = sm_params.output;
+        auto& output = sm_params.outputs[0];
         const auto primitive = arg.get_primitive();
 
         switch (primitive->dimension) {

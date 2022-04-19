@@ -10,16 +10,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNDFTNode : public MKLDNNNode {
+class DFT : public Node {
 public:
-    MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDFTNode() override = default;
+    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~DFT() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -43,5 +44,6 @@ private:
     bool inverse;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

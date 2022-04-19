@@ -22,6 +22,6 @@ class ConvertTopKToTopKIEMatcher;
 
 class ngraph::pass::ConvertTopKToTopKIEMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTopKToTopKIEMatcher", "0");
     ConvertTopKToTopKIEMatcher();
 };

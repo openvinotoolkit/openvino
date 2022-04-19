@@ -8,9 +8,10 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
+#include "itt.hpp"
 
 ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
+    MATCHER_SCOPE(ConvertBroadcastToTiles);
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
@@ -93,6 +94,6 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, "ConvertBroadcastToTiles");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }

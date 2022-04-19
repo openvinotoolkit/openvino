@@ -16,6 +16,13 @@
 
 namespace ov {
 
+/**
+ * @defgroup ov_layout_cpp_api Layout
+ * @ingroup ov_model_cpp_api
+ * OpenVINO Layout API to work and configure layouts for ov::Model inputs or outputs
+ *
+ */
+
 /// \brief ov::Layout represents the text information of tensor's dimensions/axes. E.g. layout `NCHW` means that 4D
 /// tensor `{-1, 3, 480, 640}` will have:
 /// - 0: `N = -1`: batch dimension is dynamic
@@ -33,6 +40,7 @@ namespace ov {
 /// in layout for appropriate inputs
 ///
 /// Refer also to `ov::layout` namespace for various additional helper functions of `ov::Layout`
+/// \ingroup ov_layout_cpp_api
 class OPENVINO_API Layout {
 public:
     /// \brief Constructs a dynamic Layout with no layout information.
@@ -101,66 +109,79 @@ private:
 namespace layout {
 
 /// \brief Checks if layout has 'batch' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_batch(const Layout& layout);
 
 /// \brief Returns 'batch' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t batch_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'channels' dimension
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_channels(const Layout& layout);
 
 /// \brief Returns 'channels' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t channels_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'depth' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_depth(const Layout& layout);
 
 /// \brief Returns 'depth' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t depth_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'height' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_height(const Layout& layout);
 
 /// \brief Returns 'height' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t height_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'width' dimension
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API bool has_width(const Layout& layout);
 
 /// \brief Returns 'width' dimension index.
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API std::int64_t width_idx(const Layout& layout);
 
 /// \brief Sets Layout of port
 ///
 /// \throws ov::Exception if port is not connected with Result or Parameter
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout);
 
 /// \brief Gets Layout of port
 ///
 /// \return layout from port and empty layout in other case
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API ov::Layout get_layout(const ov::Output<ov::Node>& output);
 
 /// \brief Gets Layout of port
 ///
 /// \return layout from port and empty layout in other case
+/// \ingroup ov_layout_cpp_api
 OPENVINO_API ov::Layout get_layout(const ov::Output<const ov::Node>& output);
 
 }  // namespace layout

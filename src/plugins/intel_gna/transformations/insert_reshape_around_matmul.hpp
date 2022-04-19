@@ -12,25 +12,25 @@ namespace GNAPluginNS {
 // @brief Insert Reshapes from 3d/4d to 2d before MatMul and from 2d to 3d/4d after MatMul
 class InsertReshapeAroundMatmul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InsertReshapeAroundMatmul", "0");
     InsertReshapeAroundMatmul();
 };
 
 class InsertReshapeAroundMatmulWithAdd : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InsertReshapeAroundMatmulWithAdd", "0");
     InsertReshapeAroundMatmulWithAdd();
 };
 
 class InsertReshapeAroundMatmulWithFq : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InsertReshapeAroundMatmulWithFq", "0");
     InsertReshapeAroundMatmulWithFq();
 };
 
 class InsertReshapeAroundMatmulWithTranspose : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InsertReshapeAroundMatmulWithTranspose", "0");
     InsertReshapeAroundMatmulWithTranspose();
 };
 

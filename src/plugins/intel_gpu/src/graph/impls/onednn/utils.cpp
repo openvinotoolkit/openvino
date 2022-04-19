@@ -126,28 +126,21 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     auto rank = cldnn::format::dimension(l.format);
     auto last_spatial_dim_idx = rank - 2 - 1;
 
-    l.size.batch[0] *= l.size.feature[0];
+    l.size.batch[0] *= l.feature();
     l.size.feature[0] = l.size.spatial[last_spatial_dim_idx];
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
-int64_t get_offset(dnnl::memory::desc desc) {
+int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc desc) {
     int64_t offset = 0;
-    int32_t padded_idx = -1;
-    for (int32_t i = 0; i < DNNL_MAX_NDIMS; ++i) {
-        if (desc.data.padded_offsets[i] > 0) {
-            padded_idx = i;
-            break;
+    auto f_padding = l.data_padding.lower_size().feature[0];
+    if (f_padding != 0) {
+        offset = f_padding;
+        for (size_t i = 0; i < l.size.spatial.size(); ++i) {
+            offset *= l.size.spatial[i];
         }
     }
-    if (padded_idx > -1) {
-        if (padded_idx != 1)
-            throw std::runtime_error(std::string("onednn only support feature padding. Unsupported padded_idx: ") + std::to_string(padded_idx));
-        offset = desc.data.padded_offsets[padded_idx];
-        for (int32_t i = padded_idx + 1; i < desc.data.ndims; ++i) {
-            offset *= desc.data.padded_dims[i];
-        }
-    }
+
     switch (desc.data.data_type) {
         case dnnl_data_type_t::dnnl_s8:
         case dnnl_data_type_t::dnnl_u8:
@@ -171,19 +164,16 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         dims.insert(dims.begin(), 1);
         padded_dims = dims;
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
-        dims.push_back(l.size.batch[0]);
-        dims.push_back(l.size.count() / l.size.batch[0]);
+        dims.push_back(l.batch());
+        dims.push_back(l.size.count() / l.batch());
         padded_dims = dims;
     } else if (flatten) {
         dims = flatten_tensor(l.size);
         padded_dims = dims;
     } else {
         auto rank = cldnn::format::dimension(l.format);
-        auto padded_size = l.size + l.data_padding.lower_size() + l.data_padding.upper_size();
-        auto offset = l.data_padding.lower_size();
         dims = convert_tensor(l.size, rank, cldnn::format::is_grouped(l.format));
-        padded_dims = convert_tensor(padded_size, rank);
-        padded_offset = convert_tensor(offset, rank);
+        padded_dims = dims;
     }
 
     pad_dims(padded_dims, l.format);
@@ -326,7 +316,15 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
                 return cldnn::format::os_is_yx_osv16_isv4;
             } else {
-                throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));
+                std::stringstream msg;
+                msg << "Unsupported onednn dnnl::memory::desc find_format. "
+                    << "ndims: " << desc.data.ndims
+                    << ", inner_nblks: " << blk.inner_nblks
+                    << ", inner_blks: ";
+                for (int i = 0; i < blk.inner_nblks; i++)
+                    msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+
+                throw std::runtime_error(msg.str());
             }
         }
     }

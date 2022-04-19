@@ -249,6 +249,11 @@ InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
     return *this;
 }
 
+InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
+    m_impl->set_from(runtime_tensor);
+    return *this;
+}
+
 // --------------------- PreProcessSteps ------------------
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
@@ -289,6 +294,11 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height,
 
 PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) {
     m_impl->add_resize_impl(alg, -1, -1);
+    return *this;
+}
+
+PreProcessSteps& PreProcessSteps::crop(const std::vector<int>& begin, const std::vector<int>& end) {
+    m_impl->add_crop_impl(begin, end);
     return *this;
 }
 

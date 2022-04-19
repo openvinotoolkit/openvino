@@ -17,10 +17,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(SplitConvolution, "SplitConvolution", 0);
-NGRAPH_RTTI_DEFINITION(SplitConvolutionWithBias, "SplitConvolutionWithBias", 0);
-NGRAPH_RTTI_DEFINITION(SplitConvolutionWithFq, "SplitConvolutionWithFq", 0);
-
 // Don't split when convolution is 2D and is not mappable to 1D
 static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
     auto convolution = dynamic_cast<ngraph::opset7::Convolution*>(node.get_node());

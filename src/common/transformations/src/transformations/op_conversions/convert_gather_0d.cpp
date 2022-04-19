@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather0D, "ConvertGather0D", 0);
-
 ngraph::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();

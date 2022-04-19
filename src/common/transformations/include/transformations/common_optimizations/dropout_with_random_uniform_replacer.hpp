@@ -36,6 +36,6 @@ class TRANSFORMATIONS_API DropoutWithRandomUniformReplacer;
  */
 class ngraph::pass::DropoutWithRandomUniformReplacer : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DropoutWithRandomUniformReplacer", "0");
     DropoutWithRandomUniformReplacer();
 };

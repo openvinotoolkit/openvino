@@ -23,7 +23,7 @@ ParamsKey ConvolutionKernel_bfyx_1x1_gemm_buf::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -69,7 +69,7 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const option
 JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     const auto& input = params.inputs[0];
 
     auto x = out.X().v;

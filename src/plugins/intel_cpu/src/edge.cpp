@@ -4,36 +4,36 @@
 
 #include "edge.h"
 #include "node.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include <blob_factory.hpp>
 #include "nodes/input.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 
-MKLDNNEdge::MKLDNNEdge(const MKLDNNNodePtr &parent, const MKLDNNNodePtr &child, int pr_port, int ch_port) :
+Edge::Edge(const NodePtr &parent, const NodePtr &child, int pr_port, int ch_port) :
         parent(parent), child(child), parent_port(pr_port), child_port(ch_port) {}
 
-const MKLDNNNodePtr MKLDNNEdge::getParent() const {
+const NodePtr Edge::getParent() const {
     auto parentPtr = parent.lock();
     if (!parentPtr)
         IE_THROW() << "Edge contains empty parent node";
     return parentPtr;
 }
 
-const MKLDNNNodePtr MKLDNNEdge::getChild() const {
+const NodePtr Edge::getChild() const {
     auto childPtr = child.lock();
     if (!childPtr)
         IE_THROW() << "Edge contains empty child node";
     return childPtr;
 }
 
-bool MKLDNNEdge::isUseExternalMemory() const {
+bool Edge::isUseExternalMemory() const {
     return useExternalMemory;
 }
 
-bool MKLDNNEdge::isDropped() const {
+bool Edge::isDropped() const {
     bool not_in_parent = true;
     bool not_in_child = true;
 
@@ -53,10 +53,10 @@ bool MKLDNNEdge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void MKLDNNEdge::drop() {
-    auto _drop_from = [&] (std::vector<MKLDNNEdgeWeakPtr> &list) {
+void Edge::drop() {
+    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
         auto myself = std::find_if(list.begin(), list.end(),
-                [&] (MKLDNNEdgeWeakPtr edge) { return edge.lock().get() == this; });
+                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
 
         if (myself != list.end())
             list.erase(myself);
@@ -66,7 +66,7 @@ void MKLDNNEdge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
-bool MKLDNNEdge::enforceReorder() {
+bool Edge::enforceReorder() {
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
@@ -83,7 +83,7 @@ bool MKLDNNEdge::enforceReorder() {
             childCanChangeMem = true;
     }
 
-    const auto& detectInPlaceChildrenNum = [](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
+    const auto& detectInPlaceChildrenNum = [](const std::vector<EdgePtr>& edges) -> size_t {
         size_t count = 0;
         for (const auto& edge : edges) {
             auto childSPD = edge->getChild()->getSelectedPrimitiveDescriptor();
@@ -105,7 +105,7 @@ bool MKLDNNEdge::enforceReorder() {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
-            if (p_edge_peer->getChild()->getType() != Reorder && p_edge_peer->inPlace(LOOK_DOWN))
+            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN))
                 canBeInPlaceConflicts = true;
         }
     }
@@ -126,7 +126,7 @@ bool MKLDNNEdge::enforceReorder() {
     if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
         Type::Input == parentNode->getType() &&
         parentNode->isConstant()) {
-        if (auto pInputNode = std::dynamic_pointer_cast<MKLDNNInputNode>(parentNode)) {
+        if (auto pInputNode = std::dynamic_pointer_cast<node::Input>(parentNode)) {
             auto rawMemPtr = pInputNode->getMemoryPtr()->GetData();
             bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;
             if (!isAligned) {
@@ -217,7 +217,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     return true;
 }
 
-MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
+Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
@@ -243,22 +243,22 @@ MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     return ReorderStatus::No;
 }
 
-void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
+void Edge::reuse(MemoryPtr ptr) {
     if (status != Status::NeedAllocation)
         return;
     memoryPtr = ptr;
     status = Status::Allocated;
 }
 
-int MKLDNNEdge::getInputNum() const {
+int Edge::getInputNum() const {
     return parent_port;
 }
 
-int MKLDNNEdge::getOutputNum() const {
+int Edge::getOutputNum() const {
     return child_port;
 }
 
-void MKLDNNEdge::allocate(const void* mem_ptr) {
+void Edge::allocate(const void* mem_ptr) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -271,13 +271,13 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
         IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
 
     auto parentPtr = getParent();
-    memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
+    memoryPtr.reset(new Memory(parentPtr->getEngine()));
 
     memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
     status = Status::Allocated;
 }
 
-std::string MKLDNNEdge::name() const {
+std::string Edge::name() const {
     auto parentPtr = getParent();
     auto childPtr = getChild();
 
@@ -288,10 +288,8 @@ std::string MKLDNNEdge::name() const {
     return  result.str();
 }
 
-
-
-void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
-    auto isInPlace = [](const MKLDNNNodePtr node, int port) -> bool {
+void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
+    auto isInPlace = [](const NodePtr node, int port) -> bool {
         const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -333,7 +331,7 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
     }
 }
 
-void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
+void Edge::changeStatus(Edge::Status state) {
     if (state == Status::NotAllocated) {
         IE_THROW() << "Incorrect behaviour! Use method sharedMemFrom()";
     }
@@ -347,7 +345,7 @@ void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
     status = state;
 }
 
-PortDescBaseCPtr MKLDNNEdge::getInputPortDesc() const {
+PortDescBaseCPtr Edge::getInputPortDesc() const {
     auto parentPtr = getParent();
     if (parentPtr->getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
@@ -371,7 +369,7 @@ PortDescBaseCPtr MKLDNNEdge::getInputPortDesc() const {
     return inputPortDesc;
 }
 
-PortDescBaseCPtr MKLDNNEdge::getOutputPortDesc() const {
+PortDescBaseCPtr Edge::getOutputPortDesc() const {
     auto childPtr = getChild();
 
     if (childPtr->getSelectedPrimitiveDescriptor() == nullptr)
@@ -396,7 +394,7 @@ PortDescBaseCPtr MKLDNNEdge::getOutputPortDesc() const {
     return outPortDesc;
 }
 
-const MemoryDesc& MKLDNNEdge::getInputDesc() const {
+const MemoryDesc& Edge::getInputDesc() const {
     auto memDescPtr = getInputPortDesc()->getMemDesc();
     if (!memDescPtr) {
         IE_THROW() << "Cannot get input memory descriptor for edge: " << getParent()->getName() << "->"
@@ -405,7 +403,7 @@ const MemoryDesc& MKLDNNEdge::getInputDesc() const {
     return *memDescPtr;
 }
 
-const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
+const MemoryDesc& Edge::getOutputDesc() const {
     auto memDescPtr = getOutputPortDesc()->getMemDesc();
     if (!memDescPtr) {
         IE_THROW() << "Cannot get output memory descriptor for edge: " << getParent()->getName() << "->"
@@ -414,7 +412,7 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
     return *memDescPtr;
 }
 
-const MemoryDesc& MKLDNNEdge::getDesc() const {
+const MemoryDesc& Edge::getDesc() const {
     if (!getInputDesc().isCompatible(getOutputDesc()))
         IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
                    << getChild()->getName();
@@ -422,13 +420,13 @@ const MemoryDesc& MKLDNNEdge::getDesc() const {
     return getInputDesc();
 }
 
-const MKLDNNMemory &MKLDNNEdge::getMemory() {
+const Memory &Edge::getMemory() {
     return *getMemoryPtr();
 }
 
-MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
+MemoryPtr &Edge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
-        memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
+        memoryPtr.reset(new Memory(getParent()->getEngine()));
         const auto &desc = getDesc();
         auto sharedEdge = getSharedEdge();
         auto sharedEdgeParent = sharedEdge->getParent();
@@ -444,12 +442,12 @@ MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     return memoryPtr;
 }
 
-void MKLDNNEdge::sharedMemFrom(const MKLDNNEdgePtr &edge) {
+void Edge::sharedMemFrom(const EdgePtr &edge) {
     memoryFromEdge = edge;
     status = Status::NotAllocated;
 }
 
-void MKLDNNEdge::validate() {
+void Edge::validate() {
     if (status == Status::Validated)
         return;
     getMemory();
@@ -462,7 +460,7 @@ void MKLDNNEdge::validate() {
     status = Status::Validated;
 }
 
-MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
+EdgePtr Edge::getSharedEdge() const {
     auto memoryFromEdgePtr = memoryFromEdge.lock();
     if (!memoryFromEdgePtr) {
         IE_THROW() << "Cannot get memory ptr for edge( " << name() << " ). The pointer on the edge with memory is empty!";
@@ -470,14 +468,14 @@ MKLDNNEdgePtr MKLDNNEdge::getSharedEdge() const {
     return memoryFromEdgePtr;
 }
 
-MKLDNNEdgePtr MKLDNNEdge::getSharedEdge(std::nothrow_t) const {
+EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
     return memoryFromEdge.lock();
 }
 
-void MKLDNNEdge::init() {
+void Edge::init() {
     if (status != Status::NeedAllocation && status != Status::Uninitialized)
         return;
-    MKLDNNEdgePtr edgePtr = getBaseEdge();
+    EdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
@@ -511,7 +509,7 @@ void MKLDNNEdge::init() {
  * @param type some magic enum values... description needed
  * @return root of view-on-memory subgraph
  */
-MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
+EdgePtr Edge::getBaseEdge(int look) {
     auto parentConfig = getParent()->getSelectedPrimitiveDescriptor()->getConfig();
     auto childConfig = getChild()->getSelectedPrimitiveDescriptor()->getConfig();
     int inputNum = getInputNum();
@@ -562,7 +560,7 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
     return edges_for_same_port[0];
 }
 
-bool MKLDNNEdge::inPlace(LOOK look) {
+bool Edge::inPlace(LOOK look) {
     auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)

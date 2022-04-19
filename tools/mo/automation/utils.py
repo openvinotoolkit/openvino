@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import subprocess
+import subprocess # nosec
 import tarfile
 from datetime import datetime
 from shutil import copy, copytree, rmtree

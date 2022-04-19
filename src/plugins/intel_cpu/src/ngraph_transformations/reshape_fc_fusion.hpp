@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeFullyConnectedFusion", "0");
     ReshapeFullyConnectedFusion();
 };
 

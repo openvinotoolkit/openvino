@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
  */
 class ngraph::pass::ConvertInterpolate1ToInterpolate4 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertInterpolate1ToInterpolate4", "0");
     ConvertInterpolate1ToInterpolate4();
 };

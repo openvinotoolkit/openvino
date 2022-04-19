@@ -21,18 +21,18 @@ class TRANSFORMATIONS_API ConvertNMS4ToNMS5;
 
 class ngraph::pass::ConvertNMS1ToNMS5 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMS1ToNMS5", "0");
     ConvertNMS1ToNMS5();
 };
 
 class ngraph::pass::ConvertNMS3ToNMS5 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMS3ToNMS5", "0");
     ConvertNMS3ToNMS5();
 };
 
 class ngraph::pass::ConvertNMS4ToNMS5 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMS4ToNMS5", "0");
     ConvertNMS4ToNMS5();
 };

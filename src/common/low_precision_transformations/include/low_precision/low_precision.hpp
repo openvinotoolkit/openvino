@@ -21,7 +21,8 @@
 
 #include <low_precision/lpt_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
+#include <low_precision/common/quantization_granularity_restriction.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/markup_precisions.hpp"
 
@@ -37,32 +38,32 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MarkupOptimizations", "0");
     MarkupOptimizations(
-        const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-        const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+        const std::vector<PrecisionsRestriction>& precisionRestrictions,
+        const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
         const AttributeParameters& params);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions;
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions;
+    const std::vector<PrecisionsRestriction>& precisionRestrictions;
+    const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions;
     const AttributeParameters& params;
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
+class ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TypeRelaxedReplacer", "0");
     TypeRelaxedReplacer();
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("LowPrecision", "0");
     LowPrecision(
-        const std::vector<OperationPrecisionRestriction>& precisionRestrictions = {},
-        const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {},
+        const std::vector<PrecisionsRestriction>& precisionRestrictions = {},
+        const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions = {},
         const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
@@ -70,8 +71,8 @@ public:
     static bool isFQLevelsPresent(const std::shared_ptr<const ngraph::Function>& function, const std::set<size_t>& levels);
 
 protected:
-    std::vector<OperationPrecisionRestriction> precisionRestrictions;
-    std::vector<OperationPerTensorQuantizationRestriction> quantizationRestrictions;
+    std::vector<PrecisionsRestriction> precisionRestrictions;
+    std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
     // remove
     LayerTransformation::Params params;
 };

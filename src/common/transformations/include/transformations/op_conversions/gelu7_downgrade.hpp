@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API Gelu7Downgrade;
  */
 class ngraph::pass::Gelu7Downgrade : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Gelu7Downgrade", "0");
     Gelu7Downgrade();
 };

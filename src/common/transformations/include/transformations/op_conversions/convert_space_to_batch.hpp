@@ -32,7 +32,7 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
 
 class ngraph::pass::ConvertSpaceToBatch : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSpaceToBatch", "0");
     explicit ConvertSpaceToBatch(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_space_to_batch_by_elements();

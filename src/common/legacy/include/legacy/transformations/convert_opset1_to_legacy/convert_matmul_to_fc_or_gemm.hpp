@@ -27,19 +27,19 @@ class ConvertMatMulToGemm;
 
 class ngraph::pass::ConvertMatMulToFC: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMatMulToFC", "0");
     ConvertMatMulToFC();
 };
 
 class ngraph::pass::ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMatMulToGemm", "0");
     ConvertMatMulToGemm();
 };
 
 class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMatMulToFCorGemm", "0");
     ConvertMatMulToFCorGemm() {
         add_matcher<ngraph::pass::ConvertMatMulToFC>();
         add_matcher<ngraph::pass::ConvertMatMulToGemm>();

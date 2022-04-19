@@ -69,8 +69,8 @@ macro(ie_cpack)
     endif()
 
     foreach(ver IN LISTS MAJOR MINOR PATCH)
-        if(DEFINED IE_VERSION_${ver})
-            set(CPACK_PACKAGE_VERSION_${ver} ${IE_VERSION_${ver}})
+        if(DEFINED OpenVINO_VERSION_${ver})
+            set(CPACK_PACKAGE_VERSION_${ver} ${OpenVINO_VERSION_${ver}})
         endif()
     endforeach()
 

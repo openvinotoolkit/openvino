@@ -6,8 +6,8 @@
 #include <memory>
 #include <string>
 #include <algorithm>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -16,14 +16,17 @@
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct ReorderKey {
-    mkldnn::memory::desc src;
-    mkldnn::memory::desc dest;
+    dnnl::memory::desc src;
+    dnnl::memory::desc dest;
     size_t hash() const;
     bool operator==(const ReorderKey& rhs) const;
 };
@@ -47,26 +50,26 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
 
 }  // namespace
 
-bool MKLDNNReorderNode::isExecutable() const {
-    return MKLDNNNode::isExecutable() && !isOptimized;
+bool Reorder::isExecutable() const {
+    return Node::isExecutable() && !isOptimized;
 }
 
-MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode(op, eng, w_cache) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
+        Node(op, eng, w_cache) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode("Reorder", name, eng, w_cache) {}
+Reorder::Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
+        Node("Reorder", name, eng, w_cache) {}
 
-void MKLDNNReorderNode::getSupportedDescriptors() {
+void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 }
 
-void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
+void Reorder::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -102,10 +105,10 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
-        IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
+        IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
-        if (ov::intel_cpu::one_of(inShape.getRank(), 4, 5) &&
+        if (one_of(inShape.getRank(), 4, 5) &&
                 config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                 config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                 config.inConfs[0].getMemDesc()->getPrecision() == Precision::FP32 &&
@@ -113,7 +116,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             isNspc2NcspCase = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
-                   ov::intel_cpu::one_of(inShape.getRank(), 4, 5) &&
+                   one_of(inShape.getRank(), 4, 5) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                    config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&
@@ -124,7 +127,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNReorderNode::createPrimitive() {
+void Reorder::createPrimitive() {
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -132,11 +135,11 @@ void MKLDNNReorderNode::createPrimitive() {
     }
 }
 
-void MKLDNNReorderNode::executeDynamicImpl(mkldnn::stream strm) {
+void Reorder::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNReorderNode::prepareParams() {
+void Reorder::prepareParams() {
     if (!isOptimized) {
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -154,7 +157,7 @@ void MKLDNNReorderNode::prepareParams() {
             if (!(desc.getType() & MemoryDescType::Blocked)) {
                 return false;
             }
-            if ((desc.getType() & MemoryDescType::Mkldnn) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+            if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
                 return false;
             }
             return true;
@@ -200,59 +203,59 @@ void MKLDNNReorderNode::prepareParams() {
     }
 }
 
-void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDesc,
+void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
                                                void* srcPtr,
-                                               const mkldnn::memory::desc& dstDesc,
+                                               const dnnl::memory::desc& dstDesc,
                                                void* dstPtr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const auto engine = getEngine();
-    src_blocked = std::make_shared<MKLDNNMemory>(engine);
-    src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
+    src_blocked = std::make_shared<Memory>(engine);
+    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
 
-    dst_blocked = std::make_shared<MKLDNNMemory>(engine);
-    dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    dst_blocked = std::make_shared<Memory>(engine);
+    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
     impl_desc_type impl_type = selectedPD->getImplementationType();
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
 
-    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        mkldnn::primitive_attr attr;
-        reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
+        dnnl::primitive_attr attr;
+        reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
 
         if (!pd)
             return nullptr;
         auto info = pd.impl_info_str();
         impl_type = parse_impl_name(info);
-        return std::make_shared<mkldnn::reorder>(pd);
+        return std::make_shared<dnnl::reorder>(pd);
     };
 
     auto cache = getRuntimeCache();
-    std::pair<std::shared_ptr<mkldnn::primitive>, CacheEntryBase::LookUpStatus> result{
+    std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
         nullptr,
         CacheEntryBase::LookUpStatus::Miss};
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
     //
     // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
-    // split group dimension in separate shape dimension. IE use OIHW, but mkldnn expect GOIHW.
+    // split group dimension in separate shape dimension. IE use OIHW, but onednn expect GOIHW.
     // So we will perform implicit reshape to dst shape.
     //
-    // MKLDNN doesn't support direct reorders for tensors of different rank. The code below tries to
+    // oneDNN doesn't support direct reorders for tensors of different rank. The code below tries to
     // perform such conversion if the source tensor can be reshaped to the destination rank. This is
     // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
     // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
     if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
         src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
         const auto newDims = dst_blocked->getStaticDims();
-        const auto newFormat = MKLDNNExtensionUtils::GetPlainFormatByRank(newDims.size());
+        const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-        auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims),
+        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
         key.src = src_blocked->GetPrimitive().get_desc();
         result = cache->getOrCreate(key, builder);
@@ -270,16 +273,16 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-const std::vector<impl_desc_type>& MKLDNNReorderNode::getPrimitivesPriority() {
+const std::vector<impl_desc_type>& Reorder::getPrimitivesPriority() {
     implPriorities = {impl_desc_type::reorder};
     return implPriorities;
 }
 
-bool MKLDNNReorderNode::created() const {
-    return getType() == Reorder;
+bool Reorder::created() const {
+    return getType() == Type::Reorder;
 }
 
-void MKLDNNReorderNode::optimizedNcsp2Nspc() {
+void Reorder::optimizedNcsp2Nspc() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -313,7 +316,7 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     });
 }
 
-void MKLDNNReorderNode::optimizedNspc2Ncsp() {
+void Reorder::optimizedNspc2Ncsp() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -343,7 +346,7 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     });
 }
 
-void MKLDNNReorderNode::execute(mkldnn::stream strm) {
+void Reorder::execute(dnnl::stream strm) {
     if (isOptimized)
         return;
 
@@ -355,11 +358,11 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
         src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
         dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
-        MKLDNNNode::execute(strm);
+        Node::execute(strm);
     }
 }
 
-void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
+void Reorder::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
     if (prim) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -379,7 +382,7 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
     }
 }
 
-std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
+std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
     std::string inArgs, outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {
         inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
@@ -394,7 +397,7 @@ std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, cons
     return inArgs + "_" + outArgs;
 }
 
-void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output) {
+void Reorder::reorderData(const Memory &input, const Memory &output) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
 
@@ -409,48 +412,50 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        std::unique_ptr<mkldnn::reorder> pReorder;
-        mkldnn::memory srcMemory;
+        std::unique_ptr<dnnl::reorder> pReorder;
+        dnnl::memory srcMemory;
         std::vector<uint8_t> tmpBuff;
 
         try {
-            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
+            pReorder = std::unique_ptr<dnnl::reorder>(new dnnl::reorder(input.GetPrimitive(), output.GetPrimitive()));
             srcMemory = input.GetPrimitive();
         }
-        catch (const mkldnn::error& err) {
-            if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType() && MKLDNNConvertNode::isSupportedDesc(input.getDesc()) &&
-                    MKLDNNConvertNode::isSupportedDesc(output.getDesc())) {
+        catch (const dnnl::error& err) {
+            if (dnnl_unimplemented == err.status && output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
+                    Convert::isSupportedDesc(output.getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.GetPtr());
                 tmpBuff.resize(input.GetSize());
 
-                const auto outPrc = MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
-                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
+                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
-                MKLDNNMemory tmpMem(output.getEngine());
+                Memory tmpMem(output.getEngine());
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
-                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
+                pReorder = std::unique_ptr<dnnl::reorder>(new dnnl::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
                 srcMemory = tmpMem.GetPrimitive();
             } else {
                 throw;
             }
         }
         if (pReorder) {
-            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::in_order);
+            dnnl::stream loc_stream(output.getEngine(), dnnl::stream::flags::in_order);
             auto dstMemory = output.GetPrimitive();
             pReorder->execute(loc_stream, srcMemory, dstMemory);
         } else {
-            IE_THROW() << "Could not make mkldnn reorder.";
+            IE_THROW() << "Could not make onednn reorder.";
         }
     }
 }
 
-std::vector<VectorDims> MKLDNNReorderNode::shapeInfer() const {
+std::vector<VectorDims> Reorder::shapeInfer() const {
     return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNReorderNode, Reorder);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

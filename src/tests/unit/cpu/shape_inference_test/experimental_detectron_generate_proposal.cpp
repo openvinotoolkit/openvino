@@ -10,6 +10,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 using ExperimentalProposals = op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
 TEST(StaticShapeInferenceTest, ExperimentalProposalsTest) {
@@ -27,11 +28,11 @@ TEST(StaticShapeInferenceTest, ExperimentalProposalsTest) {
 
     auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
 
-    const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{3},
-                                                       ov::StaticShape{201600, 4},
-                                                       ov::StaticShape{12, 200, 336},
-                                                       ov::StaticShape{3, 200, 336}};
-    std::vector<ov::StaticShape> output_shapes = {ov::StaticShape{}, ov::StaticShape{}};
+    const std::vector<StaticShape> input_shapes = {StaticShape{3},
+                                                   StaticShape{201600, 4},
+                                                   StaticShape{12, 200, 336},
+                                                   StaticShape{3, 200, 336}};
+    std::vector<StaticShape> output_shapes = {StaticShape{}, StaticShape{}};
     shape_inference(proposals.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes[0], (StaticShape{post_nms_count, 4}));

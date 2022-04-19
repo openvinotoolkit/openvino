@@ -18,6 +18,6 @@ class NGRAPH_API SmartReshape;
 
 class ngraph::pass::SmartReshape : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SmartReshape", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

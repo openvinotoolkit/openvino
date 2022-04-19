@@ -66,6 +66,8 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
                             { 1, 0 }, { 1, 0 },  {  },  {  },  { 1, 0 } },
         StridedSliceSpecificParams{ { 20, 10, 5 }, { 0, 0 }, { 0, -1 }, { 1, 1 },
                             { 1, 0 }, { 1, 0 },  {  },  {  },  { 1, 0 } },
+        StridedSliceSpecificParams{ { 20, 10, 5 }, { 0, 0 }, { 0, -1 }, { 1, 1 },
+                                    { 1, 0 }, { 1, 0 },  { 0, 0 },  { 0, 0 },  { 0, 0 } },
         StridedSliceSpecificParams{ { 1, 12, 100, 1, 1 }, { 0, -1, 0, 0 }, { 0, 0, 0, 0 }, { 1, 1, 1, 1 },
                             { 1, 0, 1, 0 }, { 1, 0, 1, 0 },  { },  { 0, 1, 0, 1 },  {} },
         StridedSliceSpecificParams{ { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
@@ -117,7 +119,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_MKLDNN, StridedSliceLayerTest,
+        smoke_INTEL_CPU, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases),
             ::testing::Values(InferenceEngine::Precision::FP32),

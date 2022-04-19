@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "region_yolo.h"
 #include <nodes/common/blocked_desc_creator.h>
@@ -16,13 +16,16 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_logistic, field)
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
@@ -36,7 +39,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
@@ -227,7 +230,7 @@ private:
     }
 };
 
-bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
         if (!regionYolo) {
@@ -240,12 +243,12 @@ bool MKLDNNRegionYoloNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-bool MKLDNNRegionYoloNode::needPrepareParams() const {
+bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -264,7 +267,7 @@ MKLDNNRegionYoloNode::MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& 
     block_size = 1;
 }
 
-void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
+void RegionYolo::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -301,7 +304,7 @@ void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
                          impl_type);
 }
 
-void MKLDNNRegionYoloNode::createPrimitive() {
+void RegionYolo::createPrimitive() {
     if (inputShapesDefined()) {
         updateLastInputDims();
     }
@@ -328,7 +331,7 @@ void MKLDNNRegionYoloNode::createPrimitive() {
         logistic_kernel->create_ker();
 }
 
-inline float MKLDNNRegionYoloNode::logistic_scalar(float src) {
+inline float RegionYolo::logistic_scalar(float src) {
     U aux2;
     aux2.as_float_value = src;
     int sign = aux2.as_int_value >> 31;
@@ -344,7 +347,7 @@ inline float MKLDNNRegionYoloNode::logistic_scalar(float src) {
     return src;
 }
 
-inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int count, uint8_t * dst_data) {
+inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_t * dst_data) {
     auto dst_data_size = output_prec.size();
     if (logistic_kernel) {
         int blocks_num = div_up(count, block_size);
@@ -375,7 +378,7 @@ inline void MKLDNNRegionYoloNode::calculate_logistic(size_t start_index, int cou
     }
 }
 
-void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
+void RegionYolo::execute(dnnl::stream strm) {
     const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
     const auto &inDims = inShape.getStaticDims();
     size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;
@@ -432,8 +435,10 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNRegionYoloNode::created() const {
-    return getType() == RegionYolo;
+bool RegionYolo::created() const {
+    return getType() == Type::RegionYolo;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNRegionYoloNode, RegionYolo)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

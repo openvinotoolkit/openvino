@@ -92,7 +92,7 @@ protected:
         if (inputDynamicShapes.size() == 2 && inputDynamicShapes[0][0].is_dynamic() && inputDynamicShapes[1][0].is_dynamic())
             throw std::runtime_error("Invalid test case. If 3rd input is constant, batch dimension must be static.");
 
-        // Method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // Method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (inFmts.size() == 2 && (inputDynamicShapes[0][0].is_static() && inputDynamicShapes[0][0].get_length() == 1 ||
                 inputDynamicShapes[1].is_static() && ov::shape_size(inputDynamicShapes[1].to_shape()) == 1)) {
@@ -140,7 +140,7 @@ protected:
                                                      direction,
                                                      seqMode);
 
-        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
         if (gruSequenceOp->get_output_partial_shape(0).is_static() && ov::shape_size(gruSequenceOp->get_output_shape(0)) == 1) {
             outFmts[0] = tnc;

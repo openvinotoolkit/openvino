@@ -16,8 +16,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateMasks, "PropagateMasks", 0);
-
 namespace ngraph {
 namespace pass {
 namespace mask_propagation {

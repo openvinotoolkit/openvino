@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
-
 ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
     auto input = ngraph::pattern::any_input();

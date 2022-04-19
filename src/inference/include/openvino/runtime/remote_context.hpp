@@ -29,6 +29,7 @@ class CompiledModel;
 
 /**
  * @brief This class represents an abstraction
+ * @ingroup ov_runtime_cpp_api
  * for remote (non-CPU) accelerator device-specific inference context.
  * Such context represents a scope on the device within which compiled
  * models and remote memory tensors can exist, function, and exchange data.

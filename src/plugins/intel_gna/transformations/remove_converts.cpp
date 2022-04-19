@@ -16,8 +16,6 @@
 #include <ngraph/rt_info.hpp>
 
 namespace GNAPluginNS {
-    NGRAPH_RTTI_DEFINITION(RemoveInputConvert, "RemoveInputConvert", 0);
-
     RemoveInputConvert::RemoveInputConvert() {
         MATCHER_SCOPE(RemoveInputConvert);
 
@@ -50,7 +48,6 @@ namespace GNAPluginNS {
         this->register_matcher(m, callback);
     }
 
-    NGRAPH_RTTI_DEFINITION(RemoveOutputConvert, "RemoveOutputConvert", 0);
     RemoveOutputConvert::RemoveOutputConvert() {
         MATCHER_SCOPE(RemoveOutputConvert);
 

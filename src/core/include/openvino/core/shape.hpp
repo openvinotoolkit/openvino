@@ -14,7 +14,10 @@
 #include "openvino/core/strides.hpp"
 
 namespace ov {
-/// \brief Shape for a tensor.
+/**
+ * @brief Shape for a tensor.
+ * @ingroup ov_model_cpp_api
+ */
 class Shape : public std::vector<size_t> {
 public:
     OPENVINO_API Shape();
@@ -36,7 +39,10 @@ public:
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
 };
 
-/// Number of elements in spanned by a shape
+/**
+ * @brief Number of elements in spanned by a shape
+ * @ingroup ov_model_cpp_api
+ */
 template <typename SHAPE_TYPE>
 size_t shape_size(const SHAPE_TYPE& shape) {
     size_t size = 1;
@@ -46,8 +52,11 @@ size_t shape_size(const SHAPE_TYPE& shape) {
     return size;
 }
 
-/// Number of elements in a subset of dimensions of a shape.
-/// Returns a product of dimensions in a range [start_dim;end_dim)
+/**
+ * Number of elements in a subset of dimensions of a shape.
+ * Returns a product of dimensions in a range [start_dim;end_dim)
+ * @ingroup ov_model_cpp_api
+ */
 template <typename ForwardIt>
 size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
     static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value,

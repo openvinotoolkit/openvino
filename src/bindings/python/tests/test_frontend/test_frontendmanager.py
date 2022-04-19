@@ -92,7 +92,7 @@ def test_convert_partially():
     func = fe.convert_partially(model=model)
     stat = get_fe_stat()
     assert stat.convert_partially == 1
-    fe.convert(function=func)
+    fe.convert(model=func)
     stat = get_fe_stat()
     assert stat.convert == 1
 
@@ -106,7 +106,7 @@ def test_decode_and_normalize():
     func = fe.decode(model=model)
     stat = get_fe_stat()
     assert stat.decode == 1
-    fe.normalize(function=func)
+    fe.normalize(model=func)
     stat = get_fe_stat()
     assert stat.normalize == 1
     assert stat.decode == 1

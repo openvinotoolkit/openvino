@@ -13,7 +13,7 @@ namespace GNAPluginNS {
  */
 class RemoveExtraReshapes : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveExtraReshapes", "0");
   RemoveExtraReshapes();
 };
 

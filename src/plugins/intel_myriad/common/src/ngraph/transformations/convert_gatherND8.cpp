@@ -8,8 +8,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(vpu::ConvertGatherND8ToGatherND5, "ConvertGatherND8ToGatherND5", 0);
-
 namespace vpu {
 
 ConvertGatherND8ToGatherND5::ConvertGatherND8ToGatherND5() {

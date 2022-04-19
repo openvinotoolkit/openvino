@@ -3,11 +3,10 @@
 //
 
 #include "scatter_update.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
 #include "common/cpu_memcpy.h"
@@ -15,11 +14,14 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto scatterElemUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterElementsUpdate>(op);
         auto scatterUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterUpdate>(op);
@@ -35,12 +37,12 @@ bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const n
     return true;
 }
 
-bool MKLDNNScatterUpdateNode::isExecutable() const {
+bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
 
-MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
+ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
           axisPrec(Precision::UNSPECIFIED) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -50,7 +52,7 @@ MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::N
     }
 }
 
-void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
+void ScatterUpdate::getSupportedDescriptors() {
     if ((getParentEdges().size() != 3) && (getParentEdges().size() != 4))
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
@@ -63,13 +65,13 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
     }
 
     Type scatterUpdateType = getType();
-    if (scatterUpdateType == ScatterUpdate) {
+    if (scatterUpdateType == Type::ScatterUpdate) {
         scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
         axisRelaxed = true;
-    } else if (scatterUpdateType == ScatterElementsUpdate) {
+    } else if (scatterUpdateType == Type::ScatterElementsUpdate) {
         scatterUpdateMode = ScatterUpdateMode::ScatterElementsUpdate;
         axisRelaxed = true;
-    } else if (scatterUpdateType == ScatterNDUpdate) {
+    } else if (scatterUpdateType == Type::ScatterNDUpdate) {
         scatterUpdateMode = ScatterUpdateMode::ScatterNDUpdate;
         axisRelaxed = false;
     } else {
@@ -77,7 +79,7 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
+void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -157,8 +159,8 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     }
 
     indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
-    auto indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
-    indicesSize = MKLDNNExtensionUtils::sizeOfDataType(indicesType);
+    auto indicesType = DnnlExtensionUtils::IEPrecisionToDataType(indicesPrec);
+    indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
     if (indicesSize >= 8) {
         indicesPrec = Precision::I64;
         indicesSize = 8;
@@ -169,8 +171,8 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
 
     if (axisRelaxed) {
         axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
-        auto axisType = MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec);
-        axisSize = MKLDNNExtensionUtils::sizeOfDataType(axisType);
+        auto axisType = DnnlExtensionUtils::IEPrecisionToDataType(axisPrec);
+        axisSize = DnnlExtensionUtils::sizeOfDataType(axisType);
         if (axisSize >= 8) {
             axisPrec = Precision::I64;
             axisSize = 8;
@@ -215,15 +217,15 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                           impl_desc_type::unknown);
 }
 
-bool MKLDNNScatterUpdateNode::needPrepareParams() const {
+bool ScatterUpdate::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
+void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset) {
+int64_t ScatterUpdate::getIndicesValue(uint8_t *indices, size_t offset) {
     auto *indicesPtr = indices + offset * indicesSize;
     int64_t ret = 0;
     if (indicesSize == 4) {
@@ -249,7 +251,7 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
-void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
+void ScatterUpdate::execute(dnnl::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
@@ -363,7 +365,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
 // For the data tensor of shape [d_0, d_1, ..., d_n],
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
-void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
+void ScatterUpdate::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
@@ -396,7 +398,7 @@ void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, i
 // indices is a (q-1)-dimension tensor of k-tuple,
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
-void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
+void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
@@ -426,7 +428,7 @@ void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update,
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
-void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
+void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
     size_t updateRank = updateDim.size();
@@ -473,10 +475,12 @@ void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *u
     });
 }
 
-bool MKLDNNScatterUpdateNode::created() const {
-    return getType() == ScatterUpdate || getType() == ScatterElementsUpdate || getType() == ScatterNDUpdate;
+bool ScatterUpdate::created() const {
+    return getType() == Type::ScatterUpdate
+            || getType() == Type::ScatterElementsUpdate
+            || getType() == Type::ScatterNDUpdate;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNScatterUpdateNode, ScatterUpdate);
-REG_MKLDNN_PRIM_FOR(MKLDNNScatterUpdateNode, ScatterElementsUpdate);
-REG_MKLDNN_PRIM_FOR(MKLDNNScatterUpdateNode, ScatterNDUpdate);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

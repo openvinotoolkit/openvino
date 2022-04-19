@@ -473,7 +473,10 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             if (info.layout.empty()) {
                 switch (item.get_partial_shape().size()) {
                 case 3:
-                    newLayout = "CHW";
+                    newLayout = (item.get_partial_shape()[2].get_max_length() <= 4 &&
+                                 item.get_partial_shape()[0].get_max_length() > 4)
+                                    ? "HWC"
+                                    : "CHW";
                     break;
                 case 4:
                     // Rough check for layout type, basing on max number of image channels

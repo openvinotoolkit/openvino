@@ -22,19 +22,19 @@ class TRANSFORMATIONS_API MultiplyMultiplyFusion;
 
 class ngraph::pass::AddMultiplyFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AddMultiplyFusion", "0");
     AddMultiplyFusion();
 };
 
 class ngraph::pass::AddAddFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AddAddFusion", "0");
     AddAddFusion();
 };
 
 class ngraph::pass::MultiplyMultiplyFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyMultiplyFusion", "0");
     MultiplyMultiplyFusion();
 };
 
@@ -44,7 +44,7 @@ public:
  */
 class ngraph::pass::LinOpSequenceFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("LinOpSequenceFusion", "0");
     LinOpSequenceFusion() {
         add_matcher<ngraph::pass::AddMultiplyFusion>();
         add_matcher<ngraph::pass::AddAddFusion>();

@@ -272,7 +272,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
 #define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC)                                     \
     class NAME : public ngraph::pass::MatcherPass {                                        \
     public:                                                                                \
-        NGRAPH_RTTI_DECLARATION;                                                           \
+        OPENVINO_RTTI(STR(NAME), "0");                                                     \
         NAME() {                                                                           \
             MATCHER_SCOPE(NAME);                                                           \
             auto match_node = ngraph::pattern::wrap_type<OP>();                            \
@@ -282,15 +282,12 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
             auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
             register_matcher(m, callback);                                                 \
         }                                                                                  \
-    };                                                                                     \
-    NGRAPH_RTTI_DEFINITION(NAME, STR(NAME), 0);
+    };
 
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
-
-NGRAPH_RTTI_DEFINITION(pass::EliminatePad, "EliminatePad", 0);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -327,8 +324,6 @@ pass::EliminatePad::EliminatePad() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateConvert, "EliminateConvert", 0);
-
 pass::EliminateConvert::EliminateConvert() {
     MATCHER_SCOPE(EliminateConvert);
     auto convert_pattern = pattern::wrap_type<opset8::Convert>();
@@ -347,8 +342,6 @@ pass::EliminateConvert::EliminateConvert() {
     auto m = std::make_shared<pattern::Matcher>(convert_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::EliminateConvertNonZero, "EliminateConvertNonZero", 0);
 
 pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     MATCHER_SCOPE(EliminateConvertNonZero);
@@ -369,8 +362,6 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateConcat, "EliminateConcat", 0);
-
 pass::EliminateConcat::EliminateConcat() {
     MATCHER_SCOPE(EliminateConcat);
     auto convert_pattern = pattern::wrap_type<opset8::Concat>();
@@ -387,8 +378,6 @@ pass::EliminateConcat::EliminateConcat() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateSplit, "EliminateSplit", 0);
-
 pass::EliminateSplit::EliminateSplit() {
     MATCHER_SCOPE(EliminateConcat);
     auto convert_pattern = pattern::wrap_type<opset8::Split>();
@@ -404,8 +393,6 @@ pass::EliminateSplit::EliminateSplit() {
     auto m = std::make_shared<pattern::Matcher>(convert_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(pass::EliminateSqueeze, "EliminateSqueeze", 0);
 
 pass::EliminateSqueeze::EliminateSqueeze() {
     MATCHER_SCOPE(EliminateSqueeze);
@@ -490,8 +477,6 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateTranspose, "EliminateTranspose", 0);
-
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
     auto order = pattern::wrap_type<opset8::Constant>();
@@ -519,8 +504,6 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(pass::EliminateEltwise, "EliminateEltwise", 0);
-
 pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
@@ -544,8 +527,6 @@ pass::EliminateEltwise::EliminateEltwise() {
     auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations

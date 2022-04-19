@@ -196,8 +196,6 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InterpolateSequenceFusion, "InterpolateSequenceFusion", 0);
-
 ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();

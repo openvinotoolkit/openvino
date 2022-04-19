@@ -51,13 +51,15 @@ struct data_type_undefined : ngraph_error {
 struct segments_unsupported : ngraph_error {
     segments_unsupported() : ngraph_error{"loading segments not supported"} {}
 };
+
+struct shape_doesnt_match_data_size : ngraph_error {
+    shape_doesnt_match_data_size() : ngraph_error{"tensor shape doesn't match data size"} {}
+};
 }  // namespace tensor
 }  // namespace error
 
 namespace detail {
-namespace tensor {
 namespace {
-namespace detail {
 template <typename T, typename Container>
 inline std::vector<T> __get_data(const Container& container) {
 #if defined(_MSC_VER)
@@ -70,6 +72,16 @@ inline std::vector<T> __get_data(const Container& container) {
 #endif
 }
 
+bool has_tensor_external_data(const ONNX_NAMESPACE::TensorProto& tensor) {
+    return tensor.has_data_location() &&
+           tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
+}
+
+inline std::string load_external_data(const ONNX_NAMESPACE::TensorProto& tensor) {
+    const auto tensor_external_data = TensorExternalData(tensor);
+    return tensor_external_data.load_external_data();
+}
+
 template <typename T>
 inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_type) {
     auto it = reinterpret_cast<const T*>(raw_data.data());
@@ -78,22 +90,46 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 
 template <typename T>
 inline std::vector<T> get_external_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    const auto tensor_external_data = TensorExternalData(tensor);
-    const auto raw_data = tensor_external_data.load_external_data();
-
-    return detail::__get_raw_data<T>(raw_data, tensor.data_type());
+    return __get_raw_data<T>(load_external_data(tensor), tensor.data_type());
 }
 
-bool has_tensor_external_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (tensor.has_data_location() &&
-        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
-        return true;
-    } else {
-        return false;
+inline const void* get_data_ptr(const ONNX_NAMESPACE::TensorProto& tensor) {
+    if (tensor.has_raw_data()) {
+        return tensor.raw_data().data();
     }
+    switch (tensor.data_type()) {
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+        return tensor.float_data().data();
+    case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+        return tensor.int32_data().data();
+    case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+        return tensor.int64_data().data();
+    case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+        return tensor.uint64_data().data();
+    case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+        return tensor.double_data().data();
+    }
+    throw error::tensor::invalid_data_type{tensor.data_type()};
 }
-}  // namespace detail
-}  // namespace
+
+inline size_t get_data_size(const ONNX_NAMESPACE::TensorProto& tensor) {
+    if (tensor.has_raw_data()) {
+        return tensor.raw_data().size() / onnx_common::get_onnx_data_size(tensor.data_type());
+    }
+    switch (tensor.data_type()) {
+    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+        return tensor.float_data_size();
+    case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+        return tensor.int32_data_size();
+    case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+        return tensor.int64_data_size();
+    case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+        return tensor.uint64_data_size();
+    case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+        return tensor.double_data_size();
+    }
+    throw error::tensor::invalid_data_type{tensor.data_type()};
+}
 
 template <typename T>
 inline std::vector<T> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
@@ -102,60 +138,39 @@ inline std::vector<T> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
 
 template <>
 inline std::vector<double> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<double>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<double>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<double>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<double>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_DOUBLE) {
-        return detail::__get_data<double>(tensor.double_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT) {
-        return detail::__get_data<double>(tensor.float_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT32) {
-        return detail::__get_data<double>(tensor.int32_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT64) {
-        return detail::__get_data<double>(tensor.int64_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT64) {
-        return detail::__get_data<double>(tensor.uint64_data());
+        return __get_data<double>(tensor.double_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<float> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<float>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<float>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<float>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<float>(tensor.raw_data(), tensor.data_type());
     }
-    if ((tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT)) {
-        return detail::__get_data<float>(tensor.float_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT32) {
-        return detail::__get_data<float>(tensor.int32_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT64) {
-        return detail::__get_data<float>(tensor.int64_data());
-    }
-    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT64) {
-        return detail::__get_data<float>(tensor.uint64_data());
+    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT) {
+        return __get_data<float>(tensor.float_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<ngraph::float16> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<float16>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<float16>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<ngraph::float16>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<ngraph::float16>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16) {
         using std::begin;
@@ -168,153 +183,153 @@ inline std::vector<ngraph::float16> get_data(const ONNX_NAMESPACE::TensorProto& 
             return ngraph::float16::from_bits(static_cast<uint16_t>(elem));
         });
 
-        return detail::__get_data<ngraph::float16>(float16_data);
+        return __get_data<ngraph::float16>(float16_data);
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<ngraph::bfloat16> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<bfloat16>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<bfloat16>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<ngraph::bfloat16>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<ngraph::bfloat16>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16) {
-        return detail::__get_data<ngraph::bfloat16>(tensor.int32_data());
+        return __get_data<ngraph::bfloat16>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<int8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<int8_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<int8_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<int8_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<int8_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT8) {
-        return detail::__get_data<int8_t>(tensor.int32_data());
+        return __get_data<int8_t>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<int16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<int16_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<int16_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<int16_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<int16_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT16) {
-        return detail::__get_data<int16_t>(tensor.int32_data());
+        return __get_data<int16_t>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<int32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<int32_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<int32_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<int32_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<int32_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT32) {
-        return detail::__get_data<int32_t>(tensor.int32_data());
+        return __get_data<int32_t>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<int64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<int64_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<int64_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<int64_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<int64_t>(tensor.raw_data(), tensor.data_type());
     }
-    if (tensor.data_type() != ONNX_NAMESPACE::TensorProto_DataType_INT64) {
-        throw error::tensor::invalid_data_type{tensor.data_type()};
+    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_INT64) {
+        return __get_data<int64_t>(tensor.int64_data());
     }
-    return detail::__get_data<int64_t>(tensor.int64_data());
+    throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<uint8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<uint8_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<uint8_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<uint8_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<uint8_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT8) {
-        return detail::__get_data<uint8_t>(tensor.int32_data());
+        return __get_data<uint8_t>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<uint16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<uint16_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<uint16_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<uint16_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<uint16_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT16) {
-        return detail::__get_data<uint16_t>(tensor.int32_data());
+        return __get_data<uint16_t>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<uint32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<uint32_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<uint32_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<uint32_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<uint32_t>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT32) {
-        return detail::__get_data<uint32_t>(tensor.uint64_data());
+        return __get_data<uint32_t>(tensor.uint64_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<uint64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<uint64_t>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<uint64_t>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<uint64_t>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<uint64_t>(tensor.raw_data(), tensor.data_type());
     }
-    if (tensor.data_type() != ONNX_NAMESPACE::TensorProto_DataType_UINT64) {
-        throw error::tensor::invalid_data_type{tensor.data_type()};
+    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_UINT64) {
+        return __get_data<uint64_t>(tensor.uint64_data());
     }
-    return detail::__get_data<uint64_t>(tensor.uint64_data());
+    throw error::tensor::invalid_data_type{tensor.data_type()};
 }
 
 template <>
 inline std::vector<char> get_data(const ONNX_NAMESPACE::TensorProto& tensor) {
     // Boolean values are stored as char because std::vector<bool>
     // can behave differently from other vector containers.
-    if (detail::has_tensor_external_data(tensor)) {
-        return detail::get_external_data<char>(tensor);
+    if (has_tensor_external_data(tensor)) {
+        return get_external_data<char>(tensor);
     }
     if (tensor.has_raw_data()) {
-        return detail::__get_raw_data<char>(tensor.raw_data(), tensor.data_type());
+        return __get_raw_data<char>(tensor.raw_data(), tensor.data_type());
     }
     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_BOOL) {
-        return detail::__get_data<char>(tensor.int32_data());
+        return __get_data<char>(tensor.int32_data());
     }
     throw error::tensor::invalid_data_type{tensor.data_type()};
 }
-}  // namespace tensor
+}  // namespace
 }  // namespace detail
 
 class Tensor {
@@ -365,7 +380,7 @@ public:
         if (m_tensor_proto->has_segment()) {
             throw error::tensor::segments_unsupported{};
         }
-        return detail::tensor::get_data<T>(*m_tensor_proto);
+        return detail::get_data<T>(*m_tensor_proto);
     }
 
     const std::string& get_name() const {
@@ -423,7 +438,11 @@ public:
     operator TensorProto_DataType() const {
         return m_tensor_proto->data_type();
     }
+
     std::shared_ptr<ngraph::op::Constant> get_ng_constant() const {
+        if (m_tensor_proto->has_segment()) {
+            throw error::tensor::segments_unsupported{};
+        }
         switch (m_tensor_proto->data_type()) {
         case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
             return make_ng_constant<char>(element::boolean);
@@ -457,9 +476,47 @@ public:
     }
 
 private:
-    template <typename T>
+    template <typename T,
+              typename std::enable_if<std::is_same<T, float>::value || std::is_same<T, double>::value ||
+                                          std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
+                                          std::is_same<T, uint64_t>::value,
+                                      bool>::type = true>
     std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
-        auto constant = std::make_shared<ngraph::op::Constant>(type, m_shape, get_data<T>());
+        std::shared_ptr<default_opset::Constant> constant{nullptr};
+        int data_size = detail::get_data_size(*m_tensor_proto);
+        if (detail::has_tensor_external_data(*m_tensor_proto)) {
+            auto external_data = detail::load_external_data(*m_tensor_proto);
+            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());
+        } else if (data_size == shape_size(m_shape)) {
+            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, detail::get_data_ptr(*m_tensor_proto));
+        } else if (data_size == 0 && m_shape.size() == 0) {
+            constant = common::make_failsafe_constant(type);
+        } else {
+            throw error::tensor::shape_doesnt_match_data_size{};
+        }
+
+        if (m_tensor_proto->has_name()) {
+            constant->set_friendly_name(get_name());
+        }
+        return constant;
+    }
+
+    template <typename T,
+              typename std::enable_if<!std::is_same<T, float>::value && !std::is_same<T, double>::value &&
+                                          !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
+                                          !std::is_same<T, uint64_t>::value,
+                                      bool>::type = true>
+    std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const {
+        std::shared_ptr<default_opset::Constant> constant{nullptr};
+        auto data = get_data<T>();
+        auto data_size = data.size();
+        if (data_size == shape_size(m_shape)) {
+            constant = std::make_shared<ngraph::op::Constant>(type, m_shape, data);
+        } else if (data_size == 0 && m_shape.size() == 0) {
+            constant = common::make_failsafe_constant(type);
+        } else {
+            throw error::tensor::shape_doesnt_match_data_size{};
+        }
         if (m_tensor_proto->has_name()) {
             constant->set_friendly_name(get_name());
         }

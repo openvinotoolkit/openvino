@@ -8,10 +8,19 @@
 
 namespace SubgraphTestsDefinitions {
 
-class QuantizedConvolutionBatchNorm : public testing::WithParamInterface<std::string>,
+enum class QuantizeType {
+    FAKE_QUANTIZE,
+    QUANTIZE_DEQUANTIZE,
+    COMPRESSED_WEIGHTS,
+    COMPRESSED_WEIGHTS_NO_SHIFT,
+};
+
+using QuantizedConvolutionBatchNormParams = std::tuple<QuantizeType, bool, std::string>;
+
+class QuantizedConvolutionBatchNorm : public testing::WithParamInterface<QuantizedConvolutionBatchNormParams>,
                                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<QuantizedConvolutionBatchNormParams>& obj);
 
 protected:
     void SetUp() override;

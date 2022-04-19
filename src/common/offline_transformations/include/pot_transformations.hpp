@@ -26,7 +26,7 @@ class ngraph::pass::POTTransformations: public ngraph::pass::FunctionPass {
     std::string m_device;
 
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("POTTransformations", "0");
     explicit POTTransformations(std::string device) : m_device(std::move(device)) {}
 
     bool run_on_model(const std::shared_ptr<ngraph::Function>&) override;

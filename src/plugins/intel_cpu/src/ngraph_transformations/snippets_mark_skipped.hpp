@@ -16,7 +16,7 @@ namespace intel_cpu {
  */
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SnippetsMarkSkipped", "0");
     SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };

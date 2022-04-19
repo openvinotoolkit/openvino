@@ -17,6 +17,8 @@
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
+#include "common_test_utils/crash_handler.hpp"
+
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
@@ -56,6 +58,8 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
     }
 
+    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
+
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
     ov::test::conformance::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
@@ -63,7 +67,7 @@ int main(int argc, char* argv[]) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests = FuncTestUtils::SkipTestsConfig::readSkipTestConfigFiles(
+        ov::test::conformance::disabledTests = CommonTestUtils::readListFiles(
                 CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {

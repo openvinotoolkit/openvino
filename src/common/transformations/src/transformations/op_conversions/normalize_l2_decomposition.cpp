@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Decomposition, "NormalizeL2Decomposition", 0);
-
 ngraph::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
     MATCHER_SCOPE(NormalizeL2Decomposition);
     auto normalize_l2_pattern = ngraph::pattern::wrap_type<opset8::NormalizeL2>();

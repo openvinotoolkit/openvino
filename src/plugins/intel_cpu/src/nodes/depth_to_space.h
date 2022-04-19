@@ -11,16 +11,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNDepthToSpaceNode : public MKLDNNNode {
+class DepthToSpace : public Node {
 public:
-    MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     void prepareParams() override;
@@ -39,13 +40,13 @@ public:
     };
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
-        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
+        void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB);
         ~DepthToSpaceExecutor() = default;
 
     private:
@@ -55,5 +56,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -3,7 +3,7 @@
 
 import logging as log
 import os
-import subprocess
+import subprocess # nosec
 import sys
 
 

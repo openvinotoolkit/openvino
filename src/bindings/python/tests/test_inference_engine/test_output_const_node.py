@@ -6,7 +6,7 @@ import os
 from ..conftest import model_path
 import openvino.runtime.opset8 as ops
 from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
-    Output, Parameter, RTMap
+    Output, RTMap, OVAny
 
 from openvino.runtime import Core
 
@@ -130,7 +130,7 @@ def test_update_rt_info(device):
     rt["test12345"] = "test"
     for k, v in output_node.get_rt_info().items():
         assert k == "test12345"
-        assert isinstance(v, Parameter)
+        assert isinstance(v, OVAny)
 
 
 def test_operations():

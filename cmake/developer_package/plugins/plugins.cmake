@@ -13,8 +13,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
@@ -27,11 +27,12 @@ endif()
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
 #               [SKIP_INSTALL]
+#               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION)
+    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -101,7 +102,7 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
         if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
                 add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
@@ -146,25 +147,27 @@ function(ie_add_plugin)
         endif()
     endif()
 
-    # check that plugin with such name is not registered
+    # Enable for static build to generate correct plugins.hpp
+    if(NOT IE_PLUGIN_SKIP_REGISTRATION OR NOT BUILD_SHARED_LIBS)
+        # check that plugin with such name is not registered
+        foreach(plugin_entry IN LISTS PLUGIN_FILES)
+            string(REPLACE ":" ";" plugin_entry "${plugin_entry}")
+            list(GET plugin_entry -1 library_name)
+            list(GET plugin_entry 0 plugin_name)
+            if(plugin_name STREQUAL "${IE_PLUGIN_DEVICE_NAME}" AND
+                    NOT library_name STREQUAL ${IE_PLUGIN_NAME})
+                message(FATAL_ERROR "${IE_PLUGIN_NAME} and ${library_name} are both registered as ${plugin_name}")
+            endif()
+        endforeach()
 
-    foreach(plugin_entry IN LISTS PLUGIN_FILES)
-        string(REPLACE ":" ";" plugin_entry "${plugin_entry}")
-        list(GET plugin_entry -1 library_name)
-        list(GET plugin_entry 0 plugin_name)
-        if(plugin_name STREQUAL "${IE_PLUGIN_DEVICE_NAME}" AND
-           NOT library_name STREQUAL ${IE_PLUGIN_NAME})
-            message(FATAL_ERROR "${IE_PLUGIN_NAME} and ${library_name} are both registered as ${plugin_name}")
-        endif()
-    endforeach()
+        # append plugin to the list to register
 
-    # append plugin to the list to register
-
-    list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
-    set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
-    set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
+        list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
+        set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
+        set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
+    endif()
 endfunction()
 
 function(ov_add_plugin)
@@ -172,13 +175,12 @@ function(ov_add_plugin)
 endfunction()
 
 #
-# ie_register_plugins_dynamic(MAIN_TARGET <main target name>
-#                             POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+# ie_register_plugins_dynamic(MAIN_TARGET <main target name>)
 #
 macro(ie_register_plugins_dynamic)
     set(options)
     set(oneValueArgs MAIN_TARGET)
-    set(multiValueArgs POSSIBLE_PLUGINS)
+    set(multiValueArgs)
     cmake_parse_arguments(IE_REGISTER "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT IE_REGISTER_MAIN_TARGET)
@@ -256,6 +258,15 @@ endmacro()
 # ie_register_plugins()
 #
 macro(ie_register_plugins)
+    if(BUILD_SHARED_LIBS)
+        ie_register_plugins_dynamic(${ARGN})
+    endif()
+endmacro()
+
+#
+# ov_register_plugins()
+#
+macro(ov_register_plugins)
     if(BUILD_SHARED_LIBS)
         ie_register_plugins_dynamic(${ARGN})
     endif()

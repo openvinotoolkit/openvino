@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API HSigmoidDecomposition;
  */
 class ngraph::pass::HSigmoidDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidDecomposition", "0");
     HSigmoidDecomposition();
 };

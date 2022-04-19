@@ -4,52 +4,55 @@
 #include <openvino/core/layout.hpp>
 
 int main() {
- ov::Layout layout;
- //! [ov:layout:simple]
- layout = ov::Layout("NHWC");
- //! [ov:layout:simple]
- //! [ov:layout:complex]
- // Each dimension has name separated by comma, layout is wrapped with square brackets
- layout = ov::Layout("[time,temperature,humidity]");
- //! [ov:layout:complex]
- //! [ov:layout:partially_defined]
- // First dimension is batch, 4th is 'channels'. Others are not important for us
- layout = ov::Layout("N??C");
- // Or the same using advanced syntax
- layout = ov::Layout("[n,?,?,c]");
- //! [ov:layout:partially_defined]
- //! [ov:layout:dynamic]
- // First dimension is 'batch' others are whatever
- layout = ov::Layout("N...");
+    ov::Layout layout;
+//! [ov:layout:simple]
+layout = ov::Layout("NHWC");
+//! [ov:layout:simple]
 
- // Second dimension is 'channels' others are whatever
- layout = ov::Layout("?C...");
+//! [ov:layout:complex]
+// Each dimension has name separated by comma, layout is wrapped with square brackets
+layout = ov::Layout("[time,temperature,humidity]");
+//! [ov:layout:complex]
 
- // Last dimension is 'channels' others are whatever
- layout = ov::Layout("...C");
- //! [ov:layout:dynamic]
+//! [ov:layout:partially_defined]
+// First dimension is batch, 4th is 'channels'. Others are not important for us
+layout = ov::Layout("N??C");
+// Or the same using advanced syntax
+layout = ov::Layout("[n,?,?,c]");
+//! [ov:layout:partially_defined]
 
- //! [ov:layout:predefined]
- // returns 0 for batch
- ov::layout::batch_idx("NCDHW");
+//! [ov:layout:dynamic]
+// First dimension is 'batch' others are whatever
+layout = ov::Layout("N...");
 
- // returns 1 for channels
- ov::layout::channels_idx("NCDHW");
+// Second dimension is 'channels' others are whatever
+layout = ov::Layout("?C...");
 
- // returns 2 for depth
- ov::layout::depth_idx("NCDHW");
+// Last dimension is 'channels' others are whatever
+layout = ov::Layout("...C");
+//! [ov:layout:dynamic]
 
- // returns -2 for height
- ov::layout::height_idx("...HW");
+//! [ov:layout:predefined]
+// returns 0 for batch
+ov::layout::batch_idx("NCDHW");
 
- // returns -1 for width
- ov::layout::width_idx("...HW");
- //! [ov:layout:predefined]
+// returns 1 for channels
+ov::layout::channels_idx("NCDHW");
 
- //! [ov:layout:dump]
- layout = ov::Layout("NCHW");
- std::cout << layout.to_string(); // prints [N,C,H,W]
- //! [ov:layout:dump]
+// returns 2 for depth
+ov::layout::depth_idx("NCDHW");
 
- return 0;
+// returns -2 for height
+ov::layout::height_idx("...HW");
+
+// returns -1 for width
+ov::layout::width_idx("...HW");
+//! [ov:layout:predefined]
+
+//! [ov:layout:dump]
+layout = ov::Layout("NCHW");
+std::cout << layout.to_string(); // prints [N,C,H,W]
+//! [ov:layout:dump]
+
+    return 0;
 }

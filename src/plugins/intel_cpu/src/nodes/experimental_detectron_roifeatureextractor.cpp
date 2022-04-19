@@ -11,9 +11,11 @@
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_roifeatureextractor.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 // implementation taken from Caffe2
@@ -308,7 +310,7 @@ void reorder_rois(const float *rois, const int* ids, int* mapping, const int roi
 
 } // namespace
 
-bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
         const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
@@ -322,9 +324,9 @@ bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(co
     return true;
 }
 
-MKLDNNExperimentalDetectronROIFeatureExtractorNode::MKLDNNExperimentalDetectronROIFeatureExtractorNode
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -340,7 +342,7 @@ MKLDNNExperimentalDetectronROIFeatureExtractorNode::MKLDNNExperimentalDetectronR
     pooled_width_ = output_dim_;
 }
 
-void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveDescriptors() {
+void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -355,7 +357,7 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
@@ -409,8 +411,10 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
     }
 }
 
-bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::created() const {
-    return getType() == ExperimentalDetectronROIFeatureExtractor;
+bool ExperimentalDetectronROIFeatureExtractor::created() const {
+    return getType() == Type::ExperimentalDetectronROIFeatureExtractor;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronROIFeatureExtractorNode, ExperimentalDetectronROIFeatureExtractor)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

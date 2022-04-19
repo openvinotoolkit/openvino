@@ -1298,7 +1298,9 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
-    return {evaluate_bound(output, false, false), evaluate_upper_bound(output)};
+    evaluate_bound(output, false, false);
+    evaluate_upper_bound(output);
+    return {output.get_tensor_ptr()->get_lower_value(), output.get_tensor_ptr()->get_upper_value()};
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {

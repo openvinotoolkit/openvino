@@ -16,14 +16,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
-
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(ReshapeTransformation);
     auto input = pattern::any_input();
     auto mul_const_m = pattern::wrap_type<opset1::Constant>();
     auto mul_m = pattern::wrap_type<opset1::Multiply>({ input, mul_const_m });
@@ -50,7 +50,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ReshapeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -239,16 +239,16 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const size_t outputChannel = static_cast<size_t>(outputPShape[1].get_length());
-    if (!subtractShapeWithBatch.empty() && (outputChannel < subtractShapeWithBatch[1])) {
+    if ((subtractShapeWithBatch.size() > 1) && (outputChannel < subtractShapeWithBatch[1])) {
         return false;
     }
-    if (!multiplyShapeWithBatch.empty() && (outputChannel < multiplyShapeWithBatch[1])) {
+    if ((multiplyShapeWithBatch.size() > 1) && (outputChannel < multiplyShapeWithBatch[1])) {
         return false;
     }
 
     if (outputPShape.is_static() &&
-        ((!subtractShapeWithBatch.empty() && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
-        (!multiplyShapeWithBatch.empty() && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
+        (((subtractShapeWithBatch.size() > 1) && ((outputChannel % subtractShapeWithBatch[1]) != 0)) ||
+         ((multiplyShapeWithBatch.size() > 1) && (outputChannel % multiplyShapeWithBatch[1] != 0)))) {
         return false;
     }
 

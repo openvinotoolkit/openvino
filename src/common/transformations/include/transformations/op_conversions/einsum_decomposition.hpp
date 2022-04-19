@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API EinsumDecomposition;
  */
 class ngraph::pass::EinsumDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EinsumDecomposition", "0");
     EinsumDecomposition();
 };

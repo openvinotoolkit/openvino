@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
-
 ngraph::pass::ConvertGELU::ConvertGELU() {
     MATCHER_SCOPE(ConvertGELU);
     auto gelu = pattern::wrap_type<ngraph::opset2::Gelu>();

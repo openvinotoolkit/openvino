@@ -381,7 +381,9 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     if (depth == 0) {
         out << get_friendly_name();
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+        OPENVINO_SUPPRESS_DEPRECATED_END
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
@@ -741,13 +743,15 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
+    // Call evaluate for old implementation with EvaluationContext
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
     OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
-    return sts;
+    // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
+    return sts ? sts : evaluate(output_values, input_values);
 }
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
