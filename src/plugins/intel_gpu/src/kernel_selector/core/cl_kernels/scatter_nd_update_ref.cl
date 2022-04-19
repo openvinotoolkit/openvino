@@ -70,8 +70,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint blockND[] = {INPUT0_BLOCK_ND};
     const uint indicesND[] = {INPUT1_BLOCK_ND};
     const uint size_to_update = blockND[INDICES_LAST_DIM];
-    // const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-
+    
     #if INPUT1_DIMS == 4
         const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
     #elif INPUT1_DIMS == 5
@@ -79,7 +78,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     #elif INPUT1_DIMS == 6
         const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_W, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
     #endif
-
+    
     // Get indices index
     uint idx[INDICES_MAX_DIM] = {0};
     uint rmd_idx = dim2;
@@ -93,7 +92,6 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     for (int i = 0; i < indices_dim[INDICES_RANK - 1]; ++i)
     {
         idx[INDICES_RANK - 1] = i;
-
         const uint idx_b = idx[0];
         const uint idx_f = idx[1];
         #if INPUT1_DIMS == 4
@@ -109,7 +107,6 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             const uint idx_y = idx[4];
             const uint idx_x = idx[5];
         #endif
-
         uint index = GET_UPDATES_INDEX(INPUT1, IDX_ORDER);
         out[i] = indices[index];
     }
@@ -122,7 +119,6 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         {
             upd[j] = idx[j];
         }
-
         uint rmd = i;
         for (int j = indices_dim[INDICES_RANK - 1], k = INDICES_RANK - 1; j < INPUT0_DIMS; ++j, ++k)
         {
@@ -130,7 +126,6 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             upd[k] = out[j];
             rmd %= blockND[j + 1];
         }
-
         // Get update index
         const uint upd_b = upd[0];
         const uint upd_f = upd[1];
@@ -166,8 +161,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             const uint out_x = out[5];   
         #endif
         uint out_idx = GET_OUTPUT_INDEX(OUT_ORDER);
-
-        uint val = updates[upd_idx];
+        float val = updates[upd_idx];
         output[out_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     }
 #endif

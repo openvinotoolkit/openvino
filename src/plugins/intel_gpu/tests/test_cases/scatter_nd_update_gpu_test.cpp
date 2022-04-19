@@ -3,6 +3,8 @@
 //
 
 #include "test_utils.h"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "shape.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scatter_update.hpp>
@@ -12,126 +14,304 @@
 #include <intel_gpu/graph/network.hpp>
 
 #include <cstddef>
+#include <cstring>
+#include <numeric>
+#include <stdlib.h>
+#include <time.h>
+#include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
 
 
-// TEST(scatter_nd_update_gpu_fp16_fsv16_test15, data5_indice3_update5) {
-//     auto& engine = get_test_engine();
+struct scatter_nd_update_basic_test_params
+{
+    data_types input_type;
+    data_types indices_type;
+    data_types updates_type;
+    format input_format;
+    format indices_format;
+    format updates_format;
+    format input_result_format;
+    format indices_result_format;
+    format updates_result_format;
+    tensor input_size;
+    tensor indices_size;
+    tensor updates_size;
+    int indices_rank;
+};
 
-//     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 2, 4, 3 } }); // data
-//     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 1, 2, 1, 1 } }); // indices
-//     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 4, 3, 2 } }); // updates
+struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
+{
+    template<typename T>
+    std::vector<T> generate_random_indices(size_t a, int min, int max, int k = 1) 
+    {
+        srand(time(0));
+        std::vector<T> vec(a);
+        for(int i = 0; i < a; ++i) {
+            int val = rand() % (max + 1);
+            if (val >= min && std::find(vec.begin(), vec.end(), static_cast<T>(val)) == vec.end())
+                vec[i] = val;
+        }
+        return vec;
+    }
 
-//     set_values(input1, {
-//         // 0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+    template<typename T, typename T_size>
+    void execute_fp16(const scatter_nd_update_basic_test_params& params)
+    {
+        // create input, indices, updates using params
+        auto& engine = get_test_engine();
 
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        auto input1 = engine.allocate_memory({ params.input_type, params.input_format, params.input_size });
+        auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
+        auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
 
-//         // 1
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
+        std::vector<int> input_vec(params.input_size.sizes().size());
+        for(int i = 0; i < params.input_size.sizes().size(); ++i)
+            input_vec[i] = (int)params.input_size.sizes()[i];
+        std::vector<int> updates_vec(params.updates_size.sizes().size());
+        for(int i = 0; i < params.updates_size.sizes().size(); ++i)
+            updates_vec[i] = (int)params.updates_size.sizes()[i];
+        std::vector<int> indices_vec(params.indices_rank, -1);
+        for(int i = 0; i < params.indices_rank; ++i)
+            indices_vec[i] = (int)params.indices_size.sizes()[i];
 
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-//     });
+        auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto indices_data = generate_random_indices<T>(params.indices_size.count(), 0, 23);
+        auto updates_data = generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
-//     set_values(input2, {
-//         FLOAT16(1.0f),
-//         FLOAT16(0.0f),
-//     });
+        std::vector<float> input_data_fp16(params.input_size.count(), -1);
+        for(int i = 0; i < params.input_size.count(); ++i)
+            input_data_fp16[i] = (float)input_data[i];
+        std::vector<float> indices_data_fp16(params.indices_size.count(), -1);
+        for(int i = 0; i < params.indices_size.count(); ++i)
+            indices_data_fp16[i] = (float)indices_data[i];
+        std::vector<float> updates_data_fp16(params.updates_size.count(), -1);
+        for(int i = 0; i < params.updates_size.count(); ++i)
+            updates_data_fp16[i] = (float)updates_data[i];
 
-//     set_values(input3, {
-//         // 0
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        set_values(input1, input_data);
+        set_values(input2, indices_data);
+        set_values(input3, updates_data);
 
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
-//         // 1
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        // execute scatter_nd_update
+        topology topology(
+            input_layout("InputData", input1->get_layout()),
+            input_layout("InputIndices", input2->get_layout()),
+            input_layout("InputUpdates", input3->get_layout()),
+            reorder("reorder1", "InputData", params.input_result_format, params.input_type),
+            reorder("reorder2", "InputIndices", params.indices_result_format, params.indices_type),
+            reorder("reorder3", "InputUpdates", params.updates_result_format, params.updates_type),
+            scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", params.indices_rank),
+            reorder("out", "scatter_nd_update", params.input_format, params.input_type)
+        );
 
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
-//     });
+        network network(engine, topology);
 
-//     std::vector<float> expected_results = {
-//         // 0
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        network.set_input_data("InputData", input1);
+        network.set_input_data("InputIndices", input2);
+        network.set_input_data("InputUpdates", input3);
 
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
-//         // 1
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
+        auto outputs = network.execute();
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
 
-//         FLOAT16(91.0f), FLOAT16(2.0f),    FLOAT16(83.0f), FLOAT16(4.0f),      FLOAT16(71.0f), FLOAT16(2.0f),   FLOAT16(63.0f), FLOAT16(4.0f),
-//         FLOAT16(95.0f), FLOAT16(6.0f),    FLOAT16(87.0f), FLOAT16(8.0f),      FLOAT16(75.0f), FLOAT16(6.0f),   FLOAT16(67.0f), FLOAT16(8.0f),
-//         FLOAT16(99.0f), FLOAT16(10.0f),   FLOAT16(811.0f), FLOAT16(12.0f),    FLOAT16(79.0f), FLOAT16(10.0f),  FLOAT16(611.0f), FLOAT16(12.0f),
-//     };
+        auto outputs_ref = std::vector<float>(params.input_size.count());
+        ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data_fp16.data(), 
+                                                                  indices_data_fp16.data(), 
+                                                                  updates_data_fp16.data(), 
+                                                                  outputs_ref.data(), 
+                                                                  ov::Shape(input_vec.begin(), input_vec.end()), 
+                                                                  ov::Shape(indices_vec.begin(), indices_vec.end()), 
+                                                                  ov::Shape(updates_vec.begin(), updates_vec.end()));
 
-//     // COPIED FROM PERMUTE_GPU_TEST.CPP
-//     // topology topology_unfused(
-//     //     input_layout("input", input->get_layout()),
-//     //     reorder("reorder1", "input", format::b_fs_yx_fsv4, data_types::f32),
-//     //     permute("permute", "reorder1", { 0, 3, 1, 2}),
-//     //     reorder("reorder2", "permute", format::bfyx, data_types::f32),
-//     //     permute("out", "reorder2", { 0, 2, 3, 1}));
+        for (size_t i = 0; i < outputs_ref.size(); ++i) {
+            EXPECT_EQ(outputs_ref[i], float16_to_float32(outputs_ptr[i]));
+        }
+    }
 
-//     // ORIGINAL CODE
-//     // topology topology;
-//     // topology.add(input_layout("InputData", input1->get_layout()));
-//     // topology.add(input_layout("InputIndices", input2->get_layout()));
-//     // topology.add(input_layout("InputUpdates", input3->get_layout()));
-//     // topology.add(
-//     //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 3)
-//     // );
+    template<typename T>
+    void execute(const scatter_nd_update_basic_test_params& params)
+    {
+        // create input, indices, updates using params
+        auto& engine = get_test_engine();
 
-//     //unfused
-//     topology topology(
-//         input_layout("InputData", input1->get_layout()),
-//         input_layout("InputIndices", input2->get_layout()),
-//         input_layout("InputUpdates", input3->get_layout()),
-//         reorder("reorder1", "InputData", format::b_fs_zyx_fsv16, data_types::f16),
-//         reorder("reorder2", "InputIndices", format::b_fs_yx_fsv16, data_types::f16),
-//         reorder("reorder3", "InputUpdates", format::b_fs_zyx_fsv16, data_types::f16),
-//         scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", 3),
-//         reorder("out", "scatter_nd_update", format::bfzyx, data_types::f16)
-//     );
+        auto input1 = engine.allocate_memory({ params.input_type, params.input_format, params.input_size });
+        auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
+        auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
 
-//     network network(engine, topology);
+        std::vector<int> input_vec(params.input_size.sizes().size());
+        for(int i = 0; i < params.input_size.sizes().size(); ++i)
+            input_vec[i] = (int)params.input_size.sizes()[i];
+        std::vector<int> updates_vec(params.updates_size.sizes().size());
+        for(int i = 0; i < params.updates_size.sizes().size(); ++i)
+            updates_vec[i] = (int)params.updates_size.sizes()[i];
+        std::vector<int> indices_vec(params.indices_rank, -1);
+        for(int i = 0; i < params.indices_rank; ++i)
+            indices_vec[i] = (int)params.indices_size.sizes()[i];
 
+        auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto indices_data = generate_random_indices<T>(params.indices_size.count(), 0, 23);
+        auto updates_data = generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
-//     network.set_input_data("InputData", input1);
-//     network.set_input_data("InputIndices", input2);
-//     network.set_input_data("InputUpdates", input3);
+        set_values(input1, input_data);
+        set_values(input2, indices_data);
+        set_values(input3, updates_data);
 
-//     auto outputs = network.execute();
+        // execute scatter_nd_update
+        topology topology(
+            input_layout("InputData", input1->get_layout()),
+            input_layout("InputIndices", input2->get_layout()),
+            input_layout("InputUpdates", input3->get_layout()),
+            reorder("reorder1", "InputData", params.input_result_format, params.input_type),
+            reorder("reorder2", "InputIndices", params.indices_result_format, params.indices_type),
+            reorder("reorder3", "InputUpdates", params.updates_result_format, params.updates_type),
+            scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", params.indices_rank),
+            reorder("out", "scatter_nd_update", params.input_format, params.input_type)
+        );
 
-//     auto output = outputs.at("out").get_memory();
-//     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        network network(engine, topology);
 
-//     for (size_t i = 0; i < expected_results.size(); ++i) {
-//         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
-//     }
-// }
+        network.set_input_data("InputData", input1);
+        network.set_input_data("InputIndices", input2);
+        network.set_input_data("InputUpdates", input3);
+
+        auto outputs = network.execute();
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T> outputs_ptr(output, get_test_stream());
+
+        auto outputs_ref = std::vector<T>(params.input_size.count());
+        ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(), 
+                                                          indices_data.data(), 
+                                                          updates_data.data(), 
+                                                          outputs_ref.data(), 
+                                                          ov::Shape(input_vec.begin(), input_vec.end()), 
+                                                          ov::Shape(indices_vec.begin(), indices_vec.end()), 
+                                                          ov::Shape(updates_vec.begin(), updates_vec.end()));
+
+        for (size_t i = 0; i < outputs_ref.size(); ++i) {
+            EXPECT_EQ(outputs_ref[i], outputs_ptr[i]);
+        }
+    }
+};
+
+TEST_P(scatter_nd_update_random_test, random)
+{
+    auto param = GetParam();
+    if(param.input_type == data_types::u8)
+        this->execute<uint8_t>(param);
+    else if (param.input_type == data_types::i8)
+        this->execute<int8_t>(param);
+    else if (param.input_type == data_types::i32)
+        this->execute<int32_t>(param);
+    else if (param.input_type == data_types::i64)
+        this->execute<int64_t>(param);
+    else if (param.input_type == data_types::f16)
+        this->execute_fp16<FLOAT16, uint16_t>(param);
+    else if (param.input_type == data_types::f32)
+        this->execute<float>(param);
+    else
+        std::cout << "unidentified data type" << std::endl;
+}
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_fp32, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::f32, data_types::f32, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp32_yx, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::f32, data_types::f32, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
+                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp32_zyx, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::f32, data_types::f32, 
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16,
+                               {48, 24, 3, 3, 10}, {5, 2, 1, 1}, {5, 10, 1, 3, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_fp16, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp16, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
+                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_i8, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv32_i8, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32,
+                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv32_i8, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32,
+                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_i8, 
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn( 
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8, 
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
+                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
+                               2 } 
+                         }));
 
 TEST(scatter_nd_update_gpu_fp16_fsv16_test14, data5_indice2_update3) {
     auto& engine = get_test_engine();
@@ -158,19 +338,19 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test14, data5_indice2_update3) {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(2.0f),
         FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f),
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f), FLOAT16(55.0f), FLOAT16(56.0f), FLOAT16(57.0f), FLOAT16(58.0f),
         FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f), FLOAT16(65.0f), FLOAT16(66.0f), FLOAT16(67.0f), FLOAT16(68.0f),
         FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f), FLOAT16(75.0f), FLOAT16(76.0f), FLOAT16(77.0f), FLOAT16(78.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         // 0
@@ -192,14 +372,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test14, data5_indice2_update3) {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),     FLOAT16(55.0f), FLOAT16(56.0f), FLOAT16(57.0f), FLOAT16(58.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -212,7 +384,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test14, data5_indice2_update3) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -243,19 +414,19 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test13, data4_indice2_update2) {
         FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),       FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(0.0f),
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(1.0f),
         FLOAT16(0.0f), FLOAT16(2.0f), FLOAT16(1.0f),
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
         FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
         FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),       FLOAT16(1.0f), FLOAT16(2.0f),  FLOAT16(3.0f), FLOAT16(4.0f),
@@ -266,14 +437,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test13, data4_indice2_update2) {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),    FLOAT16(5.0f), FLOAT16(6.0f),  FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),     FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
     };
-
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
 
     topology topology(
         input_layout("InputData", input1->get_layout()),
@@ -287,7 +450,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test13, data4_indice2_update2) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -322,18 +484,18 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test12, data3_indice3_update1) {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(2.0f), FLOAT16(0.0f), FLOAT16(0.0f),
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f),
         FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
         FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(0.0f),
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
@@ -349,14 +511,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test12, data3_indice3_update1) {
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -369,7 +523,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test12, data3_indice3_update1) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -384,148 +537,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test12, data3_indice3_update1) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
-
-// TEST(scatter_nd_update_gpu_fp16_fsv16_test11, data6_indice1_update6) {
-//     auto& engine = get_test_engine();
-
-//     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 2, 3, 4, 2 } }); // data
-//     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 1, 1 } }); // indices
-//     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 3, 4, 2 } }); // updates
-
-//     set_values(input1, {
-//         // 0, 0, 0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-//         // 0, 0, 1
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         // 0, 1, 0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-
-//         // 1, 0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         // 1, 1
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-//         });
-
-//     set_values(input2, {
-//         FLOAT16(1.0f),
-//         });
-
-//     set_values(input3, {
-//         // 0
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         });
-
-//     std::vector<float> expected_results = {
-//         // 0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         // 1
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(50.0f), FLOAT16(51.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-//     };
-
-//     // topology topology;
-//     // topology.add(input_layout("InputData", input1->get_layout()));
-//     // topology.add(input_layout("InputIndices", input2->get_layout()));
-//     // topology.add(input_layout("InputUpdates", input3->get_layout()));
-//     // topology.add(
-//     //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-//     // );
-
-//     topology topology(
-//         input_layout("InputData", input1->get_layout()),
-//         input_layout("InputIndices", input2->get_layout()),
-//         input_layout("InputUpdates", input3->get_layout()),
-//         reorder("reorder1", "InputData", format::b_fs_wzyx_fsv16, data_types::f16),
-//         reorder("reorder2", "InputIndices", format::b_fs_yx_fsv16, data_types::f16),
-//         reorder("reorder3", "InputUpdates", format::b_fs_zyx_fsv16, data_types::f16),
-//         scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", 2),
-//         reorder("out", "scatter_nd_update", format::bfzyx, data_types::f16)
-//     );
-
-//     network network(engine, topology);
-
-
-//     network.set_input_data("InputData", input1);
-//     network.set_input_data("InputIndices", input2);
-//     network.set_input_data("InputUpdates", input3);
-
-//     auto outputs = network.execute();
-
-//     auto output = outputs.at("out").get_memory();
-//     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-
-//     for (size_t i = 0; i < expected_results.size(); ++i) {
-//         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
-//     }
-// }
 
 TEST(scatter_nd_update_gpu_fp16_fsv16_test10, data5_indice1_update5) {
     auto& engine = get_test_engine();
@@ -552,11 +563,11 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test10, data5_indice1_update5) {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(1.0f), FLOAT16(0.0f),
-        });
+    });
 
     set_values(input3, {
         // 0
@@ -576,8 +587,7 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test10, data5_indice1_update5) {
         FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-        });
+    });
 
     std::vector<float> expected_results = {
         // 0
@@ -599,14 +609,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test10, data5_indice1_update5) {
         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -619,7 +621,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test10, data5_indice1_update5) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -655,11 +656,11 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test9, data4_indice1_update4) {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(2.0f), FLOAT16(0.0f),
-        });
+    });
 
     set_values(input3, {
         // 0
@@ -671,8 +672,7 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test9, data4_indice1_update4) {
         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-        });
+    });
 
     std::vector<float> expected_results = {
         // 0
@@ -689,14 +689,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test9, data4_indice1_update4) {
         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -709,7 +701,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test9, data4_indice1_update4) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -725,122 +716,12 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test9, data4_indice1_update4) {
     }
 }
 
-// TEST(scatter_nd_update_gpu_fp16_fsv16_test8, data6_indice2_update5) {
-//     auto& engine = get_test_engine();
-
-//     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 2, 4, 3, 2 } }); // data
-//     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,   { 2, 2, 1, 1 } }); // indices
-//     auto input3 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 1, 2, 4, 3 } }); // updates
-
-//     set_values(input1, {
-//         //0,0
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         //0,1
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-
-//         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
-//         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
-//         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-//         });
-
-//     set_values(input2, {
-//         FLOAT16(0.0f), FLOAT16(1.0f),
-//         FLOAT16(0.0f), FLOAT16(0.0f)
-//         });
-
-//     set_values(input3, {
-//         // 0
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-
-//         // 1
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-//         });
-
-//     std::vector<float> expected_results = {
-//         // 0,0
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
-//         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
-//         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
-//         // 0,1
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-
-//         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
-//         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
-//         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-//     };
-
-//     // topology topology;
-//     // topology.add(input_layout("InputData", input1->get_layout()));
-//     // topology.add(input_layout("InputIndices", input2->get_layout()));
-//     // topology.add(input_layout("InputUpdates", input3->get_layout()));
-//     // topology.add(
-//     //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-//     // );
-
-//     topology topology(
-//         input_layout("InputData", input1->get_layout()),
-//         input_layout("InputIndices", input2->get_layout()),
-//         input_layout("InputUpdates", input3->get_layout()),
-//         reorder("reorder1", "InputData", format::b_fs_wzyx_fsv16, data_types::f16),
-//         reorder("reorder2", "InputIndices", format::b_fs_yx_fsv16, data_types::f16),
-//         reorder("reorder3", "InputUpdates", format::b_fs_wzyx_fsv16, data_types::f16),
-//         scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", 2),
-//         reorder("out", "scatter_nd_update", format::bfzyx, data_types::f16)
-//     );
-
-//     network network(engine, topology);
-
-
-//     network.set_input_data("InputData", input1);
-//     network.set_input_data("InputIndices", input2);
-//     network.set_input_data("InputUpdates", input3);
-
-//     auto outputs = network.execute();
-
-//     auto output = outputs.at("out").get_memory();
-//     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-
-//     for (size_t i = 0; i < expected_results.size(); ++i) {
-//         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
-//     }
-// }
-
 TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 3, 4, 2 } }); // data
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx,  { 2, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx,  { 2, 2, 1, 3, 4 } }); // updates
-
 
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
@@ -850,12 +731,12 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(0.0f), FLOAT16(1.0f),
         FLOAT16(0.0f), FLOAT16(0.0f)
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
@@ -865,7 +746,7 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
@@ -876,14 +757,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
     };
-
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
 
     topology topology(
         input_layout("InputData", input1->get_layout()),
@@ -898,7 +771,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
 
     network network(engine, topology);
 
-
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
     network.set_input_data("InputUpdates", input3);
@@ -913,14 +785,12 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test7, data5_indice2_update4) {
     }
 }
 
-
 TEST(scatter_nd_update_gpu_fp16_fsv16_test6, data4_indice2_update3) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 2, 4 } }); // data
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 4, 1, 2 } }); // updates
-
 
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
@@ -930,19 +800,19 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test6, data4_indice2_update3) {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),   FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f),    FLOAT16(7.0f), FLOAT16(8.0f),      FLOAT16(5.0f), FLOAT16(6.0f),   FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),  FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(1.0f), FLOAT16(1.0f),
         FLOAT16(1.0f), FLOAT16(0.0f),
         FLOAT16(0.0f), FLOAT16(2.0f)
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f),    FLOAT16(53.0f), FLOAT16(54.0f),      FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
         FLOAT16(59.0f), FLOAT16(60.0f),    FLOAT16(61.0f), FLOAT16(62.0f),      FLOAT16(63.0f), FLOAT16(64.0f),   FLOAT16(65.0f), FLOAT16(66.0f),
         FLOAT16(67.0f), FLOAT16(68.0f),    FLOAT16(69.0f), FLOAT16(70.0f),      FLOAT16(71.0f), FLOAT16(72.0f),   FLOAT16(73.0f), FLOAT16(74.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(1.0f), FLOAT16(2.0f),    FLOAT16(3.0f), FLOAT16(4.0f),      FLOAT16(1.0f), FLOAT16(2.0f),     FLOAT16(3.0f), FLOAT16(4.0f),
@@ -953,14 +823,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test6, data4_indice2_update3) {
         FLOAT16(51.0f), FLOAT16(52.0f),  FLOAT16(53.0f), FLOAT16(54.0f),    FLOAT16(55.0f), FLOAT16(56.0f),   FLOAT16(57.0f), FLOAT16(58.0f),
         FLOAT16(9.0f), FLOAT16(10.0f),   FLOAT16(11.0f), FLOAT16(12.0f),    FLOAT16(9.0f), FLOAT16(10.0f),    FLOAT16(11.0f), FLOAT16(12.0f),
     };
-
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
 
     topology topology(
         input_layout("InputData", input1->get_layout()),
@@ -974,7 +836,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test6, data4_indice2_update3) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -1006,19 +867,19 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test5, data3_indice2_update2) {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(1.0f), FLOAT16(1.0f),
         FLOAT16(1.0f), FLOAT16(0.0f),
         FLOAT16(0.0f), FLOAT16(2.0f)
-        });
+    });
 
     set_values(input3, {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
         FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
         FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
@@ -1029,14 +890,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test5, data3_indice2_update2) {
         FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
     };
-
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
 
     topology topology(
         input_layout("InputData", input1->get_layout()),
@@ -1050,7 +903,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test5, data3_indice2_update2) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -1073,36 +925,27 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test4, data2_indice2_update1) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 1, 1, 1 } }); // updates
 
-
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
         FLOAT16(2.0f), FLOAT16(1.0f),
         FLOAT16(0.0f), FLOAT16(3.0f),
         FLOAT16(0.0f), FLOAT16(2.0f)
-        });
+    });
 
     set_values(input3, {
         FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f)
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(23.0f), FLOAT16(22.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(21.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        };
-
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
+    };
 
     topology topology(
         input_layout("InputData", input1->get_layout()),
@@ -1116,7 +959,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test4, data2_indice2_update1) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -1139,7 +981,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test3, data3_indice1_update3) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 3, 4, 1 } }); // updates
 
-
     set_values(input1, {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
@@ -1152,11 +993,11 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test3, data3_indice1_update3) {
         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
         FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
         FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        });
+    });
 
     set_values(input2, {
             FLOAT16(2.0f), FLOAT16(0.0f)
-        });
+    });
 
     set_values(input3, {
         FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f),
@@ -1166,7 +1007,7 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test3, data3_indice1_update3) {
         FLOAT16(41.0f), FLOAT16(42.0f), FLOAT16(43.0f), FLOAT16(44.0f),
         FLOAT16(45.0f), FLOAT16(46.0f), FLOAT16(47.0f), FLOAT16(48.0f),
         FLOAT16(49.0f), FLOAT16(50.0f), FLOAT16(51.0f), FLOAT16(52.0f),
-        });
+    });
 
     std::vector<float> expected_results = {
         FLOAT16(41.0f), FLOAT16(42.0f), FLOAT16(43.0f), FLOAT16(44.0f),
@@ -1182,14 +1023,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test3, data3_indice1_update3) {
         FLOAT16(29.0f), FLOAT16(30.0f), FLOAT16(31.0f), FLOAT16(32.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -1202,7 +1035,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test3, data3_indice1_update3) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -1226,7 +1058,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test2, data2_indice1_update2) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 1, 1 } }); // indices
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // updates
 
-
     set_values(input1, {
         FLOAT16(13.0f), FLOAT16(12.0f), FLOAT16(11.0f), FLOAT16(10.0f),
         FLOAT16(9.0f), FLOAT16(8.0f), FLOAT16(7.0f), FLOAT16(6.0f),
@@ -1248,14 +1079,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test2, data2_indice1_update2) {
         FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f),
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -1268,7 +1091,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test2, data2_indice1_update2) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
@@ -1291,7 +1113,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test1, data1_indice1_update1) {
     auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Indexes
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } }); // Updates
 
-
     set_values(input1, {
         FLOAT16(9.0f), FLOAT16(8.0f), FLOAT16(7.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f), FLOAT16(3.0f), FLOAT16(2.0f)
     });
@@ -1308,14 +1129,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test1, data1_indice1_update1) {
         9.f, 8.f, 10.f, 6.f, 11.f, 12.f, 3.f, 13.f
     };
 
-    // topology topology;
-    // topology.add(input_layout("InputData", input1->get_layout()));
-    // topology.add(input_layout("InputIndices", input2->get_layout()));
-    // topology.add(input_layout("InputUpdates", input3->get_layout()));
-    // topology.add(
-    //     scatter_nd_update("scatter_nd_update", "InputData", "InputIndices", "InputUpdates", 2)
-    // );
-
     topology topology(
         input_layout("InputData", input1->get_layout()),
         input_layout("InputIndices", input2->get_layout()),
@@ -1328,7 +1141,6 @@ TEST(scatter_nd_update_gpu_fp16_fsv16_test1, data1_indice1_update1) {
     );
 
     network network(engine, topology);
-
 
     network.set_input_data("InputData", input1);
     network.set_input_data("InputIndices", input2);
