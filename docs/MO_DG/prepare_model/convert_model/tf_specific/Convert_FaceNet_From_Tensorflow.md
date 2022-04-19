@@ -10,7 +10,7 @@ There are two inputs in this network: boolean `phase_train` which manages state 
 
 ![FaceNet model view](../../../img/FaceNet.png)
 
-## Convert TensorFlow FaceNet Model to IR
+## Convert TensorFlow FaceNet Model to the IR
 
 To generate FaceNet IR provide TensorFlow FaceNet model to Model Optimizer with parameters:
 ```sh
@@ -19,7 +19,7 @@ To generate FaceNet IR provide TensorFlow FaceNet model to Model Optimizer with 
 --freeze_placeholder_with_value "phase_train->False"
 ```
 
-Batch joining pattern transforms to placeholder with model default shape if `--input_shape` or `--batch`/`-b` was not
+Batch joining pattern transforms to placeholder with model default shape if `--input_shape` or `--batch`/`-b` were not
 provided. Otherwise, placeholder shape has custom parameters.
 
 * `--freeze_placeholder_with_value "phase_train->False"` to switch graph to inference mode
