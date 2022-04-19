@@ -22,7 +22,7 @@ model is stored on edge device and is executed by the OpenVINO Runtime.
 Encrypting and optimizing model before deploying it to the edge device can be
 used to protect deep-learning models. The edge device should keep the stored model
 protected all the time and have the model decrypted **in runtime only** for use
-by the OpenVINO Runtime.
+by OpenVINO Runtime.
 
 ![deploy_encrypted_model](img/deploy_encrypted_model.png)
 
