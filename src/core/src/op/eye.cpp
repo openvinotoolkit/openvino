@@ -62,51 +62,20 @@ void ov::op::v9::Eye::validate_and_infer_types() {
                           num_rows_et == element::i32 || num_rows_et == element::i64,
                           "Type of the 'num_rows' should be int32 or int64. Got: ",
                           num_rows_et);
-
-    const auto& num_rows_pshape = get_input_partial_shape(0);
-    if (num_rows_pshape.is_static()) {
-        const auto& num_rows_rank = num_rows_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, num_rows_rank <= 1, "'num_rows' value must be a scalar or 1D tensor.");
-
-        if (num_rows_rank == 1) {
-            NODE_VALIDATION_CHECK(this, num_rows_pshape.compatible(ov::Shape{1}), "'num_rows' should have 1 element.");
-        }
-    }
-
     const auto& num_columns_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           num_columns_et == element::i32 || num_columns_et == element::i64,
                           "Type of the 'num_columns' should be int32 or int64. Got: ",
                           num_columns_et);
-
-    const auto& num_columns_pshape = get_input_partial_shape(1);
-    if (num_columns_pshape.is_static()) {
-        const auto& num_columns_rank = num_columns_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, num_columns_rank <= 1, "'num_columns' value must be a scalar or 1D tensor.");
-        if (num_columns_rank == 1) {
-            NODE_VALIDATION_CHECK(this,
-                                  num_columns_pshape.compatible(ov::Shape{1}),
-                                  "'num_columns' should have 1 element.");
-        }
-    }
-
     const auto& diagonal_index_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           diagonal_index_et == element::i32 || diagonal_index_et == element::i64,
                           "Type of the 'diagonal_index' should be int32 or int64. Got: ",
                           diagonal_index_et);
+
+    const auto& num_rows_pshape = get_input_partial_shape(0);
+    const auto& num_columns_pshape = get_input_partial_shape(1);
     const auto& diagonal_index_pshape = get_input_partial_shape(2);
-    if (diagonal_index_pshape.is_static()) {
-        const auto& diagonal_index_rank = diagonal_index_pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(this, diagonal_index_rank <= 1, "'diagonal_index' value must be a scalar or 1D tensor.");
-
-        if (diagonal_index_rank == 1) {
-            NODE_VALIDATION_CHECK(this,
-                                  diagonal_index_pshape.compatible(ov::Shape{1}),
-                                  "'diagonal_index' should have 1 element.");
-        }
-    }
-
     std::vector<ov::PartialShape> input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape};
 
     if (get_input_size() == 4) {
@@ -116,16 +85,6 @@ void ov::op::v9::Eye::validate_and_infer_types() {
                               "Type of the 'batch_shape' should be int32 or int64. Got: ",
                               batch_shape_et);
         const auto& batch_shape_pshape = get_input_partial_shape(3);
-        if (batch_shape_pshape.is_static()) {
-            const auto& diagonal_index_rank = batch_shape_pshape.rank().get_length();
-            NODE_VALIDATION_CHECK(this, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
-        } else {
-            NODE_VALIDATION_CHECK(this,
-                                  batch_shape_pshape.rank().is_static(),
-                                  "'batch_shape' should have static shape rank");
-            NODE_VALIDATION_CHECK(this, batch_shape_pshape.rank() == 1, "'batch_shape' value must be a 1D tensor.");
-        }
-
         input_shapes.push_back(batch_shape_pshape);
     }
 

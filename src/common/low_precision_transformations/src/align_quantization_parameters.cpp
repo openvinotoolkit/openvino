@@ -6,10 +6,10 @@
 #include <memory>
 #include "low_precision/create_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
-#include "low_precision/update_shared_precision_preserved.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "low_precision/update_shared_precision_preserved.hpp"
 #include "itt.hpp"
 
 using namespace ngraph;
@@ -25,7 +25,7 @@ bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_model(cons
     std::shared_ptr<ngraph::pass::GraphRewrite> propagation = manager.register_pass<ngraph::pass::GraphRewrite>();
     propagation->add_matcher<low_precision::CreateAttribute<QuantizationAlignmentAttribute>>();
     propagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<QuantizationAlignmentAttribute>>();
-    propagation->add_matcher<low_precision::UpdateSharedPrecisionPreserved<QuantizationAlignmentAttribute, PerTensorQuantizationAttribute>>();
+    propagation->add_matcher<low_precision::UpdateSharedPrecisionPreserved<QuantizationAlignmentAttribute, QuantizationGranularityAttribute>>();
     manager.run_passes(f);
     return false;
 }

@@ -18,7 +18,7 @@ TEST(type_prop, eye_constant) {
     auto eye = std::make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::bf16);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::bf16);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{6, 3}));
+    EXPECT_EQ(eye->get_output_partial_shape(0), ov::PartialShape({6, 3}));
 }
 
 TEST(type_prop, eye_batchshape_constant) {
@@ -30,7 +30,7 @@ TEST(type_prop, eye_batchshape_constant) {
     auto eye = std::make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::bf16);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::bf16);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 6, 3}));
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({2, 6, 3}));
 }
 
 TEST(type_prop, eye_rows_param) {
@@ -41,7 +41,7 @@ TEST(type_prop, eye_rows_param) {
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 10}));
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 10}));
 }
 
 TEST(type_prop, eye_rows_const) {
@@ -52,20 +52,19 @@ TEST(type_prop, eye_rows_const) {
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape{10, Dimension::dynamic()}));
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({10, Dimension::dynamic()}));
 }
 
 TEST(type_prop, eye_batchshape_const) {
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-    auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    auto num_columns = num_rows;
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto batch_shape = op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
 
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(
-        eye->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({2, 3, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, eye_batchshape_params) {
@@ -77,7 +76,20 @@ TEST(type_prop, eye_batchshape_params) {
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::f64);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f64);
-    EXPECT_TRUE(eye->get_output_partial_shape(0).same_scheme(PartialShape().dynamic(4)));
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape().dynamic(4));
+}
+
+TEST(type_prop, eye_batchshape_shapeof) {
+    auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
+    auto num_columns = num_rows;
+    auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape({{1, 10}, {10, 25}}));
+    auto shape_of = make_shared<op::v0::ShapeOf>(batch_shape);
+
+    auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, shape_of, element::f64);
+
+    EXPECT_EQ(eye->get_output_element_type(0), element::f64);
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({{1, 10}, {10, 25}, 10, 10}));
 }
 
 TEST(type_prop, eye_invalid_num_rows_value) {
@@ -172,7 +184,7 @@ TEST(type_prop, eye_invalid_num_rows_shape) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num rows value.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' should have 1 element."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value input should have 1 element."));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
@@ -188,7 +200,7 @@ TEST(type_prop, eye_invalid_num_columns_shape) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid num columns value.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' should have 1 element."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' value input should have 1 element."));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
@@ -204,7 +216,7 @@ TEST(type_prop, eye_invalid_diagonal_index_shape) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid diagonal index value.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'diagonal_index' should have 1 element."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'diagonal_index' value input should have 1 element."));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
