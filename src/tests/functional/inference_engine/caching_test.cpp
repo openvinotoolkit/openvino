@@ -1981,6 +1981,38 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     }
     std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
 }
+//Single device not support import/export
+TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(false));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(AnyNumber()).
+            WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
+    testLoad([&](Core &ie) {
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+        });
+        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad += ":mock.0";
+        ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+        m_testFunction(ie);
+        m_post_mock_net_callbacks.pop_back();
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+        });
+        m_testFunction(ie);
+    });
+}
 
 // MULTI-DEVICE test
 // Test that it is safe to load multiple devices sharing same cache
