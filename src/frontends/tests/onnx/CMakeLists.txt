@@ -10,18 +10,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
 
-add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-
-if(ENABLE_TESTS)
-    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    add_subdirectory(test_util)
-endif()
-
-if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "ONNX frontend tests disabled")
-    return()
-endif()
 message(STATUS "ONNX frontend tests enabled")
+
+add_compile_definitions(
+    SERIALIZED_ZOO="${TEST_MODEL_ZOO}/core/models"
+    TEST_FILES="${TEST_MODEL_ZOO}/core/files")
+
+add_subdirectory(test_util)
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
