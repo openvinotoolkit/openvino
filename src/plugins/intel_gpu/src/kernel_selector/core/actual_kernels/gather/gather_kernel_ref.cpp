@@ -79,7 +79,21 @@ static int64_t GetGatherBatchDim(const gather_params& params) {
 }
 
 static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
-    return std::to_string(params.inputs[0].GetDims().at(params.inputs[0].GetDims().size() - GetGatherChannelIndex(params) - 1).v);
+    switch (params.axis) {
+    case GatherAxis::BATCH:
+        return std::to_string(params.inputs[0].Batch().v);
+    case GatherAxis::FEATURE:
+        return std::to_string(params.inputs[0].Feature().v);
+    case GatherAxis::W:
+        return std::to_string(params.inputs[0].W().v);
+    case GatherAxis::Z:
+        return std::to_string(params.inputs[0].Z().v);
+    case GatherAxis::Y:
+        return std::to_string(params.inputs[0].Y().v);
+    case GatherAxis::X:
+        return std::to_string(params.inputs[0].X().v);
+    }
+    throw "Error";
 }
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
@@ -104,9 +118,6 @@ static inline std::vector<std::string> GetOrder(size_t size) {
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
     std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
 
-    const std::string input_axis_index_macro = "INPUT_AXIS_INDEX";
-    const std::string zeroVal = "0";
-
     size_t dictionary_dims_num = GetNonEmptyDimsNumber(params.inputs[0]);
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.outputs[0]) - dictionary_dims_num + 1;
 
@@ -115,13 +126,13 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
         idx_order[i] = idx_order[i + indices_dims_num - 1];
 
     for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
-        idx_order[i] = zeroVal;
+        idx_order[i] = "0";
 
     // Fix size to inputs[0] dims size
     for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
         idx_order.pop_back();
 
-    idx_order[axis] = input_axis_index_macro;
+    idx_order[axis] = "INPUT_AXIS_INDEX";
 
     return GetOrderString(idx_order);
 }
@@ -129,7 +140,9 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
 
-    const std::string zero_val = "0";
+    // if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
+    //     swap(idx_order[0], idx_order[1]);
+    // }
 
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
@@ -138,7 +151,7 @@ static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, 
         idx_order[i] = idx_order[axis + i - batch_dim];
 
     for (size_t i = indices_dims_num; i < idx_order.size(); i++)
-        idx_order[i] = zero_val;
+        idx_order[i] = "0";
 
     // Fix size to inputs[1] dims size
     for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[1].GetDims().size(); i++)

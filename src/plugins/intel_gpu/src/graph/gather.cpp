@@ -31,26 +31,7 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         output_type = node.get_fused_output_layout().data_type;
     }
 
-    //base = bfyx
-    auto d = dims_converted;
-    //handle other orders
-    if (output_format == format::yxfb) {
-        dims_converted[0] = d[2];
-        dims_converted[1] = d[3];
-        dims_converted[2] = d[1];
-        dims_converted[3] = d[0];
-    } else if (output_format == format::fyxb) {
-        dims_converted[0] = d[1];
-        dims_converted[1] = d[2];
-        dims_converted[2] = d[3];
-        dims_converted[3] = d[0];
-    } else if (output_format == format::fs_b_yx_fsv32) {
-        dims_converted[0] = d[1];
-        dims_converted[1] = d[0];
-        dims_converted[2] = d[2];
-        dims_converted[3] = d[3];
-    }
-    return layout{output_type, output_format, tensor(output_format, dims_converted)};
+    return layout{output_type, output_format, tensor(format::get_default_format(dims_converted.size()), dims_converted)};
 }
 
 std::string gather_inst::to_string(gather_node const& node) {
