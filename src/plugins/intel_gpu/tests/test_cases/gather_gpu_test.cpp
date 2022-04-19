@@ -109,55 +109,6 @@ public:
                                                          axis,
                                                          batch_dim);
         EXPECT_TRUE(!memcmp(ans.data(), output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
-
-        {
-            // const int SETW=7;
-            // int b=shape[0][0],f=shape[0][1],y=shape[0][2],x=shape[0][3];
-            // std::cout<<"=====input0====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<std::setw(SETW)<<dat[i*f*y*x+j*y*x+k*x+l];
-            // b=shape[1][0],f=shape[1][1],y=shape[1][2],x=shape[1][3];
-            // std::cout<<"=====input1====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<std::setw(SETW)<<ind[i*f*y*x+j*y*x+k*x+l];
-            // b=shape[2][0],f=shape[2][1],y=shape[2][2],x=shape[2][3];
-            // std::cout<<"=====answer====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<std::setw(SETW)<<ans[i*f*y*x+j*y*x+k*x+l];
-            // std::cout<<"=====output====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++,std::cout<<std::endl)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<std::setw(SETW)<<output_ptr[i*f*y*x+j*y*x+k*x+l];
-            // std::cout<<"=====compare====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++,std::cout<<std::endl)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<(ans[i*f*y*x+j*y*x+k*x+l]==output_ptr[i*f*y*x+j*y*x+k*x+l]);
-            // std::cout<<"=====fsb====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++,std::cout<<std::endl)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<std::setw(SETW)<<output_ptr[i*y*x*32+k*x*32+l*32+j];
-            // std::cout<<"=====fsb compare====="<<std::endl;
-            // for(int i=0;i<b;i++,std::cout<<std::endl)
-            //     for(int j=0;j<f;j++,std::cout<<std::endl)
-            //         for(int k=0;k<y;k++,std::cout<<std::endl)//,std::cout<<std::endl)
-            //             for(int l=0;l<x;l++)
-            //                 std::cout<<(ans[i*f*y*x+j*y*x+k*x+l]==output_ptr[i*y*x*32+k*x*32+l*32+j]);
-        }
     }
 };
 

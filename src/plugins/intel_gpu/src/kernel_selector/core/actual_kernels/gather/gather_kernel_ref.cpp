@@ -140,10 +140,6 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
 static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
 
-    // if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-    //     swap(idx_order[0], idx_order[1]);
-    // }
-
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
     // Shift indices of Gather indices input related to output dims
@@ -167,44 +163,10 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    switch ( out_layout ) {
-    case DataLayout::yxfb:
-    case DataLayout::fyxb:
-    case DataLayout::fs_b_yx_fsv32:
-    case DataLayout::bfyx:
-    case DataLayout::b_fs_yx_fsv4:
-    case DataLayout::b_fs_yx_fsv16:
-    case DataLayout::b_fs_yx_fsv32:
-    case DataLayout::bs_fs_yx_bsv4_fsv2:
-    case DataLayout::bs_fs_yx_bsv4_fsv4:
-    case DataLayout::bs_fs_yx_bsv8_fsv2:
-    case DataLayout::bs_fs_yx_bsv8_fsv4:
-    case DataLayout::bs_fs_yx_bsv16_fsv16:
-    case DataLayout::bs_fs_yx_bsv32_fsv16:
-    case DataLayout::bs_fs_yx_bsv32_fsv32:
-        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                   {Tensor::DataChannelName::Y},
+    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+    dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                   {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                    {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        break;
-    case DataLayout::bfzyx:
-    case DataLayout::b_fs_zyx_fsv16:
-    case DataLayout::b_fs_zyx_fsv32:
-        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                    {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                    {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        break;
-    case DataLayout::bfwzyx:
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                    {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                    {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        break;
-    default:
-        throw std::invalid_argument("Unsupported data layout for gather elements primitive");
-    }
-
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
