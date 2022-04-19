@@ -583,9 +583,5 @@ install(TARGETS ov_core_unit_tests
 
 add_subdirectory(frontend)
 
-if (ENABLE_OV_ONNX_FRONTEND)
-    add_subdirectory(onnx)
-endif()
-
 # process models
 add_dependencies(ov_core_unit_tests test_model_zoo)

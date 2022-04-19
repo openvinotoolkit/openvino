@@ -164,8 +164,8 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR openvino_onnx_frontend SOURCE_DIR)
-    target_include_directories(onnx_import_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_include_directories(onnx_import_unit_tests PRIVATE
+        $<TARGET_PROPERTY:openvino_onnx_frontend, INCLUDE_DIRECTORIES>)
     target_link_libraries(onnx_import_unit_tests PRIVATE openvino_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(onnx_import_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
