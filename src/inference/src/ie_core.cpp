@@ -255,7 +255,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     };
 
     ExecutorManager::Ptr executorManagerPtr;
-    mutable ov::frontend::FrontEndManager frontEndManager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
@@ -529,25 +528,14 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        return InferenceEngine::details::ReadNetwork(modelPath,
-                                                     binPath,
-                                                     extensions,
-                                                     ov_extensions,
-                                                     newAPI,
-                                                     frontEndManager);
+        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, ov_extensions, newAPI);
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model,
                                const ie::Blob::CPtr& weights,
                                bool frontendMode = false) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return InferenceEngine::details::ReadNetwork(model,
-                                                     weights,
-                                                     extensions,
-                                                     ov_extensions,
-                                                     newAPI,
-                                                     frontEndManager,
-                                                     frontendMode);
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, newAPI, frontendMode);
     }
 
     bool isNewAPI() const override {
