@@ -4,6 +4,7 @@
 
 #include <tbb/task_scheduler_init.h>
 
+#include <ie_singleton_object.hpp>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -108,29 +109,28 @@ void ExecutorManagerImpl::clear(const std::string& id) {
 
 namespace {
 
-class ExecutorManagerHolder {
-    std::mutex _mutex;
-    std::shared_ptr<ExecutorManager> _manager = NULL;
-
-    ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
-    ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
-
+class ExecutorManagerHolder : public SingletonObject<ExecutorManagerHolder> {
 public:
-    ExecutorManagerHolder() = default;
-
     ExecutorManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_manager)
             _manager = std::make_shared<ExecutorManagerImpl>();
         return _manager;
     }
+
+private:
+    ExecutorManagerHolder() {
+        setPriority(1);
+    }
+    std::mutex _mutex;
+    std::shared_ptr<ExecutorManager> _manager = NULL;
+    friend SingletonObject<ExecutorManagerHolder>;
 };
 
 }  // namespace
 
 ExecutorManager::Ptr executorManager() {
-    static ExecutorManagerHolder executorManagerHolder;
-    return executorManagerHolder.get();
+    return ExecutorManagerHolder::instance()->get();
 }
 
 ExecutorManager* ExecutorManager::getInstance() {

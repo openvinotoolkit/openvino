@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "../../../inference/src/ie_singleton_object.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/visibility.hpp"
@@ -22,6 +23,9 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
+    /// \brief A shared pointer to FrontEndManager
+    using Ptr = std::shared_ptr<FrontEndManager>;
+
     /// \brief Default constructor. Searches and loads of available frontends
     FrontEndManager();
 
@@ -98,3 +102,20 @@ struct FrontEndPluginInfo {
 
 }  // namespace frontend
 }  // namespace ov
+
+// -------------- FrontEndManagerHolder -----------------
+class FrontEndManagerHolder : public InferenceEngine::SingletonObject<FrontEndManagerHolder> {
+public:
+    ov::frontend::FrontEndManager::Ptr get() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!_manager)
+            _manager = std::make_shared<ov::frontend::FrontEndManager>();
+        return _manager;
+    }
+
+private:
+    FrontEndManagerHolder(){};
+    std::mutex _mutex;
+    std::shared_ptr<ov::frontend::FrontEndManager> _manager = nullptr;
+    friend InferenceEngine::SingletonObject<FrontEndManagerHolder>;
+};
