@@ -14,16 +14,14 @@ add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 if(ENABLE_TESTS)
     add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    if (ENABLE_OV_ONNX_FRONTEND)
-        add_subdirectory(test_util)
-    endif()
+    add_subdirectory(test_util)
 endif()
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "ONNX import unit tests disabled")
+    message(STATUS "ONNX frontend tests disabled")
     return()
 endif()
-message(STATUS "ONNX import unit tests enabled")
+message(STATUS "ONNX frontend tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -68,29 +66,27 @@ endif()
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
-if (ENABLE_OV_ONNX_FRONTEND)
-    set(MULTI_TEST_SRC
-        onnx_import.in.cpp
-        onnx_import_com_microsoft.in.cpp
-        onnx_import_controlflow.in.cpp
-        onnx_import_const_folding.in.cpp
-        onnx_import_convpool.in.cpp
-        onnx_import_deprecated.in.cpp
-        onnx_import_dyn_shapes.in.cpp
-        onnx_import_external_data.in.cpp
-        onnx_import_org_openvino.in.cpp
-        onnx_import_reshape.in.cpp
-        onnx_import_rnn.in.cpp
-        onnx_import_quant.in.cpp
-        onnx_test_utils.in.cpp
-        onnx_import_with_editor.in.cpp)
-    set(SRC
-        onnx_import_exceptions.cpp
-        onnx_import_library.cpp
-        onnx_tensor_names.cpp
-        onnx_transformations.cpp
-        onnx_editor.cpp)
-endif()
+set(MULTI_TEST_SRC
+    onnx_import.in.cpp
+    onnx_import_com_microsoft.in.cpp
+    onnx_import_controlflow.in.cpp
+    onnx_import_const_folding.in.cpp
+    onnx_import_convpool.in.cpp
+    onnx_import_deprecated.in.cpp
+    onnx_import_dyn_shapes.in.cpp
+    onnx_import_external_data.in.cpp
+    onnx_import_org_openvino.in.cpp
+    onnx_import_reshape.in.cpp
+    onnx_import_rnn.in.cpp
+    onnx_import_quant.in.cpp
+    onnx_test_utils.in.cpp
+    onnx_import_with_editor.in.cpp)
+set(SRC
+    onnx_import_exceptions.cpp
+    onnx_import_library.cpp
+    onnx_tensor_names.cpp
+    onnx_transformations.cpp
+    onnx_editor.cpp)
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
@@ -116,22 +112,22 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-add_executable(onnx_import_unit_tests ${SRC})
+add_executable(onnx_tests ${SRC})
 
-add_dependencies(onnx_import_unit_tests template_extension)
+add_dependencies(onnx_tests template_extension)
 
-target_include_directories(onnx_import_unit_tests PRIVATE ".")
+target_include_directories(onnx_tests PRIVATE ".")
 
-target_compile_definitions(onnx_import_unit_tests
+target_compile_definitions(onnx_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(onnx_import_unit_tests ${UNIT_TESTS_DEPENDENCIES})
+    add_dependencies(onnx_tests ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(onnx_import_unit_tests PRIVATE ngraph_test_util
+target_link_libraries(onnx_tests PRIVATE ngraph_test_util
                                         engines_test_util
                                         commonTestUtils
                                         ngraph_reference
@@ -144,44 +140,38 @@ target_link_libraries(onnx_import_unit_tests PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::runtime::dev)
 
-# Protobuf-lite does not support parsing files from prototxt format
-# Since most of the onnx models are stored in this format it have to be disabled
-if (ENABLE_OV_ONNX_FRONTEND)
-    # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
-    # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(onnx_import_unit_tests
-        SYSTEM PRIVATE
-            $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-            ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(onnx_import_unit_tests
-        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(onnx_import_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
-endif()
+# It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
+# Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
+target_include_directories(onnx_tests
+    SYSTEM PRIVATE
+        $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+        ${Protobuf_INCLUDE_DIRS})
+target_compile_definitions(onnx_tests
+    PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(onnx_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
 if (OV_COMPILER_IS_CLANG)
-    target_compile_options(onnx_import_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
+    target_compile_options(onnx_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (ENABLE_OV_ONNX_FRONTEND)
-    target_include_directories(onnx_import_unit_tests PRIVATE
-        $<TARGET_PROPERTY:openvino_onnx_frontend, INCLUDE_DIRECTORIES>)
-    target_link_libraries(onnx_import_unit_tests PRIVATE openvino_onnx_frontend onnx_test_util)
-    if (LINUX)
-        target_link_options(onnx_import_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
-    elseif(APPLE)
-        target_link_options(onnx_import_unit_tests PRIVATE -Wl,-dead_strip)
-    endif()
+target_include_directories(onnx_tests PRIVATE
+    $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
+target_link_libraries(onnx_tests PRIVATE openvino_onnx_frontend onnx_test_util)
+if (LINUX)
+    target_link_options(onnx_tests PRIVATE -Wl,--exclude-libs,ALL)
+elseif(APPLE)
+    target_link_options(onnx_tests PRIVATE -Wl,-dead_strip)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(onnx_import_unit_tests openvino_ir_frontend)
+    add_dependencies(onnx_tests openvino_ir_frontend)
 endif()
 
-install(TARGETS onnx_import_unit_tests
+install(TARGETS onnx_tests
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 # process models
-add_dependencies(onnx_import_unit_tests test_model_zoo)
+add_dependencies(onnx_tests test_model_zoo)
