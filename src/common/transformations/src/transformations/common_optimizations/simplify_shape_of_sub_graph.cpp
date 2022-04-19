@@ -234,7 +234,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
 
         const auto concat_axis = concat->get_axis();
-        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+        OPENVINO_ASSERT(concat_axis == 0 || concat_axis == -1, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
