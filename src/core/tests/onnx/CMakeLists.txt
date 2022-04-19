@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# ?? set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
@@ -64,7 +64,7 @@ endif()
 # 2) They must be in the `test/backend` directory
 # 3) Include "util/test_control.hpp" in your cpp file
 # 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `OV_CORE_TEST` macro in place of `TEST`.
+# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 
@@ -116,16 +116,11 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-
 add_executable(onnx_import_unit_tests ${SRC})
 
 add_dependencies(onnx_import_unit_tests template_extension)
 
 target_include_directories(onnx_import_unit_tests PRIVATE ".")
-target_include_directories(onnx_import_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-
-get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
-target_include_directories(onnx_import_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(onnx_import_unit_tests
     PRIVATE

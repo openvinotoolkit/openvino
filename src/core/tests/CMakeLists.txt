@@ -564,6 +564,10 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::runtime::dev)
 
+if (ENABLE_OV_ONNX_FRONTEND)
+    target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
+endif()
+
 if (OV_COMPILER_IS_CLANG)
     target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
