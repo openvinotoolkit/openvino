@@ -653,21 +653,29 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         if (devicesToBeDeleted.size() == 0) {
             allDevices = deviceListConfig->second;
         } else {
+            auto deviceNeedToMerge = [&](const std::string& devicename) {
+                for (auto&& iter : devicesToBeDeleted) {
+                    if (iter.find(devicename) != std::string::npos)
+                        return true;
+                }
+                return false;
+            };
             auto mergeDeviceList = [&]() {
                 std::vector<std::string> mergedList;
                 auto prevSize = mergedList.size();
                 for (auto&& iter : deviceVec) {
-                    for (auto& viter : deviceList) {
-                        if (viter.find(iter) != std::string::npos)
-                            mergedList.push_back(viter);
+                    for (auto&& viter : deviceList) {
+                        if (viter.find(iter) != std::string::npos && deviceNeedToMerge(iter))
+                            mergedList.push_back(std::move(viter));
                     }
                     // if virtual devices or mock devices
                     if (mergedList.size() == prevSize)
-                        mergedList.push_back(iter);
+                        mergedList.push_back(std::move(iter));
                     prevSize = mergedList.size();
                 }
                 return mergedList;
             };
+
             deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
             for (auto& iter : devicesToBeDeleted) {
                 LOG_INFO("[AUTOPLUGIN]:remove %s from device candidate list", iter.c_str());
