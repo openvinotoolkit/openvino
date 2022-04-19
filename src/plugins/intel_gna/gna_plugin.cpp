@@ -57,6 +57,7 @@
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/softsign_decomposition.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/pwl_approximation.hpp"
@@ -733,6 +734,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
         pass_config->disable<ngraph::pass::ConcatReduceFusion>();
+        pass_config->disable<ngraph::pass::SoftSignDecomposition>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
