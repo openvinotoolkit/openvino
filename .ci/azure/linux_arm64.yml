@@ -13,6 +13,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2022/1
 
 jobs:
 - job: linux_arm64
@@ -34,13 +35,13 @@ jobs:
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
     OPENCV_REPO_DIR: $(OPENVINO_REPO_DIR)/../opencv
-    BUILD_PYTHON: $(WORK_DIR)/build_python 
+    BUILD_PYTHON: $(WORK_DIR)/build_python
     BUILD_OPENCV: $(WORK_DIR)/build_opencv
     BUILD_OPENVINO: $(WORK_DIR)/build
     BUILD_OPENVINO_PYTHON: $(WORK_DIR)/build_python
     BUILD_OPEN_MODEL_ZOO: $(WORK_DIR)/build_open_model_zoo
     INSTALL_OPENVINO: $(WORK_DIR)/install_openvino
-    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python 
+    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     INSTALL_OPENCV: $(INSTALL_OPENVINO)/extras/opencv
     INSTALL_OPEN_MODEL_ZOO: $(INSTALL_OPENVINO)/extras/open_model_zoo
     WORK_DIR: $(Pipeline.Workspace)/_w
@@ -125,20 +126,20 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
-        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake 
-        -DENABLE_OPENCV=OFF 
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8 
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so 
-        -DENABLE_PYTHON=ON 
-        -DPYTHON_MODULE_EXTENSION=".so" 
-        -DENABLE_TESTS=ON 
-        -DENABLE_FUNCTIONAL_TESTS=ON 
-        -DENABLE_GAPI_TESTS=OFF 
-        -DENABLE_GAPI_PREPROCESSING=OFF 
-        -DENABLE_DATA=OFF 
-        -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib 
-        -DTHREADING=SEQ -DENABLE_LTO=ON 
-        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake 
+        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
+        -DENABLE_OPENCV=OFF
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
+        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
+        -DENABLE_PYTHON=ON
+        -DPYTHON_MODULE_EXTENSION=".so"
+        -DENABLE_TESTS=ON
+        -DENABLE_FUNCTIONAL_TESTS=ON
+        -DENABLE_GAPI_TESTS=OFF
+        -DENABLE_GAPI_PREPROCESSING=OFF
+        -DENABLE_DATA=OFF
+        -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
+        -DTHREADING=SEQ -DENABLE_LTO=ON
+        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_SAMPLES=ON
         -DBUILD_java_api=OFF
@@ -173,19 +174,19 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
-        -DENABLE_PYTHON=ON 
-        -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8 
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8 
+        -DENABLE_PYTHON=ON
+        -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
-        -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.8/site-packages/numpy/core/include 
+        -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.8/site-packages/numpy/core/include
         -DPYTHON_MODULE_EXTENSION=".so"
         -DPYBIND11_FINDPYTHON=OFF
         -DPYBIND11_NOPYTHON=OFF
         -DPYTHONLIBS_FOUND=TRUE
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_DATA=OFF
-        -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib 
-        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake 
+        -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
+        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
@@ -211,15 +212,15 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) 
-        -DENABLE_PYTHON=ON 
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3.8
-        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.8 
+        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DOpenVINO_DIR=$(BUILD_OPENVINO)
         -DInferenceEngine_DIR=$(BUILD_OPENVINO)
-        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake 
+        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -Dngraph_DIR=$(BUILD_OPENVINO)
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPEN_MODEL_ZOO)
