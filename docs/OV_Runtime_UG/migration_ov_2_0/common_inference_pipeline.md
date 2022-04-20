@@ -45,7 +45,7 @@ OpenVINO™ Runtime API 2.0:
 
 ### 1.1 (Optional) Load Extensions
 
-To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions. However, if you already have old extensions, you can also load them to the new OpenVINO™ Runtime:
+To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
 Inference Engine API:
 
