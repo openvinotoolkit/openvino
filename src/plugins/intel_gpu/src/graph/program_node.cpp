@@ -32,7 +32,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         output_layout.data_padding = prim->output_padding;
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx] == &new_dep)
@@ -47,16 +47,18 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep) {
     if (it != dependencies[idx]->users.end()) {
         dependencies[idx]->users.erase(it);
     }
-    myprog.remove_if_dangling(*dependencies[idx]);
+
+    if (remove_if_dangling)
+        myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
     new_dep.users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep) {
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i] == &old_dep)
-            return replace_dependency(i, new_dep);
+            return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -104,10 +106,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     node_info->add("output layout", output_layout_info);
 
-    node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
+    node_info->add("optimized", bool_to_str(optimized));
 
     json_composite fused_nodes_info;
     size_t index = 0;
@@ -909,7 +911,7 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.size.spatial[0] > 1 || in.size.spatial[1] > 1 || in.size.batch[0] > 1)
+                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
                 if (idx == 0 && !has_out_scales(attrs)) {
                     int mask = in.count() > 1 ? 2 : 0;

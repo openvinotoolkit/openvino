@@ -1,4 +1,4 @@
-##  MulticlassNonMaxSuppression<a name="MulticlassNonMaxSuppression"></a> {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
+##  MulticlassNonMaxSuppression {#openvino_docs_ops_sort_MulticlassNonMaxSuppression_8}
 
 **Versioned name**: *MulticlassNonMaxSuppression-8*
 

@@ -47,7 +47,7 @@ CPU plugin supports the following data types as inference precision of internal 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
 
-See [low-precision optimization guide](@ref pot_docs_LowPrecisionOptimizationGuide) for more details on how to get quantized model.
+See [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
 
 > **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" which in some cases leads to reduced computational accuracy for u8/i8 precision calculations.
 > See [saturation (overflow) issue section](@ref pot_saturation_issue) to get more information on how to detect such issues and possible workarounds.
@@ -205,7 +205,7 @@ The next time the model is compiled, the cached representation will be loaded to
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
 thereby reducing first inference latency (FIL).
 
-See [model caching overview](@ref openvino_docs_IE_DG_Model_caching_overview) for more details.
+See [model caching overview](@ref openvino_docs_OV_UG_Model_caching_overview) for more details.
 
 ### Extensibility
 CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
@@ -217,7 +217,7 @@ To enable fallback on a custom operation implementation, one have to override `o
 ### Stateful models
 CPU plugin supports stateful models without any limitations.
 
-See [stateful models guide](@ref openvino_docs_IE_DG_network_state_intro) for details.
+See [stateful models guide](@ref openvino_docs_OV_UG_network_state_intro) for details.
 
 ## Supported properties
 The plugin supports the properties listed below.

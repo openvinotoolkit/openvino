@@ -6,7 +6,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <vector>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
@@ -15,7 +15,7 @@
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -46,7 +46,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -287,7 +287,7 @@ bool Split::isExecutable() const {
     return !isInputTensorAtPortEmpty(0) && !isOptimized();
 }
 
-void Split::execute(mkldnn::stream strm) {
+void Split::execute(dnnl::stream strm) {
     if (isOptimized()) {
         return;
     }

@@ -11,7 +11,6 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import OVAny as OVAnyBase
 
 from openvino.runtime.utils.types import get_dtype
 
@@ -273,7 +272,7 @@ class Core(CoreBase):
         :type device_name: str
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
-        :type config: dict
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
@@ -297,9 +296,9 @@ class Core(CoreBase):
                             Note: if device_name is not used to compile the original model,
                             an exception is thrown.
         :type device_name: str
-        :param properties: Optional map of pairs: (property name,
-                           property value) relevant only for this load operation.
-        :type properties: dict, optional
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
 
@@ -334,65 +333,14 @@ class Core(CoreBase):
         )
 
 
-class ExtendedModel(CompiledModel):
-    """CompiledModel that additionally holds Core object."""
-
-    def __init__(self, core: Core, net: CompiledModel):
-        super().__init__(net)
-        self.core = core  # needs to store Core object for CPU plugin
-
-
 def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model_path: Path to file with model.
     :type model_path: str
-    :return: Extended version of `CompiledModel` that holds and keeps alive `Core` object.
+    :return: A compiled model.
+    :rtype: openvino.runtime.CompiledModel
+
     """
     core = Core()
-    return ExtendedModel(core, core.compile_model(model_path, "AUTO"))
-
-
-class OVAny(OVAnyBase):
-    """OVAny wrapper.
-
-    Wrapper provides some useful overloads for simple built-in Python types.
-
-    Access to the `OVAny` value is direct if it is a built-in Python data type.
-
-    :Example:
-    .. code-block:: ipython
-
-        any = OVAny([1, 2])
-        print(any[0])
-
-        Output: 2
-
-    Otherwise if `OVAny` value is a custom data type (for example user class),
-    access to the value is possible by `get()` method or property 'value'.
-
-    :Example:
-    .. code-block:: python
-
-        class Test:
-            def __init__(self):
-                self.data = "test"
-
-        any = OVAny(Test())
-        print(any.value.data)
-    """
-
-    def __getitem__(self, key: Union[str, int]) -> Any:
-        return self.value[key]
-
-    def __get__(self) -> Any:
-        return self.value
-
-    def __setitem__(self, key: Union[str, int], val: Any) -> None:
-        self.value[key] = val
-
-    def __set__(self, val: Any) -> None:
-        self.value = val
-
-    def __len__(self) -> int:
-        return len(self.value)
+    return core.compile_model(model_path, "AUTO")

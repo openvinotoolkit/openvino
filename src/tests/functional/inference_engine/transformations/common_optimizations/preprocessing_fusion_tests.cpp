@@ -141,7 +141,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionHard) {
@@ -198,7 +198,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionDynamic) {
@@ -248,7 +248,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise2) {
@@ -273,7 +273,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise3) {
@@ -298,7 +298,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise4) {
@@ -324,7 +324,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise5) {
@@ -350,7 +350,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
@@ -390,7 +390,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
@@ -431,7 +431,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
@@ -473,7 +473,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
@@ -499,7 +499,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
@@ -538,7 +538,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
@@ -578,7 +578,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionShapeOf) {
@@ -749,7 +749,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
     }
 
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, FuseScaleValues) {
@@ -779,5 +779,5 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
     }
 
     disable_rt_info_check();
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

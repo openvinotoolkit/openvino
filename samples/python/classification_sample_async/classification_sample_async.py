@@ -14,7 +14,7 @@ from openvino.runtime import AsyncInferQueue, Core, InferRequest, Layout, Type
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
+    """Parse and return command line arguments."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     # fmt: off
