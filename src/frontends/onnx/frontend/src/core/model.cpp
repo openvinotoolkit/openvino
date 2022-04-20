@@ -35,35 +35,9 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
     throw ov::Exception("Couldn't find operator set's version for domain: " + domain + ".");
 }
 
-Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {
-    // copy the opset imports from the ONNX model and sort them by their version in ascending order
-    // this will make sure that multiple opset imports for the same domain will cause the largest
-    // version to be used for this model, for example:
-    // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
-    auto opset_imports = m_model_proto->opset_import();
-    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
-                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
-        return lhs.version() < rhs.version();
-    };
-    std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
-
-    std::for_each(opset_imports.rbegin(),
-                  opset_imports.rend(),
-                  [this](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
-                      const auto domain =
-                          onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
-                      if (m_opset.find(domain) == std::end(m_opset)) {
-                          m_opset[domain] = OperatorsBridge::get_operator_set(domain, onnx_opset.version());
-                      }
-                  });
-
-    // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
-    // implies the operator set that is defined as part of the ONNX specification.
-    const auto dm = m_opset.find("");
-    if (dm == std::end(m_opset)) {
-        m_opset[""] = OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION);
-    }
-}
+Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opsets)
+    : m_model_proto{model_proto},
+      m_opset{std::move(model_opsets)} {}
 
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {
     const auto dm = m_opset.find(domain);

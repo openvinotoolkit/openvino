@@ -23,8 +23,12 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
 
 class Model {
 public:
+    // a container with OperatorSets covering all domains used in a given model
+    // built based on the opset imports in the ModelProto object
+    using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
+
     Model() = delete;
-    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opsets);
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -76,7 +80,7 @@ public:
 
 private:
     const std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
-    std::unordered_map<std::string, OperatorSet> m_opset;
+    ModelOpSet m_opset;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Model& model) {

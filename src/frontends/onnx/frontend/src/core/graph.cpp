@@ -17,13 +17,13 @@
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "ops_bridge.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
-static std::string to_string(
-    const std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>>& map) {
+std::string to_string(const std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>>& map) {
     std::string result;
     for (auto it = std::begin(map); it != std::end(map); ++it) {
         result += (it != std::begin(map) ? ", " : "") + it->first;
@@ -51,6 +51,39 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
+
+Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto) {
+    // copy the opset imports from the ONNX model and sort them by their version in ascending order
+    // this will make sure that multiple opset imports for the same domain will cause the largest
+    // version to be used for this model, for example:
+    // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
+    auto opset_imports = model_proto.opset_import();
+    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
+                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+        return lhs.version() < rhs.version();
+    };
+    std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
+
+    Model::ModelOpSet opset;
+    std::for_each(opset_imports.rbegin(),
+                  opset_imports.rend(),
+                  [&opset](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                      const auto domain =
+                          onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
+                      if (opset.find(domain) == std::end(opset)) {
+                          opset[domain] = OperatorsBridge::get_operator_set(domain, onnx_opset.version());
+                      }
+                  });
+
+    // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
+    // implies the operator set that is defined as part of the ONNX specification.
+    const auto dm = opset.find("");
+    if (dm == std::end(opset)) {
+        opset[""] = OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION);
+    }
+
+    return opset;
+}
 }  // namespace detail
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
@@ -59,7 +92,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov:
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              ov::frontend::ExtensionHolder extensions)
-    : m_model{common::make_unique<Model>(model_proto)},
+    : m_model{common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto))},
       m_cache{std::move(cache)},
       m_extensions{std::move(extensions)} {
     std::map<std::string, Tensor> initializers;
