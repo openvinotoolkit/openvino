@@ -197,9 +197,9 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return {std::to_string(_threadsPerStream)};
     } else if (key == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
         if (_tbbTerminateFlag) {
-            return CONFIG_VALUE(YES);
+            return {CONFIG_VALUE(YES)};
         } else {
-            return CONFIG_VALUE(NO);
+            return {CONFIG_VALUE(NO)};
         }
     } else {
         IE_THROW() << "Wrong value for property key " << key;

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tbb/task_scheduler_init.h>
+#include "ie_parallel.hpp"
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    include <tbb/task_scheduler_init.h>
+#endif
 
 #include <memory>
 #include <mutex>
@@ -24,7 +27,9 @@ public:
     void setTbbFlag(bool flag) override;
 
 private:
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     tbb::task_scheduler_init init;
+#endif
     bool tbbTerminateFlag = true;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
@@ -40,9 +45,14 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {
     clear();
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     if (tbbTerminateFlag == true) {
-        init.blocking_terminate();
+        try {
+            init.blocking_terminate();
+        } catch (std::exception& e) {
+        }
     }
+#endif
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {

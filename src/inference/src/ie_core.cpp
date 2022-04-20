@@ -1195,7 +1195,7 @@ public:
                 SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
             }
             if (config.first == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
-                if (config.second == CONFIG_VALUE(NO)) {
+                if (config.second == ov::Any(CONFIG_VALUE(NO))) {
                     executorManagerPtr->setTbbFlag(false);
                 } else {
                     executorManagerPtr->setTbbFlag(true);
