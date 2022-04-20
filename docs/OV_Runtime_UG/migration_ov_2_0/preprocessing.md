@@ -2,7 +2,7 @@
 
 ### Introduction
 
-The Inference Engine API contains preprocessing capabilities in the `InferenceEngine::CNNNetwork` class. Such preprocessing information is not a part of the main inference graph executed by [OpenVINO devices](../supported_plugins/Device_Plugins.md). Therefore, it is stored and executed separately before the inference stage.
+Inference Engine API contains preprocessing capabilities in the `InferenceEngine::CNNNetwork` class. Such preprocessing information is not a part of the main inference graph executed by [OpenVINO devices](../supported_plugins/Device_Plugins.md). Therefore, it is stored and executed separately before the inference stage.
 - Preprocessing operations are executed on the CPU for most OpenVINO inference plugins. Thus, instead of occupying accelerators, they keep the CPU busy with computational tasks.
 - Preprocessing information stored in `InferenceEngine::CNNNetwork` is lost when saving back to the IR file format.
 
@@ -16,8 +16,8 @@ More importantly, OpenVINO Runtime API 2.0 does not assume any default layouts, 
 
 > **NOTE**: Use Model Optimizer preprocessing capabilities to insert preprocessing operations in you model for optimization. This way, the application does not need to read the model and set preprocessing repeatedly. You can use the [model caching feature](../Model_caching_overview.md) to improve the time-to-inference.
 
-The steps below demonstrate how to migrate preprocessing scenarios from the Inference Engine API to the OpenVINO Runtime API 2.0.
-The snippets assume we need to preprocess a model input with the `tensor_name` in the Inference Engine API, using `operation_name` to address the data.
+The steps below demonstrate how to migrate preprocessing scenarios from Inference Engine API to OpenVINO Runtime API 2.0.
+The snippets assume we need to preprocess a model input with the `tensor_name` in Inference Engine API, using `operation_name` to address the data.
 
 #### Importing Preprocessing in Python
 
@@ -31,7 +31,7 @@ OpenVINO Runtime API 2.0:
 
 @snippet docs/snippets/ov_preprocessing_migration.py ov_imports
 
-There are two different namespaces: `runtime`, which contains OpenVINO Runtime API classes; and `preprocess`, which provides the Preprocessing API.
+There are two different namespaces: `runtime`, which contains OpenVINO Runtime API classes; and `preprocess`, which provides Preprocessing API.
 
 ### Mean and Scale Values
 

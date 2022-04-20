@@ -178,7 +178,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 5. Fill Input Tensors
 
-The Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
+Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxtabset
 
@@ -398,7 +398,7 @@ OpenVINO™ Runtime API 2.0:
 
 ## 7. Process the Inference Results
 
-The Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
+Inference Engine API processes outputs as `I32` precision (**not** aligned with the original model):
 
 @sphinxtabset
 
