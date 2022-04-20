@@ -121,7 +121,7 @@ This can be achieved by specifying `"MULTI:CPU,GPU.0"` as a target device in cas
 See [Multi-device execution page](../multi_device.md) for more details.
 
 ### Multi-stream execution
-If either `ov::num_streams(n_streams)` with `n_streams > 1` or  the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for the CPU plugin, multiple streams are created for the model. In the case of the CPU plugin, each stream has its own host thread which means that incoming infer requests can be processed simultaneously.
+If either `ov::num_streams(n_streams)` with `n_streams > 1` or  the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for the CPU plugin, multiple streams are created for the model. In the case of the CPU plugin, each stream has its own host thread, which means that incoming infer requests can be processed simultaneously.
 Each stream is pinned to its own group of physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
 See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
