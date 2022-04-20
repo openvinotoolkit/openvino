@@ -14,7 +14,7 @@ Having preprocessing operations as a part of an OpenVINO opset makes it possible
 
 More importantly, OpenVINO Runtime API 2.0 does not assume any default layouts, as Inference Engine did. For example, both `{ 1, 224, 224, 3 }` and `{ 1, 3, 224, 224 }` shapes are supposed to be in the `NCHW` layout, while only the latter is. Therefore, some preprocessing capabilities in the API require layouts to be set explicitly. To learn how to do it, refer to the [Layout overview](../layout_overview.md). For example, to perform image scaling by partial dimensions `H` and `W`, preprocessing needs to know what dimensions `H` and `W` are.
 
-> **NOTE**: Use Model Optimizer preprocessing capabilities to insert preprocessing operations in you model for optimization. This way, the application does not need to read the model and set preprocessing repeatedly. You can use the [model caching feature](../Model_caching_overview.md) to improve the time-to-inference.
+> **NOTE**: Use Model Optimizer preprocessing capabilities to insert preprocessing operations in your model for optimization. Thus, the application does not need to read the model and set preprocessing repeatedly. You can use the [model caching feature](../Model_caching_overview.md) to improve the time-to-inference.
 
 The steps below demonstrate how to migrate preprocessing scenarios from Inference Engine API to OpenVINO Runtime API 2.0.
 The snippets assume we need to preprocess a model input with the `tensor_name` in Inference Engine API, using `operation_name` to address the data.
