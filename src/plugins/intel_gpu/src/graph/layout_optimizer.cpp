@@ -785,7 +785,8 @@ bool layout_optimizer::needs_onednn_small_ic_to_blocked(format fmt_next, layout&
         fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return false;
 
-    if (prev_output_layout.feature() <= 8)
+    // Check input feature size from node.input() in case prev_output_layout used in post operations.
+    if (prev_output_layout.feature() <= 8 && node.input().get_output_layout().feature() <= 8)
         return true;
 
     return false;
