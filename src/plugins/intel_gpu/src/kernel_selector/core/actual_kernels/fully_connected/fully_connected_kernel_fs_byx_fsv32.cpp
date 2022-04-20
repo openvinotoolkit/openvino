@@ -35,11 +35,11 @@ FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::S
     int autoTuneIndex) const {
     auto dispatchData = Parent::SetDefault(params, autoTuneIndex);
 
-    auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
-    auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);
+    auto blockSizeB = std::min(outputBlockSizeB, params.outputs[0].Batch().v);
+    auto blockNumB = CeilDiv(params.outputs[0].Batch().v, blockSizeB);
     auto wgHeight = std::min(preferredWGHeight, blockNumB);
 
-    dispatchData.gws[0] = CeilDiv(params.output.Feature().v, outputBlockSizeF);
+    dispatchData.gws[0] = CeilDiv(params.outputs[0].Feature().v, outputBlockSizeF);
     dispatchData.gws[1] = RoundUp(blockNumB, wgHeight);
     dispatchData.gws[2] = subGroupSize;
 
@@ -54,8 +54,8 @@ JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_
                                                           const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
-    auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);
+    auto blockSizeB = std::min(outputBlockSizeB, params.outputs[0].Batch().v);
+    auto blockNumB = CeilDiv(params.outputs[0].Batch().v, blockSizeB);
     auto wgHeight = std::min(preferredWGHeight, blockNumB);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subGroupSize));

@@ -25,7 +25,7 @@ namespace GNAPluginNS {
  */
 class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveSingleInputConcat", "0");
   RemoveSingleInputConcat();
 };
 

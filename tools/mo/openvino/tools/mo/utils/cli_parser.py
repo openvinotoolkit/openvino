@@ -289,7 +289,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
                                    'the original input of the model.' +
-                                   'If both --mean and --scale  are specified, ' +
+                                   'If both --mean_values and --scale  are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
                                    'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',

@@ -10,6 +10,9 @@ namespace ov {
 namespace op {
 
 namespace v0 {
+/// \brief Proposal operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Proposal : public Op {
 public:
     OPENVINO_OP("Proposal", "opset1");
@@ -71,6 +74,9 @@ protected:
 }  // namespace v0
 
 namespace v4 {
+/// \brief Proposal operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Proposal : public op::v0::Proposal {
 public:
     OPENVINO_OP("Proposal", "opset4", op::Op, 4);

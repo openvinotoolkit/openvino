@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include <openvino/core/graph_util.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
@@ -25,10 +26,10 @@
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/extension.hpp"
-#include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
+#include "pyopenvino/core/properties/properties.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
@@ -95,6 +96,60 @@ PYBIND11_MODULE(pyopenvino, m) {
         py::arg("model"),
         py::arg("batch_size") = -1);
 
+    m.def(
+        "serialize",
+        [](std::shared_ptr<ov::Model>& model,
+           const std::string& xml_path,
+           const std::string& bin_path,
+           const std::string& version) {
+            ov::serialize(model, xml_path, bin_path, Common::convert_to_version(version));
+        },
+        py::arg("model"),
+        py::arg("xml_path"),
+        py::arg("bin_path") = "",
+        py::arg("version") = "UNSPECIFIED",
+        R"(
+            Serialize given model into IR. The generated .xml and .bin files will be saved
+            into provided paths.
+            :param model: model which will be converted to IR representation
+            :type model: openvino.runtime.Model
+            :param xml_path: path where .xml file will be saved
+            :type xml_path: str
+            :param bin_path: path where .bin file will be saved (optional),
+                             the same name as for xml_path will be used by default.
+            :type bin_path: str
+            :param version: version of the generated IR (optional).
+            Supported versions are:
+            - "UNSPECIFIED" (default) : Use the latest or model version
+            - "IR_V10" : v10 IR
+            - "IR_V11" : v11 IR
+
+            :Examples:
+
+            1. Default IR version:
+
+            .. code-block:: python
+
+                shape = [2, 2]
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                op = (parameter_a + parameter_b) * parameter_c
+                model = Model(op, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version
+                serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin")
+            2. IR version 11:
+
+            .. code-block:: python
+                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
+                op = (parameter_a + parameter_b) * parameter_c
+                model = Model(ops, [parameter_a, parameter_b, parameter_c], "Model")
+                # IR generated with default version
+                serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin", version="IR_V11")
+        )");
+
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
     regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
@@ -144,10 +199,12 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InferRequest(m);
     regclass_VariableState(m);
     regclass_Version(m);
-    regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
+
+    // Properties and hints
+    regmodule_properties(m);
 
     // frontend
     regclass_frontend_Place(m);

@@ -23,10 +23,10 @@ model->reshape({{ov::Dimension(), ov::Dimension()}});  // {?,?}
 model->reshape({{-1, -1}});  // {?,?}
 //! [ov_dynamic_shapes:reshape_undefined]
 //! [ov_dynamic_shapes:reshape_bounds]
-// Both dimensions are dynamic, first may have size within 1..10 and the second is withing 8..512
+// Both dimensions are dynamic, first has a size within 1..10 and the second has a size within 8..512
 model->reshape({{ov::Dimension(1, 10), ov::Dimension(8, 512)}});  // {1..10,8..512}
 
-// Both dimensions are dynamic, first doesn't have bounds, the second is in 8..512
+// Both dimensions are dynamic, first doesn't have bounds, the second is in the range of 8..512
 model->reshape({{-1, ov::Dimension(8, 512)}});   // {?,8..512}
 //! [ov_dynamic_shapes:reshape_bounds]
 }
@@ -69,12 +69,12 @@ auto infer_request = executable.create_infer_request();
 //! [ov_dynamic_shapes:set_input_tensor]
 // The first inference call
 
-// Create tensor compatible to the model input
-// Shape {1, 128} is compatible to any reshape statements made in previous examples
+// Create tensor compatible with the model input
+// Shape {1, 128} is compatible with any reshape statements made in previous examples
 auto input_tensor_1 = ov::Tensor(model->input().get_element_type(), {1, 128});
 // ... write values to input_tensor_1
 
-// Set the tensor as a model input within infer request
+// Set the tensor as an input for the infer request
 infer_request.set_input_tensor(input_tensor_1);
 
 // Do the inference
@@ -154,4 +154,5 @@ int main() {
 reshape_with_dynamics();
 get_tensor();
 set_tensor();
+return 0;
 }

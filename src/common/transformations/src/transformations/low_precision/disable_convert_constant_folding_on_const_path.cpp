@@ -16,10 +16,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableConvertConstantFoldingOnConstPath,
-                       "DisableConvertConstantFoldingOnConstPath",
-                       0);
-
 ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
     const element::TypeVector& inputPrecisions) {
     auto matcherData = ngraph::pattern::any_input();

@@ -32,9 +32,12 @@ public:
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
      * @param weights shared pointer to constant blob with weights
+     * @param frontendMode read network without post-processing or other transformations
      * @return CNNNetwork
      */
-    virtual ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const = 0;
+    virtual ie::CNNNetwork ReadNetwork(const std::string& model,
+                                       const ie::Blob::CPtr& weights,
+                                       bool frontendMode = false) const = 0;
 
     /**
      * @brief Reads IR xml and bin files

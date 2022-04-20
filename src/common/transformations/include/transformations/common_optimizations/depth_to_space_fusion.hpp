@@ -41,6 +41,6 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
 
 class ngraph::pass::DepthToSpaceFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DepthToSpaceFusion", "0");
     DepthToSpaceFusion();
 };

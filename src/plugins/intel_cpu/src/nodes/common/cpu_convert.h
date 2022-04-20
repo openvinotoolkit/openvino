@@ -4,6 +4,9 @@
 
 #include <ie_precision.hpp>
 
+namespace ov {
+namespace intel_cpu {
+
 /**
  * @brief Copy size elements from buffer specified srcPtr pointer to buffer specified dstPtr.
  * If the precisions srcPrc and dstPrc are different, a conversion from srcPrc to dstPrc is performed.
@@ -48,3 +51,6 @@ void cpu_convert(const void *srcPtr,
                  InferenceEngine::Precision interimPrc,
                  InferenceEngine::Precision dstPrc,
                  const size_t size);
+
+}   // namespace intel_cpu
+}   // namespace ov

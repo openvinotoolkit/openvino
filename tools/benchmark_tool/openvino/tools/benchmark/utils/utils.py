@@ -3,9 +3,8 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -254,7 +253,7 @@ def parse_devices(device_string):
     return [d for d in devices.split(',')]
 
 
-def parse_nstreams_value_per_device(devices, values_string):
+def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
@@ -264,16 +263,16 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = device_value_vec[1]
+            value = device_value_vec[1]
             if device_name in devices:
-                result[device_name] = nstreams
+                result[device_name] = value
             else:
-                raise Exception("Can't set nstreams value " + str(nstreams) +
-                                " for device '" + device_name + "'! Incorrect device name!");
+                raise Exception(f"Can't set {value_type} for {device_name}!" \
+                                 " Incorrect device name!")
         elif len(device_value_vec) == 1:
-            nstreams = device_value_vec[0]
+            value = device_value_vec[0]
             for device in devices:
-                result[device] = nstreams
+                result[device] = value
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
@@ -308,11 +307,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(compiled_model, model_path):
-    weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    pass_manager = Manager()
-    pass_manager.register_pass("Serialize", model_path, weight_path)
-    pass_manager.run_passes(compiled_model.get_runtime_model())
-
+    serialize(compiled_model.get_runtime_model(), model_path)
 
 
 def print_perf_counters(perf_counts_list):

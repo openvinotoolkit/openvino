@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief Softmax operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset1", op::Op, 1);
@@ -48,6 +51,7 @@ private:
 
 namespace v8 {
 /// \brief Softmax operation with negative axis values
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset8");

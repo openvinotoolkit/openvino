@@ -13,15 +13,16 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNReorderNode : public MKLDNNNode {
+class Reorder : public Node {
 public:
-    MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
@@ -33,7 +34,7 @@ public:
 
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();
@@ -60,14 +61,14 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output);
+    static void reorderData(const Memory &input, const Memory &output);
 
 private:
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
 
-    MKLDNNMemoryPtr dst_blocked;
-    MKLDNNMemoryPtr src_blocked;
+    MemoryPtr dst_blocked;
+    MemoryPtr src_blocked;
 
     bool isOptimized = false;
 
@@ -78,8 +79,9 @@ private:
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
-    void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
+    void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

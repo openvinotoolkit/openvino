@@ -27,6 +27,6 @@ class ngraph::pass::AddMeanSubtract : public ngraph::pass::MatcherPass {
 public:
     using MeanMap = std::map<std::string, std::shared_ptr<ngraph::op::v0::Constant>>;
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AddMeanSubtract", "0");
     explicit AddMeanSubtract(const MeanMap& inputInfoMap);
 };

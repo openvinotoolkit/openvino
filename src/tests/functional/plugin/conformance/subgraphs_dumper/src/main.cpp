@@ -15,8 +15,25 @@
 #include "op_cloner.hpp"
 #include "utils/model_wrap_struct.hpp"
 #include "gflag_config.hpp"
-#include <stdlib.h>
 #include <string.h>
+
+static std::vector<std::regex> getRegexByFrontend() {
+    std::vector<std::regex> result;
+#ifdef ENABLE_OV_ONNX_FRONTEND
+    result.push_back(std::regex(R"(.*\.onnx)"));
+#endif
+#ifdef ENABLE_OV_PADDLE_FRONTEND
+    result.push_back(std::regex(R"(.*\.pdmodel)"));
+    result.push_back(std::regex(R"(.*\__model__)"));
+#endif
+#ifdef ENABLE_OV_TF_FRONTEND
+    result.push_back(std::regex(R"(.*\.pb)"));
+#endif
+#ifdef ENABLE_OV_IR_FRONTEND
+    result.push_back(std::regex(R"(.*\.xml)"));
+#endif
+    return result;
+}
 
 std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs) {
     std::vector<std::string> input_folder_content;
@@ -25,7 +42,8 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
-        const auto content = CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
+        const auto patterns = getRegexByFrontend();
+        const auto content = CommonTestUtils::getFileListByPatternRecursive(dirs, patterns);
         input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
     }
     std::vector<SubgraphsDumper::Model> models;
@@ -48,29 +66,24 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                  uint8_t& ret_code,
                  const std::vector<SubgraphsDumper::Model>& models,
                  const bool extract_body) {
-    auto ie = InferenceEngine::Core();
+    auto core = ov::test::utils::PluginCache::get().core();
     time_t rawtime;
     struct tm *timeinfo;
     char buffer[20];
     size_t all_models = models.size();
     for (size_t i = 0; i < all_models; ++i) {
         const auto model = models[i];
-        if (CommonTestUtils::fileExists(model.xml)) {
+        if (CommonTestUtils::fileExists(model.path)) {
             try {
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
 
                 strftime(buffer, 20, "%H:%M:%S", timeinfo);
                 std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models << "]Processing model: "
-                          << model.xml << std::endl;
-                if (!CommonTestUtils::fileExists(model.bin)) {
-                    std::cout << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
-                    continue;
-                }
+                          << model.path << std::endl;
 
-                InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
-                auto function = net.getFunction();
-                cache->update_ops_cache(function, extract_body, model.xml);
+                const auto function = core->read_model(model.path);
+                cache->update_ops_cache(function, extract_body, model.path);
             } catch (std::exception &e) {
                 std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
                 ret_code = 1;

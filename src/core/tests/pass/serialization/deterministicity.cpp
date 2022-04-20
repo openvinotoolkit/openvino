@@ -9,7 +9,6 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class SerializationDeterministicityTest : public ov::test::TestsCommon {

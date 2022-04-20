@@ -21,6 +21,6 @@ class ConvertMulOrAddFinally;
 
 class ngraph::pass::ConvertMulOrAddFinally: public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMulOrAddFinally", "0");
     ConvertMulOrAddFinally();
 };

@@ -1,12 +1,34 @@
-# Troubleshooting {#openvino_docs_get_started_guide_troubleshooting}
+# Troubleshooting Issues with OpenVINO™ Installation & Configuration {#openvino_docs_get_started_guide_troubleshooting}
 
 <!-- this part was from Docker installation -->
 
-## Issues with Installing OpenVINO™ for Linux from Docker
+## Errors with Installing via PIP for PRC Users
+
+PRC users might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
+   
+* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   ``` sh
+   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
+   You can also run the following command to install specific framework. For example:
+   
+   ```
+   pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   
+* If you run into incompatibility issues between components after installing OpenVINO, try running ``requirements.txt`` with the following command:
+
+   ``` sh
+   pip install -r <INSTALL_DIR>/tools/requirements.txt
+   ```
+
+## Issues with Installing OpenVINO on Linux from Docker
 
 ### Proxy Issues
 
-If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub*](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
+If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
 ### Permission Errors for /dev/shm
 

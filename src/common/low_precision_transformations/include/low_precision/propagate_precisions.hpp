@@ -28,12 +28,12 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
  * @brief PropagatePrecisions transformation propagates PrecisionsAttribute attribute instances precision preserved operations.
  *
  * For more details about the transformation, refer to
- * [PropagatePrecisions](@ref openvino_docs_IE_DG_lpt_PropagatePrecisions) page
+ * [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::PropagatePrecisions : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PropagatePrecisions", "0");
     PropagatePrecisions(const AttributeParameters& params = AttributeParameters());
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 

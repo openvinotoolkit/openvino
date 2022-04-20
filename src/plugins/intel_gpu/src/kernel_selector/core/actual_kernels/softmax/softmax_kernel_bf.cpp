@@ -12,6 +12,8 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -19,6 +21,7 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
     k.EnableSoftmaxDim(SoftmaxDim::X);  // in case that it can be flatten
     k.EnableSoftmaxDim(SoftmaxDim::Y);
     k.EnableSoftmaxDim(SoftmaxDim::FEATURE);
+    k.EnableDifferentTypes();
     k.EnableBatching();
     return k;
 }
@@ -63,5 +66,26 @@ KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, c
 
 KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
     return GetCommonKernelsData(params, optionalParams);
+}
+
+JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
+
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_main = {"_MAIN",
+                                           {"data_set_offset", "in_data_set_idx + i * workers_per_data_set", "0", "0"},
+                                           "dequantized",
+                                           input_dt};
+        FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",
+                                                {"data_set_offset", "workers_per_data_set * ITEMS_NUM + in_data_set_idx", "0", "0"},
+                                                "dequantized",
+                                                input_dt};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_main, conf_leftovers}));
+    }
+
+    return jit;
 }
 }  // namespace kernel_selector

@@ -24,12 +24,12 @@ namespace low_precision {
  * @brief ConcatTransformation propagates dequantization operations through Concat operation.
  *
  * For more details about the transformation, refer to
- * [ConcatTransformation](@ref openvino_docs_IE_DG_lpt_ConcatTransformation) page
+ * [ConcatTransformation](@ref openvino_docs_OV_UG_lpt_ConcatTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConcatTransformation", "0");
     ConcatTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

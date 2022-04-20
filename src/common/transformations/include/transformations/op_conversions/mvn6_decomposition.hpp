@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API MVN6Decomposition;
  */
 class ngraph::pass::MVN6Decomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MVN6Decomposition", "0");
     MVN6Decomposition();
 };

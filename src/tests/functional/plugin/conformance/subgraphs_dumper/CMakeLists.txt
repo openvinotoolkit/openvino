@@ -4,12 +4,34 @@
 
 set(TARGET_NAME subgraphsDumper)
 
-list(APPEND DEPENDENCIES
+list(APPEND LIBRARIES
         gflags
         inference_engine
-        commonTestUtils
+        funcTestUtils
         pugixml::static
 )
+
+list(APPEND DEFINITIONS)
+
+if(TARGET openvino_ir_frontend)
+    list(APPEND DEPENDENCIES openvino_ir_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_IR_FRONTEND)
+endif()
+
+if(TARGET openvino_onnx_frontend)
+    list(APPEND DEPENDENCIES openvino_onnx_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_ONNX_FRONTEND)
+endif()
+
+if(TARGET openvino_paddle_frontend)
+    list(APPEND DEPENDENCIES openvino_paddle_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
+endif()
+
+if(TARGET openvino_tensorflow_frontend)
+    list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)
+endif()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -18,14 +40,11 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         LINK_LIBRARIES
             PRIVATE
-                ${DEPENDENCIES}
+                ${LIBRARIES}
         DEPENDENCIES
             ${DEPENDENCIES}
         ADD_CPPLINT
 )
 
-if(TARGET openvino_ir_frontend)
-    add_dependencies(${TARGET_NAME} openvino_ir_frontend)
-endif()
-
+target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
 ie_faster_build(${TARGET_NAME} UNITY)

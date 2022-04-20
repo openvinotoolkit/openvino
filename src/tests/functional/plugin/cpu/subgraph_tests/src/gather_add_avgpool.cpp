@@ -21,7 +21,7 @@ using namespace ngraph;
    the first one (nhwc) is picked instead of nchw. Subgraph's layout also affects
    AvgPool layout and for this node also nhwc is picked instead of more preferable
    nChw8c or nChw16c.
-   To address the issue, there is a WA in MKLDNNGraph::Replicate - we skip propagating
+   To address the issue, there is a WA in intel_cpu::Graph::Replicate - we skip propagating
    input's precision if its child has Subgraph consumers.
    Same scenario happens when we have Eltwise instead of Subgraph - to be addressed in #78939.
 */

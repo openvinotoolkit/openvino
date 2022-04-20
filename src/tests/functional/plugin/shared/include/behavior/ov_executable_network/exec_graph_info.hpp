@@ -412,6 +412,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
+    auto inputPrecision = InferenceEngine::details::convertPrecision(execNet.GetInputsInfo().at("param")->getPrecision());
+    auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("param")->getPrecision());
+
     std::stringstream strm;
     execNet.Export(strm);
 
@@ -430,13 +433,8 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
     EXPECT_NO_THROW(importedCompiledModel.output("param").get_node());
 
-    const ov::element::Type outputType = elementType == ngraph::element::i32 ||
-        elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
-    const ov::element::Type inputType = elementType ==
-        ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
-
-    EXPECT_EQ(inputType, importedCompiledModel.input("param").get_element_type());
-    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
+    EXPECT_EQ(inputPrecision, importedCompiledModel.input("param").get_element_type());
+    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
@@ -460,6 +458,8 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, any_copy(configuration));
 
+    auto outputPrecision = InferenceEngine::details::convertPrecision(execNet.GetOutputsInfo().at("constant")->getPrecision());
+
     std::stringstream strm;
     execNet.Export(strm);
 
@@ -475,12 +475,11 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     EXPECT_NO_THROW(importedCompiledModel.output());
     EXPECT_NE(function->output(0).get_tensor().get_names(),
               importedCompiledModel.output(0).get_tensor().get_names());
+
     EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
     EXPECT_NO_THROW(importedCompiledModel.output("constant").get_node());
-
-    const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
-    EXPECT_EQ(outputType, importedCompiledModel.output("data").get_element_type());
+    EXPECT_EQ(outputPrecision, importedCompiledModel.output("data").get_element_type());
+    EXPECT_EQ(outputPrecision, importedCompiledModel.output("constant").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {

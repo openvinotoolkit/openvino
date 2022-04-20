@@ -26,14 +26,14 @@ Tensor::DataChannelName CumSumKernelBase::GetCumSumAxis(const cum_sum_params& pa
 }
 
 int32_t CumSumKernelBase::GetCumSumAxisIndex(const cum_sum_params& params) const {
-    return DataTensor::Channelndex(params.output.GetLayout(), GetCumSumAxis(params));
+    return DataTensor::Channelndex(params.outputs[0].GetLayout(), GetCumSumAxis(params));
 }
 
 size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
-    size_t index = params.output.Dimentions() - GetCumSumAxisIndex(params) - 1;
-    if (params.output.Dimentions() == 6)
+    size_t index = params.outputs[0].Dimentions() - GetCumSumAxisIndex(params) - 1;
+    if (params.outputs[0].Dimentions() == 6)
         return index;
-    else if (params.output.Dimentions() == 5)
+    else if (params.outputs[0].Dimentions() == 5)
         return (index > 1) ? index + 1 : index;
     return (index > 1) ? index + 2 : index;
 }
@@ -77,14 +77,14 @@ JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, Dis
 CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params& params) const {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
                                                                      { Tensor::DataChannelName::W, Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
 
-    dispatchData.gws = { params.output.Batch().v,
-                         params.output.Feature().v * params.output.W().v,
-                         params.output.Z().v * params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.outputs[0].Batch().v,
+                         params.outputs[0].Feature().v * params.outputs[0].W().v,
+                         params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
@@ -128,7 +128,7 @@ bool CumSumKernelBase::Validate(const Params& p, const optional_params& o) const
 }
 
 Datatype CumSumKernelBase::GetActivationType(const cum_sum_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     return Datatype::F32;
 }

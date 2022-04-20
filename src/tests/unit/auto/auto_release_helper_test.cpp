@@ -18,6 +18,7 @@
 #include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
+#include <thread>
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;

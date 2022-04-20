@@ -25,7 +25,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
 const std::vector<ov::AnyMap> auto_multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,

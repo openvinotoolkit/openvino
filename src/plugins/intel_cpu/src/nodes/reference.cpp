@@ -4,26 +4,29 @@
 
 #include "reference.h"
 #include <ie_ngraph_utils.hpp>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache,
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
-        MKLDNNNode(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+        Node(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }
-    setType(Reference);
+    setType(Type::Reference);
     setTypeStr("Reference");
 
-    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method MKLDNNNode::IsConstant()
+    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method Node::IsConstant()
     // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
     // we set 'NoConst' value for 'ConstantType' in ctor
     if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
@@ -31,9 +34,9 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
     }
 }
 
-void MKLDNNReferenceNode::getSupportedDescriptors() {}
+void Reference::getSupportedDescriptors() {}
 
-void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
+void Reference::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -52,9 +55,9 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 }
 
-void MKLDNNReferenceNode::createPrimitive() {}
+void Reference::createPrimitive() {}
 
-void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
+void Reference::execute(dnnl::stream strm) {
     ov::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
@@ -74,18 +77,22 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     }
 }
 
-std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(0xFFFFFFFF);
+std::vector<VectorDims> Reference::shapeInfer() const {
+    return Node::shapeInferGeneric(0xFFFFFFFF);
 }
 
-void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
+void Reference::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNReferenceNode::created() const {
-    return getType() == Reference;
+bool Reference::created() const {
+    return getType() == Type::Reference;
 }
 
-bool MKLDNNReferenceNode::needShapeInfer() const {
+bool Reference::needShapeInfer() const {
     return true;
 }
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

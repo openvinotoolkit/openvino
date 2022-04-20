@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API ConcatReduceFusion;
  */
 class ngraph::pass::ReplaceConcatReduceByMinOrMax : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReplaceConcatReduceByMinOrMax", "0");
     ReplaceConcatReduceByMinOrMax();
 };
 
@@ -34,7 +34,7 @@ public:
  */
 class ngraph::pass::PullSqueezeThroughEltwise : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PullSqueezeThroughEltwise", "0");
     PullSqueezeThroughEltwise();
 };
 
@@ -76,6 +76,6 @@ public:
 
 class ngraph::pass::ConcatReduceFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConcatReduceFusion", "0");
     ConcatReduceFusion();
 };

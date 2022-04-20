@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API ClampFusion;
 
 class ngraph::pass::ClampFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ClampFusion", "0");
     ClampFusion();
 };

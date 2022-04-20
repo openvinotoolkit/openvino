@@ -11,6 +11,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, PriorGridGenerator) {
     op::v6::ExperimentalDetectronPriorGridGenerator::Attributes attrs;

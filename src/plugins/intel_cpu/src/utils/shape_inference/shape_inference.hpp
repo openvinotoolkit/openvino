@@ -10,15 +10,18 @@
 
 #include "static_shape.hpp"
 
+namespace ov {
+namespace intel_cpu {
+
 void shape_inference(ov::Node* op,
-                     const std::vector<ov::StaticShape>& input_shapes,
-                     std::vector<ov::StaticShape>& output_shapes,
+                     const std::vector<StaticShape>& input_shapes,
+                     std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 
 class IShapeInfer {
 public:
-    virtual std::vector<ov::StaticShape> infer(
-        const std::vector<ov::StaticShape>& input_shapes,
+    virtual std::vector<StaticShape> infer(
+        const std::vector<StaticShape>& input_shapes,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
@@ -29,3 +32,6 @@ public:
 };
 
 std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);
+
+}   // namespace intel_cpu
+}   // namespace ov

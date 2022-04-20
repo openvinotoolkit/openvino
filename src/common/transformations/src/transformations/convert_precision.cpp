@@ -248,8 +248,6 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
 
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
-
 bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     type_to_fuse_map type_to_fuse{
         {opset4::Parameter::get_type_info_static(), fuse_type_to_parameter},
@@ -554,6 +552,7 @@ std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::
     const auto size = shape_size(constant->get_shape());
 
     auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+    new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
         throw ngraph_error("Can't get destination data pointer");
@@ -574,6 +573,7 @@ std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::T
     const auto size = shape_size(constant->get_shape());
 
     auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
+    new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
         throw ngraph_error("Can't get destination data pointer");

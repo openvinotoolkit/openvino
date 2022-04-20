@@ -17,17 +17,17 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNNode;
-class MKLDNNEdge;
+class Node;
+class Edge;
 
-using MKLDNNEdgePtr = std::shared_ptr<MKLDNNEdge>;
-using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
+using EdgePtr = std::shared_ptr<Edge>;
+using EdgeWeakPtr = std::weak_ptr<Edge>;
 
-class MKLDNNEdge {
+class Edge {
 public:
-    MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
-               const std::shared_ptr<MKLDNNNode>& child,
-               int pr_port = 0, int ch_port = 0);
+    Edge(const std::shared_ptr<Node>& parent,
+         const std::shared_ptr<Node>& child,
+         int pr_port = 0, int ch_port = 0);
 
     enum class Status {
         Uninitialized,
@@ -51,16 +51,16 @@ public:
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
-    void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
-    void reuse(MKLDNNMemoryPtr ptr);
+    void externalAllocate(WeightsSharing::Ptr weightsCache);
+    void reuse(MemoryPtr ptr);
     void validate();
     void drop();
 
-    const std::shared_ptr<MKLDNNNode> getParent() const;
-    const std::shared_ptr<MKLDNNNode> getChild() const;
+    const std::shared_ptr<Node> getParent() const;
+    const std::shared_ptr<Node> getChild() const;
 
-    const MKLDNNMemory& getMemory();
-    MKLDNNMemoryPtr& getMemoryPtr();
+    const Memory& getMemory();
+    MemoryPtr& getMemoryPtr();
 
     ReorderStatus needReorder();
     bool isDropped() const;
@@ -71,9 +71,9 @@ public:
 
     void setChildPort(const size_t port) { child_port = port; }
 
-    void sharedMemFrom(const MKLDNNEdgePtr& edge);
-    MKLDNNEdgePtr getSharedEdge() const;
-    MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
+    void sharedMemFrom(const EdgePtr& edge);
+    EdgePtr getSharedEdge() const;
+    EdgePtr getSharedEdge(std::nothrow_t) const;
 
     bool hasDefinedMaxSize() const {
         return getDesc().hasDefinedMaxSize();
@@ -82,14 +82,14 @@ public:
 private:
     std::string name() const;
 
-    std::weak_ptr<MKLDNNNode> parent;
-    std::weak_ptr<MKLDNNNode> child;
+    std::weak_ptr<Node> parent;
+    std::weak_ptr<Node> child;
     int parent_port;
     int child_port;
 
     bool useExternalMemory = false;
-    MKLDNNEdgeWeakPtr memoryFromEdge;
-    MKLDNNMemoryPtr memoryPtr;
+    EdgeWeakPtr memoryFromEdge;
+    MemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
     const MemoryDesc& getInputDesc() const;
@@ -102,9 +102,9 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
-    MKLDNNEdgePtr getBaseEdge(int look = LOOK_BOTH);
+    EdgePtr getBaseEdge(int look = LOOK_BOTH);
     bool inPlace(LOOK look = LOOK_BOTH);
-    friend class MKLDNNGraph;
+    friend class Graph;
 };
 
 }   // namespace intel_cpu

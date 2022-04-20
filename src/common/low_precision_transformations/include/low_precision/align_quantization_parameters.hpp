@@ -26,12 +26,12 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
  * attribute after FakeQuantize operations.
  *
  * For more details about the transformation, refer to
- * [AlignQuantizationParameters](@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters) page
+ * [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AlignQuantizationParameters", "0");
     AlignQuantizationParameters(const std::vector<ngraph::element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_support);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:

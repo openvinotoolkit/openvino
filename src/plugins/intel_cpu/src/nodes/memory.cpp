@@ -3,21 +3,24 @@
 //
 
 #include <string>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include "memory.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
-MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
+std::mutex MemoryNodeVirtualEdge::holderMutex;
+
+MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
         _id = assignOp->get_variable_id();
     } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
@@ -25,14 +28,14 @@ MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     }
 }
 
-bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
 
-        if (!ov::intel_cpu::one_of(op->get_type_info(),
+        if (!one_of(op->get_type_info(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
@@ -44,24 +47,24 @@ bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) , MKLDNNMemoryNode(op) {
+MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
     if (created()) {
-        holder = MKLDNNMemoryNodeVirtualEdge::registerOutput(this);
+        holder = MemoryNodeVirtualEdge::registerOutput(this);
     }
 }
 
-MKLDNNMemoryOutputNode::~MKLDNNMemoryOutputNode() {
-    MKLDNNMemoryNodeVirtualEdge::remove(this, holder);
+MemoryOutput::~MemoryOutput() {
+    MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-void MKLDNNMemoryOutputNode::getSupportedDescriptors() {}
+void MemoryOutput::getSupportedDescriptors() {}
 
-void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
+void MemoryOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -75,22 +78,22 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
+void MemoryOutput::execute(dnnl::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
-    auto inputMemoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(inputNode);
+    auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
     IE_ASSERT(inputMemoryNode != nullptr);
     inputMemoryNode->storeState(srcMemory);
 }
 
-bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
 
-        if (!ov::intel_cpu::one_of(op->get_type_info(),
+        if (!one_of(op->get_type_info(),
                 ngraph::op::v3::ReadValue::get_type_info_static(),
                 ngraph::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
@@ -102,19 +105,19 @@ bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNInputNode(op, eng, cache), MKLDNNMemoryNode(op), dataStore(new MKLDNNMemory{eng}) {
+MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Input(op, eng, cache), MemoryNode(op), dataStore(new Memory{eng}) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
     if (created()) {
-        holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
+        holder = MemoryNodeVirtualEdge::registerInput(this);
     }
 }
 
-void MKLDNNMemoryInputNode::createPrimitive() {
-    MKLDNNInputNode::createPrimitive();
+void MemoryInput::createPrimitive() {
+    Input::createPrimitive();
 
     dataStore->Create(getChildEdgeAt(0)->getMemory().getDesc());
 
@@ -130,46 +133,46 @@ void MKLDNNMemoryInputNode::createPrimitive() {
  * @param src source memory object
  */
 inline
-static void simple_copy(const MKLDNNMemory& dst, const MKLDNNMemory& src) {
+static void simple_copy(const Memory& dst, const Memory& src) {
     auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
     auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
     auto srcSizeInByte = src.GetSize();
     auto dstSizeInByte = dst.GetSize();
 
-    IE_ASSERT(srcSizeInByte == dstSizeInByte) << "Memory objects are not compatible. Has different sizes.";
+    IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
 
     cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
 }
 
-MKLDNNMemoryInputNode::~MKLDNNMemoryInputNode() {
-    MKLDNNMemoryNodeVirtualEdge::remove(this, holder);
+MemoryInput::~MemoryInput() {
+    MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MKLDNNMemoryPtr MKLDNNMemoryInputNode::getStore() {
+MemoryPtr MemoryInput::getStore() {
     return dataStore;
 }
 
-void MKLDNNMemoryInputNode::storeState(const MKLDNNMemory &new_state) {
+void MemoryInput::storeState(const Memory &new_state) {
     // TODO: Should be next one call:
     //           dataStore.SetData(new_state, false);
     //       But because of performance reason we use simple manual copy
     simple_copy(*dataStore, new_state);
 }
 
-void MKLDNNMemoryInputNode::execute(mkldnn::stream strm) {
+void MemoryInput::execute(dnnl::stream strm) {
     // TODO: Should be simple call of:
     //           dst_mem.SetData(dataStore, false);
     //       But because of performance reason we use simple manual copy
     simple_copy(getChildEdgeAt(0)->getMemory(), *dataStore);
 }
 
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode * node) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
+MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput * node) {
+    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     // in case of output already registered
-    auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
-    auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
+    auto& holder = MemoryNodeVirtualEdge::getExisted();
+    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-        auto outputNode = dynamic_cast<MKLDNNMemoryOutputNode*>(sibling);
+        auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
         IE_ASSERT(outputNode != nullptr);
         outputNode->setInputNode(node);
     } else {
@@ -178,13 +181,13 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(
     return &holder;
 }
 
-MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
+MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutput * node) {
+    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     // in case of output layer
-    auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
-    auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
+    auto& holder = MemoryNodeVirtualEdge::getExisted();
+    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-        auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(sibling);
+        auto inputNode = dynamic_cast<MemoryInput*>(sibling);
         IE_ASSERT(inputNode != nullptr);
         node->setInputNode(inputNode);
     } else {
@@ -193,8 +196,8 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput
     return &holder;
 }
 
-void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder) {
-    std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
+void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
+    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     if (nullptr != holder) {
         InferenceEngine::details::erase_if(*holder, [&](const Holder::value_type & it){
             return it.second == node;
@@ -202,5 +205,6 @@ void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder
     }
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMemoryInputNode, MemoryInput);
-REG_MKLDNN_PRIM_FOR(MKLDNNMemoryOutputNode, MemoryOutput);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

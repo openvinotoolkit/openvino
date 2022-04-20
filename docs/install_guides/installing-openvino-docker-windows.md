@@ -5,32 +5,36 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 ## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating Systems
+.. tab:: Target Operating System with Python Version
 
-  * Windows Server Core OS
-  * Windows base OS
+  +------------------------------------+--------------------------+
+  | Operating System                   | Supported Python Version |
+  +====================================+==========================+
+  | Windows Server Core base LTSC 2019 | 3.8                      |
+  +------------------------------------+--------------------------+
+  | Windows 10, version 20H2           | 3.8                      |
+  +------------------------------------+--------------------------+
 
 .. tab:: Host Operating Systems
 
   * Windows 10, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
   * Windows Server 2016 or higher
-  
-.. tab:: Additional Requirements for GPU
-
-   To use GPU Acceleration in Windows containers, make sure that the following requirements for Windows host, OpenVINO and Docker are met:
-
-  - [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
-    - The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
-    - The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
-    - The container host must be running Docker Engine 19.03 or higher.
-    - The container host must have GPU running display drivers of version WDDM 2.5 or higher.
-  - [GPU requirement for OpenVINO](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU): Intel Graphics Driver for Windows of version 15.65 or higher.
-  - [Docker isolation mode requirement](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container):
-    - Windows host and container version tags must match.
-    - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
 
 @endsphinxdirective
 
+### Additional Requirements for GPU
+
+To use GPU Acceleration in Windows containers, make sure that the following requirements for Windows host, OpenVINO and Docker are met:
+
+- [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
+  - The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
+  - The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
+  - The container host must be running Docker Engine 19.03 or higher.
+  - The container host must have GPU running display drivers of version WDDM 2.5 or higher.
+- GPU requirement for OpenVINO: Intel Graphics Driver for Windows of version 15.65 or higher.
+- [Docker isolation mode requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container):
+  - Windows host and container version tags must match.
+  - [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
 
 ## Installation Flow
 
@@ -103,8 +107,7 @@ You can use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 ### <a name="config-image-for-gpu"></a>Configuring the Image for GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and do the following steps to build the image manually.
 
 1. Reuse one of [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). You can also use your own Dockerfile. 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
@@ -144,8 +147,8 @@ cmd /S /C "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter
 
 ### Running the Image on GPU
 
-> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure 
-the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+> **NOTE**: Since GPU is not supported in <a href="#get-prebuilt-image">prebuilt images</a> or [default Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles), you must make sure the Additional Requirements for GPU in <a href="#system-requirements">System Requirements</a> are met, and <a href="#config-image-for-gpu">configure and build the image manually</a> before you can run inferences on a GPU.
+
 
 1. To try inference on a GPU, run the image with the following command:
    ```bat

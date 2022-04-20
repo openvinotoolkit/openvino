@@ -14,8 +14,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(pass::BinarizeWeights, "BinarizeWeights", 0);
-
 static float quantize(float f, float input_low, float input_high, float output_low, float output_high) {
     if (f <= input_low)
         return output_low;

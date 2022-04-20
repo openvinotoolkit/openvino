@@ -76,7 +76,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ngraph::ngraph_error&) {
-                ng_constant = default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
+                ng_constant = ngraph::onnx_import::common::make_failsafe_constant(tensor.get_ng_type());
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);

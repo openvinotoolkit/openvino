@@ -102,8 +102,6 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
-
 bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());

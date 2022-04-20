@@ -4,12 +4,11 @@
 
 #include "topk.h"
 
-#include <mkldnn.hpp>
-
 #include <string>
 #include <vector>
 #include <set>
-#include <extension_utils.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include "emitters/jit_load_store_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <ngraph/op/topk.hpp>
@@ -22,13 +21,16 @@
 
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_topk_call_args, field)
 
@@ -98,7 +100,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         if (!shape_agnostic_alg)
             mov(reg_table, l_table);
 
-        data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(jcp_.precision);
+        data_type = DnnlExtensionUtils::IEPrecisionToDataType(jcp_.precision);
         if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
@@ -132,7 +134,7 @@ private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
-    mkldnn::memory::data_type data_type;
+    dnnl::memory::data_type data_type;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
     Xbyak::Address table_bubble_block_idx(int index) { return ptr[reg_bubble_block_idx + index * vlen]; }
@@ -226,10 +228,12 @@ private:
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
                 if (jcp_.top_k == 1) {
-                    topk_bubble_BLK_on_channel_horiz();
+                    topk_bubble_horiz();
                 } else {
                     topk_bubble_BLK_on_channel_verti();
                 }
+            } else if (jcp_.topk_innermost && jcp_.top_k == 1) {
+                topk_bubble_horiz();
             } else {
                 topk_bubble_vector();
             }
@@ -1178,7 +1182,7 @@ private:
         }
     }
 
-    inline void topk_bubble_BLK_on_channel_horiz() {
+    inline void topk_bubble_horiz() {
         mov(reg_bubble_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_seq_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
         mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
@@ -1784,7 +1788,7 @@ private:
     }
 };
 
-bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
         if (!topKOp) {
@@ -1817,8 +1821,8 @@ bool MKLDNNTopKNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";
@@ -1867,9 +1871,9 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
 }
 
-void MKLDNNTopKNode::getSupportedDescriptors() {}
+void TopK::getSupportedDescriptors() {}
 
-void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
+void TopK::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1921,21 +1925,21 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNTopKNode::needShapeInfer() const {
+bool TopK::needShapeInfer() const {
     const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || src_k != top_k;
 }
 
-std::vector<VectorDims> MKLDNNTopKNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(1));
+std::vector<VectorDims> TopK::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(1));
 }
 
-bool MKLDNNTopKNode::needPrepareParams() const {
+bool TopK::needPrepareParams() const {
     const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || top_k != src_k;
 }
 
-void MKLDNNTopKNode::preset_params() {
+void TopK::preset_params() {
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = TopKLayoutType::topk_ncsp;
@@ -1946,8 +1950,8 @@ void MKLDNNTopKNode::preset_params() {
     }
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
-    data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
+    auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
+    data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
@@ -1968,7 +1972,7 @@ void MKLDNNTopKNode::preset_params() {
     }
 }
 
-void MKLDNNTopKNode::prepareParams() {
+void TopK::prepareParams() {
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -2017,7 +2021,7 @@ void MKLDNNTopKNode::prepareParams() {
             const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_common
             if (top_k <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
-                bubble_inplace = layout == TopKLayoutType::topk_blocked && topk_innermost && top_k == 1 ? false : true;
+                bubble_inplace = topk_innermost && top_k == 1 ? false : true;
             } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
                 algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
@@ -2045,7 +2049,7 @@ void MKLDNNTopKNode::prepareParams() {
     }
 }
 
-void MKLDNNTopKNode::createPrimitive() {
+void TopK::createPrimitive() {
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
@@ -2104,11 +2108,11 @@ void MKLDNNTopKNode::createPrimitive() {
     }
 }
 
-void MKLDNNTopKNode::executeDynamicImpl(mkldnn::stream strm) {
+void TopK::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNTopKNode::execute(mkldnn::stream strm) {
+void TopK::execute(dnnl::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
@@ -2131,7 +2135,7 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNTopKNode::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_idx_ptr) {
+void TopK::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_idx_ptr) {
     uint8_t *process_ptr = vec_process_ptr.data();
     uint8_t *process_idx_ptr = vec_process_idx_ptr.data();
 
@@ -2184,7 +2188,7 @@ void MKLDNNTopKNode::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8
     }
 }
 
-inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *out_idx_p,
+inline void TopK::topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *out_idx_p,
                                                 uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount) {
     auto arg = jit_topk_call_args();
     arg.src = static_cast<const void *>(in_p);
@@ -2203,7 +2207,7 @@ inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *ou
     (*topk_kernel)(&arg);
 }
 
-inline void MKLDNNTopKNode::prepare_original_idx() {
+inline void TopK::prepare_original_idx() {
     bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
                              (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
@@ -2253,7 +2257,7 @@ inline void MKLDNNTopKNode::prepare_original_idx() {
 //            n: number of valid elements in bitonic sort
 //            p: pow of 2 number, so that p/2 < n <= p
 //   empty tail: p-n elements in the rear don't need sorting,
-inline void MKLDNNTopKNode::bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val) {
+inline void TopK::bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val) {
     // memory stride of adjacent elements in sorting
     int sort_stride = static_cast<int>(I);
     cnt = 0;
@@ -2297,7 +2301,7 @@ inline void MKLDNNTopKNode::bitonic_push_idx(int p, int n, std::vector<int> &vec
     }
 }
 
-void MKLDNNTopKNode::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
+void TopK::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
     int m = n - 1;
     int log_p = 0;
     int p = 1;
@@ -2322,7 +2326,7 @@ void MKLDNNTopKNode::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
 // O: total size of the outer dimensions
 // A: size of the topk imposed dimension
 // I: total size of the inner dimensions
-void MKLDNNTopKNode::calc_dims_size(const SizeVector &layout_dims) {
+void TopK::calc_dims_size(const SizeVector &layout_dims) {
     O = 1, I = 1;
     A = src_dims[axis];
     int layout_axis = axis;
@@ -2339,14 +2343,14 @@ void MKLDNNTopKNode::calc_dims_size(const SizeVector &layout_dims) {
     }
 }
 
-void MKLDNNTopKNode::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
+void TopK::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
     if (mode_max)
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x > y; });
     else
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x < y; });
 }
 
-void MKLDNNTopKNode::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const SizeVector &in_dims,
+void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const SizeVector &in_dims,
                                std::function<float(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
@@ -2410,19 +2414,21 @@ void MKLDNNTopKNode::topk_ref_process(const float* src_data, float* dst_data, in
     });
 }
 
-inline int MKLDNNTopKNode::count(SizeVector dims, size_t start_ind, size_t end_ind) {
+inline int TopK::count(SizeVector dims, size_t start_ind, size_t end_ind) {
     size_t count = 1;
     for (size_t i = start_ind; i < end_ind; i++)
         count *= dims[i];
     return static_cast<int>(count);
 }
 
-inline int MKLDNNTopKNode::count(SizeVector dims, size_t start_ind) {
+inline int TopK::count(SizeVector dims, size_t start_ind) {
     return count(dims, start_ind, dims.size());
 }
 
-bool MKLDNNTopKNode::created() const {
-    return getType() == TopK;
+bool TopK::created() const {
+    return getType() == Type::TopK;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNTopKNode, TopK);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

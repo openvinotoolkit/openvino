@@ -15,7 +15,7 @@ namespace intel_cpu {
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
 
-enum Type {
+enum class Type {
     Unknown,
     Generic,
     If,
@@ -107,7 +107,7 @@ enum Type {
     PriorBoxClustered,
 };
 
-enum Algorithm {
+enum class Algorithm {
     Default,
 
     // Pooling algorithms

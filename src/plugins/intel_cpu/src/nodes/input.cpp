@@ -4,7 +4,7 @@
 
 #include "input.h"
 #include "common/cpu_memcpy.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include <string>
 #include <tuple>
@@ -22,14 +22,16 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
 using namespace ngraph::op;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct jit_has_subnormals_base : public jit_generator {
@@ -227,8 +229,8 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 
 }   // namespace
 
-MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Input::Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
             v0::Constant::get_type_info_static(),
@@ -246,17 +248,17 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
     }
 }
 
-void MKLDNNInputNode::cloneBlobIfRequired() {
+void Input::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = shape.getElementsCount();
     DnnlBlockedMemoryDesc memDesc(prec, shape);
 
     auto cloneBlob = [&, this] () {
-        MKLDNNMemory memory{ getEngine() };
+        Memory memory{ getEngine() };
 
         // CVS-74980
-        // MKLDNN/oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
+        // oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
@@ -266,7 +268,7 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
             memcpy(memory.GetPtr(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
-        MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        MemoryPtr ptr = MemoryPtr(new Memory(getEngine()));
         ptr->Create(memDesc);
         ptr->SetData(memory);
 
@@ -349,51 +351,51 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
     };
 
     if (weightCache) {
-        MKLDNNMemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
+        MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+        memoryPtr = std::const_pointer_cast<const Memory>(ptr);
     } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
-        auto ptr = new MKLDNNMemory(getEngine());
+        auto ptr = new Memory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());
-        memoryPtr = MKLDNNMemoryCPtr(ptr);
+        memoryPtr = MemoryCPtr(ptr);
     } else {
-        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(cloneBlob());
+        memoryPtr = std::const_pointer_cast<const Memory>(cloneBlob());
     }
 }
 
-MKLDNNInputNode::MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                                 const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(type, name, eng, cache) {
+Input::Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
+                                 const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(type, name, eng, cache) {
     constant = ConstantType::NoConst;
-    if (getType() == Input) {
+    if (getType() == Type::Input) {
         outputShapes.emplace_back(shape);
         addOriginalOutputPrecision(prc);
-    }  else if (getType() == Output) {
+    }  else if (getType() == Type::Output) {
         inputShapes.emplace_back(shape);
         addOriginalInputPrecision(prc);
     }
 }
 
-MKLDNNInputNode::MKLDNNInputNode(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
-                                 const mkldnn::engine &eng, MKLDNNWeightsSharing::Ptr &cache) :
-    MKLDNNInputNode(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
+Input::Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type,
+                                 const dnnl::engine &eng, WeightsSharing::Ptr &cache) :
+    Input(memDesc->getShape(), memDesc->getPrecision(), name, type, eng, cache) {
     extMemDesc = memDesc;
 }
 
-void MKLDNNInputNode::withMeanImage() {
+void Input::withMeanImage() {
     isMeanImage = true;
 }
 
-MKLDNNMemoryCPtr MKLDNNInputNode::getMemoryPtr() const {
+MemoryCPtr Input::getMemoryPtr() const {
     return memoryPtr;
 }
 
-void MKLDNNInputNode::getSupportedDescriptors() {
-    if (getType() == Input) {
+void Input::getSupportedDescriptors() {
+    if (getType() == Type::Input) {
         if (!getParentEdges().empty())
             IE_THROW() << "Incorrect number of input edges for layer " << getName();
         if (getChildEdges().empty())
             IE_THROW() << "Incorrect number of output edges for layer " << getName();
-    } else if (getType() == Output) {
+    } else if (getType() == Type::Output) {
         if (getParentEdges().size() != 1)
             IE_THROW() << "Incorrect number of input edges for layer " << getName();
         if (!getChildEdges().empty())
@@ -401,7 +403,7 @@ void MKLDNNInputNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
+void Input::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -412,7 +414,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNInputNode::createPrimitive() {
+void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -431,15 +433,15 @@ void MKLDNNInputNode::createPrimitive() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 }
 
-bool MKLDNNInputNode::created() const {
-    return getType() == Input || getType() == Output;
+bool Input::created() const {
+    return getType() == Type::Input || getType() == Type::Output;
 }
 
-void MKLDNNInputNode::initSupportedPdDefault() {
+void Input::initSupportedPdDefault() {
     std::vector<PortConfigurator> inPortConfs;
     std::vector<PortConfigurator> outPortConfs;
 
-    if (getType() == Input || getType() == MemoryInput) {
+    if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
@@ -449,7 +451,7 @@ void MKLDNNInputNode::initSupportedPdDefault() {
         if (!getParentEdges().empty()) {
             inPortConfs.push_back({LayoutType::ncsp, precision, true});
         }
-    } else if (getType() == Output) {
+    } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
 
@@ -461,19 +463,20 @@ void MKLDNNInputNode::initSupportedPdDefault() {
                          impl_desc_type::unknown);
 }
 
-void MKLDNNInputNode::initSupportedPdFromMemDesc() {
+void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
     PortConfig portConfig;
     portConfig.inPlace(-1);
     portConfig.constant(false);
     portConfig.setMemDesc(extMemDesc);
-    if (getType() == Input || getType() == MemoryInput) {
+    if (getType() == Type::Input || getType() == Type::MemoryInput) {
         config.outConfs.push_back(portConfig);
-    } else if (getType() == Output) {
+    } else if (getType() == Type::Output) {
         config.inConfs.push_back(portConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
-REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Output);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

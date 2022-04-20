@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
  */
 class ngraph::pass::WeightsDequantizeToFakeQuantize : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("WeightsDequantizeToFakeQuantize", "0");
     WeightsDequantizeToFakeQuantize();
 };

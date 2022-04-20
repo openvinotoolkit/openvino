@@ -7,10 +7,10 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
-#include "mkldnn.hpp"
-#include "mkldnn/iml_type_mapper.h"
+#include <onednn/dnnl.h>
+#include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>
 #include "ie_parallel.hpp"
@@ -23,19 +23,21 @@
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
     constexpr size_t channelAxis = 1lu;
 }
 
-bool MKLDNNConcatNode::isExecutable() const {
+bool Concat::isExecutable() const {
     return !hasEmptyOutputTensors() && !isOptimized();
 }
 
-bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
         if (!concatOp) {
@@ -48,8 +50,8 @@ bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -67,7 +69,7 @@ MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, cons
     this->axis = axis;
 }
 
-void MKLDNNConcatNode::getSupportedDescriptors() {
+void Concat::getSupportedDescriptors() {
     const auto& firstParentDims = getInputShapeAtPort(0).getDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         const auto& dims = getInputShapeAtPort(i).getDims();
@@ -94,7 +96,7 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
+void Concat::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -221,7 +223,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
+void Concat::selectOptimalPrimitiveDescriptor() {
     std::vector<size_t> canSelectPrimitive;
 
     // The double connection marks that some tensor should
@@ -337,22 +339,22 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-bool MKLDNNConcatNode::created() const {
-    return getType() == Concatenation;
+bool Concat::created() const {
+    return getType() == Type::Concatenation;
 }
 
-bool MKLDNNConcatNode::isOptimized() const {
+bool Concat::isOptimized() const {
     return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].inPlace() >= 0;
 }
 
-bool MKLDNNConcatNode::needPrepareParams() const {
+bool Concat::needPrepareParams() const {
     if (canOptimizeNspc) {
         return false;
     }
     return inputShapesModified();
 }
 
-void MKLDNNConcatNode::prepareParams() {
+void Concat::prepareParams() {
     if (canOptimizeNspc || isOptimized())
         return;
 
@@ -395,7 +397,7 @@ void MKLDNNConcatNode::prepareParams() {
     prim.reset(new concat(primitive_desc));
 }
 
-size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
+size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
     for (size_t i = 0; i < order.size(); i++) {
         if (axis == order[i]) {
             return i;
@@ -404,13 +406,13 @@ size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
     return -1;
 }
 
-void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
+void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
    if (!isOptimized()) {
-       MKLDNNNode::initOptimalPrimitiveDescriptor();
+       Node::initOptimalPrimitiveDescriptor();
         auto config = selected_pd->getConfig();
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
@@ -486,12 +488,12 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     canOptimizeNspc = axis == channelAxis && getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
 
-void MKLDNNConcatNode::execute(mkldnn::stream strm) {
+void Concat::execute(dnnl::stream strm) {
     if (isOptimized()) {
         return;
     }
 
-    const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
+    const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;
@@ -512,15 +514,15 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
     (*prim).execute(strm, mem_ags);
 }
 
-InferenceEngine::Precision MKLDNNConcatNode::getRuntimePrecision() const {
+InferenceEngine::Precision Concat::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-void MKLDNNConcatNode::execNspcSpecCase() {
-    const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
+void Concat::execNspcSpecCase() {
+    const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
-    const size_t dataSize = MKLDNNExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
+    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
 
     std::vector<size_t> channelsDataSize;
     size_t channels_size = 0;
@@ -530,7 +532,7 @@ void MKLDNNConcatNode::execNspcSpecCase() {
     size_t nonZeroInShapes = 0;
     int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
-        const MKLDNNMemory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
         if (src_mem.GetShape().hasZeroDims()) {
             continue;
         }
@@ -558,4 +560,6 @@ void MKLDNNConcatNode::execNspcSpecCase() {
     });
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNConcatNode, Concatenation);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

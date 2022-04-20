@@ -32,6 +32,6 @@ class ReshapeFullyConnectedFusion;
 
 class ngraph::pass::ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeFullyConnectedFusion", "0");
     ReshapeFullyConnectedFusion();
 };

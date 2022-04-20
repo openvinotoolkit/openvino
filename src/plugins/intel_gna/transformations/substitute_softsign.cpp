@@ -17,14 +17,12 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(SubstituteSoftsign, "SubstituteSoftsign", 0);
-
 using Node = std::shared_ptr<ngraph::Node>;
 
 namespace {
 
 void DoTransformation(Node start_node, Node last_node) {
-    auto activation = std::make_shared<SoftSign>(start_node);
+    auto activation = std::make_shared<ov::intel_gna::op::SoftSign>(start_node);
     activation->set_friendly_name(last_node->get_friendly_name());
     ngraph::copy_runtime_info(last_node, activation);
     ngraph::replace_node(last_node, activation);

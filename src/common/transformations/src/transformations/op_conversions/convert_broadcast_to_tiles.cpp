@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
-
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();

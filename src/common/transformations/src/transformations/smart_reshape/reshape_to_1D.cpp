@@ -10,8 +10,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeTo1D, "ReshapeTo1D", 0);
-
 ngraph::pass::ReshapeTo1D::ReshapeTo1D() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(ReshapeTo1D);

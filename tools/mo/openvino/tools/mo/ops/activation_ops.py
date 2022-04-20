@@ -291,6 +291,6 @@ class Swish(Op):
                 assert beta.ndim == 0, 'The "beta" value for node {} must be a scalar'.format(node_name)
                 beta = beta.item()
 
-        input_value = node.in_port(1).data.get_value()
+        input_value = node.in_port(0).data.get_value()
         if input_value is not None and beta is not None:
             node.out_port(0).data.set_value(input_value / (1.0 + np.exp(-input_value * beta)))

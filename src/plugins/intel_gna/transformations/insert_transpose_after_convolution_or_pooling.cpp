@@ -14,8 +14,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(InsertTransposeAfterConvOrPool, "InsertTransposeAfterConvOrPool", 0);
-
 bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);
     bool is_graph_modfied = false;

@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API SliceToStridedSlice;
  */
 class ngraph::pass::SliceToStridedSlice : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SliceToStridedSlice", "0");
     SliceToStridedSlice(bool use_shapes);
 };

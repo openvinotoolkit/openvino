@@ -26,9 +26,15 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_icore.hpp"
 
+#include "dimension_tracker.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/common_optimizations/dimension_tracking.hpp"
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <transformations/utils/utils.hpp>
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/manager.hpp"
+#include <ngraph/pass/manager.hpp>
 #include <openvino/util/common_util.hpp>
 
 #include "intel_gpu/runtime/device_query.hpp"
@@ -392,10 +398,14 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
     auto func = clonedNetwork.getFunction();
     auto ops = func->get_ordered_ops();
-    std::unordered_set<std::string> supported;
+
+    //Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
     std::unordered_set<std::string> unsupported;
 
-    std::unordered_set<std::string> constantsNames;
+    std::unordered_set<std::string> supportedNotOriginal;
+    std::unordered_set<std::string> unsupportedNotOriginal;
+
     std::vector<std::shared_ptr<ngraph::Node>> constants;
 
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -436,33 +446,45 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             return false;
         }
         if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
         }
-        return prog.IsOpSupported(network, node) &&
-               !ngraph::op::is_parameter(node) &&
-               !ngraph::op::is_output(node);
+        return prog.IsOpSupported(network, node) ||
+               ngraph::op::is_parameter(node) ||
+               ngraph::op::is_output(node);
     };
 
     // Get ops after transformations and check if it's supported
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
-    bool wasNodeAlreadyChecked = false;
-    bool isSupported = false;
     for (auto&& op : ops) {
-        wasNodeAlreadyChecked = false;
-        isSupported = false;
+        bool isSupported = layerIsSupported(op);
+        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
+            if (isSupported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        } else {
+            if (isSupported) {
+                supportedNotOriginal.emplace(op->get_friendly_name());
+            } else {
+                unsupportedNotOriginal.emplace(op->get_friendly_name());
+            }
+        }
+
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (!wasNodeAlreadyChecked) {
-                    isSupported = layerIsSupported(op);
-                    wasNodeAlreadyChecked = true;
-                }
                 if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
+                }
+            } else {
+                if (isSupported) {
+                    supportedNotOriginal.emplace(fusedLayerName);
+                } else {
+                    unsupportedNotOriginal.emplace(fusedLayerName);
                 }
             }
         }
@@ -475,22 +497,35 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
     unsupported.clear();
 
+    for (auto&& layerName : unsupportedNotOriginal) {
+        if (InferenceEngine::details::contains(supportedNotOriginal, layerName)) {
+            supportedNotOriginal.erase(layerName);
+        }
+    }
+    unsupportedNotOriginal.clear();
+
     // 1. Constants are marked as supported when all outputs can be offloaded to GPU
     for (const auto& op : constants) {
         bool is_supported = true;
+
         for (size_t i = 0; i < op->get_output_size(); i++) {
             auto outTensors = op->get_output_target_inputs(i);
             for (auto& t : outTensors) {
                 auto output = t.get_node();
                 const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(supportedNotOriginal, name)) {
                     is_supported = false;
                     break;
                 }
             }
         }
         if (is_supported) {
-            supported.emplace(op->get_friendly_name());
+            if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name()))
+                supported.emplace(op->get_friendly_name());
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op))
+                if (InferenceEngine::details::contains(originalOpNames, fusedLayerName))
+                    supported.emplace(fusedLayerName);
         }
     }
 
@@ -968,41 +1003,59 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto cloned_network = InferenceEngine::details::cloneNetwork(network);
         auto inputs_info = cloned_network.getInputsInfo();
         ICNNNetwork::InputShapes new_shapes;
-        //std::map<std::string, SizeVector>;
-        bool batch_detected = false;
-        for (auto& info : inputs_info) {
-            if (!info.second)
-                continue;
-            InferenceEngine::Layout layout = info.second->getLayout();
-            auto data = info.second->getInputData();
-            if (!data)
-                continue;
-            std::string name = info.second->getInputData()->getName();
-            auto shape = data->getTensorDesc().getDims();
-            if (layout == InferenceEngine::Layout::NCHW ||
-                layout == InferenceEngine::Layout::NHWC ||
-                layout == InferenceEngine::Layout::NCDHW ||
-                layout == InferenceEngine::Layout::NDHWC ||
-                layout == InferenceEngine::Layout::NC)  {
-                shape[0] = base_batch_size;
-                batch_detected = true;
-            } else if (layout == InferenceEngine::Layout::CN) {
-                shape[1] = base_batch_size;
-                batch_detected = true;
-            }
-            new_shapes[name] = shape;
-        }
+
         try {
-            if (batch_detected) { // reshape only for batched layout
-                cloned_network.reshape(new_shapes);
-                GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Reshaped base batch size to " << base_batch_size << std::endl;
+            std::set<std::pair<std::string, size_t>> batched_inputs;
+
+            auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
+            ov::pass::Manager m;
+            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::FindBatch>(true, false);
+            m.run_passes(function);
+            const auto& params = function->get_parameters();
+            for (size_t input_id = 0; input_id < params.size(); input_id++) {
+                const auto& input = params[input_id];
+                const auto& shape = input->get_partial_shape();
+                // currently no plugin support batched execution for dynamic networks
+                if (shape.is_dynamic()) {
+                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                        GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
+                    }
+                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
                 }
-            } else {
-                base_batch_size = 1;
-                GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Batch dimension is not used in inputs." << std::endl;
+
+                if (shape.size()) {
+                    for (size_t s = 0; s < shape.size(); s++) {
+                        if (ov::DimensionTracker::get_label(shape[s])) {
+                            // batched dim for the input
+                            auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                                GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                                               << "[" << s << "]" << std::endl;
+                            }
+                            batched_inputs.insert(std::make_pair(batched_input_id, s));
+                        }
+                    }
                 }
+            }
+
+            if (!batched_inputs.size()) {
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
+                }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+            }
+
+            try {
+                ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
+                for (const auto& input : batched_inputs)
+                    shapes[input.first][input.second] = base_batch_size;
+                cloned_network.reshape(shapes);
+            } catch (...) {
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
+                }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
             }
 
             auto nGraphFunc = cloned_network.getFunction();

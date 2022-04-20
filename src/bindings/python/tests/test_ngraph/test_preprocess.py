@@ -237,6 +237,60 @@ def test_ngraph_preprocess_set_shape():
     assert np.equal(output, expected_output).all()
 
 
+def test_ngraph_preprocess_set_from_tensor():
+    shape = [1, 224, 224, 3]
+    inp_shape = [1, 480, 640, 3]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_a.set_layout(ov.Layout("NHWC"))
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    input_data = ov.Tensor(Type.i32, inp_shape)
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_from(input_data)
+    inp.preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
+    function = p.build()
+    assert function.input().shape == ov.Shape(inp_shape)
+    assert function.input().element_type == Type.i32
+    assert function.output().shape == ov.Shape(shape)
+    assert function.output().element_type == Type.f32
+
+
+def test_ngraph_preprocess_set_from_np_infer():
+    shape = [1, 1, 1]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    @custom_preprocess_function
+    def custom_crop(out_node: Output):
+        start = ops.constant(np.array([1, 1, 1]), dtype=np.int32)
+        stop = ops.constant(np.array([2, 2, 2]), dtype=np.int32)
+        step = ops.constant(np.array([1, 1, 1]), dtype=np.int32)
+        axis = ops.constant(np.array([0, 1, 2]), dtype=np.int32)
+        return ops.slice(out_node, start, stop, step, axis)
+
+    input_data = np.array([[[0, 1, 2], [3, 4, 5], [6, 7, 8]],
+                           [[9, 10, 11], [12, 13, 14], [15, 16, 17]],
+                           [[18, 19, 20], [21, 22, 23], [24, 25, 26]]]).astype(np.int32)
+
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_from(input_data)
+    inp.preprocess().convert_element_type().custom(custom_crop)
+    function = p.build()
+    assert function.input().shape == ov.Shape([3, 3, 3])
+    assert function.input().element_type == Type.i32
+
+    expected_output = np.array([[[13]]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    output = computation(input_data)
+    assert np.equal(output, expected_output).all()
+
+
 def test_ngraph_preprocess_set_memory_type():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
@@ -339,6 +393,27 @@ def test_ngraph_preprocess_reverse_channels():
 
     input_data = np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]).astype(np.float32)
     expected_output = np.array([[[[4, 5], [6, 7]], [[0, 1], [2, 3]]]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    output = computation(input_data)
+    assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_crop():
+    orig_shape = [1, 2, 1, 1]
+    tensor_shape = [1, 2, 3, 3]
+    parameter_a = ops.parameter(orig_shape, dtype=np.float32, name="A")
+    model = ops.relu(parameter_a)
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_shape(tensor_shape)
+    p.input().preprocess().crop([0, 0, 1, 1], [1, 2, -1, -1])
+    function = p.build()
+
+    input_data = np.arange(18).astype(np.float32).reshape(tensor_shape)
+    expected_output = np.array([4, 13]).astype(np.float32).reshape(orig_shape)
 
     runtime = get_runtime()
     computation = runtime.computation(function)

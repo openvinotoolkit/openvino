@@ -5,13 +5,13 @@
 #include "async_infer_request.h"
 #include <memory>
 
-ov::intel_cpu::MKLDNNAsyncInferRequest::MKLDNNAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr& inferRequest,
-                                                               const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
-                                                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
+ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr& inferRequest,
+                                                    const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                                                    const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor) {
-    static_cast<MKLDNNInferRequestBase*>(inferRequest.get())->SetAsyncRequest(this);
+    static_cast<InferRequestBase*>(inferRequest.get())->SetAsyncRequest(this);
 }
 
-ov::intel_cpu::MKLDNNAsyncInferRequest::~MKLDNNAsyncInferRequest() {
+ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
     StopAndWait();
 }

@@ -11,15 +11,15 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <openvino/op/util/assign_base.hpp>
 #include "low_precision/fake_quantize.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AssignAndReadValueTransformation, "AssignAndReadValueTransformation", 0);
-
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params) :
     LayerTransformation(params), function(function) {
+    MATCHER_SCOPE(AssignAndReadValueTransformation);
     auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<opset1::Multiply>() });
     auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<opset1::Multiply>() });
 
@@ -44,7 +44,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{ assign3, assign6 }),
-        "AssignAndReadValueTransformation");
+        matcher_name);
     this->register_matcher(m, callback);
 }
 

@@ -99,7 +99,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
     auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto& weights = params.weights;
 
     size_t in_fsv = 4;
@@ -144,7 +144,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
                                                                        int) const {
     DispatchData dispatchData;
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto& weights = params.weights;
 
     size_t otw, oth;

@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise natural log operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Log : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Log", "opset1", op::util::UnaryElementwiseArithmetic);

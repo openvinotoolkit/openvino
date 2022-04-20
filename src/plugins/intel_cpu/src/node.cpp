@@ -3,7 +3,6 @@
 //
 
 #include "node.h"
-#include "dnnl_debug.h"
 #include "edge.h"
 #include "extension_mngr.h"
 #include "itt.h"
@@ -46,15 +45,14 @@
 #include "nodes/shuffle_channels.h"
 #include "nodes/reference.h"
 #include "nodes/fake_quantize.h"
-#include "extension_utils.h"
-#include "mkldnn/iml_type_mapper.h"
+#include "dnnl_extension_utils.h"
 
 #include "nodes/common/cpu_memcpy.h"
-#include "mkldnn_debug.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
+#include <dnnl_debug.h>
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
@@ -62,18 +60,21 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace openvino;
+using namespace ov::intel_cpu::node;
 
 using namespace InferenceEngine::details;
 
-MKLDNNNode::NodesFactory & MKLDNNNode::factory() {
+namespace ov {
+namespace intel_cpu {
+
+Node::NodesFactory & Node::factory() {
     static NodesFactory factoryInstance;
     return factoryInstance;
 }
 
-MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
+Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
           type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
@@ -138,25 +139,25 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         }
     }
 
-    std::string inputMemoryFormats = ngraph::getMKLDNNInputMemoryFormats(op);
+    std::string inputMemoryFormats = getInputMemoryFormats(op);
     if (!inputMemoryFormats.empty()) {
         std::istringstream stream(inputMemoryFormats);
         std::string str;
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
-    std::string outputMemoryFormats = ngraph::getMKLDNNOutputMemoryFormats(op);
+    std::string outputMemoryFormats = getOutputMemoryFormats(op);
     if (!outputMemoryFormats.empty()) {
         std::istringstream stream(outputMemoryFormats);
         std::string str;
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -166,14 +167,14 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     }
 }
 
-MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
+Node::Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
           type(TypeFromName(type)), profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
-void MKLDNNNode::addEdge(const MKLDNNEdgeWeakPtr& edge) {
+void Node::addEdge(const EdgeWeakPtr& edge) {
     auto edgePtr = edge.lock();
     if (!edgePtr)
         return;
@@ -186,7 +187,7 @@ void MKLDNNNode::addEdge(const MKLDNNEdgeWeakPtr& edge) {
     childPtr->parentEdges.push_back(edge);
 }
 
-void MKLDNNNode::removeEdge(const MKLDNNEdgeWeakPtr& edge) {
+void Node::removeEdge(const EdgeWeakPtr& edge) {
     auto edgePtr = edge.lock();
     if (!edgePtr)
         return;
@@ -210,7 +211,7 @@ void MKLDNNNode::removeEdge(const MKLDNNEdgeWeakPtr& edge) {
     }
 }
 
-void MKLDNNNode::remove() {
+void Node::remove() {
     auto parent_edges = parentEdges;
     for (const auto &parentEdge : parent_edges) {
         removeEdge(parentEdge);
@@ -221,7 +222,7 @@ void MKLDNNNode::remove() {
     }
 }
 
-bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const {
+bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const {
     for (auto &edge : edges) {
         if (edge.lock())
             return false;
@@ -229,7 +230,7 @@ bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const
     return true;
 }
 
-void MKLDNNNode::createPrimitive() {
+void Node::createPrimitive() {
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
             prepareParams();
@@ -238,11 +239,11 @@ void MKLDNNNode::createPrimitive() {
     }
 }
 
-void MKLDNNNode::selectOptimalPrimitiveDescriptor() {
+void Node::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
 }
 
-void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
+void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -295,7 +296,7 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
     selectPrimitiveDescriptorByIndex(0);
 }
 
-bool MKLDNNNode::canBeInPlace() const {
+bool Node::canBeInPlace() const {
     // TODO [DS]: enable inPlace for dynamic shapes
     if (isDynamicNode()) {
         return false;
@@ -306,7 +307,7 @@ bool MKLDNNNode::canBeInPlace() const {
         return false;
 
     // TODO: we need to extend this logic to properly handle all possible inplace conflicts
-    if (getParentEdges().size() == 1 && getParentEdgeAt(0)->getParent()->getType() == Reshape) {
+    if (getParentEdges().size() == 1 && getParentEdgeAt(0)->getParent()->getType() == Type::Reshape) {
         auto reshapeNode = getParentEdgeAt(0)->getParent();
         if (reshapeNode->getParentEdgeAt(0)->getParent()->getChildEdges().size() != 1)
             return false;
@@ -321,37 +322,37 @@ bool MKLDNNNode::canBeInPlace() const {
     return true;
 }
 
-void MKLDNNNode::resolveInPlaceEdges() {
+void Node::resolveInPlaceEdges() {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
     for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
 
-        if (parentEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
+        if (parentEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
             continue;
 
         auto memMgr = parentEdge->getMemory().getDnnlMemoryMngr();
-        parentEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
+        parentEdge->getMemoryPtr().reset(new Memory(getEngine()));
         parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
 
-        parentEdge->changeStatus(MKLDNNEdge::Status::Allocated);
+        parentEdge->changeStatus(Edge::Status::Allocated);
     }
     for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
         auto childEdge = getChildEdgeAt(i);
 
-        if (childEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
+        if (childEdge->getStatus() != Edge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
             continue;
 
         auto memMgr = childEdge->getMemory().getDnnlMemoryMngr();
-        childEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
+        childEdge->getMemoryPtr().reset(new Memory(getEngine()));
         childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
 
-        childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
+        childEdge->changeStatus(Edge::Status::Allocated);
     }
 }
 
-MemoryDescPtr MKLDNNNode::getBaseMemDescAtInputPort(size_t portNum) const {
+MemoryDescPtr Node::getBaseMemDescAtInputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& inConfs = primDesc->getConfig().inConfs;
         if (inConfs.size() < portNum) {
@@ -362,7 +363,7 @@ MemoryDescPtr MKLDNNNode::getBaseMemDescAtInputPort(size_t portNum) const {
     IE_THROW() << "Can't get input memory desc, primitive descriptor is not selected";
 }
 
-MemoryDescPtr MKLDNNNode::getBaseMemDescAtOutputPort(size_t portNum) const {
+MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     if (auto primDesc = getSelectedPrimitiveDescriptor()) {
         const auto& outConfs = primDesc->getConfig().outConfs;
         if (outConfs.size() < portNum) {
@@ -373,7 +374,7 @@ MemoryDescPtr MKLDNNNode::getBaseMemDescAtOutputPort(size_t portNum) const {
     IE_THROW() << "Can't get output memory desc, primitive descriptor is not selected";
 }
 
-std::string MKLDNNNode::getPrimitiveDescriptorType() {
+std::string Node::getPrimitiveDescriptorType() {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
@@ -442,7 +443,7 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     return str_type;
 }
 
-const MKLDNNEdgePtr MKLDNNNode::getParentEdgeAt(size_t idx) const {
+const EdgePtr Node::getParentEdgeAt(size_t idx) const {
     if (idx >= parentEdges.size())
         IE_THROW() << "Node " << getName() << " contains less parent edges than " << idx;
     auto parentEdgePtr = parentEdges[idx].lock();
@@ -451,7 +452,7 @@ const MKLDNNEdgePtr MKLDNNNode::getParentEdgeAt(size_t idx) const {
     return parentEdgePtr;
 }
 
-const MKLDNNEdgePtr MKLDNNNode::getChildEdgeAt(size_t idx) const {
+const EdgePtr Node::getChildEdgeAt(size_t idx) const {
     if (idx >= childEdges.size())
         IE_THROW() << "Node " << getName() << " contains less child edges than " << idx;
     auto childEdgePtr = childEdges[idx].lock();
@@ -460,11 +461,11 @@ const MKLDNNEdgePtr MKLDNNNode::getChildEdgeAt(size_t idx) const {
     return childEdgePtr;
 }
 
-const std::vector<MKLDNNEdgePtr> MKLDNNNode::getParentEdgesAtPort(size_t idx) const {
+const std::vector<EdgePtr> Node::getParentEdgesAtPort(size_t idx) const {
     if (idx >= inputShapes.size())
         IE_THROW() << "Node " << getName() << " contains less input ports than " << idx;
 
-    std::vector<MKLDNNEdgePtr> res;
+    std::vector<EdgePtr> res;
     for (auto &edge_w : parentEdges) {
         auto edge = edge_w.lock();
         if (!edge)
@@ -474,11 +475,11 @@ const std::vector<MKLDNNEdgePtr> MKLDNNNode::getParentEdgesAtPort(size_t idx) co
     return res;
 }
 
-const std::vector<MKLDNNEdgePtr> MKLDNNNode::getChildEdgesAtPort(size_t idx) const {
+const std::vector<EdgePtr> Node::getChildEdgesAtPort(size_t idx) const {
     if (idx >= outputShapes.size())
         IE_THROW() << "Node " << getName() << " contains less output ports than " << idx;
 
-    std::vector<MKLDNNEdgePtr> res;
+    std::vector<EdgePtr> res;
     for (auto &edge_w : childEdges) {
         auto edge = edge_w.lock();
         if (!edge)
@@ -489,7 +490,7 @@ const std::vector<MKLDNNEdgePtr> MKLDNNNode::getChildEdgesAtPort(size_t idx) con
 }
 
 
-std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const Shape &dims) const {
+std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &dims) const {
     if (dims.getRank() == 0)
         return {memory::format_tag::x};
     else if (dims.getRank() == 1)
@@ -506,13 +507,13 @@ std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const Sha
     return {memory::format_tag::any};
 }
 
-void MKLDNNNode::execute(mkldnn::stream strm) {
+void Node::execute(dnnl::stream strm) {
     if (prim) {
         (*prim).execute(strm, primArgs);
     }
 }
 
-void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
+void Node::executeDynamic(dnnl::stream strm) {
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
@@ -527,7 +528,7 @@ void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
     updateLastInputDims();
 }
 
-void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (newOutputShapes.size() != outputShapes.size()) {
         IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
     }
@@ -551,7 +552,7 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
     }
 }
 
-void MKLDNNNode::initSupportedPrimitiveDescriptors() {
+void Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -602,11 +603,11 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
+void Node::filterSupportedPrimitiveDescriptors() {
     // Compare by format tag
-    auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
+    auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                               MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                               DnnlExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                                fmt);
         return desc.isCompatible(fmt_tdesc);
     };
@@ -636,7 +637,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNNode::initDescriptor(const NodeConfig& config) {
+void Node::initDescriptor(const NodeConfig& config) {
     if (!getSelectedPrimitiveDescriptor()) {
         return;
     }
@@ -717,7 +718,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
+void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -742,17 +743,17 @@ void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
             // TODO [DS]: internal blobs should be removed or rewritten using Memory object
             auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
-            MKLDNNMemory memory{ engine };
+            Memory memory{ engine };
             memory.Create(newDesc, internalBlob->buffer());
 
-            MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
+            MemoryPtr _ptr = MemoryPtr(new Memory(engine));
             _ptr->Create(*intDescs[i]);
             _ptr->SetData(memory);
 
             return _ptr;
         };
 
-        MKLDNNMemoryPtr ptr;
+        MemoryPtr ptr;
         if (weightCache != nullptr) {
             const uint64_t data_hash = weightCache->GetHashFunc().hash(
                     internalBlob->buffer(), internalBlob->byteSize());
@@ -770,7 +771,7 @@ void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
     }
 }
 
-bool MKLDNNNode::isInPlace() {
+bool Node::isInPlace() {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
@@ -795,9 +796,9 @@ bool MKLDNNNode::isInPlace() {
     return inplace == InPlaceType::InPlace;
 }
 
-bool MKLDNNNode::isConstant() {
+bool Node::isConstant() {
     if (constant == ConstantType::Unknown) {
-        std::vector<MKLDNNNodePtr> checkNodes;
+        std::vector<NodePtr> checkNodes;
         for (size_t i = 0; i < getChildEdges().size(); i++) {
             checkNodes.push_back(getChildEdgeAt(i)->getChild());
         }
@@ -822,7 +823,7 @@ bool MKLDNNNode::isConstant() {
     return constant == ConstantType::Const;
 }
 
-MKLDNNNode::ConstantType MKLDNNNode::checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes) {
+Node::ConstantType Node::checkConstant(LOOK look, std::vector<NodePtr>& checkNodes) {
     if (constant == ConstantType::Unknown) {
         if (look == LOOK_DOWN) {
             for (size_t i = 0; i < getChildEdges().size(); i++) {
@@ -839,7 +840,7 @@ MKLDNNNode::ConstantType MKLDNNNode::checkConstant(LOOK look, std::vector<MKLDNN
     return constant;
 }
 
-void MKLDNNNode::addOriginalLayer(const std::string& layerName) {
+void Node::addOriginalLayer(const std::string& layerName) {
     if (layerName.empty()) return;
     if (originalLayers.empty()) {
         originalLayers = layerName;
@@ -848,7 +849,7 @@ void MKLDNNNode::addOriginalLayer(const std::string& layerName) {
     }
 }
 
-void MKLDNNNode::cleanup() {
+void Node::cleanup() {
     internalBlobs.clear();
 
     for (auto it : fusedWith) {
@@ -860,7 +861,7 @@ void MKLDNNNode::cleanup() {
     }
 }
 
-const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
+const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::brgconv_avx512_amx_1x1,
@@ -903,7 +904,7 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     return implPriorities;
 }
 
-PortDescBasePtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
+PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
     int num = getParentEdgeAt(idx)->getInputNum();
     auto *selectedPD = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
@@ -937,7 +938,7 @@ PortDescBasePtr MKLDNNNode::getConsistentInputDesc(const NodeConfig &config, siz
     return config.inConfs[idx].getPortDesc();
 }
 
-PortDescBasePtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
+PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
     int num = getChildEdgeAt(idx)->getOutputNum();
     auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
     if (!selectedPD)
@@ -971,7 +972,7 @@ PortDescBasePtr MKLDNNNode::getConsistentOutputDesc(const NodeConfig &config, si
     return config.outConfs[idx].getPortDesc();
 }
 
-void MKLDNNNode::initOptimalPrimitiveDescriptor() {
+void Node::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -996,12 +997,12 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
             config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
         }
     }
-    if (getType() != RNNSeq && getType() != RNNCell) {
+    if (getType() != Type::RNNSeq && getType() != Type::RNNCell) {
         initDescriptor(config);
     }
 }
 
-bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
+bool Node::isConfigDefined(const NodeConfig &config) const {
     for (const auto& configs : {config.inConfs, config.outConfs}) {
         for (const auto &dc : configs) {
             if (!dc.getMemDesc()->isDefined())
@@ -1011,26 +1012,26 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
-    return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
-MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
-    return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
-int MKLDNNNode::batchToProcess() const {
+int Node::batchToProcess() const {
     return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
 }
 
 // TODO [DS]: how we should process this for dynamic shape?
-size_t MKLDNNNode::getMaxBatch() const {
+size_t Node::getMaxBatch() const {
     // FIXME: batch != 0 dims number
     if (!inputShapes.empty()) {
         if (inputShapes[0].getRank())
@@ -1047,17 +1048,17 @@ size_t MKLDNNNode::getMaxBatch() const {
     return 0;
 }
 
-void MKLDNNNode::setDynamicBatchLim(int lim) {
+void Node::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
 
     auto setDynamicBatch = [this](int argType, int newBatch) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
             auto oldMem = param->second;
-            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+            dnnl::memory::desc newMemDesc(oldMem.get_desc());
             newMemDesc.data.dims[0] = newBatch;
             newMemDesc.data.padded_dims[0] = newBatch;
-            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
             primArgs.at(argType) = newMem;
         }
     };
@@ -1071,14 +1072,14 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
     }
 }
 
-void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
-                                  std::unordered_map<int, mkldnn::memory>& primArgs,
-                                  const std::vector<MKLDNNMemoryPtr>& postOpsArgs) {
+void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
+                                  std::unordered_map<int, dnnl::memory>& primArgs,
+                                  const std::vector<MemoryPtr>& postOpsArgs) {
     constexpr size_t maxPrimArgsCapacity = 32;
     auto post_ops = attr.get_post_ops();
     int idx = 0;
     for (int i = 0; i < post_ops.len(); i++) {
-        if (one_of(post_ops.kind(i), mkldnn::primitive::kind::binary, mkldnn::primitive::kind::depthwise, mkldnn::primitive::kind::quantization)) {
+        if (one_of(post_ops.kind(i), dnnl::primitive::kind::binary, dnnl::primitive::kind::depthwise, dnnl::primitive::kind::quantization)) {
             if (idx >= postOpsArgs.size()) {
                 IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
             }
@@ -1088,7 +1089,7 @@ void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
             }
 
             primArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1] = postOpsArgs[idx++]->GetPrimitive();
-        } else if (post_ops.kind(i) == mkldnn::primitive::kind::convolution) {
+        } else if (post_ops.kind(i) == dnnl::primitive::kind::convolution) {
             if (idx + 1 >= postOpsArgs.size()) {
                 IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
             }
@@ -1099,7 +1100,7 @@ void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
     }
 }
 
-bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
+bool Node::isFusedWith(Type fusedNodeType) const {
     for (auto fusedNode : fusedWith) {
         if (fusedNode->type == fusedNodeType)
             return true;
@@ -1108,7 +1109,7 @@ bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-InferenceEngine::Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
+InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     switch (dims.size()) {
         case 0:
             return InferenceEngine::Layout::SCALAR;
@@ -1129,41 +1130,41 @@ InferenceEngine::Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void MKLDNNNode::appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {
+void Node::appendBinPostOps(dnnl::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MemoryPtr>& binaryPostOpsMem) {
     IE_THROW() << "Binary fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-std::vector<InferenceEngine::Precision> MKLDNNNode::getInputPrecisions() const {
+std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
-        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated) {
-            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
         }
     }
     return inputPrecisions;
 }
 
-std::vector<InferenceEngine::Precision> MKLDNNNode::getOutputPrecisions() const {
+std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     std::vector<InferenceEngine::Precision> outputPrecisions;
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
-        if (childEdge && childEdge->getStatus() == MKLDNNEdge::Status::Validated) {
-            outputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+        if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
+            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
         }
     }
     return outputPrecisions;
 }
 
-InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
+InferenceEngine::Precision Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
     InferenceEngine::Precision runtimePrecision = Precision::UNSPECIFIED;
@@ -1180,8 +1181,8 @@ InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                             const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                             const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
@@ -1200,21 +1201,21 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
         }
         return desc;
     };
-    MKLDNNNode *newNode = nullptr;
+    Node *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(intel_cpu, Generic, op, eng, w_cache));
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
+            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
                 throw;
@@ -1224,11 +1225,11 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<MKLDNNNode> ol(new MKLDNNReferenceNode(op, eng, w_cache, errorMessage));
+            std::unique_ptr<Node> ol(new Reference(op, eng, w_cache, errorMessage));
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
                     errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
@@ -1239,13 +1240,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     }
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and mkldnn::eng.
+    //             including extManager, socket and dnnl::eng.
     if (newNode) {
-        if (newNode->getType() == TensorIterator) {
-            if (auto ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode))
+        if (newNode->getType() == Type::TensorIterator) {
+            if (auto ti = dynamic_cast<TensorIterator*>(newNode))
                 ti->setExtManager(extMgr);
-        } else if (newNode->getType() == If) {
-            if (auto ifNode = dynamic_cast<MKLDNNIfNode*>(newNode))
+        } else if (newNode->getType() == Type::If) {
+            if (auto ifNode = dynamic_cast<If*>(newNode))
                 ifNode->setExtManager(extMgr);
         }
     }
@@ -1262,14 +1263,14 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
     return newNode;
 }
 
-bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const {
+bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
     const size_t channelAxis = parentNode->getFusingAxis();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        MKLDNNNode *node = getParentEdgesAtPort(i)[0]->getParent().get();
+        Node *node = getParentEdgesAtPort(i)[0]->getParent().get();
         if (node == nullptr) {
             IE_THROW() << "Cannot get parent node for " << getName() << " on " << i << " port";
         }
@@ -1277,7 +1278,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             fusingPort = i;
             continue;
         }
-        if (node->getType() != Input || !node->isConstant()) {
+        if (node->getType() != Type::Input || !node->isConstant()) {
             return false;
         }
     }
@@ -1296,54 +1297,59 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
     };
 
     const auto isConvertablePowerStatic = [&]() {
-        if (getAlgorithm() == EltwisePowerStatic) {
-            const auto eltwise = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+        if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
+            const auto eltwise = dynamic_cast<const Eltwise *>(this);
             if (!eltwise) {
-                IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+                IE_THROW() << "Cannot cast " << getName() << " to Eltwise";
             }
             return eltwise->getAlpha() == 1.0f;
         }
         return false;
     };
 
-    return (one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && isBroadcastableToDataInput())
+    return (one_of(getAlgorithm(), Algorithm::EltwiseAdd,
+                                   Algorithm::EltwiseMultiply,
+                                   Algorithm::EltwiseSubtract,
+                                   Algorithm::EltwiseDivide,
+                                   Algorithm::EltwisePrelu,
+                                   Algorithm::EltwiseMulAdd) && isBroadcastableToDataInput())
             || isConvertablePowerStatic();
 }
 
 // @todo shifts for Subtract and scales for Divide are replaced with
 // Add (with opposite sign) and Multiply (with inverse value) for legacy dephwise post ops
 // This can be avoided after dephwise post ops are gone
-std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts(const MKLDNNNode *parentNode) const {
+std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const Node *parentNode) const {
     std::vector<float> scales, shifts;
 
-    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
-        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+    const auto fillValuesFrom = [&](const NodePtr& constInput, std::vector<float>& buffer) {
+        auto *constInputNode = dynamic_cast<node::Input *>(constInput.get());
         if (!constInputNode) {
-            IE_THROW() << "Cannot cast " << constInput->getName() << " to MKLDNNInputNode";
+            IE_THROW() << "Cannot cast " << constInput->getName() << " to Input";
         }
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
         cpu_convert(constBlob->GetPtr(),
                     &buffer[0],
-                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
                     Precision::FP32,
                     elementsCount);
     };
 
     const auto constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
 
-    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
+    if (one_of(getAlgorithm(), Algorithm::EltwiseMultiply, Algorithm::EltwiseDivide, Algorithm::EltwisePrelu)) {
         fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
-    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
+    } else if (one_of(getAlgorithm(), Algorithm::EltwiseAdd, Algorithm::EltwiseSubtract)) {
         fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
+    } else if (one_of(getAlgorithm(), Algorithm::EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
-        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+    } else if (one_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
+        const auto power = dynamic_cast<const Eltwise *>(this);
         if (!power) {
-            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+            IE_THROW() << "Cannot cast " << getName() << " to Eltwise";
         }
         scales.push_back(power->getBeta());
         shifts.push_back(power->getGamma());
@@ -1352,20 +1358,20 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     }
 
     switch (getAlgorithm()) {
-        case EltwiseAdd: {
+        case Algorithm::EltwiseAdd: {
             scales.resize(shifts.size(), 1.0f);
             break;
         }
-        case EltwiseSubtract: {
+        case Algorithm::EltwiseSubtract: {
             scales.resize(shifts.size(), 1.0f);
             std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
             break;
         }
-        case EltwiseMultiply: {
+        case Algorithm::EltwiseMultiply: {
             shifts.resize(scales.size(), 0.0f);
             break;
         }
-        case EltwiseDivide: {
+        case Algorithm::EltwiseDivide: {
             shifts.resize(scales.size(), 0.0f);
             std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
             break;
@@ -1376,21 +1382,21 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     return {scales, shifts};
 }
 
-bool MKLDNNNode::isInputTensorAtPortEmpty(size_t port) const {
+bool Node::isInputTensorAtPortEmpty(size_t port) const {
     if (inputShapes.size() <= port) {
         IE_THROW() << "Incorrect input port number for node " << getName();
     }
     return getParentEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
 }
 
-bool MKLDNNNode::isOutputTensorAtPortEmpty(size_t port) const {
+bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     if (outputShapes.size() <= port) {
         IE_THROW() << "Incorrect output port number for node " << getName();
     }
     return getChildEdgesAtPort(port)[0]->getMemory().GetShape().hasZeroDims();
 }
 
-bool MKLDNNNode::hasEmptyInputTensors() const {
+bool Node::hasEmptyInputTensors() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (isInputTensorAtPortEmpty(i))
             return true;
@@ -1398,7 +1404,7 @@ bool MKLDNNNode::hasEmptyInputTensors() const {
     return false;
 }
 
-bool MKLDNNNode::hasEmptyOutputTensors() const {
+bool Node::hasEmptyOutputTensors() const {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         if (isOutputTensorAtPortEmpty(i))
             return true;
@@ -1406,7 +1412,7 @@ bool MKLDNNNode::hasEmptyOutputTensors() const {
     return false;
 }
 
-bool MKLDNNNode::inputShapesDefined() const {
+bool Node::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
             return false;
@@ -1415,7 +1421,7 @@ bool MKLDNNNode::inputShapesDefined() const {
     return true;
 }
 
-bool MKLDNNNode::outputShapesDefined() const {
+bool Node::outputShapesDefined() const {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         if (!getChildEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
             return false;
@@ -1424,15 +1430,15 @@ bool MKLDNNNode::outputShapesDefined() const {
     return true;
 }
 
-bool MKLDNNNode::shapesDefined() const {
+bool Node::shapesDefined() const {
     return inputShapesDefined() && outputShapesDefined();
 }
 
-bool MKLDNNNode::needPrepareParams() const {
+bool Node::needPrepareParams() const {
     return inputShapesModified();
 }
 
-bool MKLDNNNode::inputShapesModified() const {
+bool Node::inputShapesModified() const {
     if (lastInputDims.size() != getParentEdges().size()) {
         if (lastInputDims.empty())
             return true;
@@ -1446,16 +1452,16 @@ bool MKLDNNNode::inputShapesModified() const {
     return false;
 }
 
-bool MKLDNNNode::needShapeInfer() const {
+bool Node::needShapeInfer() const {
     return inputShapesModified();
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
+std::vector<VectorDims> Node::shapeInfer() const {
     return shapeInferGeneric();
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<ov::StaticShape>& input_shapes,
-                                                      uint32_t input_value_port_mask) const {
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
+                                                uint32_t input_value_port_mask) const {
     // collect input values
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
     if (input_value_port_mask) {
@@ -1480,19 +1486,19 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<ov::Stat
     }
 
     // call shape inference API
-    std::vector<ov::StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
+    std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
         return s.to_shape();
     });
 
     return result;
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes,
                                                       uint32_t input_value_port_mask) const {
-    std::vector<ov::StaticShape> input_shapes;
+    std::vector<StaticShape> input_shapes;
 
     input_shapes.reserve(shapes.size());
     for (size_t i = 0; i < shapes.size(); i++)
@@ -1501,8 +1507,8 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(uint32_t input_value_port_mask) const {
-    std::vector<ov::StaticShape> input_shapes;
+std::vector<VectorDims> Node::shapeInferGeneric(uint32_t input_value_port_mask) const {
+    std::vector<StaticShape> input_shapes;
     const auto & iranks = shapeInference->get_input_ranks();
 
     input_shapes.reserve(iranks.size());
@@ -1518,7 +1524,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(uint32_t input_value_port_
     return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
-void MKLDNNNode::updateLastInputDims() {
+void Node::updateLastInputDims() {
     if (lastInputDims.size() != getParentEdges().size()) {
         if (!lastInputDims.empty())
             IE_THROW() << "Input dims and parent edges number mismatch!";
@@ -1529,23 +1535,38 @@ void MKLDNNNode::updateLastInputDims() {
         lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
 }
 
-bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
-    if (node->getType() == FakeQuantize) {
-        bool ret = node->getAlgorithm() != FQBinarization;
+bool Node::canFuseSimpleOperation(const NodePtr& node) const {
+    if (node->getType() == Type::FakeQuantize) {
+        bool ret = node->getAlgorithm() != Algorithm::FQBinarization;
         for (size_t i = 1; i < node->getParentEdges().size(); i++) {
             ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else if (node->getType() == Eltwise) {
+    } else if (node->getType() == Type::Eltwise) {
         return one_of(node->getAlgorithm(),
-                      EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
-                      EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                      EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu) ||
+                      Algorithm::EltwiseRelu,
+                      Algorithm::EltwiseGelu,
+                      Algorithm::EltwiseElu,
+                      Algorithm::EltwiseSigmoid,
+                      Algorithm::EltwiseClamp,
+                      Algorithm::EltwiseTanh,
+                      Algorithm::EltwiseSwish,
+                      Algorithm::EltwiseHswish,
+                      Algorithm::EltwiseMish,
+                      Algorithm::EltwiseHsigmoid,
+                      Algorithm::EltwiseRoundHalfToEven,
+                      Algorithm::EltwiseRoundHalfAwayFromZero,
+                      Algorithm::EltwiseAbs,
+                      Algorithm::EltwiseSqrt,
+                      Algorithm::EltwiseSoftRelu) ||
             node->canBePerformedAsScaleShift(this);
     }
     return false;
 }
 
-void MKLDNNNode::addFusedNode(const MKLDNNNodePtr &fusingNode) {
+void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

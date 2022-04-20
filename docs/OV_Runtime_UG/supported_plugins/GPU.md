@@ -6,21 +6,25 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_supported_plugins_GPU_RemoteBlob_API
-
+   openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
 
 @endsphinxdirective
 
-The GPU plugin uses the Intel® Compute Library for Deep Neural Networks (clDNN) to infer deep neural networks.
-clDNN is an open source performance library for Deep Learning (DL) applications intended for acceleration of Deep Learning Inference on Intel® Processor Graphics including Intel® HD Graphics, Intel® Iris® Graphics, Intel® Iris® Xe Graphics, and Intel® Iris® Xe MAX graphics.
-For an in-depth description of clDNN, see [OpenVINO Runtime GPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/) and [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
+The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
+For an in-depth description of the GPU plugin, see:
+- [GPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDevelopersDocs)
+- [OpenVINO Runtime GPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/)
+- [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
+
+It is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see [GPU configuration page](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
 ## Device Naming Convention
-* Devices are enumerated as "GPU.X" where `X={0, 1, 2,...}`. Only Intel® GPU devices are considered.
-* If the system has an integrated GPU, it always has id=0 ("GPU.0").
-* Other GPUs have undefined order that depends on the GPU driver.
-* "GPU" is an alias for "GPU.0"
-* If the system doesn't have an integrated GPU, then devices are enumerated starting from 0.
+* Devices are enumerated as `"GPU.X"` where `X={0, 1, 2,...}`. Only Intel® GPU devices are considered.
+* If the system has an integrated GPU, its 'id' is always '0' (`"GPU.0"`).
+* Other GPUs' order is not predefined and depends on the GPU driver.
+* `"GPU"` is an alias for `"GPU.0"`
+* If the system doesn't have an integrated GPU, devices are enumerated starting from 0.
+* For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms) a specific tile may be addressed as `"GPU.X.Y"` where `X,Y={0, 1, 2,...}`, `X` - id of the GPU device, `Y` - id of the tile within device `X`
 
 For demonstration purposes, see the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
@@ -36,122 +40,270 @@ Available devices:
     Device: HDDL
 ```
 
-## Optimizations
+Then device name can be passed to `ov::Core::compile_model()` method:
 
-The plugin supports algorithms that fuse several operations into one optimized operation. Refer to the sections below for details.
+@sphinxtabset
 
-> **NOTE**: For operation descriptions, see the [IR Notation Reference](../../ops/opset.md).
+@sphinxtab{Running on default device}
 
-### Fusing Convolution and Simple Layers
+@sphinxtabset
 
-Merge of a Convolution layer and any of the simple layers listed below:
-- Activation: ReLU, ELU, Sigmoid, Clamp, and others
-- Depthwise: ScaleShift, PReLU
-- FakeQuantize
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_default_gpu
+@endsphinxtab
 
-> **NOTE**: You can have any number and order of simple layers.
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_default_gpu
+@endsphinxtab
 
-A combination of a Convolution layer and simple layers results in a single fused layer called
-*Convolution*:
-![conv_simple_01]
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Running on specific GPU}
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Running on specific tile}
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_gpu_with_id_and_tile
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
+
+## Supported inference data types
+The GPU plugin supports the following data types as inference precision of internal primitives:
+
+- Floating-point data types:
+  - f32
+  - f16
+- Quantized data types:
+  - u8
+  - i8
+  - u1
+
+Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
+u1/u8/i8 data types are used for quantized operations only, i.e. those are not selected automatically for non-quantized operations.
+For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
+
+Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in the f16 precision.
+
+> **NOTE**: Hardware acceleration for i8/u8 precision may be unavailable on some platforms. In that case a model is executed in the floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via the `ov::device::capabilities` property.
+
+[Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out the supported data types for all detected devices.
+
+## Supported features
+
+### Multi-device execution
+If a system has multiple GPUs (for example, an integrated and a discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
+It is done by specifying `"MULTI:GPU.1,GPU.0"` as a target device.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_multi
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_multi
+@endsphinxtab
+
+@endsphinxtabset
+
+See [Multi-device execution page](../multi_device.md) for more details.
+
+### Automatic batching
+The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware 
+platform and model. Thus, automatic batching is enabled by default when `ov::optimal_batch_size` is > 1 and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
+Alternatively, it can be enabled explicitly via the device notion, e.g. `"BATCH:GPU"`.
+
+@sphinxtabset
+
+@sphinxtab{Batching via BATCH plugin}
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_batch_plugin
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_batch_plugin
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{Bacthing via throughput hint}
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/compile_model.cpp compile_model_auto_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/compile_model.py compile_model_auto_batch
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
+
+See [Automatic batching page](../automatic_batching.md) for more details.
+
+### Multi-stream execution
+If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for the GPU plugin,
+multiple streams are created for the model. In the case of GPU plugin each stream has its own host thread and an associated OpenCL queue
+which means that the incoming infer requests can be processed simultaneously.
+
+> **NOTE**: Simultaneous scheduling of kernels to different queues doesn't mean that the kernels are actually executed in parallel on the GPU device. The actual behavior depends on the hardware architecture and in some cases the execution may be serialized inside the GPU driver.
+
+When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
+That's because implementation of streams in the GPU plugin supports weight memory sharing across streams, thus, memory consumption may be lower, compared to the other approaches.
+
+See [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) for more details.
+
+### Dynamic shapes
+The GPU plugin supports dynamic shapes for batch dimension only (specified as 'N' in the [layouts terms](../layout_overview.md)) with a fixed upper bound. Any other dynamic dimensions are unsupported. Internally, GPU plugin creates
+`log2(N)` (`N` - is an upper bound for batch dimension here) low-level execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior, so that incoming infer request with a specific batch size is executed via a minimal combination of internal networks.
+For example, batch size 33 may be executed via 2 internal networks with batch size 32 and 1.
+
+> **NOTE**: Such approach requires much more memory and the overall model compilation time is significantly longer, compared to the static batch scenario.
+
+The code snippet below demonstrates how to use dynamic batching in simple scenarios:
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/dynamic_batch.cpp dynamic_batch
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/dynamic_batch.py dynamic_batch
+@endsphinxtab
+
+@endsphinxtabset
+
+See [dynamic shapes guide](../ov_dynamic_shapes.md) for more details.
+
+### Preprocessing acceleration
+The GPU plugin has the following additional preprocessing options:
+- `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/preprocessing.cpp init_preproc
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/preprocessing.py init_preproc
+@endsphinxtab
+
+@endsphinxtabset
+
+With such preprocessing GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
+
+Refer to [RemoteTensor API](./GPU_RemoteTensor_API.md) for usage examples.
+
+See [preprocessing API guide](../preprocessing_overview.md) for more details.
+
+### Model caching
+Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels,
+so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option. 
+Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the `ov::cache_dir` property enabled.
+
+See [Model caching overview page](../Model_caching_overview.md) for more details.
+
+### Extensibility
+See [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU) page.
+
+### GPU context and memory sharing via RemoteTensor API
+See [RemoteTensor API of GPU Plugin](GPU_RemoteTensor_API.md).
 
 
-### Fusing Pooling and FakeQuantize Layers
+## Supported properties
+The plugin supports the properties listed below.
 
-A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:
-![pooling_fakequant_01]
+### Read-write properties
+All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
-### Fusing Activation Layers
+- ov::cache_dir
+- ov::enable_profiling
+- ov::hint::model_priority
+- ov::hint::performance_mode
+- ov::hint::num_requests
+- ov::num_streams
+- ov::compilation_num_threads
+- ov::device::id
+- ov::intel_gpu::hint::host_task_priority
+- ov::intel_gpu::hint::queue_priority
+- ov::intel_gpu::hint::queue_throttle
+- ov::intel_gpu::enable_loop_unrolling
 
-Given the linear pattern, an Activation layer can be fused into other layers:
+### Read-only properties
+- ov::supported_properties
+- ov::available_devices
+- ov::range_for_async_infer_requests
+- ov::range_for_streams
+- ov::optimal_batch_size
+- ov::max_batch_size
+- ov::device::full_name
+- ov::device::type
+- ov::device::gops
+- ov::device::capabilities
+- ov::intel_gpu::device_total_mem_size
+- ov::intel_gpu::uarch_version
+- ov::intel_gpu::execution_units_count
+- ov::intel_gpu::memory_statistics
 
-![fullyconnected_activation_01]
+## Limitations
+In some cases, the GPU plugin may implicitly execute several primitives on CPU using internal implementations which may lead to increase of CPU utilization.
+Below is a list of such operations:
+- Proposal
+- NonMaxSuppression
+- DetectionOutput
 
+The behavior depends on specific parameters of the operations and hardware configuration.
 
-### Fusing Convolution and Sum Layers
+## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
+Since OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation, many general OpenCL tips apply:
+-	Prefer `FP16` inference precision over `FP32`, as Model Optimizer can generate both variants and the `FP32` is the default. Also, consider using the [Post-training Optimization Tool](https://docs.openvino.ai/latest/pot_introduction.html).
+- Try to group individual infer jobs by using [automatic batching](../automatic_batching.md).
+-	Consider [caching](../Model_caching_overview.md) to minimize model load time.
+-	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](./CPU.md) to limit the number of inference threads for the CPU plugin.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Notice that this option may increase inference latency, so consider combining with multiple GPU streams or [throughput performance hints](../performance_hints.md).
+- When operating media inputs consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
 
-A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:
-![conv_sum_relu_01]
-
-### Fusing a Group of Convolutions
-
-If a topology contains the following pipeline, a GPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:
-> **NOTE**: Parameters of the Convolution layers must coincide.
-
-![group_convolutions_01]
-
-### Optimizing Layers Out
-
-The following layers are optimized out under certain conditions:
-  * Crop
-  * Concatenate
-  * Reshape
-  * Flatten
-  * Split
-  * Copy
-
-### Load-Time Execution
-
-Some layers are executed during the load time, not during the inference. One of such layers is PriorBox.
-
-
-## CPU Executed Layers
-
-The following layers are not accelerated on the GPU and executed on the host CPU instead:
-* Proposal
-* NonMaxSuppression
-* PriorBox
-* DetectionOutput
-
-## Supported Configuration Parameters
-
-The plugin supports the configuration parameters listed below.
-All parameters must be set before calling <code>InferenceEngine::Core::LoadNetwork()</code> in order to take effect.
-When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
-
-| Parameter Name          | Parameter Values                | Default         | Description                                               |
-|---------------------|-----------------------------|-----------------|-----------------------------------------------------------|
-| `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
-| `KEY_PERF_COUNT`      | `YES` / `NO`                    | `NO`              | Collect performance counters during inference             |
-| `KEY_CONFIG_FILE`     | `"<file1> [<file2> ...]"`         | `""`              | Load custom layer configuration files                     |
-| `KEY_GPU_HOST_`<br>`TASK_PRIORITY` | `GPU_HOST_TASK_PRIORITY_<HIGH\|MEDIUM\|LOW>`                       | `GPU_HOST_TASK_PRIORITY_MEDIUM`               | This key instructs the GPU plugin which cpu core type of TBB affinity used in load network. <br> This option has 3 types of levels: HIGH, LOW, and ANY. It is only affected on Hybrid CPUs. <br>- LOW - instructs the GPU Plugin to use LITTLE cores if they are available <br>- MEDIUM (DEFAULT) - instructs the GPU Plugin to use any available cores (BIG or LITTLE cores) <br>- HIGH - instructs the GPU Plugin to use BIG cores if they are available |
-| `KEY_GPU_PLUGIN_`<br>`PRIORITY` | `<0-3>`                       | `0`               | OpenCL queue priority (before usage, make sure your OpenCL driver supports appropriate extension)<br> Higher value means higher priority for OpenCL queue. 0 disables the setting. **Deprecated**. Please use KEY_GPU_MODEL_PRIORITY |
-| `KEY_GPU_PLUGIN_`<br>`THROTTLE` | `<0-3>`                       | `2`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. Has no effect if the driver does not support reqired hint.  |
-| `KEY_CLDNN_ENABLE_`<br>`FP16_FOR_QUANTIZED_`<br>`MODELS` | `YES` / `NO`                       | `YES`               | Allows using FP16+INT8 mixed precision mode, so non-quantized parts of a model will be executed in FP16 precision for FP16 IR. Does not affect quantized FP32 IRs |
-| `KEY_GPU_NV12_`<br>`TWO_INPUTS` | `YES` / `NO`                       | `NO`               | Controls preprocessing logic for nv12 input. If it's set to YES, then device graph will expect that user will set biplanar nv12 blob as input wich will be directly passed to device execution graph. Otherwise, preprocessing via GAPI is used to convert NV12->BGR, thus GPU graph have to expect single input |
-| `KEY_GPU_THROUGHPUT_`<br>`STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_GPU_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behavior.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
-| `KEY_EXCLUSIVE_ASYNC_`<br>`REQUESTS` | `YES` / `NO`                | `NO`              | Forces async requests (also from different executable networks) to execute serially.|
-| `KEY_GPU_MAX_NUM_`<br>`THREADS` | `integer value` | `maximum # of HW threads available in host environment` |  Specifies the number of CPU threads that can be used for GPU engine, e.g, JIT compilation of GPU kernels or cpu kernel processing within GPU plugin. The default value is set as the number of maximum available threads in host environment to minimize the time for LoadNetwork, where the GPU kernel build time occupies a large portion. Note that if the specified value is larger than the maximum available # of threads or less than zero, it is set as maximum available # of threads. It can be specified with a smaller number than the available HW threads according to the usage scenario, e.g., when the user wants to assign more CPU threads while GPU plugin is running. Note that setting this value with lower number will affect not only the network loading time but also the cpu layers of GPU networks that are optimized with multi-threading. |
-| `KEY_GPU_ENABLE_`<br>`LOOP_UNROLLING` | `YES` / `NO`             | `YES`             | Enables recurrent layers such as TensorIterator or Loop with fixed iteration count to be unrolled. It is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb). Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16). Note that turning this key on will increase the graph loading time in proportion to the iteration counts. Thus, this key should be turned off if graph loading time is considered to be most important target to optimize. |
-| `KEY_CLDNN_PLUGIN_`<br>`PRIORITY` | `<0-3>`                       | `0`               | OpenCL queue priority (before usage, make sure your OpenCL driver supports appropriate extension)<br> Higher value means higher priority for OpenCL queue. 0 disables the setting. **Deprecated**. Please use KEY_GPU_MODEL_PRIORITY |
-| `KEY_CLDNN_PLUGIN_`<br>`THROTTLE` | `<0-3>`                       | `0`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. 0 disables the setting. **Deprecated**. Please use KEY_GPU_PLUGIN_THROTTLE |
-| `KEY_CLDNN_GRAPH_`<br>`DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | clDNN graph optimizer stages dump output directory (in GraphViz format) **Deprecated**. Will be removed in the next release                                     |
-| `KEY_CLDNN_SOURCES_`<br>`DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | Final optimized clDNN OpenCL sources dump output directory. **Deprecated**. Will be removed in the next release                                   |
-| `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers. **Deprecated**. Will be removed in the next release             |
-| `KEY_TUNING_MODE`     | `TUNING_DISABLED` <br /> `TUNING_CREATE` <br />  `TUNING_USE_EXISTING`            | `TUNING_DISABLED` | Disable inference kernel tuning     <br /> Create tuning file (expect much longer runtime)  <br />         Use an existing tuning file. **Deprecated**. Will be removed in the next release |
-| `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use. **Deprecated**. Will be removed in the next release |
-
-## Quering GPU specific metric keys
-* MEMORY_STATISTICS : Returns overall memory statistics of `GPU` device allocated by engine with allocation types. If the network has `TensorIterator` or `Loop` operation which is not unrolled, there will be additional allocation at the first inference phase. In such a case, querying for `MEMORY_STATISTICS` should be done after first inference for more accurate result. The code below demonstrates how to query overall memory statistics of `GPU` device:
-
-@snippet snippets/GPU_Metric0.cpp part0
-
-* MAX_BATCH_SIZE : Returns maximum batch size for a given network which is not only executable but also does not lose performance due to the memory swap impact. Note that the returned value may not aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size. If the MODEL_PTR is not given, it will return 1. The example code to set the required and optional configs for this metic is available in the following snippet:
-
-@snippet snippets/GPU_Metric1.cpp part1
-
-* OPTIMAL_BATCH_SIZE : Returns _optimal_ batch size for a given network on the given GPU device. The returned value is aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the optimal batch size highly depends on the model. If the MODEL_PTR is not given, the value of 1 is returned. The example code to set the required and optional configs for this metric is available in the following snippet:
-
-@snippet snippets/GPU_Metric1.cpp part2
-## GPU Context and Video Memory Sharing RemoteBlob API
-
-See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
-
-[conv_simple_01]: ../img/conv_simple_01.png
-[pooling_fakequant_01]: ../img/pooling_fakequant_01.png
-[fullyconnected_activation_01]: ../img/fullyconnected_activation_01.png
-[group_convolutions_01]: ../img/group_convolutions_01.png
-[conv_sum_relu_01]: ../img/conv_sum_relu_01.png
+* [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
+* [GPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDevelopersDocs)

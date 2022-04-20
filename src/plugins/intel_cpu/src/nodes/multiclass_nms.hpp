@@ -11,6 +11,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -18,19 +19,19 @@ enum class MulticlassNmsSortResultType {
     NONE      // do not guarantee the order in each batch element
 };
 
-class MKLDNNMultiClassNmsNode : public MKLDNNNode {
+class MultiClassNms : public Node {
 public:
-    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
     void prepareParams() override;
@@ -98,5 +99,6 @@ private:
                        const InferenceEngine::SizeVector& scoresStrides);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

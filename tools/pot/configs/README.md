@@ -33,19 +33,18 @@ The main parameter is `"type"` which can take two possible options: `"accuracy_c
 - **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get a fully quantized model. They do not use the Accuracy Checker tool and annotation. In this case, the following parameters are applicable:
   - `"data_source"` Specifies the path to the directory​ where the calibration data is stored.
   - `"layout"` - (Optional) Layout of input data. Supported values: [`"NCHW"`, `"NHWC"`, `"CHW"`, `"CWH"`]​.
-- **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker_README) (Accuracy Checker) when inferencing DL models and working with datasets.
+- **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker) (Accuracy Checker) when inferencing DL models and working with datasets.
 If you have annotations, you can benefit from this mode by measuring accuracy.  When this mode is selected, you can use the accuracy-aware algorithms family.
 There are two options to define engine parameters in this mode:
   - Refer to the existing Accuracy Checker configuration file which is represented by the YAML file. It can be a file used for full-precision model validation. In this case, you should define only the `"config"` parameter containing the path to the AccuracyChecker configuration file.
-  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_dlsdk_launcher)
+  - Define all the [required Accuracy Checker parameters](@ref omz_tools_accuracy_checker_openvino_launcher)
     directly in the JSON file. In this case, POT just passes the corresponding dictionary of parameters to the Accuracy Checker when instantiating it.
     For more details, refer to the corresponding Accuracy Checker information and examples of configuration files provided with the tool:
     - 8-bit quantization of [SSD-MobileNet model](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples/quantization/object_detection/ssd_mobilenetv1_int8.json)
 
 ## Compression Parameters
 
-This section defines optimization algorithms and their parameters. For more details about parameters of the concrete optimization algorithm, please refer to the corresponding
-[documentation](@ref pot_compression_algorithms_quantization_README).
+For more details about parameters of the concrete optimization algorithm, see descriptions of [Default Quantization](@ref pot_compression_algorithms_quantization_default_README) and [Accuracy-aware Quantizatoin](@ref accuracy_aware_README) methods. 
 
 ## Examples of the Configuration File
 
@@ -57,4 +56,3 @@ For details on how to run the Post-Training Optimization Tool with a sample conf
 
 ## See Also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
-* [POT API](@ref pot_compression_api_README)

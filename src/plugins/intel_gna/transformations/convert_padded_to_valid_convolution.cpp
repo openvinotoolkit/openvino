@@ -19,8 +19,6 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(ConvertPaddedToValidConv, "ConvertPaddedToValidConv", 0);
-
 static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
 

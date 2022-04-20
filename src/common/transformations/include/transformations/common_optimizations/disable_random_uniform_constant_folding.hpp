@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
  */
 class ngraph::pass::DisableRandomUniformConstantFolding : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DisableRandomUniformConstantFolding", "0");
     DisableRandomUniformConstantFolding();
 };

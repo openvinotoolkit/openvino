@@ -20,7 +20,8 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     auto desc = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
     auto output_format = format::get_default_format(desc->out_size.size());
-    std::vector<tensor::value_type> dims_converted(desc->out_size.begin(), desc->out_size.end());
+    auto out_shape = desc->out_size;
+    std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++) {
         dims_converted.push_back(1);

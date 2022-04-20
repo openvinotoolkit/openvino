@@ -23,12 +23,12 @@ class ConvertNormalizeL2ToLegacyMatcher;
 
 class ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNormalizeL2WithMulToNormalizeIE", "0");
     ConvertNormalizeL2WithMulToNormalizeIE();
 };
 
 class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNormalizeL2ToLegacyMatcher", "0");
     ConvertNormalizeL2ToLegacyMatcher();
 };

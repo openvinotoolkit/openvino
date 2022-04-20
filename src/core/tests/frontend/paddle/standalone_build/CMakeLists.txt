@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set(TARGET_NAME "paddle_fe_standalone_build_test")
 
 add_library(${TARGET_NAME} STATIC standalone_build_test.cpp)

@@ -9,9 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/leaky_relu.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::ConvertToLeakyRelu, "ConvertToLeakyRelu", 0);
+#include "itt.hpp"
 
 ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
+    MATCHER_SCOPE(ConvertToLeakyRelu);
     auto input = ngraph::pattern::any_input();
     auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope_constant });
@@ -34,6 +35,6 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertToLeakyRelu");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, matcher_name);
     this->register_matcher(m, callback);
 }

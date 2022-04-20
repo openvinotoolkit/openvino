@@ -5,21 +5,24 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include "roll.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Roll::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -36,8 +39,8 @@ bool MKLDNNRollNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-                MKLDNNNode(op, eng, cache) {
+Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+                Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         layerErrorPrefix = "Roll layer with name '" + getName() + "'";
@@ -86,9 +89,9 @@ MKLDNNRollNode::MKLDNNRollNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
 }
 
-void MKLDNNRollNode::getSupportedDescriptors() {}
+void Roll::getSupportedDescriptors() {}
 
-void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
+void Roll::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -104,7 +107,7 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 }
 
 
-void MKLDNNRollNode::execute(mkldnn::stream strm) {
+void Roll::execute(dnnl::stream strm) {
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
@@ -125,14 +128,14 @@ void MKLDNNRollNode::execute(mkldnn::stream strm) {
     }
 }
 
-size_t MKLDNNRollNode::calculateShiftOffset(size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize) {
+size_t Roll::calculateShiftOffset(size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize) {
     size_t pos = dataOffset / segmentSize % dimSize;
     size_t shift = (pos + dimShift) % dimSize - pos;
     return dataOffset + shift * segmentSize;
 }
 
 template <typename DataType>
-void MKLDNNRollNode::rollImpl() {
+void Roll::rollImpl() {
     const auto dataEdge = getParentEdgeAt(DATA_INDEX);
     const auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto shiftsEdge = getParentEdgeAt(SHIFT_INDEX);
@@ -183,12 +186,14 @@ void MKLDNNRollNode::rollImpl() {
     });
 }
 
-bool MKLDNNRollNode::created() const {
-    return getType() == Roll;
+bool Roll::created() const {
+    return getType() == Type::Roll;
 }
 
-void MKLDNNRollNode::createPrimitive() {}
+void Roll::createPrimitive() {}
 
-const std::vector<size_t> MKLDNNRollNode::supportedPrecisionSizes = {1, 2, 4};
+const std::vector<size_t> Roll::supportedPrecisionSizes = {1, 2, 4};
 
-REG_MKLDNN_PRIM_FOR(MKLDNNRollNode, Roll)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

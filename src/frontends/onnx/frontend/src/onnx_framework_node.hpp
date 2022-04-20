@@ -36,7 +36,7 @@ class Model;
 namespace frontend {
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ONNXFrameworkNode", "0");
 
     ONNXFrameworkNode(const onnx_import::Node& node)
         : ov::op::util::FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
@@ -71,7 +71,7 @@ protected:
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ONNXSubgraphFrameworkNode", "0");
 
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
                               const std::vector<std::shared_ptr<Function>>& functions,

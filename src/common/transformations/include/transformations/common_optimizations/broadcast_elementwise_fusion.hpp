@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
 
 class ngraph::pass::BroadcastElementwiseFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BroadcastElementwiseFusion", "0");
     BroadcastElementwiseFusion();
 };

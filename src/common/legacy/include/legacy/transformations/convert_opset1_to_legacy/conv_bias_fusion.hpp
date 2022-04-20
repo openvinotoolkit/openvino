@@ -34,25 +34,25 @@ class DeconvAddFusion;
 
 class ngraph::pass::ConvAddFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvAddFusion", "0");
     ConvAddFusion();
 };
 
 class ngraph::pass::ConvMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvMultiplyFusion", "0");
     ConvMultiplyFusion();
 };
 
 class ngraph::pass::DeconvAddFusion: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DeconvAddFusion", "0");
     DeconvAddFusion();
 };
 
 class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvFusion", "0");
     ConvFusion() {
         add_matcher<ngraph::pass::ConvAddFusion>();
         add_matcher<ngraph::pass::ConvMultiplyFusion>();

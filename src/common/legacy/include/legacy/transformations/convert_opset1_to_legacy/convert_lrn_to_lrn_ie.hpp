@@ -22,6 +22,6 @@ class ConvertLRNToLegacyMatcher;
 
 class ngraph::pass::ConvertLRNToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertLRNToLegacyMatcher", "0");
     ConvertLRNToLegacyMatcher();
 };

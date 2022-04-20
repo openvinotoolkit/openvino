@@ -8,12 +8,15 @@
 #include "range.h"
 #include <utils/general_utils.h>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::intel_cpu::one_of(op->get_type_info(), ngraph::op::v0::Range::get_type_info_static(), ngraph::op::v4::Range::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ngraph::op::v0::Range::get_type_info_static(), ngraph::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }
@@ -23,8 +26,8 @@ bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+Range::Range(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -52,7 +55,7 @@ MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const 
         IE_THROW() << errorPrefix << " has unsupported rank for output: " << dstRank;
 }
 
-void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
+void Range::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -83,15 +86,15 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::vector<VectorDims> MKLDNNRangeNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
+std::vector<VectorDims> Range::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
 }
 
-void MKLDNNRangeNode::executeDynamicImpl(mkldnn::stream strm) {
+void Range::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNRangeNode::execute(mkldnn::stream strm) {
+void Range::execute(dnnl::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:
@@ -110,7 +113,7 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
 }
 
 template <typename data_t>
-size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const {
+size_t Range::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const {
     data_t start = 0, limit = 0, delta = 0;
     if (startPtr == nullptr)
         startPtr = &start;
@@ -133,7 +136,7 @@ size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t 
 }
 
 template <typename data_t>
-InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() {
+InferenceEngine::StatusCode Range::rangeKernel() {
     data_t start = 0, delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {
@@ -151,8 +154,11 @@ InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() {
     });
     return OK;
 }
-bool MKLDNNRangeNode::created() const {
-    return getType() == Range;
+
+bool Range::created() const {
+    return getType() == Type::Range;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNRangeNode, Range)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

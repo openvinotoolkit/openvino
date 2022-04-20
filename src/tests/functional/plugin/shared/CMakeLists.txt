@@ -58,6 +58,7 @@ addIeTarget(
             PRIVATE
                 openvino::util
                 openvino::runtime::dev
+                snippetsNgraphFunctions
         DEPENDENCIES
             ${DEPENDENCIES}
 )

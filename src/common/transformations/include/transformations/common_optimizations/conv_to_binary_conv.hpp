@@ -72,6 +72,6 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
  */
 class ngraph::pass::ConvToBinaryConv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvToBinaryConv", "0");
     ConvToBinaryConv();
 };

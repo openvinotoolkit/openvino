@@ -12,10 +12,13 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Select::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto select = std::dynamic_pointer_cast<const ngraph::opset1::Select>(op);
         if (!select) {
@@ -23,7 +26,7 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             return false;
         }
         const auto broadcast = select->get_auto_broadcast();
-        if (!ov::intel_cpu::one_of(broadcast.m_type, ngraph::op::AutoBroadcastType::NONE, ngraph::op::AutoBroadcastType::NUMPY)) {
+        if (!one_of(broadcast.m_type, ngraph::op::AutoBroadcastType::NONE, ngraph::op::AutoBroadcastType::NUMPY)) {
             errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
             return false;
         }
@@ -33,8 +36,8 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+Select::Select(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -95,7 +98,7 @@ MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, cons
     }
 }
 
-void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
+void Select::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -123,7 +126,7 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNSelectNode::prepareParams() {
+void Select::prepareParams() {
     const auto &_conditionDims = getParentEdgesAtPort(CONDITION)[0]->getMemory().getStaticDims();
     const auto &_thenDims = getParentEdgesAtPort(THEN)[0]->getMemory().getStaticDims();
     const auto &_elseDims = getParentEdgesAtPort(ELSE)[0]->getMemory().getStaticDims();
@@ -152,7 +155,7 @@ void MKLDNNSelectNode::prepareParams() {
     }
 }
 
-void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
+void Select::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
     int k = 1;
     for (int i = dims.size() - 1; i >= 0; i--) {
         offset[i] = k;
@@ -160,7 +163,7 @@ void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims)
     }
 }
 
-void MKLDNNSelectNode::calcInOffset(VectorDims& offset, const VectorDims& inDims, const VectorDims& outDims) {
+void Select::calcInOffset(VectorDims& offset, const VectorDims& inDims, const VectorDims& outDims) {
     int k = 1;
     for (int i = inDims.size() - 1; i >= 0; i--) {
         offset[i] = (inDims[i] == outDims[i]) ? k : 0;
@@ -169,7 +172,7 @@ void MKLDNNSelectNode::calcInOffset(VectorDims& offset, const VectorDims& inDims
 }
 
 template <typename COND_T, typename DATA_T>
-void MKLDNNSelectNode::execute_impl() {
+void Select::execute_impl() {
     const auto *conditionData = reinterpret_cast<const COND_T *>(getParentEdgeAt(CONDITION)->getMemoryPtr()->GetPtr());
     const auto *thenData = reinterpret_cast<const DATA_T *>(getParentEdgeAt(THEN)->getMemoryPtr()->GetPtr());
     const auto *elseData = reinterpret_cast<const DATA_T *>(getParentEdgeAt(ELSE)->getMemoryPtr()->GetPtr());
@@ -193,11 +196,11 @@ void MKLDNNSelectNode::execute_impl() {
     }
 }
 
-void MKLDNNSelectNode::executeDynamicImpl(mkldnn::stream strm) {
+void Select::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNSelectNode::execute(mkldnn::stream strm) {
+void Select::execute(dnnl::stream strm) {
     const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().size();
     const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().size();
 
@@ -233,8 +236,10 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNSelectNode::created() const {
-    return getType() == Select;
+bool Select::created() const {
+    return getType() == Type::Select;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNSelectNode, Select)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

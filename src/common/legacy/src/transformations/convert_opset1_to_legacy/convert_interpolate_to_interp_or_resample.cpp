@@ -16,8 +16,6 @@
 
 #include <legacy/ngraph_ops/interp.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
-
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
     auto interpolate = pattern::wrap_type<opset1::Interpolate>({pattern::any_input(pattern::has_static_shape()),
                                                                 pattern::wrap_type<opset1::Constant>()});

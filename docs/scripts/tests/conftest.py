@@ -72,6 +72,11 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help='Include link check for ovms')
+    parser.addoption(
+        '--include_ote',
+        action="store_true",
+        default=False,
+        help='Include link check for ote')
 
 
 def read_lists(configs):
@@ -90,7 +95,7 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms'}
+    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms', 'ote'}
     if metafunc.config.getoption('include_omz'):
         exclude_links.remove('open_model_zoo')
         exclude_links.remove('omz')
@@ -102,6 +107,8 @@ def pytest_generate_tests(metafunc):
         exclude_links.remove('gst')
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
+    if metafunc.config.getoption('include_ote'):
+        exclude_links.remove('ote')
 
     # warnings to ignore
     suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
@@ -113,10 +120,12 @@ def pytest_generate_tests(metafunc):
         suppress_warnings.append(sphinx_ref_pattern)
         suppress_warnings.append(sphinx_ref_pattern2)
 
+    xfail_list = [xfail.lower() for xfail in read_lists(metafunc.config.getoption('doxygen_xfail'))]
+
     # read doxygen log
     doxy_parser = LogParser(metafunc.config.getoption('doxygen'),
                             strip=metafunc.config.getoption('doxygen_strip'),
-                            xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                            xfail_list=xfail_list,
                             suppress_warnings=suppress_warnings)
     doxy_parser.parse()
     doxygen_warnings = doxy_parser.filter()
@@ -124,7 +133,7 @@ def pytest_generate_tests(metafunc):
     # read sphinx log
     sphinx_parser = LogParser(metafunc.config.getoption('sphinx'),
                               strip=metafunc.config.getoption('sphinx_strip'),
-                              xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                              xfail_list=xfail_list,
                               suppress_warnings=suppress_warnings
                               )
     sphinx_parser.parse()

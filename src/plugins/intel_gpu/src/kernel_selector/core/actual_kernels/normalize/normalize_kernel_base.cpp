@@ -29,7 +29,7 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
 }
 
 NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normalize_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
     if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
@@ -89,7 +89,7 @@ bool NormalizeKernelBase::Validate(const Params& params, const optional_params&)
 }
 
 Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) const {
-    if (params.output.GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
     return Datatype::F32;
 }

@@ -13,8 +13,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftmaxFusion, "SoftmaxFusion", 0);
-
 ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
     auto data_pattern = ngraph::pattern::any_input(pattern::has_static_rank());

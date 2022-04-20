@@ -1,53 +1,43 @@
-#include <openvino/runtime/core.hpp>
+import openvino.runtime as ov
 
-int main() {
-ov::Core core;
-auto model = core.read_model("sample.xml");
-//! [set_manual_affinities]
-for (auto && op : model->get_ops()) {
-    op->get_rt_info()["affinity"] = "CPU";
-}
-//! [set_manual_affinities]
+core = ov.Core()
+model = core.read_model("sample.xml")
 
-//! [fix_automatic_affinities]
-// This example demonstrates how to perform default affinity initialization and then
-// correct affinity manually for some layers
-const std::string device = "HETERO:GPU,CPU";
+#! [set_manual_affinities]
+for op in model.get_ops():
+    rt_info = op.get_rt_info()
+    rt_info["affinity"] = "CPU"
+#! [set_manual_affinities]
 
-// query_model result contains mapping of supported operations to devices
-auto supported_ops = core.query_model(model, device);
+#! [fix_automatic_affinities]
+# This example demonstrates how to perform default affinity initialization and then
+# correct affinity manually for some layers
+device = "HETERO:GPU,CPU"
 
-// update default affinities manually for specific operations
-supported_ops["operation_name"] = "CPU";
+# query_model result contains mapping of supported operations to devices
+supported_ops = core.query_model(model, device)
 
-// set affinities to a model
-for (auto&& node : model->get_ops()) {
-    auto& affinity = supported_ops[node->get_friendly_name()];
-    // Store affinity mapping using op runtime information
-    node->get_rt_info()["affinity"] = affinity;
-}
+# update default affinities manually for specific operations
+supported_ops["operation_name"] = "CPU"
 
-// load model with manually set affinities
-auto compiled_model = core.compile_model(model, device);
-//! [fix_automatic_affinities]
+# set affinities to a model
+for node in model.get_ops():
+    affinity = supported_ops[node.get_friendly_name()]
+    node.get_rt_info()["affinity"] = "CPU"
 
-//! [compile_model]
-{
-    auto compiled_model = core.compile_model(model, "HETERO:GPU,CPU");
-    // or with ov::device::priorities with multiple args
-    compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU", "CPU"));
-    // or with ov::device::priorities with a single argument
-    compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("GPU,CPU"));
-}
-//! [compile_model]
-{
-//! [configure_fallback_devices]
-    auto compiled_model = core.compile_model(model, "HETERO",
-        ov::device::priorities("GPU", "CPU"), // GPU with fallback to CPU
-        ov::device::properties("CPU", ov::enable_profiling(true)), // profiling is enabled only for CPU
-        ov::device::properties("GPU", ov::hint::inference_precision(ov::element::f16)) // FP16 inference precision only for GPU
-    );
-//! [configure_fallback_devices]
-}
-return 0;
-}
+# load model with manually set affinities
+compiled_model = core.compile_model(model, device)
+#! [fix_automatic_affinities]
+
+#! [compile_model]
+compiled_model = core.compile_model(model, device_name="HETERO:GPU,CPU")
+# device priorities via configuration property
+compiled_model = core.compile_model(model, device_name="HETERO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
+#! [compile_model]
+
+#! [configure_fallback_devices]
+core.set_property("HETERO", {"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
+core.set_property("GPU", {"PERF_COUNT": "YES"})
+core.set_property("CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+compiled_model = core.compile_model(model=model, device_name="HETERO")
+#! [configure_fallback_devices]

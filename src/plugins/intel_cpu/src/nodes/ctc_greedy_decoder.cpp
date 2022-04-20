@@ -9,10 +9,13 @@
 #include "ie_parallel.hpp"
 #include "ctc_greedy_decoder.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
         if (!greedyDecOp) {
@@ -25,8 +28,8 @@ bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<cons
     return true;
 }
 
-MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -48,7 +51,7 @@ MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngr
     mergeRepeated = greedyDecOp->get_ctc_merge_repeated();
 }
 
-void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
+void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -66,7 +69,7 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
+void CTCGreedyDecoder::execute(dnnl::stream strm) {
     const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
     const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
     float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
@@ -161,16 +164,18 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
     });
 }
 
-bool MKLDNNCTCGreedyDecoderNode::created() const {
-    return getType() == CTCGreedyDecoder;
+bool CTCGreedyDecoder::created() const {
+    return getType() == Type::CTCGreedyDecoder;
 }
 
-void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(mkldnn::stream strm) {
+void CTCGreedyDecoder::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNCTCGreedyDecoderNode::needPrepareParams() const {
+bool CTCGreedyDecoder::needPrepareParams() const {
     return false;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderNode, CTCGreedyDecoder)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

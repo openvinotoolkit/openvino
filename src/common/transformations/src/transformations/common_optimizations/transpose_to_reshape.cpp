@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeToReshape, "TransposeToReshape", 0);
-
 using namespace ngraph;
 
 ngraph::pass::TransposeToReshape::TransposeToReshape() {

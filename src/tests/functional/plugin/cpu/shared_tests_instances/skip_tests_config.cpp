@@ -55,7 +55,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
         R"(.*NormalizeL2_1D.*)",
         R"(.*NormalizeL2_5D.*)",
-        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        // Issue: 59788. dnnl_normalize_nchw applies eps after sqrt for across_spatial
         R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
@@ -97,18 +97,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
-        // CVS-74306
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
-        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
-
-        // CVS-74307
-        R"(.*ConstantResultOnly.*elementType=(i8|u8).*)",
-        R"(.*ConstantResultOnly.*elementType=(i16|u16).*)",
-        R"(.*ConstantResultOnly.*elementType=(i64|u64).*)",
-        R"(.*ConstantResultOnly.*elementType=(u32|f16).*)",
-
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
 
@@ -124,8 +112,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
 
-        // TODO: Issue CVS-51680
-        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
         // TODO: CVS-67255

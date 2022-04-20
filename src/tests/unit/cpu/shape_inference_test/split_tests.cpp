@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 static std::shared_ptr<op::v1::Split> build_split(PartialShape data_shape,
                                                   std::initializer_list<int64_t> axis_value,

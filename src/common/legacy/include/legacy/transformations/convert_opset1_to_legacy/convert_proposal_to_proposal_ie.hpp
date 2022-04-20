@@ -22,12 +22,12 @@ class ConvertProposal4ToLegacyMatcher;
 
 class ngraph::pass::ConvertProposal4ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertProposal4ToLegacyMatcher", "0");
     ConvertProposal4ToLegacyMatcher();
 };
 
 class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertProposalToLegacyMatcher", "0");
     ConvertProposalToLegacyMatcher();
 };

@@ -17,8 +17,6 @@
 
 namespace vpu {
 
-NGRAPH_RTTI_DEFINITION(vpu::ExtractBatch, "ExtractBatch", 0);
-
 ExtractBatch::ExtractBatch(std::unordered_set<ngraph::Node::type_info_t> targets) : targets(std::move(targets)) {}
 
 namespace {
@@ -51,6 +49,10 @@ private:
 
             {ngraph::opset5::Relu::get_type_info_static(),             sliceUnaryEltwise},
             {ngraph::opset5::Clamp::get_type_info_static(),            sliceUnaryEltwise},
+
+            // TODO: Need to make sure that all topologies/attributes scenarios can be covered by sliceUnaryEltwise
+            {ngraph::opset5::MaxPool::get_type_info_static(),          sliceUnaryEltwise},
+            {ngraph::opset5::AvgPool::get_type_info_static(),          sliceUnaryEltwise},
         };
         return slicers;
     }
@@ -412,7 +414,7 @@ bool ExtractBatch::run_on_model(const std::shared_ptr<ngraph::Function>& functio
 
     Nodes sources;
     for (const auto& operation : function.get_ordered_ops()) {
-        if (targets.count(operation->get_type_info())) {
+        if (operation->is_dynamic() && targets.count(operation->get_type_info())) {
             sources.emplace(operation.get());
         }
     }

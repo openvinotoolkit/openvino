@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class NMSBoxEncodeType {
     CORNER,
@@ -61,13 +62,13 @@ struct jit_uni_nms_kernel {
     jit_nms_config_params jcp;
 };
 
-class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
+class NonMaxSuppression : public Node {
 public:
-    MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -96,7 +97,7 @@ public:
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     bool isExecutable() const override;
     bool needShapeInfer() const override { return false; }
@@ -148,5 +149,6 @@ private:
     std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

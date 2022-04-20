@@ -87,7 +87,8 @@ def test_function_add_output_incorrect_tensor_name():
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs("relu_t")
-    assert "Tensor name relu_t was not found." in str(e.value)
+    # Verify that absent output name is present in error message
+    assert "relu_t" in str(e.value)
 
 
 def test_function_add_output_incorrect_idx():
@@ -99,10 +100,10 @@ def test_function_add_output_incorrect_idx():
     function = Model(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
-        function.add_outputs(("relu1", 10))
-    assert "Cannot add output to port 10 operation relu1 has only 1 outputs." in str(
-        e.value
-    )
+        function.add_outputs(("relu1", 1234))
+    # Verify that op name and port number are present in error message
+    assert "relu1" in str(e.value)
+    assert "1234" in str(e.value)
 
 
 def test_function_add_output_incorrect_name():
@@ -115,7 +116,8 @@ def test_function_add_output_incorrect_name():
     assert len(function.get_results()) == 1
     with pytest.raises(RuntimeError) as e:
         function.add_outputs(("relu_1", 0))
-    assert "Port 0 for operation with name relu_1 was not found." in str(e.value)
+    # Verify that absent op name is present in error message
+    assert "relu_1" in str(e.value)
 
 
 def test_add_outputs_several_tensors():

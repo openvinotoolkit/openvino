@@ -16,8 +16,6 @@
 using namespace GNAPluginNS;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(DecomposeMVN, "DecomposeMVN", 0);
-
 struct MVNData {
     size_t N;
     size_t C;

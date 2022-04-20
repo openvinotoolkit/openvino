@@ -11,10 +11,13 @@
 #include "gather_tree.h"
 #include <utils/general_utils.h>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -31,8 +34,8 @@ bool MKLDNNGatherTreeNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -54,12 +57,12 @@ MKLDNNGatherTreeNode::MKLDNNGatherTreeNode(const std::shared_ptr<ngraph::Node>& 
         IE_THROW() << errorPrefix << " end_token should be 1 dimension";
 }
 
-void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
+void GatherTree::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!ov::intel_cpu::one_of(precision, Precision::FP32, Precision::I32))
+    if (!one_of(precision, Precision::FP32, Precision::I32))
         precision = Precision::FP32;
 
     if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||
@@ -77,7 +80,7 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGatherTreeNode::execute(mkldnn::stream strm) {
+void GatherTree::execute(dnnl::stream strm) {
     if (precision == Precision::FP32)
         return gatherTreeKernel<float>();
     else
@@ -85,7 +88,7 @@ void MKLDNNGatherTreeNode::execute(mkldnn::stream strm) {
 }
 
 template<typename DATA_T>
-void MKLDNNGatherTreeNode::gatherTreeKernel() {
+void GatherTree::gatherTreeKernel() {
     const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
     const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
     const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount()
@@ -145,8 +148,10 @@ void MKLDNNGatherTreeNode::gatherTreeKernel() {
     }
 }
 
-bool MKLDNNGatherTreeNode::created() const {
-    return getType() == GatherTree;
+bool GatherTree::created() const {
+    return getType() == Type::GatherTree;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGatherTreeNode, GatherTree)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

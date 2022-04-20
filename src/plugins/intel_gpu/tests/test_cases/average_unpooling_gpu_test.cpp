@@ -60,10 +60,10 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 3);
-    EXPECT_EQ(output_layout.size.feature[0], 2);
-    EXPECT_EQ(output_layout.size.batch[0], 2);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 3);
+    EXPECT_EQ(output_layout.feature(), 2);
+    EXPECT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, -0.5f, -1.125,
@@ -118,7 +118,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
+    topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 2, 2 }, { 2, 2 }));
     topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().size, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
 
     network network(engine, topology);
@@ -132,10 +132,10 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 3);
-    EXPECT_EQ(output_layout.size.feature[0], 2);
-    EXPECT_EQ(output_layout.size.batch[0], 2);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 3);
+    EXPECT_EQ(output_layout.feature(), 2);
+    EXPECT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, 0.625f, -6,
@@ -199,10 +199,10 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 3);
-    EXPECT_EQ(output_layout.size.feature[0], 2);
-    EXPECT_EQ(output_layout.size.batch[0], 2);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 3);
+    EXPECT_EQ(output_layout.feature(), 2);
+    EXPECT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.f, 0.f, 0.f, 0.f, 0.f,
@@ -280,10 +280,10 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.size.spatial[1], 2);
-    EXPECT_EQ(output_layout.size.spatial[0], 3);
-    EXPECT_EQ(output_layout.size.feature[0], 2);
-    EXPECT_EQ(output_layout.size.batch[0], 2);
+    EXPECT_EQ(output_layout.spatial(1), 2);
+    EXPECT_EQ(output_layout.spatial(0), 3);
+    EXPECT_EQ(output_layout.feature(), 2);
+    EXPECT_EQ(output_layout.batch(), 2);
 
     std::vector<float> expected_output_vec = {
         0.625f, -0.5f, -1.125,

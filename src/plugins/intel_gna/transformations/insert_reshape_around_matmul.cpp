@@ -15,11 +15,6 @@
 
 namespace GNAPluginNS {
 
-NGRAPH_RTTI_DEFINITION(InsertReshapeAroundMatmul, "InsertReshapeAroundMatmul", 0);
-NGRAPH_RTTI_DEFINITION(InsertReshapeAroundMatmulWithAdd, "InsertReshapeAroundMatmulWithAdd", 0);
-NGRAPH_RTTI_DEFINITION(InsertReshapeAroundMatmulWithFq, "InsertReshapeAroundMatmulWithFq", 0);
-NGRAPH_RTTI_DEFINITION(InsertReshapeAroundMatmulWithTranspose, "InsertReshapeAroundMatmulWithTranspose", 0);
-
 static bool InsertReshape(
     ngraph::pattern::Matcher &matcher,
     const std::shared_ptr<ngraph::Node>& input,

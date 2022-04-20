@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBatchToSpace, "ConvertBatchToSpace", 0);
-
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();

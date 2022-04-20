@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertShapeOf3;
 
 class ngraph::pass::ConvertShapeOf3 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertShapeOf3", "0");
     ConvertShapeOf3();
 };
