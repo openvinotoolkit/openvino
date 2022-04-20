@@ -10,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "any_copy.hpp"
@@ -45,6 +44,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -1196,7 +1196,7 @@ public:
                 SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
             }
             if (config.first == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
-                if (config.second == CONFIG_VALUE(NO)) {
+                if (config.second == ov::Any(CONFIG_VALUE(NO))) {
                     executorManagerPtr->setTbbFlag(false);
                 } else {
                     executorManagerPtr->setTbbFlag(true);
