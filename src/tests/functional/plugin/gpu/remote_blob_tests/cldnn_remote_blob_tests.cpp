@@ -77,8 +77,10 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
 
-    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-    size_t imSize = dims[1] * dims[2] * dims[3];
+    auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    size_t imSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                    desc.getPrecision().size(),
+                                    std::multiplies<size_t>());
 
     cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, imSize, NULL, &err);
     {
@@ -190,8 +192,10 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
 
-    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-    size_t imSize = dims[1] * dims[2] * dims[3];
+    auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    size_t imSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                    desc.getPrecision().size(),
+                                    std::multiplies<size_t>());
 
     Blob::Ptr shared_blob = make_shared_blob(net.getInputsInfo().begin()->second->getTensorDesc(), cldnn_context);
     shared_blob->allocate();
@@ -261,6 +265,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -287,8 +294,12 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
     auto in_dims = in_desc.getDims();
     auto out_dims = out_desc.getDims();
-    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
-    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+    size_t in_size = std::accumulate(in_desc.getDims().begin(), in_desc.getDims().end(),
+                                     in_desc.getPrecision().size(),
+                                     std::multiplies<size_t>());
+    size_t out_size = std::accumulate(out_desc.getDims().begin(), out_desc.getDims().end(),
+                                      out_desc.getPrecision().size(),
+                                      std::multiplies<size_t>());
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
@@ -352,6 +363,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -379,8 +393,12 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
     auto in_dims = in_desc.getDims();
     auto out_dims = out_desc.getDims();
-    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
-    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+    size_t in_size = std::accumulate(in_desc.getDims().begin(), in_desc.getDims().end(),
+                                     in_desc.getPrecision().size(),
+                                     std::multiplies<size_t>());
+    size_t out_size = std::accumulate(out_desc.getDims().begin(), out_desc.getDims().end(),
+                                      out_desc.getPrecision().size(),
+                                      std::multiplies<size_t>());
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks

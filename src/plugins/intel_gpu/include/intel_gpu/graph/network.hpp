@@ -102,7 +102,10 @@ public:
     }
 
     network_output get_output(const primitive_id& output_id) {
-        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream_ptr());
+        event::ptr evt;
+        if (get_stream().get_queue_type() == queue_types::out_of_order)
+            evt = get_primitive_event(output_id);
+        return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);
@@ -133,8 +136,12 @@ public:
         }
         std::map<primitive_id, event::ptr> result;
         for (auto& id : primitive_ids) {
-            if (std::find(optimized_primitives.begin(), optimized_primitives.end(), id) == optimized_primitives.end())
-                result.emplace(id, get_primitive_event(id));
+            if (std::find(optimized_primitives.begin(), optimized_primitives.end(), id) == optimized_primitives.end()) {
+                if (has_event(id))
+                    result.emplace(id, get_primitive_event(id));
+                else
+                    result.emplace(id, nullptr);
+            }
         }
         return result;
     }

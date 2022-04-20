@@ -30,7 +30,7 @@ bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<c
     return true;
 }
 
-ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -62,7 +62,7 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronTopKROIs::execute(mkldnn::stream strm) {
+void ExperimentalDetectronTopKROIs::execute(dnnl::stream strm) {
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 

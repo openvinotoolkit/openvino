@@ -17,4 +17,4 @@ although for the majority of models accuracy degradation is negligible. For deta
 compressed `FP16` models refer to [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) page.
 
 > **NOTE**: `FP16` compression is sometimes used as initial step for `INT8` quantization, please refer to
-> [Post-Training Optimization tool](../../../tools/pot/README.md) for more information about that.
+> [Post-training optimization](../../../tools/pot/docs/Introduction.md) for more information about that.

@@ -650,7 +650,9 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
     ///
 
     {  // check precision only
-        const auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+        const auto fc = FunctionsComparator::no_default()
+                .enable(FunctionsComparator::NODES)
+                .enable(FunctionsComparator::PRECISIONS);
         const auto res = fc.compare(f1, f2);
         EXPECT_FALSE(res.valid);
         EXPECT_THAT(res.message, HasSubstr("Different element type detected"));
@@ -660,6 +662,7 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
 
     {  // check precision and attributes
         const auto fc = FunctionsComparator::no_default()
+                            .enable(FunctionsComparator::NODES)
                             .enable(FunctionsComparator::PRECISIONS)
                             .enable(FunctionsComparator::ATTRIBUTES);
         const auto res = fc.compare(f1, f2);
