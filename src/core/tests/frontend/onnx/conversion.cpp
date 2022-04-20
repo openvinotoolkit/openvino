@@ -17,8 +17,8 @@ class ONNXFrontendWrapper : public ov::frontend::onnx::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
         ov::frontend::onnx::FrontEnd::add_extension(extension);
         if (auto conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
-            EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
-                      m_conversion_extensions.end())
+            EXPECT_NE(std::find(m_extensions.conversions.begin(), m_extensions.conversions.end(), conv_ext),
+                      m_extensions.conversions.end())
                 << "ConversionExtension is not registered.";
             // TODO: check that operator is actually registered in ONNX FE
             // EXPECT_NE(m_op_translators.find(conv_ext->get_op_type()), m_op_translators.end())

@@ -34,7 +34,6 @@ protected:
     // so it should be released last.
     std::vector<Extension::Ptr> m_other_extensions;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
-    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
     ExtensionHolder m_extensions;
 };
 

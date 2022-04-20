@@ -478,9 +478,11 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     // assure that names actually refer to model's inputs
     std::map<std::string, ov::PartialShape> actual_inputs_to_reshape;
     for (const auto& in : m_inputs_to_reshape)
-        if (is_input_name(in.first))
+        if (is_input_name(in.first)) {
             actual_inputs_to_reshape.insert(in);
+        }
 
-    if (!actual_inputs_to_reshape.empty())
+    if (!actual_inputs_to_reshape.empty()) {
         model->reshape(actual_inputs_to_reshape);
+    }
 }
