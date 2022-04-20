@@ -40,11 +40,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     if (then_rank.get_length() != else_rank.get_length()) {
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
-            if (then_rank.get_length() == 0) {
-                return else_pshape;
-            } else if (else_rank.get_length() == 0) {
-                return then_pshape;
-            }
+            return ov::PartialShape::dynamic(1);
         } else {
             return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
         }

@@ -331,7 +331,7 @@ TEST(type_prop, if_scalar_and_1d_static_union) {
     if_op->set_input(Y, nullptr, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
     auto result0 = make_shared<op::Result>(res);
-    PartialShape out_shape{8};
+    PartialShape out_shape{PartialShape::dynamic(1)};
     auto sh = result0->get_output_partial_shape(0);
     EXPECT_EQ(sh, out_shape);
 }
