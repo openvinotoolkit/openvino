@@ -51,9 +51,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         :param places An object containing Places and names that will be used for model modification
         """
         for new_input in places:
-            if not hasattr(new_input, 'input_name'):
+            if not 'input_name' in new_input:
                 continue
-
             try:
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
             except NotImplementedFailure as e:
@@ -87,9 +86,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
-                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            new_output_places_name = [x.get_names()[0] for x in new_output_places]
+
+            user_shapes, outputs, _ = fe_user_data_repack(
+                input_model, new_input_places_name, argv.placeholder_data_types,
+                new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -97,8 +99,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
-                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            user_shapes, outputs, _ = fe_user_data_repack(
+                input_model, new_input_places_name, argv.placeholder_data_types,
                 argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
