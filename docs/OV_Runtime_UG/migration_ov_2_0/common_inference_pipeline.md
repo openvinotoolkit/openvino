@@ -11,7 +11,7 @@ To infer models with OpenVINO™ Runtime, you usually need to perform the follow
 - 6. Start the inference.
 - 7. Process the inference results.
 
-The following code explains how to change the application code in each step of migration to OpenVINO™ Runtime 2.0.
+The following code explains how to change the application code for migration to OpenVINO™ Runtime 2.0.
 
 ## 1. Create Core
 
