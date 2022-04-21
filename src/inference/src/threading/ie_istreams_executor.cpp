@@ -152,10 +152,10 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         }
         _threadsPerStream = val_i;
     } else if (key == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
-        if (value == CONFIG_VALUE(NO)) {
-            _tbbTerminateFlag = false;
-        } else {
+        if (value == CONFIG_VALUE(YES)) {
             _tbbTerminateFlag = true;
+        } else {
+            _tbbTerminateFlag = false;
         }
     } else {
         IE_THROW() << "Wrong value for property key " << key;

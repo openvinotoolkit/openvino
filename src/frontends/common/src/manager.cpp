@@ -242,3 +242,49 @@ template <>
 FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
 }
+
+namespace ov {
+namespace frontend {
+
+namespace {
+
+class FrontEndManagerHolder {
+    std::mutex _mutex;
+    std::shared_ptr<FrontEndManager> _manager = nullptr;
+
+    FrontEndManagerHolder(const FrontEndManagerHolder&) = delete;
+    FrontEndManagerHolder& operator=(const FrontEndManagerHolder&) = delete;
+
+public:
+    FrontEndManagerHolder() = default;
+
+    FrontEndManager::Ptr get() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!_manager)
+            _manager = std::make_shared<FrontEndManager>();
+        return _manager;
+    }
+
+    void reset() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _manager = nullptr;
+    }
+};
+
+FrontEndManagerHolder& frontEndManagerHolder() {
+    static FrontEndManagerHolder frontEndManagerHolder;
+    return frontEndManagerHolder;
+}
+
+}  // namespace
+
+void reset_frontend_manager() {
+    frontEndManagerHolder().reset();
+}
+
+FrontEndManager::Ptr get_frontend_manager() {
+    return frontEndManagerHolder().get();
+}
+
+}  // namespace frontend
+}  // namespace ov

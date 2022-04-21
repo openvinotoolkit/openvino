@@ -30,7 +30,7 @@ private:
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     tbb::task_scheduler_init init;
 #endif
-    bool tbbTerminateFlag = true;
+    bool tbbTerminateFlag = false;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
@@ -44,15 +44,18 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 }
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {
+    std::cout << "ExecutorManagerImpl is released..." << std::endl;
     clear();
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     if (tbbTerminateFlag == true) {
         try {
+            std::cout << "ExecutorManagerImpl: init.blocking_terminate()" << std::endl;
             init.blocking_terminate();
         } catch (std::exception& e) {
         }
     }
 #endif
+    std::cout << "ExecutorManagerImpl release is done" << std::endl;
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
@@ -101,6 +104,7 @@ size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() const {
 void ExecutorManagerImpl::clear(const std::string& id) {
     std::lock_guard<std::mutex> stream_guard(streamExecutorMutex);
     std::lock_guard<std::mutex> task_guard(taskExecutorMutex);
+    std::cout << "ExecutorManagerImpl::clear " << id << std::endl;
     if (id.empty()) {
         executors.clear();
         cpuStreamsExecutors.clear();
@@ -120,7 +124,7 @@ namespace {
 
 class ExecutorManagerHolder {
     std::mutex _mutex;
-    std::shared_ptr<ExecutorManager> _manager = NULL;
+    std::shared_ptr<ExecutorManager> _manager = nullptr;
 
     ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
@@ -134,13 +138,25 @@ public:
             _manager = std::make_shared<ExecutorManagerImpl>();
         return _manager;
     }
+
+    void reset() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _manager = nullptr;
+    }
 };
 
+ExecutorManagerHolder& executorManagerHolder() {
+    static ExecutorManagerHolder executorManagerHolder;
+    return executorManagerHolder;
+}
 }  // namespace
 
+void resetExecutorManager() {
+    executorManagerHolder().reset();
+}
+
 ExecutorManager::Ptr executorManager() {
-    static ExecutorManagerHolder executorManagerHolder;
-    return executorManagerHolder.get();
+    return executorManagerHolder().get();
 }
 
 ExecutorManager* ExecutorManager::getInstance() {

@@ -91,11 +91,11 @@ public:
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
                                                                          //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;   //!< In case of @ref CORES binding offset type thread binded to cores
-                                        //!< starting from offset
-        int _threads = 0;               //!< Number of threads distributed between streams.
-                                        //!< Reserved. Should not be used.
-        bool _tbbTerminateFlag = true;  //!< Whether terminate tbb during executor destructing
+        int _threadBindingOffset = 0;    //!< In case of @ref CORES binding offset type thread binded to cores
+                                         //!< starting from offset
+        int _threads = 0;                //!< Number of threads distributed between streams.
+                                         //!< Reserved. Should not be used.
+        bool _tbbTerminateFlag = false;  //!< Whether terminate tbb during executor destructing
         enum PreferredCoreType {
             ANY,
             LITTLE,

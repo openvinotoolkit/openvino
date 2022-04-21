@@ -78,5 +78,6 @@ public:
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
+INFERENCE_ENGINE_API_CPP(void) resetExecutorManager();
 
 }  // namespace InferenceEngine
