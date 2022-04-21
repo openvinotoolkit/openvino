@@ -66,6 +66,7 @@ benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
 
 @sphinxdirective
 .. note::
+
    The longer the process runs, the closer realtime performance will be to that of the best-suited device.
 @endsphinxdirective
 

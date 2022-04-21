@@ -9,19 +9,17 @@ def MULTI_0():
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
     
-    # compile a model on MULTI using the default list of device candidates.
+    # Option 1
+    # Pre-configure MULTI globally with explicitly defined devices,
+    # and compile the model on MULTI using the newly specified default device list.
+    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
     compiled_model = core.compile_model(model=model, device_name="MULTI")
 
-    # Optional
-    # You can also specify the devices to be used by MULTI.
+    # Option 2
+    # Specify the devices to be used by MULTI explicitly at compilation.
     # The following lines are equivalent:
     compiled_model = core.compile_model(model=model, device_name="MULTI:CPU,GPU")
-    compiled_model = core.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
-
-    # Optional
-    # MULTI is pre-configured (globally) with the explicit option.
-    
-    core.set_property(device_name="AUTO", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
+    compiled_model = core.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
 
 #! [MULTI_0]
 
@@ -37,7 +35,7 @@ def MULTI_1():
     # exclude some devices (in this case, HDDL)
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU"})
     
-    # return excluded devices
+    # bring back the excluded devices
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
 
     # You cannot add new devices on the fly!
@@ -83,7 +81,7 @@ def available_devices_2():
 def MULTI_4():
 #! [MULTI_4]
     core = Core()
-    cpu_config = {}
+    hddl_config = {}
     gpu_config = {}
 
     # Read a network in IR, PaddlePaddle, or ONNX format:
@@ -91,9 +89,9 @@ def MULTI_4():
 
     # When compiling the model on MULTI, configure CPU and MYRIAD 
     # (devices, priorities, and device configurations):
-    core.set_property(device_name="CPU", properties=cpu_config)
     core.set_property(device_name="GPU", properties=gpu_config)
-    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU")
+    core.set_property(device_name="HDDL", properties=hddl_config)
+    compiled_model = core.compile_model(model=model, device_name="MULTI:HDDL,GPU")
     
     # Optionally, query the optimal number of requests:
     nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")

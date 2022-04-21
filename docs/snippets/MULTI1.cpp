@@ -13,7 +13,7 @@ compileModel.set_property(ov::device::priorities("GPU,HDDL"));
 // exclude some devices (in this case, HDDL)
 compileModel.set_property(ov::device::priorities("GPU"));
 
-// return excluded devices
+// bring back the excluded devices
 compileModel.set_property(ov::device::priorities("GPU,HDDL"));
 
 // You cannot add new devices on the fly!
