@@ -48,7 +48,7 @@ The following OpenVINO tools don't support IR v10 as an input: Post-Training Opt
 
 > **NOTE**: If you need to quantize your IR v10 models to run with OpenVINO 2022.1, it is recommended to download, and use Post-Training Optimization tool from the OpenVINO 2021.4 release.
 
-### Differences between Inference Engine, and OpenVINO Runtime 2022.1
+### Differences between Inference Engine and OpenVINO Runtime 2022.1
 
 Inference Engine, and nGraph APIs are not outdated. They are still fully functional, and can be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers additional (further extended in future releases) features. The following list of additional features supported by API 2.0:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md) -- increases performance when working with compatible models, such as NLP (Neural Language Processing) and super-resolution models.
