@@ -54,7 +54,7 @@ Inference Engine and nGraph APIs are not outdated. They are still fully function
 - [Working with dynamic shapes](../ov_dynamic_shapes.md) -- increases performance when working with compatible models, such as NLP (Neural Language Processing) and super-resolution models.
 - [Preprocessing of the model](../preprocessing_overview.md) -- adds preprocessing operations to inference models, and fully occupies the accelerator, freeing CPU resources.
 
-The API differences between Inference Engine, and API 2.0, can be define by two types of behaviors:
+The API differences between Inference Engine, and API 2.0, can be defined by two types of behaviors:
 - **Old behavior** of OpenVINO assumes that:
   - Model Optimizer can change input element types, order of dimensions (layouts) for the model from the original framework.
   - Inference Engine can override input, and output element types.
