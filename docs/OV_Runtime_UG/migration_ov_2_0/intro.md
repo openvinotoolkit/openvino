@@ -21,7 +21,7 @@ Versions of OpenVINO™ prior to 2022.1 required changes in the application logi
 - Model Optimizer changed input precisions for some inputs. For example, neural language processing models with `I64` inputs were changed to include `I32` ones.
 - Model Optimizer changed layouts for TensorFlow models (see the [Layouts in OpenVINO](../layout_overview.md)). It lead to unusual requirement of using the input data with a different layout than that of the framework:
 ![tf_openvino]
-- Inference Engine API (`InferenceEngine::CNNNetwork`) applied some conversion rules for input, and output precisions due to limitations in device plugins.
+- Inference Engine API (`InferenceEngine::CNNNetwork`) applied some conversion rules for input and output precisions due to limitations in device plugins.
 - Users needed to specify input shapes during model conversions in Model Optimizer, and work with static shapes in the application.
 
 The new OpenVINO™ introduces API 2.0 (also called OpenVINO API v2) to align the logic of working with models as it is done in their origin frameworks - no layout, and precision changes, operating with tensor names, and indices to address inputs, and outputs. OpenVINO Runtime has combined the Inference Engine API used for inference, and the nGraph API targeted to work with models and operations. API 2.0 has a common structure, naming convention styles, namespaces, and removes duplicated structures. For more details, see the [Changes to Inference Pipeline in OpenVINO API v2](common_inference_pipeline.md).
