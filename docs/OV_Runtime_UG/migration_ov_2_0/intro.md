@@ -64,7 +64,7 @@ The API differences between Inference Engine, and API 2.0, can be define by two 
   - Model Optimizer preserves input element types, order of dimensions (layouts), and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any format (IR v10, IR v11, ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names. Note, the difference between tensor names and operation names is that if a single operation has several output tensors, such tensors cannot be identified in a unique manner. This results in tensor names being used for addressing as it's usually done in the frameworks.
-  - API 2.0 can also address input, and output tensors by the index. Some model formats like ONNX are sensitive to the input, and output order, which is preserved by OpenVINO 2022.1.
+  - API 2.0 can also address input and output tensors by the index. Some model formats like ONNX are sensitive to the input, and output order, which is preserved by OpenVINO 2022.1.
 
 The table below demonstrates which behavior, **old** or **new**, is used for models based on the two APIs.
 
