@@ -57,7 +57,7 @@ Inference Engine and nGraph APIs are not outdated. They are still fully function
 The API differences between Inference Engine, and API 2.0, can be defined by two types of behaviors:
 - **Old behavior** of OpenVINO assumes that:
   - Model Optimizer can change input element types, order of dimensions (layouts) for the model from the original framework.
-  - Inference Engine can override input, and output element types.
+  - Inference Engine can override input and output element types.
   - Inference Engine API uses operation names to address inputs and outputs (e.g. InferenceEngine::InferRequest::GetBlob).
   - Inference Engine API does not support compiling of models with dynamic input shapes.
 - **New behavior** assumes full model alignment with the framework and is implemented in OpenVINO 2022.1:
