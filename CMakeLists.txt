@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(WIN32)
+    message(STATUS "Appending Zi flag")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")
+endif()
+
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # 'target_link_libraries' does not work correctly when called from
     # different directly where 'add_library' is called: CMake generates
