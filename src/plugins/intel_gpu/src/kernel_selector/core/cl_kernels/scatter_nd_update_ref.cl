@@ -9,6 +9,14 @@
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
 
+#if OUTPUT_DIMS == 4
+    #define ORDER b,f,y,x
+#elif OUTPUT_DIMS == 5
+    #define ORDER b,f,z,y,x
+#elif OUTPUT_DIMS == 6
+    #define ORDER b,f,w,z,y,x
+#endif
+
 #if INPUT2_DIMS == 4
     #define UPD_ORDER upd_b,upd_f,upd_y,upd_x
 #elif INPUT2_DIMS == 5
@@ -162,7 +170,13 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         #endif
         uint out_idx = GET_OUTPUT_INDEX(OUT_ORDER);
         float val = updates[upd_idx];
-        output[out_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+
+        #if HAS_FUSED_OPS
+            FUSED_OPS_SECOND_KERNEL;
+            output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+        #else
+            output[out_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+        #endif
     }
 #endif
 
@@ -174,6 +188,10 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
 
 #ifdef GET_OUTPUT_INDEX
 #undef GET_OUTPUT_INDEX
+#endif
+
+#ifdef ORDER
+#undef ORDER
 #endif
 
 #ifdef UPD_ORDER
