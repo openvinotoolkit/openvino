@@ -33,13 +33,24 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     }
     return rc;
 }
-
 }  // namespace
 
 BWDCMP_RTTI_DEFINITION(ov::op::v9::SoftSign);
 
 ov::op::v9::SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
+}
+
+void ov::op::v9::SoftSign::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v9_SoftSign_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_dynamic() || input_et.is_real(),
+                          "Input element type must be float. Got: ",
+                          input_et);
+
+    UnaryElementwiseArithmetic::validate_and_infer_types();
 }
 
 bool ov::op::v9::SoftSign::visit_attributes(AttributeVisitor& visitor) {
