@@ -123,7 +123,7 @@ The second format is of three inputs. Each class has its own boxes that are not 
 
 *   **2**: `scores` - tensor of type *T* and shape `[num_classes, num_boxes]` with box scores. The tensor type should be same with `boxes`. **Required.**
 
-*   **3**: `roisnum` - tensor of type *T_IND* and shape `[num_batches]` with box numbers of each image, which sum up to `num_boxes`. **Required.**
+*   **3**: `roisnum` - tensor of type *T_IND* and shape `[num_batches]` with box numbers in each image. `num_batches` is the number of images. Each element in this tensor is the number of boxes for corresponding image. The sum of all elements is `num_boxes`. **Required.**
 
 **Outputs**:
 
