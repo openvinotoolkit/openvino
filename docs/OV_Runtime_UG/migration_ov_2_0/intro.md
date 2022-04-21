@@ -16,7 +16,7 @@
 
 ### Introduction
 
- Prior to 2022.1 versions of OpenVINO™ required changes in the application logic when migrating an app from other frameworks, like TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The changes were required because:
+Versions of OpenVINO™ prior to 2022.1 required changes in the application logic when migrating an app from other frameworks, like TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The changes were required because:
 
 - Model Optimizer changed input precisions for some inputs. For example, neural language processing models with `I64` inputs were changed to include `I32` ones.
 - Model Optimizer changed layouts for TensorFlow models (see the [Layouts in OpenVINO](../layout_overview.md)). It lead to unusual requirement of using the input data with a different layout than that of the framework:
