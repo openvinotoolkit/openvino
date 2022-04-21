@@ -159,7 +159,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 
 OpenVINO 2022.1 introduced a reorganization of the libraries, to make deployment easier. In the previous versions, it was required to use several libraries to perform deployment steps. Now you can just use `openvino` or `openvino_c` based on your developing language,  with the necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable loading OpenVINO IRs and performing inference on the CPU device (for more details, see the [Local distribution with OpenVINO](../deployment/local-distribution.md)).
 
-Below are detailed comparisons on the library structure between OpenVINO 2022.1 and the previous versions:
+Below are detailed comparisons of the library structure between OpenVINO 2022.1 and the previous versions:
 
 * In 2022.1 release, a single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used, instead of the previous core libraries which contained `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
 * The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) has been renamed to `openvino_gapi_preproc` and deprecated in 2022.1. For more details, see the [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
