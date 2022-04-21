@@ -26,7 +26,7 @@ Versions of OpenVINO™ prior to 2022.1 required changes in the application logi
 
 The new OpenVINO™ introduces API 2.0 (also called OpenVINO API v2) to align the logic of working with models as it is done in their origin frameworks - no layout and precision changes, operating with tensor names and indices to address inputs and outputs. OpenVINO Runtime has combined Inference Engine API used for inference and nGraph API targeted to work with models and operations. API 2.0 has a common structure, naming convention styles, namespaces, and removes duplicated structures. For more details, see the [Changes to Inference Pipeline in OpenVINO API v2](common_inference_pipeline.md).
 
-> **NOTE**: Your existing applications will continue to work with OpenVINO Runtime 2022.1, as normal. Although, migration to API 2.0 is strongly recommended. This will allow to use additional features, like [Preprocessing](../preprocessing_overview.md), and [Dynamic shapes support](../ov_dynamic_shapes.md).
+> **NOTE**: Your existing applications will continue to work with OpenVINO Runtime 2022.1, as normal. Although, migration to API 2.0 is strongly recommended. This will allow you to use additional features, like [Preprocessing](../preprocessing_overview.md) and [Dynamic shapes support](../ov_dynamic_shapes.md).
 
 ### Introducing IR v11
 
