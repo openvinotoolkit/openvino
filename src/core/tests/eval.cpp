@@ -1812,5 +1812,5 @@ TEST(eval, evaluate_softsign_9) {
     vector<float> out{0.5, -0.5, 0.714285, -0.777777};
     auto result_data = result_tensor[0].data<float>();
     for (size_t i = 0; i < result_tensor[0].get_size(); ++i)
-        EXPECT_NEAR(result_data[i], out[i], 0.000001);
+        EXPECT_NEAR(result_data[i], out[i], 1e-6F);
 }

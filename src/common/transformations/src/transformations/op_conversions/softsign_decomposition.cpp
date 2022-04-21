@@ -20,8 +20,8 @@ ngraph::pass::SoftSignDecomposition::SoftSignDecomposition() {
             return false;
         }
 
-        Output<Node> input = m_softsign->input_value(0);
-        auto data_type = m_softsign->get_input_element_type(0);
+        const auto input = m_softsign->input_value(0);
+        const auto& data_type = m_softsign->get_input_element_type(0);
         auto abs = std::make_shared<ngraph::opset9::Abs>(input);
         auto constant = ngraph::opset9::Constant::create(data_type, ngraph::Shape{1}, {1});
         auto add = std::make_shared<ngraph::opset9::Add>(abs, constant);

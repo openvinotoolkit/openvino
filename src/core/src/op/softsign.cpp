@@ -70,9 +70,9 @@ bool ov::op::v9::SoftSign::has_evaluate() const {
 bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
                                     const ov::TensorVector& inputs,
                                     const ov::EvaluationContext& evaluation_context) const {
-    NGRAPH_OP_SCOPE(v9_SoftSign_evaluate)
-    auto in = inputs[0];
-    auto out = outputs[0];
+    NGRAPH_OP_SCOPE(v9_SoftSign_evaluate);
+    const auto& in = inputs[0];
+    auto& out = outputs[0];
     out.set_shape(in.get_shape());
     return evaluate_softsign(in, out);
 }
