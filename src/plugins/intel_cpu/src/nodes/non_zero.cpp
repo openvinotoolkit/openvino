@@ -63,7 +63,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-std::vector<size_t> MKLDNNNonZeroNode::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
     std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
