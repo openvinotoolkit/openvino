@@ -60,7 +60,7 @@ The API differences between Inference Engine, and API 2.0, can be define by two 
   - Inference Engine can override input, and output element types.
   - Inference Engine API uses operation names to address inputs, and outputs (e.g. InferenceEngine::InferRequest::GetBlob).
   - Inference Engine API does not support compiling of models with dynamic input shapes.
-- **New behavior** assumes full model alignment with the framework, and is implemented in OpenVINO 2022.1:
+- **New behavior** assumes full model alignment with the framework and is implemented in OpenVINO 2022.1:
   - Model Optimizer preserves input element types, order of dimensions (layouts), and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any format (IR v10, IR v11, ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names. Note, the difference between tensor names and operation names is that if a single operation has several output tensors, such tensors cannot be identified in a unique manner. This results in tensor names being used for addressing as it's usually done in the frameworks.
