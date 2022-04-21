@@ -30,7 +30,7 @@ The new OpenVINO™ introduces API 2.0 (also called OpenVINO API v2) to align th
 
 ### Introducing IR v11
 
-To support these features, OpenVINO has introduced IR v11, which is now the default version for Model Optimizer. The model represented in IR v11 fully matches the original model in the original framework format in terms of inputs, and outputs. It is also not required to specify input shapes during conversion, which results in IR v11 containing `-1` to denote undefined dimensions. For more details on how to fully utilize this feature, see the [Working with dynamic shapes](../ov_dynamic_shapes.md) guide. And for informations on how to reshape to static shapes in the application, see the [Changing input shapes](../ShapeInference.md).
+To support these features, OpenVINO has introduced IR v11, which is now the default version for Model Optimizer. The model represented in IR v11 fully matches the original model in the original framework format in terms of inputs, and outputs. It is also not required to specify input shapes during conversion, which results in IR v11 containing `-1` to denote undefined dimensions. For more details on how to fully utilize this feature, see the [Working with dynamic shapes](../ov_dynamic_shapes.md) guide. For information on how to reshape to static shapes in the application, see the [Changing input shapes](../ShapeInference.md).
 
 IR v11 is fully compatible with old applications written with the Inference Engine API used by older versions of OpenVINO. This backward compatibility is allowed thanks to additional runtime information included in IR v11. This means that if the IR v11 is read by an application based on Inference Engine, it is internally converted to IR v10.
 
