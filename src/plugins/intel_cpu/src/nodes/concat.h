@@ -15,7 +15,7 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -23,8 +23,8 @@ public:
     void initOptimalPrimitiveDescriptor() override;
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
     bool isOptimized() const;
 
