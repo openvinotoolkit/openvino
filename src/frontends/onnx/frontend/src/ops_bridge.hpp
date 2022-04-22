@@ -59,10 +59,7 @@ public:
         // TODO - make it non-static
     }
 
-    static bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) {
-        // return _is_operator_registered(name, version, domain);
-        return true;
-    }
+    bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
 
 private:
     // Registered operators structure
@@ -84,9 +81,6 @@ private:
 
     void _register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
     void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
-
-    bool _is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
-    std::mutex lock;
 };
 
 const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";

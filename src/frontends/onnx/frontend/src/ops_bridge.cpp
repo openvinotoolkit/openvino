@@ -168,15 +168,14 @@
 namespace ngraph {
 namespace onnx_import {
 namespace {
-template <typename Container = std::map<int64_t, std::shared_ptr<Operator>>,
-          typename Iter = typename Container::const_iterator>
-const Iter find(int64_t version, const Container& map) {
+template <typename Container = std::map<int64_t, std::shared_ptr<Operator>>>
+typename Container::const_iterator find(int64_t version, const Container& map) {
     // Get the latest version.
     if (version == -1) {
         return map.empty() ? std::end(map) : --std::end(map);
     }
     while (version > 0) {
-        Iter it = map.find(version--);
+        const auto it = map.find(version--);
         if (it != std::end(map)) {
             return it;
         }
@@ -189,8 +188,6 @@ void OperatorsBridge::_register_operator(const std::string& name,
                                          int64_t version,
                                          const std::string& domain,
                                          Operator fn) {
-    std::lock_guard<std::mutex> guard(lock);
-
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
         m_map[domain][name].emplace(version, std::make_shared<Operator>(std::move(fn)));
@@ -202,8 +199,6 @@ void OperatorsBridge::_register_operator(const std::string& name,
 }
 
 void OperatorsBridge::_unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
-
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
         NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
@@ -251,24 +246,19 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     return result;
 }
 
-bool OperatorsBridge::_is_operator_registered(const std::string& name, int64_t version, const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
+bool OperatorsBridge::is_operator_registered(const std::string& name, int64_t version, const std::string& domain) {
     // search for domain
-    auto dm_map = m_map.find(domain);
+    const auto dm_map = m_map.find(domain);
     if (dm_map == std::end(m_map)) {
         return false;
     }
     // search for name
-    auto op_map = dm_map->second.find(name);
+    const auto op_map = dm_map->second.find(name);
     if (op_map == std::end(dm_map->second)) {
         return false;
     }
 
-    if (find(version, op_map->second) != std::end(op_map->second)) {
-        return true;
-    } else {
-        return false;
-    }
+    return find(version, op_map->second) != std::end(op_map->second);
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
