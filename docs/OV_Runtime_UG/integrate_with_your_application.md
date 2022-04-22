@@ -13,9 +13,9 @@
 @endsphinxdirective
 
 > **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
-> * [For Windows* 10](../install_guides/installing-openvino-windows.md)
-> * [For Linux*](../install_guides/installing-openvino-linux.md)
-> * [For macOS*](../install_guides/installing-openvino-macos.md)
+> * [For Windows 10](../install_guides/installing-openvino-windows.md)
+> * [For Linux](../install_guides/installing-openvino-linux.md)
+> * [For macOS](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 ## Use OpenVINO™ Runtime API to Implement Inference Pipeline
@@ -137,7 +137,7 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 @endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
-For more details please read article about [OpenVINO™ Model representation](model_representation.md).
+For more details, refer to [OpenVINO™ Model representation](model_representation.md) article.
 
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
@@ -145,7 +145,7 @@ To learn how to change the device configuration, read the [Query device properti
 
 ### Step 3. Create an Inference Request
 
-`ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
+`ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request, using the following code (see the [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
 @sphinxtabset
 
@@ -185,7 +185,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 ### Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
+OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve overall application frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
 @sphinxtabset
 
@@ -246,20 +246,20 @@ The example uses CMake for project configuration.
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
-> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls.
+> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable will not be configured properly to pass `find_package` calls.
 
 ```sh
 cd build/
 cmake ../project
 cmake --build .
 ```
-It's allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
+It is allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). For details, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
 
 ## Run Your Application
 
-Congratulations, you have made your first application with OpenVINO™ toolkit, now you may run it.
+Once you have made your first application with OpenVINO™ toolkit, you may run it.
 
-## See also
+## See Also
 
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
