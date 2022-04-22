@@ -188,18 +188,6 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
 
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i32, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::u8, format::yxfb),
-
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-        std::make_tuple(data_types::i32, format::fyxb),
-        std::make_tuple(data_types::i8, format::fyxb),
-        std::make_tuple(data_types::u8, format::fyxb),
-
         std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
         std::make_tuple(data_types::i32, format::fs_b_yx_fsv32),
