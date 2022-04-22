@@ -66,10 +66,9 @@ void Model::enable_opset_domain(const std::string& domain) {
     // (maybe multiple times) the registered domain opset won't differ
     // between subsequent calls.
     if (m_opset.find(domain) == std::end(m_opset)) {
-        OperatorSet opset = OperatorsBridge{}.get_operator_set(domain);
+        const auto opset = OperatorsBridge{}.get_operator_set(domain);
         if (opset.empty()) {
             NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
-
             return;
         }
         m_opset.emplace(domain, opset);

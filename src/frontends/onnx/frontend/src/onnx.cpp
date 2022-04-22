@@ -11,13 +11,21 @@
 
 #include "ngraph/except.hpp"
 #include "onnx_common/parser.hpp"
+#include "onnx_import/onnx_utils.hpp"
 #include "ops_bridge.hpp"
 #include "utils/onnx_internal.hpp"
+
+namespace {
+// it's the same type of object as the one used in the ONNX FE
+// it's called legacy here because it's supposed to work with legacy public API only
+// the new API including ONNX FE uses its own, non static, per-frontend object instance of OperatorsBridge
+ngraph::onnx_import::OperatorsBridge legacy_ops_bridge{};
+}  // namespace
 
 namespace ngraph {
 namespace onnx_import {
 std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path) {
-    auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
+    const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     return detail::import_onnx_model(model_proto, model_path);
 }
 
@@ -43,8 +51,15 @@ std::set<std::string> get_supported_operators(std::int64_t version, const std::s
 }
 
 bool is_operator_supported(const std::string& op_name, std::int64_t version, const std::string& domain) {
-    // TODO: make a static OperatorsBridge in this translation unit and use it here
-    return OperatorsBridge{}.is_operator_registered(op_name, version, domain == "ai.onnx" ? "" : domain);
+    return legacy_ops_bridge.is_operator_registered(op_name, version, domain == "ai.onnx" ? "" : domain);
+}
+
+void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn) {
+    legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
+}
+
+void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
+    OperatorsBridge::unregister_operator(name, version, domain);
 }
 
 }  // namespace onnx_import

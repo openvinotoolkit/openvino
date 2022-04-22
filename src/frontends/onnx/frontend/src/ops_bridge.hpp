@@ -46,14 +46,7 @@ public:
 
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
-    static void register_operator(const std::string& name,
-                                  std::int64_t version,
-                                  const std::string& domain,
-                                  Operator fn) {
-        //_register_operator(name, version, domain, std::move(fn));
-        // TODO - make it non-static
-    }
-
+    void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
     static void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
         // _unregister_operator(name, version, domain);
         // TODO - make it non-static
@@ -79,7 +72,6 @@ private:
     using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, std::shared_ptr<Operator>>>;
     std::unordered_map<std::string, DomainOpset> m_map;
 
-    void _register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
     void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
 };
 

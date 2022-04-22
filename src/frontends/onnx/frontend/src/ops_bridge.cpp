@@ -184,10 +184,10 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
 }
 }  // namespace
 
-void OperatorsBridge::_register_operator(const std::string& name,
-                                         int64_t version,
-                                         const std::string& domain,
-                                         Operator fn) {
+void OperatorsBridge::register_operator(const std::string& name,
+                                        int64_t version,
+                                        const std::string& domain,
+                                        Operator fn) {
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
         m_map[domain][name].emplace(version, std::make_shared<Operator>(std::move(fn)));
