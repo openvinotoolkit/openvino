@@ -13,12 +13,12 @@ from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, E
 
 from ..conftest import model_path, model_onnx_path, plugins_path, \
     get_model_with_template_extension
-from ..test_utils.test_utils import generate_image
+from ..test_utils.test_utils import generate_image, generate_onnx_model
 
 
+plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
-plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
 def test_compact_api_xml():
