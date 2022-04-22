@@ -37,32 +37,31 @@ class OperatorsBridge {
 public:
     static constexpr const int LATEST_SUPPORTED_ONNX_OPSET_VERSION = ONNX_OPSET_VERSION;
 
+    OperatorsBridge();
+
     OperatorsBridge(const OperatorsBridge&) = delete;
     OperatorsBridge& operator=(const OperatorsBridge&) = delete;
     OperatorsBridge(OperatorsBridge&&) = delete;
     OperatorsBridge& operator=(OperatorsBridge&&) = delete;
 
-    static OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) {
-        return instance()._get_operator_set(domain, version);
-    }
+    OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
     static void register_operator(const std::string& name,
                                   std::int64_t version,
                                   const std::string& domain,
                                   Operator fn) {
-        instance()._register_operator(name, version, domain, std::move(fn));
+        //_register_operator(name, version, domain, std::move(fn));
+        // TODO - make it non-static
     }
 
     static void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-        instance()._unregister_operator(name, version, domain);
+        // _unregister_operator(name, version, domain);
+        // TODO - make it non-static
     }
 
     static bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) {
-        return instance()._is_operator_registered(name, version, domain);
-    }
-
-    static void load_initial_state() {
-        return instance()._load_initial_state();
+        // return _is_operator_registered(name, version, domain);
+        return true;
     }
 
 private:
@@ -80,22 +79,13 @@ private:
     //    domain_2: { ... },
     //    ...
     // }
-    std::unordered_map<std::string, std::unordered_map<std::string, std::map<std::int64_t, Operator>>> m_map;
-
-    OperatorsBridge();
-
-    static OperatorsBridge& instance() {
-        static OperatorsBridge instance;
-        return instance;
-    }
+    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, std::shared_ptr<Operator>>>;
+    std::unordered_map<std::string, DomainOpset> m_map;
 
     void _register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
     void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
-    OperatorSet _get_operator_set(const std::string& domain, std::int64_t version);
 
     bool _is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
-
-    void _load_initial_state();
     std::mutex lock;
 };
 

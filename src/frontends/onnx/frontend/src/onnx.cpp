@@ -33,7 +33,8 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
 }
 
 std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain) {
-    OperatorSet op_set{OperatorsBridge::get_operator_set(domain == "ai.onnx" ? "" : domain, version)};
+    const auto op_set = OperatorsBridge{}.get_operator_set(domain == "ai.onnx" ? "" : domain, version);
+    // TODO - move this functionality to the OperatorsBridge to avoid obsolete creation of an OperatorSet here
     std::set<std::string> op_list{};
     for (const auto& op : op_set) {
         op_list.emplace(op.first);

@@ -48,7 +48,7 @@ const Operator& Model::get_operator(const std::string& name, const std::string& 
     if (op == std::end(dm->second)) {
         throw error::UnknownOperator{name, domain};
     }
-    return op->second;
+    return *(op->second);
 }
 
 bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const {
@@ -66,7 +66,7 @@ void Model::enable_opset_domain(const std::string& domain) {
     // (maybe multiple times) the registered domain opset won't differ
     // between subsequent calls.
     if (m_opset.find(domain) == std::end(m_opset)) {
-        OperatorSet opset{OperatorsBridge::get_operator_set(domain)};
+        OperatorSet opset = OperatorsBridge{}.get_operator_set(domain);
         if (opset.empty()) {
             NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
 

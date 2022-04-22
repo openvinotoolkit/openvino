@@ -17,6 +17,8 @@
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
+#include "openvino/frontend/onnx/node_context.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
 
@@ -52,7 +54,37 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
 
-Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto) {
+Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto,
+                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+    OperatorsBridge bridge;
+    // TODO - apply custom conversions to the bridge object
+    for (const auto& extension : conversions) {
+        if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+            // for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
+            //     const auto converter = common_conv_ext->get_converter();
+            //     OperatorsBridge::register_operator(
+            //         common_conv_ext->get_op_type(),
+            //         i,
+            //         "",
+            //         [converter](const ngraph::onnx_import::Node& context) -> OutputVector {
+            //             return converter(ov::frontend::onnx::NodeContext(context));
+            //         });
+            // }
+        } else if (const auto onnx_conv_ext =
+                       std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
+            //     for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
+            //         ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
+            //                                                i,
+            //                                                "",
+            //                                                [=](const ngraph::onnx_import::Node& context) ->
+            //                                                OutputVector
+            //                                                {
+            //                                                    return
+            //                                                    onnx_conv_ext->get_converter()(NodeContext(context));
+            //                                                });
+        }
+    }
+
     // copy the opset imports from the ONNX model and sort them by their version in ascending order
     // this will make sure that multiple opset imports for the same domain will cause the largest
     // version to be used for this model, for example:
@@ -67,11 +99,11 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     Model::ModelOpSet opset;
     std::for_each(opset_imports.rbegin(),
                   opset_imports.rend(),
-                  [&opset](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                  [&opset, &bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
                       const auto domain =
                           onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
                       if (opset.find(domain) == std::end(opset)) {
-                          opset[domain] = OperatorsBridge::get_operator_set(domain, onnx_opset.version());
+                          opset[domain] = bridge.get_operator_set(domain, onnx_opset.version());
                       }
                   });
 
@@ -79,7 +111,7 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     // implies the operator set that is defined as part of the ONNX specification.
     const auto dm = opset.find("");
     if (dm == std::end(opset)) {
-        opset[""] = OperatorsBridge::get_operator_set("", ONNX_OPSET_VERSION);
+        opset[""] = bridge.get_operator_set("", ONNX_OPSET_VERSION);
     }
 
     return opset;
@@ -92,7 +124,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov:
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              ov::frontend::ExtensionHolder extensions)
-    : m_model{common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto))},
+    : m_model{common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, extensions.conversions))},
       m_cache{std::move(cache)},
       m_extensions{std::move(extensions)} {
     std::map<std::string, Tensor> initializers;
@@ -139,8 +171,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         }
         if (!m_model->is_operator_available(node_proto)) {
             unknown_operators.emplace(detail::get_op_domain_and_name(node_proto), node_proto);
-            // If a node from an unregistered domain is detected, try registering that
-            // domain
+            // If a node from an unregistered domain is detected, try registering that domain
             m_model->enable_opset_domain(get_node_domain(node_proto));
         }
     }
@@ -365,7 +396,7 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>()),
+    : Graph(model_proto, common::make_unique<GraphCache>(), parent_graph->get_extensions()),
       m_parent_graph(parent_graph) {
     // do not copy a pre-configured progress reporter extension to the subgraph, copy just the telemetry
     // (do not report subgraph conversion progress)

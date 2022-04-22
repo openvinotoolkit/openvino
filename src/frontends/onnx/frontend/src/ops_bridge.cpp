@@ -168,14 +168,15 @@
 namespace ngraph {
 namespace onnx_import {
 namespace {
-const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version,
-                                                            const std::map<std::int64_t, Operator>& map) {
+template <typename Container = std::map<int64_t, std::shared_ptr<Operator>>,
+          typename Iter = typename Container::const_iterator>
+const Iter find(int64_t version, const Container& map) {
     // Get the latest version.
     if (version == -1) {
         return map.empty() ? std::end(map) : --std::end(map);
     }
     while (version > 0) {
-        std::map<std::int64_t, Operator>::const_iterator it = map.find(version--);
+        Iter it = map.find(version--);
         if (it != std::end(map)) {
             return it;
         }
@@ -185,22 +186,22 @@ const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version
 }  // namespace
 
 void OperatorsBridge::_register_operator(const std::string& name,
-                                         std::int64_t version,
+                                         int64_t version,
                                          const std::string& domain,
                                          Operator fn) {
     std::lock_guard<std::mutex> guard(lock);
 
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
-        m_map[domain][name].emplace(version, std::move(fn));
+        m_map[domain][name].emplace(version, std::make_shared<Operator>(std::move(fn)));
     } else {
-        it->second = std::move(fn);
+        it->second = std::make_shared<Operator>(std::move(fn));
         NGRAPH_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
                     << "." + name + ":" + std::to_string(version);
     }
 }
 
-void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
+void OperatorsBridge::_unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     std::lock_guard<std::mutex> guard(lock);
 
     auto domain_it = m_map.find(domain);
@@ -228,15 +229,13 @@ void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t
     }
 }
 
-OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::int64_t version) {
-    std::lock_guard<std::mutex> guard(lock);
-
+OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t version) const {
     OperatorSet result;
 
-    auto dm = m_map.find(domain);
+    const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
         NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
-        return OperatorSet{};
+        return result;
     }
     if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
         NGRAPH_WARN << "Currently ONNX operator set version: " << version
@@ -252,9 +251,7 @@ OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::i
     return result;
 }
 
-bool OperatorsBridge::_is_operator_registered(const std::string& name,
-                                              std::int64_t version,
-                                              const std::string& domain) {
+bool OperatorsBridge::_is_operator_registered(const std::string& name, int64_t version, const std::string& domain) {
     std::lock_guard<std::mutex> guard(lock);
     // search for domain
     auto dm_map = m_map.find(domain);
@@ -277,16 +274,13 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
-    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[""][name_].emplace(ver_, std::make_shared<Operator>(std::bind(op::set_##ver_::fn_, std::placeholders::_1)));
 
 #define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_) \
-    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[domain_][name_].emplace(ver_,                          \
+                                  std::make_shared<Operator>(std::bind(op::set_##ver_::fn_, std::placeholders::_1)));
 
 OperatorsBridge::OperatorsBridge() {
-    _load_initial_state();
-}
-
-void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Abs", 1, abs);
     REGISTER_OPERATOR("Acos", 1, acos);
     REGISTER_OPERATOR("Acosh", 1, acosh);
