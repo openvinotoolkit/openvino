@@ -919,11 +919,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
-    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups);
+    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups) && output_layout.feature() == static_cast<int>(prim->groups);
     int ofm_per_group = output_layout.feature() / prim->groups;
     int ifm_per_group = input_layout.feature() / prim->groups;
     int compute_block = 32;
-    bool valid_int8_dw = is_dw && output_layout.batch() % 16 == 0;
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
@@ -944,12 +943,15 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
+        bool fp16_output = output_layout.data_type == data_types::f16;
 
         // oneDNNv.26 needs acdb format for shallow group conv
-        if (!non_grouped && !is_dw && ifm_per_group <= 8 && is_2d) {
+        if (!non_grouped && is_2d &&
+            ((is_dw && ((i8_u8_input && input_layout.feature() < 16) || (fp16_output && input_layout.feature() < 8))) ||
+            (!is_dw && ((i8_u8_input && ofm_per_group % 32 != 0) || (fp16_output && ofm_per_group % 16 != 0))))) {
             expected_format = cldnn::format::byxf;
         } else if (i8_u8_output) {
-            if ((non_grouped || valid_grouped || valid_int8_dw) && is_2d) {
+            if ((non_grouped || valid_grouped || is_dw) && is_2d) {
                 if (input_layout.batch() >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
@@ -980,7 +982,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             } else {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
             }
-        } else if (output_layout.data_type == data_types::f16 &&
+        } else if (fp16_output &&
                 convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim) &&
                 (output_layout.data_type == input_layout.data_type ||
                 !data_type_traits::is_floating_point(input_layout.data_type)) && is_2d) {
@@ -1340,20 +1342,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
-        }
-
-        if (node.is_type<convolution>()) {
-            // oneDNN doesn't have good support for groups with fsv16 fmt
-            auto& conv = node.as<convolution>();
-            auto input_layout = conv.input().get_output_layout();
-            auto output_layout = conv.get_output_layout();
-            bool has_groups = conv.get_primitive()->groups > 1;
-            bool is_depthwise = conv.get_primitive()->groups == input_layout.feature();
-            bool first_conv = input_layout.feature() <= 4;
-            if (((has_groups && !is_depthwise) || first_conv) &&
-                output_layout.format == format::b_fs_yx_fsv16 &&
-                !needs_onednn_small_ic_to_blocked(preferred_format, input_layout, conv))
-                impl_candidate = impl_types::ocl;
         }
 
         if (node.is_type<deconvolution>()) {

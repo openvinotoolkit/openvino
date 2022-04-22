@@ -150,7 +150,7 @@ const format_traits& format::traits(type fmt) {
             FMT_TRAITS(g_os_zyx_is_osv32_isv4,                       1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "gozyxi", "oixyz?g", {{0, 32}, {1, 4}}),
             FMT_TRAITS(g_os_zyx_is_osv32_isv16,                      1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "gozyxi", "oixyz?g", {{0, 32}, {1, 16}}),
             FMT_TRAITS(g_os_zyx_is_osv32_isv32,                      1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "gozyxi", "oixyz?g", {{0, 32}, {1, 32}}),
-            FMT_TRAITS(g_os_is_yx_isa8_osv8_isv2,                    1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "goixy?g", {{1, 8}, {0, 8}, {1, 2}}),
+            FMT_TRAITS(g_os_is_yx_isa8_osv8_isv2,                    1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{1, 8}, {0, 8}, {1, 2}}),
             FMT_TRAITS(g_os_is_yx_osa2_isa8_osv8_isv2,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 16}, {1, 16}}),
             FMT_TRAITS(g_os_is_yx_osa4_isa8_osv8_isv4,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}, {1, 32}}),
             FMT_TRAITS(g_os_is_zyx_osa4_isa8_osv8_isv4,              1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{0, 32}, {1, 32}}),
