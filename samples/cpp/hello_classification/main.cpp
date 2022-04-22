@@ -6,7 +6,6 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <thread>
 #include <vector>
 
 // clang-format off
@@ -19,8 +18,10 @@
 #include "format_reader_ptr.h"
 // clang-format on
 
-static bool tbb_flag = 0;
-int run_test(int argc, tchar* argv[]) {
+/**
+ * @brief Main with support Unicode paths, wide strings
+ */
+int tmain(int argc, tchar* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -38,14 +39,6 @@ int run_test(int argc, tchar* argv[]) {
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
         ov::Core core;
-
-        if (tbb_flag) {
-            core.set_property(device_name, {{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}});
-        }
-        auto value = core.get_property(device_name, {CONFIG_KEY(FORCE_TBB_TERMINATE)});
-        std::cout << "FORCE_TBB_TERMINATE set to be" << std::endl;
-        value.print(std::cout);
-        std::cout << std::endl;
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files: " << model_path << slog::endl;
@@ -123,31 +116,4 @@ int run_test(int argc, tchar* argv[]) {
     }
 
     return EXIT_SUCCESS;
-}
-
-/**
- * @brief Main with support Unicode paths, wide strings
- */
-int tmain(int argc, tchar* argv[]) {
-    auto ret = EXIT_SUCCESS;
-    {
-        std::cout << "Test 1: begin..." << std::endl;
-        ret = run_test(argc, argv);
-        std::cout << "Test 1: done" << std::endl << std::endl;
-    }
-
-    std::cout << "sleep 1 seconds..." << std::endl << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    getchar();
-
-    {
-        tbb_flag = true;
-        std::cout << "Test 2: begin..." << std::endl;
-        ret = run_test(argc, argv);
-        std::cout << "Test 2: done" << std::endl;
-    }
-
-    std::cout << "Press to exit..." << std::endl;
-    getchar();
-    return ret;
 }

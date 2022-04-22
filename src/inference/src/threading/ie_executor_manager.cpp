@@ -45,7 +45,6 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     tbbTerminateFlag = flag;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     if (flag && !_tbb) {
-        std::cout << "ExecutorManager to create tbb::task_scheduler_init" << std::endl;
         _tbb = std::make_shared<tbb::task_scheduler_init>();
     } else {
         _tbb = nullptr;
@@ -60,7 +59,6 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         try {
             if (_tbb) {
-                std::cout << "ExecutorManager to call init.blocking_terminate()" << std::endl;
                 _tbb->blocking_terminate();
             }
             _tbb = nullptr;
