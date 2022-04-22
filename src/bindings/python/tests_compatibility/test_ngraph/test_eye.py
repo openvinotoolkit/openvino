@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset9 as ov
+import ngraph as ng
 import numpy as np
 import pytest
 
-from tests.runtime import get_runtime
-from openvino.runtime.utils.types import get_element_type_str
-from openvino.runtime.utils.types import get_element_type
+from ngraph.utils.types import get_element_type
+from ngraph.utils.types import get_element_type_str
+from tests_compatibility.runtime import get_runtime
+from tests_compatibility.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
@@ -23,11 +24,11 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, output_type):
     num_rows_array = np.array([num_rows], np.int32)
     num_columns_array = np.array([num_columns], np.int32)
     diagonal_index_array = np.array([diagonal_index], np.int32)
-    num_rows_tensor = ov.constant(num_rows_array)
-    num_columns_tensor = ov.constant(num_columns_array)
-    diagonal_index_tensor = ov.constant(diagonal_index_array)
+    num_rows_tensor = ng.constant(num_rows_array)
+    num_columns_tensor = ng.constant(num_columns_array)
+    diagonal_index_tensor = ng.constant(diagonal_index_array)
 
-    eye_node = ov.eye(num_rows_tensor,
+    eye_node = ng.eye(num_rows_tensor,
                       num_columns=num_columns_tensor,
                       diagonal_index=diagonal_index_tensor,
                       output_type=get_element_type_str(output_type))
@@ -60,12 +61,12 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
     num_columns_array = np.array([num_columns], np.int32)
     diagonal_index_array = np.array([diagonal_index], np.int32)
     batch_shape_array = np.array(batch_shape, np.int32)
-    num_rows_tensor = ov.constant(num_rows_array)
-    num_columns_tensor = ov.constant(num_columns_array)
-    diagonal_index_tensor = ov.constant(diagonal_index_array)
-    batch_shape_tensor = ov.constant(batch_shape_array)
+    num_rows_tensor = ng.constant(num_rows_array)
+    num_columns_tensor = ng.constant(num_columns_array)
+    diagonal_index_tensor = ng.constant(diagonal_index_array)
+    batch_shape_tensor = ng.constant(batch_shape_array)
 
-    eye_node = ov.eye(num_rows_tensor,
+    eye_node = ng.eye(num_rows_tensor,
                       num_columns=num_columns_tensor,
                       diagonal_index=diagonal_index_tensor,
                       batch_shape=batch_shape_tensor,
