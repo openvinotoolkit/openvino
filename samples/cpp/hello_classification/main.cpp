@@ -40,10 +40,10 @@ int run_test(int argc, tchar* argv[]) {
         ov::Core core;
 
         if (tbb_flag) {
-            core.set_property(device_name, {{CONFIG_KEY(TBB_TERMINATE_ENABLE), CONFIG_VALUE(YES)}});
+            core.set_property(device_name, {{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}});
         }
-        auto value = core.get_property(device_name, {CONFIG_KEY(TBB_TERMINATE_ENABLE)});
-        std::cout << "TBB_TERMINATE_ENABLE set to be" << std::endl;
+        auto value = core.get_property(device_name, {CONFIG_KEY(FORCE_TBB_TERMINATE)});
+        std::cout << "FORCE_TBB_TERMINATE set to be" << std::endl;
         value.print(std::cout);
         std::cout << std::endl;
 

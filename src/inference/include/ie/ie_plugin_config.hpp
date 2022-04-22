@@ -456,7 +456,7 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  *   - YES will explicitly terminate tbb when plugin executor destructing
  *   - NO will not explicitly terminate tbb when plugin executor destructing
  */
-DECLARE_CONFIG_KEY(TBB_TERMINATE_ENABLE);
+DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 }  // namespace PluginConfigParams
 

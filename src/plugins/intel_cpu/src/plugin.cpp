@@ -779,7 +779,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
-    } else if (name == CONFIG_KEY(TBB_TERMINATE_ENABLE)) {
+    } else if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
         return engConfig.streamExecutorConfig.GetConfig(name);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
