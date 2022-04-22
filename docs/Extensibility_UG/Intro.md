@@ -9,6 +9,7 @@
    openvino_docs_Extensibility_UG_add_openvino_ops
    openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
+   openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 @endsphinxdirective
@@ -18,9 +19,9 @@ TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of su
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
-Custom operations, that is those not included in the list, are not recognized by OpenVINO™ out-of-the-box. The need in custom operation may appear in two main cases:
+Custom operations, that is those not included in the list, are not recognized by OpenVINO™ out-of-the-box. The need for a custom operation may appear in two main cases:
 
-1. A regular framework operation that is new or rarely used and that’s why hasn’t been supported in OpenVINO yet.
+1. A regular framework operation that is new or rarely used, which is why it hasn’t been implemented in OpenVINO yet.
 
 2. A new user operation that was created for some specific model topology by a model author using framework extension capabilities.
 
@@ -28,7 +29,7 @@ Importing models with such operations requires additional steps. This guide illu
 
 Defining a new custom operation basically consist of two parts:
 
-1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s).
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). How to implement execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) is described in separate guides.
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 

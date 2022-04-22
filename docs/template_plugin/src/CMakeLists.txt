@@ -8,8 +8,6 @@ set(TARGET_NAME "openvino_template_plugin")
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-set(skip_plugin)
-
 if (NOT ENABLE_TEMPLATE_REGISTRATION)
     # Skip install and registration of template component
     set(skip_plugin SKIP_INSTALL SKIP_REGISTRATION)

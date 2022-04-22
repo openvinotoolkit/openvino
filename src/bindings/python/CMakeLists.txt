@@ -18,9 +18,14 @@ set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 set(PYTHON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Remove this condition as 76672 will be fixed
-if (CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
+# TODO: Remove this condition as 76672 will be fixed
+if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
+    set(DISABLE_PYOPENVINO ON)
+endif()
+
+if(DISABLE_PYOPENVINO)
     add_subdirectory(src/compatibility/openvino)
+    message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
 else()
     add_subdirectory(src/compatibility/openvino)
 
@@ -28,14 +33,13 @@ else()
 
     add_subdirectory(src/compatibility/pyngraph)
     add_subdirectory(src/pyopenvino)
-
 endif()
 
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
-if(ENABLE_OV_CORE_UNIT_TESTS)
+if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYOPENVINO)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_dependencies(pyopenvino openvino_mock_py_frontend)
     set_target_properties(openvino_mock_py_frontend PROPERTIES
@@ -43,7 +47,6 @@ if(ENABLE_OV_CORE_UNIT_TESTS)
             ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
-
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     add_dependencies(pyopenvino pybind_mock_frontend)
 endif()

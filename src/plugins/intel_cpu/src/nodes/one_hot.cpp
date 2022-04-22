@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
 #include "one_hot.h"
@@ -42,7 +42,7 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -140,11 +140,11 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
-void OneHot::executeDynamicImpl(mkldnn::stream strm) {
+void OneHot::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void OneHot::execute(mkldnn::stream strm) {
+void OneHot::execute(dnnl::stream strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 

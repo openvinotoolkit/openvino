@@ -4,12 +4,12 @@
 import os
 
 from ..conftest import model_path
-from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
+from openvino.runtime import Input, Shape, PartialShape, Type, \
     RTMap
 from openvino.pyopenvino import DescriptorTensor
 import openvino.runtime.opset8 as ops
 
-from openvino.runtime import Core
+from openvino.runtime import Core, OVAny
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -146,4 +146,4 @@ def test_input_update_rt_info(device):
     rt["test12345"] = "test"
     for k, v in input_node.get_rt_info().items():
         assert k == "test12345"
-        assert isinstance(v, Parameter)
+        assert isinstance(v, OVAny)

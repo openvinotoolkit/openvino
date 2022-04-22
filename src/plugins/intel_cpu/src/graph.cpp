@@ -50,7 +50,7 @@
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -60,7 +60,7 @@ namespace intel_cpu {
 typedef std::unordered_set<EdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
-mkldnn::engine Graph::eng(mkldnn::engine::kind::cpu, 0);
+dnnl::engine Graph::eng(dnnl::engine::kind::cpu, 0);
 
 template<typename NET>
 void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
@@ -464,7 +464,7 @@ void Graph::ExtractConstantAndExecutableNodes() {
 
 void Graph::ExecuteConstantNodesOnly() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExecuteConstantNodesOnly");
-    mkldnn::stream stream(eng);
+    dnnl::stream stream(eng);
 
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
@@ -506,23 +506,23 @@ void Graph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const mkldnn::engine& eng) {
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const dnnl::engine& eng) {
     auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
     memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
 
     auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
     memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, &srcMemDesc.data, eng.get(), &dstMemDesc.data, eng.get(),
                                                      attr.get());
     if (result) {
-        mkldnn_primitive_desc_destroy(result);
+        dnnl_primitive_desc_destroy(result);
     }
 
-    return mkldnn_success == status;
+    return dnnl_success == status;
 }
 
 void Graph::InitEdges() {
@@ -853,7 +853,7 @@ void Graph::PullOutputData(BlobMap &out) {
         const auto ext_blob_map = out.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == out.end()) {
-            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
+            IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
@@ -942,7 +942,7 @@ void Graph::PullOutputData(BlobMap &out) {
     }
 }
 
-inline void Graph::ExecuteNode(const NodePtr& node, const mkldnn::stream& stream) const {
+inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
     DUMP(node, config, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
@@ -958,7 +958,7 @@ void Graph::Infer(InferRequestBase* request) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }
 
-    mkldnn::stream stream(eng);
+    dnnl::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
         VERBOSE(node, config.verbose);

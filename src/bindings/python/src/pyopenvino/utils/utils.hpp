@@ -6,27 +6,34 @@
 
 #include <pybind11/pybind11.h>
 #include <openvino/core/any.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <openvino/runtime/properties.hpp>
 
-ov::Any py_object_to_any(const pybind11::object& py_obj) {
-    if (pybind11::isinstance<pybind11::str>(py_obj)) {
+namespace py = pybind11;
+
+namespace Common {
+namespace utils {
+    py::object from_ov_any(const ov::Any &any);
+
+    std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);
+}; // namespace utils
+}; // namespace Common
+
+inline ov::Any py_object_to_any(const py::object& py_obj) {
+    // Python types
+    if (py::isinstance<py::str>(py_obj)) {
         return py_obj.cast<std::string>();
-    } else if (pybind11::isinstance<pybind11::bool_>(py_obj)) {
+    } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
-    } else if (pybind11::isinstance<pybind11::float_>(py_obj)) {
+    } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
-    } else if (pybind11::isinstance<pybind11::int_>(py_obj)) {
+    } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
-    } else if (pybind11::isinstance<pybind11::list>(py_obj)) {
-        auto _list = py_obj.cast<pybind11::list>();
-        enum class PY_TYPE : int {
-            UNKNOWN = 0,
-            STR,
-            INT,
-            FLOAT,
-            BOOL
-        };
+    } else if (py::isinstance<py::list>(py_obj)) {
+        auto _list = py_obj.cast<py::list>();
+        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL };
         PY_TYPE detected_type = PY_TYPE::UNKNOWN;
-        for (const auto &it: _list) {
+        for (const auto& it : _list) {
             auto check_type = [&](PY_TYPE type) {
                 if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
                     detected_type = type;
@@ -34,13 +41,13 @@ ov::Any py_object_to_any(const pybind11::object& py_obj) {
                 }
                 OPENVINO_ASSERT("Incorrect attribute. Mixed types in the list are not allowed.");
             };
-            if (pybind11::isinstance<pybind11::str>(it)) {
+            if (py::isinstance<py::str>(it)) {
                 check_type(PY_TYPE::STR);
-            } else if (pybind11::isinstance<pybind11::int_>(it)) {
+            } else if (py::isinstance<py::int_>(it)) {
                 check_type(PY_TYPE::INT);
-            } else if (pybind11::isinstance<pybind11::float_>(it)) {
+            } else if (py::isinstance<py::float_>(it)) {
                 check_type(PY_TYPE::FLOAT);
-            } else if (pybind11::isinstance<pybind11::bool_>(it)) {
+            } else if (py::isinstance<py::bool_>(it)) {
                 check_type(PY_TYPE::BOOL);
             }
         }
@@ -57,6 +64,26 @@ ov::Any py_object_to_any(const pybind11::object& py_obj) {
             default:
                 OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
+    // OV types
+    } else if (py::isinstance<ov::Any>(py_obj)) {
+        return py::cast<ov::Any>(py_obj);
+    } else if (py::isinstance<ov::element::Type>(py_obj)) {
+        return py::cast<ov::element::Type>(py_obj);
+    } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
+        return py::cast<ov::hint::Priority>(py_obj);
+    } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
+        return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::log::Level>(py_obj)) {
+        return py::cast<ov::log::Level>(py_obj);
+    } else if (py::isinstance<ov::device::Type>(py_obj)) {
+        return py::cast<ov::device::Type>(py_obj);
+    } else if (py::isinstance<ov::streams::Num>(py_obj)) {
+        return py::cast<ov::streams::Num>(py_obj);
+    } else if (py::isinstance<ov::Affinity>(py_obj)) {
+        return py::cast<ov::Affinity>(py_obj);
+    // If there is no match fallback to py::object
+    } else if (py::isinstance<py::object>(py_obj)) {
+        return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
 }

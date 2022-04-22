@@ -14,6 +14,8 @@ $ make -j8
 $ cd <template_plugin_dir>
 $ mkdir <template_plugin_dir>/build
 $ cd <template_plugin_dir>/build
-$ cmake -DOpenVINODeveloperPackage_DIR=<openvino_dir>/build ..
+$ cmake -DOpenVINODeveloperPackage_DIR=<openvino_dir>/build -DENABLE_TEMPLATE_REGISTRATION=ON ..
 $ make -j8
 ```
+
+`ENABLE_TEMPLATE_REGISTRATION` cmake options registers the plugin in plugin.xml configuration file and enables install target for the plugin.

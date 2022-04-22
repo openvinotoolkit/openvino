@@ -3,10 +3,9 @@
 //
 
 #include "scatter_update.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
@@ -15,7 +14,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -42,7 +41,7 @@ bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
 
-ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
           axisPrec(Precision::UNSPECIFIED) {
     std::string errorMessage;
@@ -222,7 +221,7 @@ bool ScatterUpdate::needPrepareParams() const {
     return false;
 }
 
-void ScatterUpdate::executeDynamicImpl(mkldnn::stream strm) {
+void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -252,7 +251,7 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
-void ScatterUpdate::execute(mkldnn::stream strm) {
+void ScatterUpdate::execute(dnnl::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();

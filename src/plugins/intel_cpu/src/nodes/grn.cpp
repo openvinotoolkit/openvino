@@ -31,7 +31,7 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -59,7 +59,7 @@ void GRN::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GRN::execute(mkldnn::stream strm) {
+void GRN::execute(dnnl::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 

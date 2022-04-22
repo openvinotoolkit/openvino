@@ -1,4 +1,4 @@
-# Layout API overview {#openvino_docs_OV_Runtime_UG_Layout_Overview}
+# Layout API overview {#openvino_docs_OV_UG_Layout_Overview}
 
 ## Introduction
 

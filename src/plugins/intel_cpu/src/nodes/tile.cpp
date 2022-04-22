@@ -32,7 +32,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -129,11 +129,11 @@ std::vector<VectorDims> Tile::shapeInfer() const {
     return Node::shapeInferGeneric(PortMask(TILE_REPEATS));
 }
 
-void Tile::executeDynamicImpl(mkldnn::stream strm) {
+void Tile::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Tile::execute(mkldnn::stream strm) {
+void Tile::execute(dnnl::stream strm) {
     if (optimizedCase) {
         optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
@@ -141,7 +141,7 @@ void Tile::execute(mkldnn::stream strm) {
     }
 }
 
-void Tile::plainExecute(mkldnn::stream strm) {
+void Tile::plainExecute(dnnl::stream strm) {
     if (noTiling) {
         return;
     }

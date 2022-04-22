@@ -13,8 +13,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
@@ -27,7 +27,7 @@ endif()
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
 #               [SKIP_INSTALL]
-#               [SKIP_REGISTRATION]
+#               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
 #               )
 #
@@ -102,7 +102,7 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
         if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
                 add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
@@ -147,6 +147,7 @@ function(ie_add_plugin)
         endif()
     endif()
 
+    # Enable for static build to generate correct plugins.hpp
     if(NOT IE_PLUGIN_SKIP_REGISTRATION OR NOT BUILD_SHARED_LIBS)
         # check that plugin with such name is not registered
         foreach(plugin_entry IN LISTS PLUGIN_FILES)
