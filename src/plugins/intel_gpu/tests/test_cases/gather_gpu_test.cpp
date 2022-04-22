@@ -54,6 +54,7 @@ public:
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
         fmt[2] = fmt[0];
 
+        //refer: src/core/shape_inference/include/gather_shape_inference.hpp
         shape[2] = {1, 1, 1, 1};
         for (int i = 0; i < batch_dim; i++)  // batch_dim
             shape[2][i] = shape[0][i];
@@ -61,9 +62,9 @@ public:
             shape[2][i] = shape[0][i];
         for (int i = batch_dim; i < dim(shape[1]); i++)  // axis = shape[1]
             shape[2][axis + (i - batch_dim)] = shape[1][i];
-        for (int i = axis + 1; i < dim(shape[0]); i++)  // after axis = shape[0][..]
-            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] =
-                shape[0][i];  // batch_dim counted twice -> -batch_dim
+        for (int i = axis + 1; i < dim(shape[0]); i++) {  // after axis = shape[0][..]
+            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] = shape[0][i];
+        }
 
         auto& engine = get_test_engine();
 
