@@ -5,10 +5,8 @@ from openvino.runtime import Model
 from openvino.runtime import Shape, Type
 from openvino.runtime.op import Parameter
 from typing import Tuple, Union
-import io
 import openvino.runtime.opset8 as ops
 import numpy as np
-import onnx
 
 
 def get_test_function():
