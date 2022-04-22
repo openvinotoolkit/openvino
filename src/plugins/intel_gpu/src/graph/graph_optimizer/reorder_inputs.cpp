@@ -584,9 +584,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // For supporting optimized onednn first conv, the input format from prev reorder to this conv is changed to a recommended format by onednn.
         auto& input = conv_node.input();
         auto input_layout = input.get_output_layout();
-        auto conv_format = conv_node.get_output_layout().format;
+        auto output_layout = conv_node.get_output_layout();
+        auto conv_format = output_layout.format;
+        auto group_size = conv_node.get_groups();
+        bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
         if (conv_node.impl_type == impl_types::onednn &&
-            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node)) {
+            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
             auto new_layout = input_layout;
             if (new_layout.data_type == data_types::f16) {
                 new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
