@@ -36,9 +36,9 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
 
     # Create with default orded
     eye_node = ng.eye(num_rows_tensor,
-                    num_columns_tensor,
-                    diagonal_index_tensor,
-                    get_element_type_str(out_type))
+                      num_columns_tensor,
+                      diagonal_index_tensor,
+                      get_element_type_str(out_type))
 
     expected_results = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=np.float32)
 
