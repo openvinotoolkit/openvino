@@ -75,6 +75,7 @@ public:
      * @return void
      */
     virtual void setTbbFlag(bool flag) = 0;
+    virtual bool getTbbFlag() = 0;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();

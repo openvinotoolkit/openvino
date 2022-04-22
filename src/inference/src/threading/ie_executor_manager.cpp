@@ -25,11 +25,9 @@ public:
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
     void setTbbFlag(bool flag) override;
+    bool getTbbFlag() override;
 
 private:
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    tbb::task_scheduler_init init;
-#endif
     bool tbbTerminateFlag = false;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
@@ -43,19 +41,12 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     tbbTerminateFlag = flag;
 }
 
+bool ExecutorManagerImpl::getTbbFlag() {
+    return tbbTerminateFlag;
+}
+
 ExecutorManagerImpl::~ExecutorManagerImpl() {
-    std::cout << "ExecutorManagerImpl is released..." << std::endl;
     clear();
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    if (tbbTerminateFlag == true) {
-        try {
-            std::cout << "ExecutorManagerImpl: init.blocking_terminate()" << std::endl;
-            init.blocking_terminate();
-        } catch (std::exception& e) {
-        }
-    }
-#endif
-    std::cout << "ExecutorManagerImpl release is done" << std::endl;
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
@@ -104,7 +95,6 @@ size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() const {
 void ExecutorManagerImpl::clear(const std::string& id) {
     std::lock_guard<std::mutex> stream_guard(streamExecutorMutex);
     std::lock_guard<std::mutex> task_guard(taskExecutorMutex);
-    std::cout << "ExecutorManagerImpl::clear " << id << std::endl;
     if (id.empty()) {
         executors.clear();
         cpuStreamsExecutors.clear();
@@ -126,24 +116,50 @@ class ExecutorManagerHolder {
     std::mutex _mutex;
     std::shared_ptr<ExecutorManager> _manager = nullptr;
 
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+    std::shared_ptr<tbb::task_scheduler_init> _tbb = nullptr;
+#endif
+
     ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
 
 public:
-    ExecutorManagerHolder() = default;
+    ExecutorManagerHolder() {
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        _tbb = std::make_shared<tbb::task_scheduler_init>();
+#endif
+    }
 
     ExecutorManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
-        if (!_manager)
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        if (!_tbb) {
+            _tbb = std::make_shared<tbb::task_scheduler_init>();
+        }
+#endif
+        if (!_manager) {
             _manager = std::make_shared<ExecutorManagerImpl>();
+        }
         return _manager;
     }
 
     void reset() {
         std::lock_guard<std::mutex> lock(_mutex);
+        bool flag = _manager ? _manager->getTbbFlag() : false;
         _manager = nullptr;
+        std::cout << "ExecutorManager is reset" << std::endl;
+        if (flag) {
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+            try {
+                std::cout << "ExecutorManager to call init.blocking_terminate()" << std::endl;
+                _tbb->blocking_terminate();
+                _tbb = nullptr;
+            } catch (std::exception& e) {
+            }
+#endif
+        }
     }
-};
+};  // namespace
 
 ExecutorManagerHolder& executorManagerHolder() {
     static ExecutorManagerHolder executorManagerHolder;

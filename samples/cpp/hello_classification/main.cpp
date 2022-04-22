@@ -138,6 +138,7 @@ int tmain(int argc, tchar* argv[]) {
 
     std::cout << "sleep 3 seconds..." << std::endl << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(3));
+    getchar();
 
     {
         tbb_flag = true;
