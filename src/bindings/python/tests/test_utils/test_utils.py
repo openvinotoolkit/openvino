@@ -33,7 +33,3 @@ def test_compare_functions():
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
-
-
-def generate_model():
-    pass
