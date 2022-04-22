@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
@@ -423,7 +425,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
@@ -452,7 +454,7 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     endif()
 endif()
 
-if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_TEMPLATE AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)

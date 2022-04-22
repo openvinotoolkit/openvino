@@ -16,19 +16,6 @@ using ngraph::test::ValueMap;
 TEST(attributes, eye_op) {
     NodeBuilder::get_ops().register_factory<op::v9::Eye>();
     auto num_rows = make_shared<op::v0::Constant>(element::i32, Shape{}, 10);
-
-    const auto eye = make_shared<op::v9::Eye>(num_rows, element::Type_t::f32);
-    NodeBuilder builder(eye);
-    auto g_eye = ov::as_type_ptr<op::v9::Eye>(builder.create());
-
-    const auto expected_attr_count = 1;
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    EXPECT_EQ(g_eye->get_out_type(), eye->get_out_type());
-}
-
-TEST(attributes, eye_rectangle_op) {
-    NodeBuilder::get_ops().register_factory<op::v9::Eye>();
-    auto num_rows = make_shared<op::v0::Constant>(element::i32, Shape{}, 10);
     auto num_columns = make_shared<op::v0::Constant>(element::i32, Shape{}, 2);
     auto diagonal_index = make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
 

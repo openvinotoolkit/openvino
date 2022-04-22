@@ -41,13 +41,6 @@ public:
         const Output<Node>& diagonal_index,
         const ov::element::Type& out_type);
 
-    /// \brief      Constructs a Eye operation with default values for the last
-    ///             3 inputs
-    ///
-    /// \param      num_rows          Node producing the tensor with row number.
-    /// \param      out_type          Output type of the tensor.
-    Eye(const Output<Node>& num_rows, const ov::element::Type& out_type);
-
     void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -61,11 +54,6 @@ public:
     void set_out_type(const ov::element::Type& output_type) {
         m_output_type = output_type;
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    bool has_evaluate() const override;
 
 protected:
     ov::element::Type m_output_type;

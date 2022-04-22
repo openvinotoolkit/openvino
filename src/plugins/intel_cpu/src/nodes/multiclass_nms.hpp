@@ -21,17 +21,17 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
     void prepareParams() override;
