@@ -15,7 +15,7 @@ primitive_type_id normalize::type_id() {
 }
 
 layout normalize_inst::calc_output_layout(normalize_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for normalize_node!");
     auto input_node_layout = node.input().get_non_padded_output_layout();
     auto output_type = input_node_layout.data_type;

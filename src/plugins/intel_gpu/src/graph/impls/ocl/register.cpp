@@ -12,9 +12,7 @@ namespace ocl {
     static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
-#if 0
     REGISTER_OCL(activation);
-#endif
     REGISTER_OCL(arg_max_min);
 #if 0
     REGISTER_OCL(average_unpooling);
@@ -23,9 +21,9 @@ void register_implementations() {
     REGISTER_OCL(broadcast);
 #endif
     REGISTER_OCL(concatenation);
-#if 0
     REGISTER_OCL(convolution);
     REGISTER_OCL(crop);
+#if 0
     REGISTER_OCL(custom_gpu_primitive);
     REGISTER_OCL(deconvolution);
     REGISTER_OCL(deformable_conv);
@@ -35,8 +33,10 @@ void register_implementations() {
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_roi_feature_extractor);
     REGISTER_OCL(experimental_detectron_topk_rois);
+#endif
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
+#if 0 // TODO(andrew)
     REGISTER_OCL(gather);
     REGISTER_OCL(gather_elements);
     REGISTER_OCL(gather_nd);
@@ -55,18 +55,26 @@ void register_implementations() {
 #if 0
     REGISTER_OCL(pooling);
     REGISTER_OCL(pyramid_roi_align);
+#endif
     REGISTER_OCL(quantize);
+#if 0 // TODO(andrew)
     REGISTER_OCL(random_uniform);
     REGISTER_OCL(range);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
+#endif
     REGISTER_OCL(reorder);
+#if 0 // TODO(andrew)
     REGISTER_OCL(reorg_yolo);
+#endif
     REGISTER_OCL(reshape);
+#if 0 // TODO(andrew)
     REGISTER_OCL(reverse_sequence);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
+#endif
     REGISTER_OCL(scale);
+#if 0 // TODO(andrew)
     REGISTER_OCL(scatter_update);
     REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(scatter_elements_update);
@@ -80,7 +88,9 @@ void register_implementations() {
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
     REGISTER_OCL(lstm_dynamic_timeloop);
+#endif
     REGISTER_OCL(generic_layer);
+#if 0 // TODO(andrew)
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);

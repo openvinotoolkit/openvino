@@ -20,7 +20,7 @@ primitive_type_id eltwise::type_id() {
 layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
 
-    auto output_type = !node.get_primitive()->output_data_types.empty() ? *node.get_primitive()->output_data_types.at(0) : input_node_layout.data_type;
+    auto output_type = node.get_primitive()->output_data_types.at(0) ? *node.get_primitive()->output_data_types.at(0) : input_node_layout.data_type;
 
     auto size = input_node_layout.size;
     auto format = input_node_layout.format;
@@ -74,7 +74,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
         output_layout.data_type = data_types::i8;
     }
 
-    if (!node.get_primitive()->output_data_types.empty()) {
+    if (node.get_primitive()->output_data_types.at(0)) {
         output_layout.data_type = *node.get_primitive()->output_data_types.at(0);
     }
 

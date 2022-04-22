@@ -15,7 +15,6 @@
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/primitives/primitive.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
-#if 0
 #include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
 #include <intel_gpu/primitives/scale.hpp>
@@ -25,7 +24,6 @@
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
-#endif
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 

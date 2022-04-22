@@ -34,7 +34,7 @@ layout scale_inst::calc_output_layout(scale_node const& node) {
          node.scale_in().get_non_padded_output_layout().data_type == data_types::f16))
         result.data_type = node.scale_in().get_non_padded_output_layout().data_type;
 
-    if (!desc->output_data_types.empty())
+    if (desc->output_data_types.at(0))
         result.data_type = *desc->output_data_types.at(0);
 
     if (node.has_fused_primitives()) {

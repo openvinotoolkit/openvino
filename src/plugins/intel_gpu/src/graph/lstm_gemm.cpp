@@ -16,7 +16,7 @@ primitive_type_id lstm_gemm::type_id() {
 }
 
 layout lstm_gemm_inst::calc_output_layout(lstm_gemm_node const& node) {
-    assert(!node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for lstm_gemm_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();

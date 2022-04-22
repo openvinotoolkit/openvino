@@ -31,7 +31,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
     auto input_layout = node.input().get_output_layout();
     auto desc = node.get_primitive();
 
-    auto dt = !desc->output_data_types.empty() ? *desc->output_data_types.at(0) : input_layout.data_type;
+    auto dt = desc->output_data_types.at(0) ? *desc->output_data_types.at(0) : input_layout.data_type;
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {

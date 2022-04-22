@@ -16,7 +16,7 @@ primitive_type_id split::type_id() {
 }
 
 layout split_inst::calc_output_layout(split_node const& node) {
-    assert(!node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for split_node!");
     auto output_ids = node.get_primitive()->output_ids;
     auto output_offsets = node.get_primitive()->output_offsets;

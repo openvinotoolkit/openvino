@@ -15,7 +15,7 @@ primitive_type_id lrn::type_id() {
 }
 
 layout lrn_inst::calc_output_layout(lrn_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for lrn_node!");
     auto input_layout = node.input().get_output_layout();
     auto output_type = input_layout.data_type;

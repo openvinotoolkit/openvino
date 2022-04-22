@@ -4,19 +4,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#if 0 // TODO(taylor)
+
 #include "intel_gpu/primitives/activation.hpp"
-#endif
 #include "intel_gpu/primitives/arg_max_min.hpp"
-#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/average_unpooling.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
-#endif
 #include "intel_gpu/primitives/concatenation.hpp"
-#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
@@ -40,9 +36,7 @@
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
-#endif
 #include "intel_gpu/primitives/permute.hpp"
-#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/pooling.hpp"
 #include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
@@ -75,7 +69,7 @@
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "generic_layer.hpp"
-#endif
+
 
 namespace cldnn {
 namespace ocl {
@@ -88,9 +82,7 @@ namespace detail {
         attach_##prim##_impl();          \
     }
 
-#if 0 // TODO(taylor)
 REGISTER_OCL(activation);
-#endif
 REGISTER_OCL(arg_max_min);
 #if 0 // TODO(taylor)
 REGISTER_OCL(average_unpooling);
@@ -100,9 +92,9 @@ REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 #endif
 REGISTER_OCL(concatenation);
-#if 0 // TODO(taylor)
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);
+#if 0 // TODO(taylor)
 REGISTER_OCL(custom_gpu_primitive);
 #endif
 REGISTER_OCL(data);
@@ -114,9 +106,13 @@ REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
 REGISTER_OCL(experimental_detectron_roi_feature_extractor);
 REGISTER_OCL(experimental_detectron_topk_rois);
+#endif
 REGISTER_OCL(eltwise);
+#if 0 // TODO(andrew)
 REGISTER_OCL(embed);
+#endif
 REGISTER_OCL(fully_connected);
+#if 0 // TODO(andrew)
 REGISTER_OCL(gather);
 REGISTER_OCL(gather_nd);
 REGISTER_OCL(gather_elements);
@@ -135,18 +131,26 @@ REGISTER_OCL(permute);
 #if 0 // TODO(taylor)
 REGISTER_OCL(pooling);
 REGISTER_OCL(pyramid_roi_align);
+#endif
 REGISTER_OCL(quantize);
+#if 0 // TODO(andrew)
 REGISTER_OCL(random_uniform);
 REGISTER_OCL(range);
 REGISTER_OCL(reduce);
 REGISTER_OCL(region_yolo);
+#endif
 REGISTER_OCL(reorder);
+#if 0 // TODO(andrew)
 REGISTER_OCL(reorg_yolo);
+#endif
 REGISTER_OCL(reshape);
+#if 0 // TODO(andrew)
 REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
+#endif
 REGISTER_OCL(scale);
+#if 0 // TODO(andrew)
 REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
@@ -160,7 +164,9 @@ REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
 REGISTER_OCL(lstm_dynamic_input);
 REGISTER_OCL(lstm_dynamic_timeloop);
+#endif
 REGISTER_OCL(generic_layer);
+#if 0 // TODO(andrew)
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);

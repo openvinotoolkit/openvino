@@ -15,7 +15,7 @@ primitive_type_id roi_pooling::type_id() {
 }
 
 layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
     auto desc = node.get_primitive();
     layout data_layout = node.input().get_output_layout();

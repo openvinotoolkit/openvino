@@ -11,15 +11,11 @@ namespace common {
     static detail::attach_##prim##_common attach_##prim
 
 void register_implementations() {
-#if 0 // TODO(taylor)
     REGISTER_COMMON(condition);
-#endif
     REGISTER_COMMON(data);
     REGISTER_COMMON(input_layout);
-#if 0 // TODO(taylor)
     REGISTER_COMMON(loop);
     REGISTER_COMMON(prior_box);
-#endif
 }
 
 }  // namespace common

@@ -14,7 +14,7 @@ primitive_type_id region_yolo::type_id() {
 }
 
 layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for "
            "region_yolo_node!");
     auto input_layout = node.input().get_output_layout();

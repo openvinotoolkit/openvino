@@ -18,7 +18,7 @@ primitive_type_id reshape::type_id() {
 }
 
 layout reshape_inst::calc_output_layout(reshape_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto input_layout = node.input().get_non_padded_output_layout();
     auto sizes = node.get_primitive()->output_shape.sizes();
@@ -99,9 +99,7 @@ void reshape_inst::on_execute() {
 
 void reshape_inst::reuse_input() {
     build_deps();  // reshape need deps
-    for (auto i = 0; i < node.get_outputs_count(); ++i) {
-        _outputs[i] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout(i));
-    }
+    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout())};
 }
 
 }  // namespace cldnn

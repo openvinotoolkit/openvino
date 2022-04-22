@@ -59,9 +59,6 @@
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
-// TODO(Andrew): Will be removed after ocl register enabled
-#include "gather_inst.h"
-#include "normalize_inst.h"
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -145,7 +142,7 @@ void program::init_primitives() {
         cpu::register_implementations();
         ocl::register_implementations();
 #ifdef ENABLE_ONEDNN_FOR_GPU
-//        onednn::register_implementations();
+        onednn::register_implementations();
 #endif
         is_initialized = true;
     }

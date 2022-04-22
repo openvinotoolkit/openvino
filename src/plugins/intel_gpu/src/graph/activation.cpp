@@ -16,7 +16,7 @@ primitive_type_id activation::type_id() {
 }
 
 layout activation_inst::calc_output_layout(activation_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for activation_node!");
 
     auto input_node_layout = node.input().get_non_padded_output_layout();

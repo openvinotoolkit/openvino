@@ -9,10 +9,11 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #if 0 // TODO(taylor)
 #include "intel_gpu/primitives/eltwise.hpp"
+#endif
 #include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-#endif
+
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
@@ -68,9 +69,9 @@ using eltwise_mode = kernel_selector::EltwiseMode;
 #if 0 // TODO(andrew)
 using eltwise_input_mode = kernel_selector::EltwiseInputMode;
 using softmax_dim = kernel_selector::SoftmaxDim;
+#endif
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
-#endif
 using concat_axis = kernel_selector::ConcatAxis;
 #if 0 // TODO(taylor)
 using tuning_mode = kernel_selector::TuningMode;
@@ -126,7 +127,6 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
-#if 0 // TODO(taylor)
 template <typename p_type>
 inline void convert_activation_func_params(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
     const float negative_slope = primitive->activation_negative_slope;
@@ -152,7 +152,7 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
                                    primitive->additional_params.a,
                                    primitive->additional_params.b});
 }
-#endif
+
 void set_params(const program_node& node, kernel_selector::params& params);
 
 template <typename params_t, typename arg_t>
@@ -170,9 +170,8 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     params.outputs[0] = convert_data_tensor(output_layout, split); // TODO(taylor) need fix for multiple output ?
 
     params.layerID = arg.id();
-#if 0 // TODO(taylor)
+
     convert_fused_activation_func_params(arg, params.activations);
-#endif
     std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {

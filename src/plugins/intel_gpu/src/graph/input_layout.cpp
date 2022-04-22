@@ -46,7 +46,7 @@ void input_layout_inst::set_data(memory::ptr mem) {
     check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
-        _outputs[0] = mem;
+        _outputs.push_back(mem);
     } else {
         mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
         mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());

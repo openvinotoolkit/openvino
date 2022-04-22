@@ -17,7 +17,7 @@ primitive_type_id non_max_suppression::type_id() {
 layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node) {
     auto desc = node.get_primitive();
 
-    auto output_type = !desc->output_data_types.empty() ? *desc->output_data_types.at(0) : data_types::i32;
+    auto output_type = desc->output_data_types.at(0) ? *desc->output_data_types.at(0) : data_types::i32;
 
     auto output_size = tensor(batch(desc->selected_indices_num), feature(3));
 

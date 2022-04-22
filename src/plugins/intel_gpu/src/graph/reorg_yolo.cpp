@@ -14,7 +14,7 @@ primitive_type_id reorg_yolo::type_id() {
 }
 
 layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for "
            "reorg_yolo_node!");
     auto input_layout = node.input().get_output_layout();

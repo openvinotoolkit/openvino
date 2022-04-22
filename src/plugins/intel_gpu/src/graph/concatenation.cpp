@@ -24,7 +24,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
     auto output_format = input_layout.format;
     auto result_sizes = input_layout.size.sizes();
 
-    auto output_dt = !desc->output_data_types.empty() ? *desc->output_data_types[0] : input_layout.data_type;
+    auto output_dt = desc->output_data_types.at(0) ? *desc->output_data_types.at(0) : input_layout.data_type;
 
     auto axis_index = node.get_primitive()->axis;
 

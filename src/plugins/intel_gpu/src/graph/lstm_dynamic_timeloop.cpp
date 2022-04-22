@@ -86,7 +86,7 @@ size_t lstm_dynamic_timeloop_node::get_dependency_idx(std::string val) const {
 // init_cell:      [b: batch, f: 1, x: hidden_size, y: direction]
 // output_tensor:  [b: batch, f: max_sequence_length, x: hidden_size, y: direction]
 layout lstm_dynamic_timeloop_inst::calc_output_layout(lstm_dynamic_timeloop_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
     auto input_layout = node.input().get_output_layout();
     auto batch = input_layout.size.batch[0];

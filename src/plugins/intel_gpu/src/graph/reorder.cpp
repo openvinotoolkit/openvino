@@ -231,13 +231,9 @@ void reorder_inst::reuse_input() {
     build_deps();
 
     if (node.requires_reinterpret()) {
-        for (auto i = 0; i < node.get_outputs_count(); ++i) {
-            _outputs[i] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout(i));
-        }
+        _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout())};
     } else {
-        for (auto i = 0; i < node.get_outputs_count(); ++i) {
-            _outputs[i] = input_memory_ptr(i);
-        }
+        _outputs = {input_memory_ptr()};
     }
 }
 

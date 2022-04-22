@@ -7,9 +7,7 @@
 #include "program_dump_graph.h"
 #include "to_string_utils.h"
 #include "data_inst.h"
-#if 0 // TODO(taylor)
 #include "condition_inst.h"
-#endif
 
 #include <algorithm>
 #include <vector>
@@ -171,7 +169,6 @@ std::string get_load_program_name(build_options opts) {
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
                      std::function<bool(program_node const&)> const& filter) {
-#if 0 // TODO(taylor)
     const std::string invalid_layout_msg = "(invalid layout)";
     const auto extr_oformat = [&invalid_layout_msg](const program_node* ptr) {
         if (!ptr->is_all_valid_output_layout())
@@ -299,7 +296,6 @@ void dump_graph_init(std::ofstream& graph,
     }
     graph << "}\n";
     close_stream(graph);
-#endif
 }
 
 void dump_graph_processing_order(std::ofstream& graph, const program& program) {

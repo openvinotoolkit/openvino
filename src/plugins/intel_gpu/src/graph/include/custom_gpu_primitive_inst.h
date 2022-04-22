@@ -29,7 +29,7 @@ class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_b
 
 public:
     static layout calc_output_layout(custom_gpu_primitive_node const& node) {
-        assert(!node.get_primitive()->output_data_types.empty() &&
+        assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
                "Output data type forcing is not supported for "
                "custom_gpu_primitive_node!");
         layout output_layout = node.get_primitive()->output_layout;

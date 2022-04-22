@@ -64,7 +64,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node) {
     else if (output_type == data_types::i8 || output_type == data_types::u8)
         output_type = data_types::f32;
 
-    if (!desc->output_data_types.empty())
+    if (desc->output_data_types.at(0))
         output_type = *desc->output_data_types.at(0);
 
     if (node.has_fused_primitives())

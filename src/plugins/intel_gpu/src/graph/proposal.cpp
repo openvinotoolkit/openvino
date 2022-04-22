@@ -26,7 +26,7 @@ primitive_type_id proposal::type_id() {
 }
 
 layout proposal_inst::calc_output_layout(proposal_node const& node) {
-    assert(node.get_primitive()->output_data_types.empty() &&
+    assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for proposal_node!");
     auto desc = node.get_primitive();
     layout input_layout = node.get_dependency(cls_scores_index).first->get_output_layout();

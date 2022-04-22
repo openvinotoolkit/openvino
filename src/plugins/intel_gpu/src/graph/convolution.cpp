@@ -292,7 +292,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     auto stride = argument.stride;
 
     auto input_inst = node.input().get_output_layout();
-    auto output_inst = node.get_output_layout(0);
+    auto output_inst = node.get_output_layout();
     auto output_size = output_inst.size;
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -360,7 +360,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
-                              node.get_output_layout(0).data_padding.filling_value(),
+                              node.get_output_layout().data_padding.filling_value(),
                               "padding value",
                               0.0f,
                               "Unknown padding mode.");
