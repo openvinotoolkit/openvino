@@ -12,7 +12,7 @@ from tests_compatibility.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "num_rows, num_columns, diagonal_index, output_type",
+    "num_rows, num_columns, diagonal_index, out_type",
     [
         pytest.param(2, 5, 0, np.float32),
         pytest.param(5, 3, 2, np.int64),
@@ -20,7 +20,7 @@ from tests_compatibility.test_ngraph.util import run_op_node
         pytest.param(5, 5, -10, np.float32),
     ],
 )
-def test_eye_rectangle(num_rows, num_columns, diagonal_index, output_type):
+def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
     num_rows_array = np.array([num_rows], np.int32)
     num_columns_array = np.array([num_columns], np.int32)
     diagonal_index_array = np.array([diagonal_index], np.int32)
@@ -28,16 +28,23 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, output_type):
     num_columns_tensor = ng.constant(num_columns_array)
     diagonal_index_tensor = ng.constant(diagonal_index_array)
 
-    eye_node = ng.eye(num_rows_tensor,
+    # Create with param names
+    eye_node = ng.eye(num_rows=num_rows_tensor,
                       num_columns=num_columns_tensor,
                       diagonal_index=diagonal_index_tensor,
-                      output_type=get_element_type_str(output_type))
+                      output_type=get_element_type_str(out_type))
+
+    # Create with default orded
+    eye_node = ng.eye(num_rows_tensor,
+                    num_columns_tensor,
+                    diagonal_index_tensor,
+                    get_element_type_str(out_type))
 
     expected_results = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=np.float32)
 
     assert eye_node.get_type_name() == "Eye"
     assert eye_node.get_output_size() == 1
-    assert eye_node.get_output_element_type(0) == get_element_type(output_type)
+    assert eye_node.get_output_element_type(0) == get_element_type(out_type)
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
 
     # TODO: Enable with Eye reference implementation
@@ -48,7 +55,7 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, output_type):
 
 
 @pytest.mark.parametrize(
-    "num_rows, num_columns, diagonal_index, batch_shape, output_type",
+    "num_rows, num_columns, diagonal_index, batch_shape, out_type",
     [
         pytest.param(2, 5, 0, [1], np.float32),
         pytest.param(5, 3, 2, [2, 2], np.int64),
@@ -56,7 +63,7 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, output_type):
         pytest.param(5, 5, -10, [1, 1], np.float32),
     ],
 )
-def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, output_type):
+def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out_type):
     num_rows_array = np.array([num_rows], np.int32)
     num_columns_array = np.array([num_columns], np.int32)
     diagonal_index_array = np.array([diagonal_index], np.int32)
@@ -66,11 +73,19 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
     diagonal_index_tensor = ng.constant(diagonal_index_array)
     batch_shape_tensor = ng.constant(batch_shape_array)
 
-    eye_node = ng.eye(num_rows_tensor,
+    # Create with param names
+    eye_node = ng.eye(num_rows=num_rows_tensor,
                       num_columns=num_columns_tensor,
                       diagonal_index=diagonal_index_tensor,
                       batch_shape=batch_shape_tensor,
-                      output_type=get_element_type_str(output_type))
+                      output_type=get_element_type_str(out_type))
+
+    # Create with default orded
+    eye_node = ng.eye(num_rows_tensor,
+                      num_columns_tensor,
+                      diagonal_index_tensor,
+                      get_element_type_str(out_type),
+                      batch_shape_tensor)
 
     output_shape = [*batch_shape, 1, 1]
     one_matrix = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=np.float32)
@@ -78,7 +93,7 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
 
     assert eye_node.get_type_name() == "Eye"
     assert eye_node.get_output_size() == 1
-    assert eye_node.get_output_element_type(0) == get_element_type(output_type)
+    assert eye_node.get_output_element_type(0) == get_element_type(out_type)
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
 
     # TODO: Enable with Eye reference implementation
