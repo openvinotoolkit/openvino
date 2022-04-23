@@ -32,8 +32,8 @@ private:
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
     mutable std::mutex taskExecutorMutex;
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     mutable std::mutex tbbMutex;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     std::shared_ptr<tbb::task_scheduler_init> _tbb = nullptr;
 #endif
 };
@@ -44,8 +44,10 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     std::lock_guard<std::mutex> guard(tbbMutex);
     tbbTerminateFlag = flag;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    if (flag && !_tbb) {
-        _tbb = std::make_shared<tbb::task_scheduler_init>();
+    if (tbbTerminateFlag) {
+        if (!_tbb) {
+            _tbb = std::make_shared<tbb::task_scheduler_init>();
+        }
     } else {
         _tbb = nullptr;
     }
