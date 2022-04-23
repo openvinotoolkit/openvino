@@ -75,7 +75,7 @@ private:
     void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
 };
 
-const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+static constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
 }  // namespace onnx_import
 

@@ -131,7 +131,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              ov::frontend::ExtensionHolder extensions)
     : m_cache{std::move(cache)},
       m_extensions{std::move(extensions)} {
-    const auto ops_bridge = detail::init_ops_bridge(extensions.conversions);
+    const auto ops_bridge = detail::init_ops_bridge(m_extensions.conversions);
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
 
     std::map<std::string, Tensor> initializers;
@@ -403,11 +403,11 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>(), parent_graph->get_extensions()),
+    : Graph(model_proto, common::make_unique<GraphCache>()),
       m_parent_graph(parent_graph) {
-    // do not copy a pre-configured progress reporter extension to the subgraph, copy just the telemetry
-    // (do not report subgraph conversion progress)
+    // do not copy a pre-configured progress reporter extension to the subgraph
     m_extensions.telemetry = parent_graph->get_extensions().telemetry;
+    m_extensions.conversions = parent_graph->get_extensions().conversions;
 }
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {

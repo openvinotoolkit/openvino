@@ -17,8 +17,7 @@
 #include "utils/onnx_internal.hpp"
 
 namespace {
-ngraph::onnx_import::LegacyConversionExtension::Ptr legacy_conversion_extension =
-    std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
+auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
 }  // namespace
 
 namespace ngraph {
@@ -27,7 +26,7 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::str
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
-    return detail::import_onnx_model(model_proto, model_path, extensions);
+    return detail::import_onnx_model(model_proto, model_path, std::move(extensions));
 }
 
 std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
