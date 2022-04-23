@@ -57,31 +57,27 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
-    // TODO - apply custom conversions to the bridge object
     for (const auto& extension : conversions) {
-        if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
-            // for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
-            //     const auto converter = common_conv_ext->get_converter();
-            //     OperatorsBridge::register_operator(
-            //         common_conv_ext->get_op_type(),
-            //         i,
-            //         "",
-            //         [converter](const ngraph::onnx_import::Node& context) -> OutputVector {
-            //             return converter(ov::frontend::onnx::NodeContext(context));
-            //         });
-            // }
+        if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+            for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
+                bridge.register_operator(
+                    common_conv_ext->get_op_type(),
+                    i,
+                    "",
+                    [common_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
+                        return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
+                    });
+            }
         } else if (const auto onnx_conv_ext =
                        std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
-            //     for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
-            //         ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
-            //                                                i,
-            //                                                "",
-            //                                                [=](const ngraph::onnx_import::Node& context) ->
-            //                                                OutputVector
-            //                                                {
-            //                                                    return
-            //                                                    onnx_conv_ext->get_converter()(NodeContext(context));
-            //                                                });
+            for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
+                bridge.register_operator(
+                    onnx_conv_ext->get_op_type(),
+                    i,
+                    "",
+                    [onnx_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
+                        return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
+                    });
         } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
             return legacy_conv_extension->ops_bridge();
         }

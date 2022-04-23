@@ -16,6 +16,7 @@ public:
     using Ptr = std::shared_ptr<LegacyConversionExtension>;
 
     LegacyConversionExtension() : ov::frontend::ConversionExtensionBase("") {}
+    ~LegacyConversionExtension() = default;
 
     const OperatorsBridge& ops_bridge() const {
         return m_legacy_ops_bridge;

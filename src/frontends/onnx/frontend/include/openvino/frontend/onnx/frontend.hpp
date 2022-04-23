@@ -17,7 +17,7 @@ namespace onnx {
 
 class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    ~FrontEnd() override;
+    ~FrontEnd() = default;
     using Ptr = std::shared_ptr<FrontEnd>;
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
     void convert(const std::shared_ptr<ov::Model>& partially_converted) const override;
@@ -29,8 +29,8 @@ public:
 protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
-    // m_extensions should be the first member here,
-    // m_extensions can contain SO Extension (holder for other Extensions),
+    // m_other_extensions should be the first member here,
+    // m_other_extensions can contain SO Extension (holder for other Extensions),
     // so it should be released last.
     std::vector<Extension::Ptr> m_other_extensions;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
