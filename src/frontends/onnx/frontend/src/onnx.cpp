@@ -13,20 +13,21 @@
 #include "onnx_common/parser.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "ops_bridge.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 #include "utils/onnx_internal.hpp"
 
 namespace {
-// it's the same type of object as the one used in the ONNX FE
-// it's called legacy here because it's supposed to work with legacy public API only
-// the new API including ONNX FE uses its own, non static, per-frontend object instance of OperatorsBridge
-ngraph::onnx_import::OperatorsBridge legacy_ops_bridge{};
+ngraph::onnx_import::LegacyConversionExtension::Ptr legacy_conversion_extension =
+    std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
 }  // namespace
 
 namespace ngraph {
 namespace onnx_import {
 std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path) {
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
-    return detail::import_onnx_model(model_proto, model_path);
+    ov::frontend::ExtensionHolder extensions;
+    extensions.conversions.push_back(legacy_conversion_extension);
+    return detail::import_onnx_model(model_proto, model_path, extensions);
 }
 
 std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
@@ -51,15 +52,18 @@ std::set<std::string> get_supported_operators(std::int64_t version, const std::s
 }
 
 bool is_operator_supported(const std::string& op_name, std::int64_t version, const std::string& domain) {
-    return legacy_ops_bridge.is_operator_registered(op_name, version, domain == "ai.onnx" ? "" : domain);
+    return legacy_conversion_extension->ops_bridge().is_operator_registered(op_name,
+                                                                            version,
+                                                                            domain == "ai.onnx" ? "" : domain);
 }
 
 void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn) {
-    legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
+    legacy_conversion_extension->register_operator(name, version, domain, std::move(fn));
 }
 
 void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-    OperatorsBridge::unregister_operator(name, version, domain);
+    // TODO - add it to the legacy extension
+    // OperatorsBridge::unregister_operator(name, version, domain);
 }
 
 }  // namespace onnx_import

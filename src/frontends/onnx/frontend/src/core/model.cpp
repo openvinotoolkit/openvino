@@ -60,13 +60,13 @@ bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) c
     return (op != std::end(dm->second));
 }
 
-void Model::enable_opset_domain(const std::string& domain) {
+void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge) {
     // There is no need to 'update' already enabled domain.
     // Since this function may be called only during model import,
     // (maybe multiple times) the registered domain opset won't differ
     // between subsequent calls.
     if (m_opset.find(domain) == std::end(m_opset)) {
-        const auto opset = OperatorsBridge{}.get_operator_set(domain);
+        const auto opset = ops_bridge.get_operator_set(domain);
         if (opset.empty()) {
             NGRAPH_WARN << "Couldn't enable domain: " << domain << " since it does not have any registered operators.";
             return;

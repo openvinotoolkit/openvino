@@ -39,10 +39,10 @@ public:
 
     OperatorsBridge();
 
-    OperatorsBridge(const OperatorsBridge&) = delete;
-    OperatorsBridge& operator=(const OperatorsBridge&) = delete;
-    OperatorsBridge(OperatorsBridge&&) = delete;
-    OperatorsBridge& operator=(OperatorsBridge&&) = delete;
+    OperatorsBridge(const OperatorsBridge&) = default;
+    OperatorsBridge& operator=(const OperatorsBridge&) = default;
+    OperatorsBridge(OperatorsBridge&&) = default;
+    OperatorsBridge& operator=(OperatorsBridge&&) = default;
 
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
@@ -52,7 +52,7 @@ public:
         // TODO - make it non-static
     }
 
-    bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain);
+    bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
 private:
     // Registered operators structure

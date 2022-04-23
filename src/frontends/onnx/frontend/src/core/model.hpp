@@ -21,6 +21,8 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain);
 
+class OperatorsBridge;
+
 class Model {
 public:
     // a container with OperatorSets covering all domains used in a given model
@@ -76,7 +78,7 @@ public:
     ///
     /// \param[in]  domain  The domain name.
     ///
-    void enable_opset_domain(const std::string& domain);
+    void enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge);
 
 private:
     const std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;

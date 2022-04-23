@@ -21,6 +21,7 @@
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -54,8 +55,7 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
 
-Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto,
-                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
     // TODO - apply custom conversions to the bridge object
     for (const auto& extension : conversions) {
@@ -82,9 +82,14 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
             //                                                    return
             //                                                    onnx_conv_ext->get_converter()(NodeContext(context));
             //                                                });
+        } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
+            return legacy_conv_extension->ops_bridge();
         }
     }
+    return bridge;
+}
 
+Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
     // copy the opset imports from the ONNX model and sort them by their version in ascending order
     // this will make sure that multiple opset imports for the same domain will cause the largest
     // version to be used for this model, for example:
@@ -99,11 +104,11 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     Model::ModelOpSet opset;
     std::for_each(opset_imports.rbegin(),
                   opset_imports.rend(),
-                  [&opset, &bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                  [&opset, &ops_bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
                       const auto domain =
                           onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
                       if (opset.find(domain) == std::end(opset)) {
-                          opset[domain] = bridge.get_operator_set(domain, onnx_opset.version());
+                          opset[domain] = ops_bridge.get_operator_set(domain, onnx_opset.version());
                       }
                   });
 
@@ -111,7 +116,7 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     // implies the operator set that is defined as part of the ONNX specification.
     const auto dm = opset.find("");
     if (dm == std::end(opset)) {
-        opset[""] = bridge.get_operator_set("", ONNX_OPSET_VERSION);
+        opset[""] = ops_bridge.get_operator_set("", ONNX_OPSET_VERSION);
     }
 
     return opset;
@@ -124,9 +129,11 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov:
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              ov::frontend::ExtensionHolder extensions)
-    : m_model{common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, extensions.conversions))},
-      m_cache{std::move(cache)},
+    : m_cache{std::move(cache)},
       m_extensions{std::move(extensions)} {
+    const auto ops_bridge = detail::init_ops_bridge(extensions.conversions);
+    m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
+
     std::map<std::string, Tensor> initializers;
 
     // Process all initializers in the graph
@@ -172,7 +179,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         if (!m_model->is_operator_available(node_proto)) {
             unknown_operators.emplace(detail::get_op_domain_and_name(node_proto), node_proto);
             // If a node from an unregistered domain is detected, try registering that domain
-            m_model->enable_opset_domain(get_node_domain(node_proto));
+            m_model->enable_opset_domain(get_node_domain(node_proto), ops_bridge);
         }
     }
 
