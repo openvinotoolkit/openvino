@@ -41,7 +41,8 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
 }
 
 std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain) {
-    const auto op_set = OperatorsBridge{}.get_operator_set(domain == "ai.onnx" ? "" : domain, version);
+    const auto op_set =
+        legacy_conversion_extension->ops_bridge().get_operator_set(domain == "ai.onnx" ? "" : domain, version);
     // TODO - move this functionality to the OperatorsBridge to avoid obsolete creation of an OperatorSet here
     std::set<std::string> op_list{};
     for (const auto& op : op_set) {
@@ -61,8 +62,7 @@ void register_operator(const std::string& name, std::int64_t version, const std:
 }
 
 void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-    // TODO - add it to the legacy extension
-    // OperatorsBridge::unregister_operator(name, version, domain);
+    legacy_conversion_extension->unregister_operator(name, version, domain);
 }
 
 }  // namespace onnx_import

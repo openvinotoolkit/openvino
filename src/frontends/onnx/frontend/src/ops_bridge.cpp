@@ -198,7 +198,7 @@ void OperatorsBridge::register_operator(const std::string& name,
     }
 }
 
-void OperatorsBridge::_unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
+void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
         NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
@@ -246,7 +246,9 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     return result;
 }
 
-bool OperatorsBridge::is_operator_registered(const std::string& name, int64_t version, const std::string& domain) const {
+bool OperatorsBridge::is_operator_registered(const std::string& name,
+                                             int64_t version,
+                                             const std::string& domain) const {
     // search for domain
     const auto dm_map = m_map.find(domain);
     if (dm_map == std::end(m_map)) {

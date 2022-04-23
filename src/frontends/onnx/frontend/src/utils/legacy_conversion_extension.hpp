@@ -25,6 +25,10 @@ public:
         m_legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
     }
 
+    void unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
+        m_legacy_ops_bridge.unregister_operator(name, version, domain);
+    }
+
 private:
     OperatorsBridge m_legacy_ops_bridge;
 };

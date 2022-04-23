@@ -47,10 +47,7 @@ public:
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
     void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
-    static void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-        // _unregister_operator(name, version, domain);
-        // TODO - make it non-static
-    }
+    void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
 
     bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
@@ -71,8 +68,6 @@ private:
     // }
     using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, std::shared_ptr<Operator>>>;
     std::unordered_map<std::string, DomainOpset> m_map;
-
-    void _unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
 };
 
 static constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
