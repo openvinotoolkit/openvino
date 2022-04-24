@@ -46,9 +46,28 @@ public:
 
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
+    template <typename Container = std::set<std::string>>
+    Container get_supported_operators(int64_t version, const std::string& domain) const {
+        Container ops{};
+        const auto dm = m_map.find(domain);
+        if (dm == std::end(m_map)) {
+            return ops;
+        }
+
+        std::insert_iterator<Container> inserter{ops, std::begin(ops)};
+
+        std::transform(std::begin(dm->second),
+                       std::end(dm->second),
+                       inserter,
+                       [](const DomainOpset::value_type& op_in_domain) {
+                           return op_in_domain.first;
+                       });
+
+        return ops;
+    }
+
     void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
     void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
-
     bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
 private:
