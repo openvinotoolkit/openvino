@@ -9,25 +9,25 @@ import io
 import config
 
 model_file = config.model_file
-label_file = config.label_file
+stamp = config.stamp
 input_layer = config.input_layer
 output_layer = config.output_layer
 classifier_input_size = config.classifier_input_size
 
-def load_graph(model_file):
-  graph = tf.Graph()
-  graph_def = tf.GraphDef()
+def load_chart(model_file):
+  chart = tf.chart()
+  chart_def = tf.chartDef()
 
   with open(model_file, "rb") as f:
-    graph_def.ParseFromString(f.read())
-  with graph.as_default():
-    tf.import_graph_def(graph_def)
+    chart_def.ParseFromString(f.read())
+  with chart.as_default():
+    tf.import_chart_def(chart_def)
 
-  return graph
+  return chart
 
-def load_labels(label_file):
+def load_labels(stamp):
     label = []
-    with open(label_file, "r", encoding='cp1251') as ins:
+    with open(stamp, "r", encoding='cp1251') as ins:
         for line in ins:
             label.append(line.rstrip())
 
@@ -80,16 +80,16 @@ class Classifier():
         #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         #os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-        self.graph = load_graph(model_file)
-        self.labels = load_labels(label_file)
+        self.chart = load_chart(model_file)
+        self.labels = load_labels(stamp)
 
         input_name = "import/" + input_layer
         output_name = "import/" + output_layer
-        self.input_operation = self.graph.get_operation_by_name(input_name)
-        self.output_operation = self.graph.get_operation_by_name(output_name)
+        self.input_operation = self.chart.get_operation_by_name(input_name)
+        self.output_operation = self.chart.get_operation_by_name(output_name)
 
-        self.sess = tf.Session(graph=self.graph)
-        self.sess.graph.finalize()  # Graph is read-only after this statement.
+        self.sess = tf.Session(chart=self.chart)
+        self.sess.chart.finalize()  # chart is read-only after this statement.
 
     def predict(self, img):
         img = img[:, :, ::-1]
