@@ -6,7 +6,7 @@ import tensorflow.compat.v1 as tf
 from PIL import Image, ImageOps
 import cv2
 import io
-import configs
+import config
 
 model_file = config.model_file
 label_file = config.label_file
