@@ -21,11 +21,23 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
+    ConversionExtension(const std::string& op_type,
+                        const std::string& domain,
+                        const ov::frontend::CreatorFunction& converter)
+        : ConversionExtensionBase(op_type),
+          m_domain{domain},
+          m_converter(converter) {}
+
+    const std::string& get_domain() const {
+        return m_domain;
+    }
+    
     const ov::frontend::CreatorFunction& get_converter() const {
         return m_converter;
     }
 
 private:
+    std::string m_domain = "";
     ov::frontend::CreatorFunction m_converter;
 };
 }  // namespace onnx

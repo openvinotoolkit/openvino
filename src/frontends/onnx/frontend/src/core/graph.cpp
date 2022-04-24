@@ -67,7 +67,7 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
                 bridge.register_operator(
                     common_conv_ext->get_op_type(),
                     i,
-                    "",
+                    "",  // the common OV extension is not able to use a particular domain, using the default instead
                     [common_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
                         return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
                     });
@@ -78,7 +78,7 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
                 bridge.register_operator(
                     onnx_conv_ext->get_op_type(),
                     i,
-                    "",
+                    onnx_conv_ext->get_domain(),
                     [onnx_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
                         return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
                     });
@@ -120,6 +120,16 @@ Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_prot
     }
 
     return opset;
+}
+
+/// Copies only the extensions required by the Subgraph class.
+/// The source is an extension holder retrieved from the parent graph object.
+ov::frontend::ExtensionHolder subgraph_required_extensions(
+    const ov::frontend::ExtensionHolder& parent_graph_extensions) {
+    ov::frontend::ExtensionHolder extensions;
+    extensions.telemetry = parent_graph_extensions.telemetry;
+    extensions.conversions = parent_graph_extensions.conversions;
+    return extensions;
 }
 }  // namespace detail
 
@@ -403,12 +413,10 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>()),
-      m_parent_graph(parent_graph) {
-    // do not copy a pre-configured progress reporter extension to the subgraph
-    m_extensions.telemetry = parent_graph->get_extensions().telemetry;
-    m_extensions.conversions = parent_graph->get_extensions().conversions;
-}
+    : Graph(model_proto,
+            common::make_unique<GraphCache>(),
+            detail::subgraph_required_extensions(parent_graph->get_extensions())),
+      m_parent_graph(parent_graph) {}
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
     if (m_cache->contains(name)) {

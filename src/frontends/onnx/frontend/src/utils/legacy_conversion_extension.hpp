@@ -11,6 +11,8 @@
 
 namespace ngraph {
 namespace onnx_import {
+/// An extension holding its own copy of the OperatorsBridge which should only be used with legacy ONNX importer API
+/// Having it here keeps the legacy API operational without interfering with the frontends API
 class LegacyConversionExtension : public ov::frontend::ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<LegacyConversionExtension>;
@@ -22,6 +24,7 @@ public:
         return m_legacy_ops_bridge;
     }
 
+    /// The legacy API entry point for registering custom operations globally (but not for ONNX FE)
     void register_operator(const std::string& name, int64_t version, const std::string& domain, Operator fn) {
         m_legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
     }
