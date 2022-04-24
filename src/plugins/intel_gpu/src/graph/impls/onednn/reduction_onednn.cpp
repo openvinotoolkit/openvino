@@ -7,6 +7,7 @@
 #include "impls/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
+#include "kernel_base.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -14,7 +15,6 @@
 #include <memory>
 namespace cldnn {
 namespace onednn {
-
 struct reduction_onednn : typed_primitive_onednn_impl<reduce, dnnl::reduction::desc> {
     using parent = typed_primitive_onednn_impl<reduce, dnnl::reduction::desc>;
     using parent::parent;
@@ -26,18 +26,31 @@ protected:
 
     static std::shared_ptr<dnnl::reduction::desc> get_reduction_descriptor(const reduce_node& arg) {
         auto prim = arg.get_primitive();
-
         auto& input = arg.get_dependency(0);
-
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
 
+        float p = 0.f;
+        float eps = 0.f;
         dnnl::algorithm alg;
         switch (prim->mode) {
             case reduce_mode::mean: alg = dnnl::algorithm::reduction_mean; break;
             case reduce_mode::max: alg = dnnl::algorithm::reduction_max; break;
             case reduce_mode::min: alg = dnnl::algorithm::reduction_min; break;
             case reduce_mode::sum: alg = dnnl::algorithm::reduction_sum; break;
+            case reduce_mode::prod: alg = dnnl::algorithm::reduction_mul; break;
+            case reduce_mode::sum_square:
+                alg = dnnl::algorithm::reduction_norm_lp_power_p_sum;
+                p = 2.0f;
+                break;
+            case reduce_mode::l1:
+                alg = dnnl::algorithm::reduction_norm_lp_sum;
+                p = 1.0f;
+                break;
+            case reduce_mode::l2:
+                alg = dnnl::algorithm::reduction_norm_lp_sum;
+                p = 2.0f;
+                break;
             default: throw std::runtime_error("unsupported reduce mode");
         }
 
@@ -45,8 +58,8 @@ protected:
             alg,
             input_md,
             output_md,
-	    0.0f,
-	    0.0f);
+            p,
+            eps);
     }
 
 public:

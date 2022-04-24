@@ -612,11 +612,20 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
-        auto reduce_supports_fusings = [](reduce_node& node) -> bool {
+        auto reduce_supports_fusings = [&](reduce_node& node) -> bool {
             auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
+            auto axes = node.as<reduce>().get_primitive()->axes;
 
-            // all reduce ops force to onednn, onednn reduction without post-ops has better performance than with post-ops
-            return false;
+            // If reduce tensor size is small, it sets not to fuse eltwise which leads to select oneDNN reference reduction
+            // Because oneDNN optimized kernel does NOT support eltwise fusing
+            if (p.get_engine().get_device_info().supports_immad && node.get_output_layout().get_dims().size() <= 4 &&
+                ((find(axes.begin(), axes.end(), reduce::along_x) != axes.end() &&
+                node.input().get_output_layout().spatial(0) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
+                node.input().get_output_layout().spatial(1) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
+                node.input().get_output_layout().feature() > 16)))
+                return false;
 
             if (keep_dims)
                 return true;
