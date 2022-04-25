@@ -72,7 +72,7 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
         } else if (const auto onnx_conv_ext =
                        std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
             bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
-                                      "",
+                                      onnx_conv_ext->get_domain(),
                                       [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
                                           return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                                       });
