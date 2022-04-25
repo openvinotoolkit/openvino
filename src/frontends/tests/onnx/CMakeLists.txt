@@ -22,7 +22,7 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
+list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
@@ -30,7 +30,7 @@ if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
+        list(APPEND ONNX_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
     endif()
 endif()
 
@@ -40,7 +40,7 @@ if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
+        list(APPEND ONNX_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
     endif()
 endif()
 
@@ -48,7 +48,7 @@ if (ENABLE_TEMPLATE AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
+        list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_plugin)
     endif()
 endif()
 
@@ -90,7 +90,7 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
         list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
     endif()
 endforeach()
-add_clang_format_target(onnx_import_unit_tests_clang FOR_SOURCES ${full_src_names})
+add_clang_format_target(onnx_tests_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -118,22 +118,12 @@ target_compile_definitions(onnx_tests
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
-if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(onnx_tests ${UNIT_TESTS_DEPENDENCIES})
+if(ONNX_TESTS_DEPENDENCIES)
+    add_dependencies(onnx_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(onnx_tests PRIVATE ngraph_test_util
-                                        engines_test_util
-                                        commonTestUtils
-                                        ngraph_reference
-                                        ngraph::builder
-                                        openvino::util
-                                        ov_shape_inference
-                                        pugixml::static
-                                        ${CMAKE_DL_LIBS}
-                                        Threads::Threads
-                                        openvino::conditional_compilation
-                                        openvino::runtime::dev)
+target_link_libraries(onnx_tests PRIVATE commonTestUtils engines_test_util onnx_test_util openvino::runtime::dev
+    openvino_onnx_frontend)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
@@ -142,8 +132,7 @@ target_include_directories(onnx_tests
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
         ${Protobuf_INCLUDE_DIRS})
-target_compile_definitions(onnx_tests
-    PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(onnx_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(onnx_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
 if (OV_COMPILER_IS_CLANG)
@@ -152,15 +141,10 @@ endif()
 
 target_include_directories(onnx_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
-target_link_libraries(onnx_tests PRIVATE openvino_onnx_frontend onnx_test_util)
 if (LINUX)
     target_link_options(onnx_tests PRIVATE -Wl,--exclude-libs,ALL)
 elseif(APPLE)
     target_link_options(onnx_tests PRIVATE -Wl,-dead_strip)
-endif()
-
-if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(onnx_tests openvino_ir_frontend)
 endif()
 
 install(TARGETS onnx_tests
