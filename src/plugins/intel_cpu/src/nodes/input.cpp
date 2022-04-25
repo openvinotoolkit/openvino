@@ -45,7 +45,7 @@ struct jit_has_subnormals_base : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_has_subnormals_base() : jit_generator(jit_name()) {
+    jit_has_subnormals_base() : jit_generator() {
         jit_ker_ = nullptr;
     }
 

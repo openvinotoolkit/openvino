@@ -112,7 +112,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator(jit_name()) {}
+    : jit_uni_reduce_kernel(jcp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1082,7 +1082,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator(jit_name()) {}
+    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

@@ -31,7 +31,7 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
 
     constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
-    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator(jit_name()) {}
+    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

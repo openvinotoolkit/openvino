@@ -50,7 +50,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
     explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
-            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator(jit_name())  {}
+            jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
 
     void create_ker() override {
         jit_generator::create_kernel();

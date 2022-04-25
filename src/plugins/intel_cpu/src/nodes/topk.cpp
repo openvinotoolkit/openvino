@@ -74,7 +74,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_topk_kernel_f32)
 
     explicit jit_uni_topk_kernel_f32(jit_topk_config_params jcp)
-        : jit_uni_topk_kernel(jcp), jit_generator(jit_name()) {}
+        : jit_uni_topk_kernel(jcp), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

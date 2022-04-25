@@ -49,7 +49,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
     explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_interpolate_kernel(jcp, attr), jit_generator(jit_name()) {}
+    : jit_uni_interpolate_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

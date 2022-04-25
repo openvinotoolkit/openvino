@@ -31,7 +31,7 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator(jit_name()) {}
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

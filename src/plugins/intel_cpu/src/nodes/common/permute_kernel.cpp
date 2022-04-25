@@ -30,7 +30,7 @@ template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator(jit_name()) {}
+    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

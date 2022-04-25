@@ -104,7 +104,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                      const std::vector<Eltwise::EltwiseData>& eltwise_data,
                                      const std::vector<ov::intel_cpu::Type>& ops_list,
                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep), jit_generator(jit_name()), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
+    : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
