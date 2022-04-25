@@ -24,7 +24,7 @@ def roi_align(
     sampling_ratio: int,
     spatial_scale: float,
     mode: str,
-    aligned_mode: Optional[str] = 'asymmetric',
+    aligned_mode: Optional[str] = "asymmetric",
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs ROIAlign operation.

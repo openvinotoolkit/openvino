@@ -23,7 +23,6 @@ class NodeFactory(object):
 
         :param      opset_version:  The opset version the factory will use to produce ops from.
         """
-        import pdb;pdb.set_trace()
         self.factory = _NodeFactory(opset_version)
 
     def create(

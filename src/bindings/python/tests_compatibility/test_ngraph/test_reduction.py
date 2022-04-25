@@ -151,11 +151,13 @@ def test_roi_align():
 
 @pytest.mark.parametrize(
     ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
-    [([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, 'avg', 'asymmetric', [7, 3, 2, 2]),
-     ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, 'avg', 'tf_half_pixel_for_nn', [7, 3, 3, 4]),
-     ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, 'avg', 'half_pixel', [3, 3, 3, 4])],
+    [
+        ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "tf_half_pixel_for_nn", [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, "avg", "half_pixel", [3, 3, 3, 4]),
+    ],
 )
-def test_roi_alignv9(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode,aligned_mode, expected_shape):
+def test_roi_alignv9(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
     data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ng.parameter(rois, name="Rois", dtype=np.float32)
     batch_indices_parameter = ng.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
