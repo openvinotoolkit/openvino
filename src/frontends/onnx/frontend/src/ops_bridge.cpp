@@ -263,6 +263,15 @@ bool OperatorsBridge::is_operator_registered(const std::string& name,
     return find(version, op_map->second) != std::end(op_map->second);
 }
 
+void OperatorsBridge::overwrite_operator(const std::string& name, const std::string& domain, Operator fn) {
+    const auto domain_it = m_map.find(domain);
+    if (domain_it != m_map.end()) {
+        auto& domain_opset = domain_it->second;
+        domain_opset[name].clear();
+    }
+    register_operator(name, 1, domain, std::move(fn));
+}
+
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \

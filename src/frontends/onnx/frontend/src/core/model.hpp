@@ -30,7 +30,7 @@ public:
     using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
 
     Model() = delete;
-    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opsets);
+    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset);
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -50,7 +50,7 @@ public:
     const OpsetImports& get_opset_imports() const {
         return m_model_proto->opset_import();
     }
-    
+
     const std::string& get_producer_version() const {
         return m_model_proto->producer_version();
     }

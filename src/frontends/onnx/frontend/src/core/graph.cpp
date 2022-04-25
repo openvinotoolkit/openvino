@@ -63,25 +63,19 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
     // in the default ONNX domain
     for (const auto& extension : conversions) {
         if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
-            for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
-                bridge.register_operator(
-                    common_conv_ext->get_op_type(),
-                    i,
-                    "",  // the common OV extension is not able to use a particular domain, using the default instead
-                    [common_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
-                        return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
-                    });
-            }
+            bridge.overwrite_operator(
+                common_conv_ext->get_op_type(),
+                "",
+                [common_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                    return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                });
         } else if (const auto onnx_conv_ext =
                        std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
-            for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
-                bridge.register_operator(
-                    onnx_conv_ext->get_op_type(),
-                    i,
-                    onnx_conv_ext->get_domain(),
-                    [onnx_conv_ext](const ngraph::onnx_import::Node& context) -> OutputVector {
-                        return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(context));
-                    });
+            bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
+                                      "",
+                                      [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                                          return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                                      });
         } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
             return legacy_conv_extension->ops_bridge();
         }

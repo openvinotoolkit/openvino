@@ -35,9 +35,9 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
     throw ov::Exception("Couldn't find operator set's version for domain: " + domain + ".");
 }
 
-Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opsets)
+Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset)
     : m_model_proto{model_proto},
-      m_opset{std::move(model_opsets)} {}
+      m_opset{std::move(model_opset)} {}
 
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {
     const auto dm = m_opset.find(domain);

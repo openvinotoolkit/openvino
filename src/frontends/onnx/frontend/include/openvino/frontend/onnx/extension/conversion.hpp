@@ -31,7 +31,7 @@ public:
     const std::string& get_domain() const {
         return m_domain;
     }
-    
+
     const ov::frontend::CreatorFunction& get_converter() const {
         return m_converter;
     }

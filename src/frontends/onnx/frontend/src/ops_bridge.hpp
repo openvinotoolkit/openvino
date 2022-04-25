@@ -70,6 +70,8 @@ public:
     void unregister_operator(const std::string& name, std::int64_t version, const std::string& domain);
     bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
+    void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
+
 private:
     // Registered operators structure
     // {

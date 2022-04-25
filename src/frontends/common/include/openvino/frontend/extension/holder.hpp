@@ -17,7 +17,7 @@ struct ExtensionHolder {
     ExtensionHolder(ExtensionHolder&&) = default;
     ExtensionHolder& operator=(const ExtensionHolder&) = default;
     ExtensionHolder& operator=(ExtensionHolder&&) = default;
-    
+
     std::shared_ptr<ProgressReporterExtension> progress_reporter;
     std::shared_ptr<TelemetryExtension> telemetry;
     std::vector<std::shared_ptr<ConversionExtensionBase>> conversions;
