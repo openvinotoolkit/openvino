@@ -53,7 +53,6 @@ def test_replace_output_update_name():
     relu = opset8.relu(param.output(0))
     exp = opset8.exp(relu.output(0))
     res = opset8.result(exp.output(0), name="result")
-
     replace_output_update_name(exp.output(0), exp.input_value(0))
 
     assert res.input_value(0).get_node() == exp
