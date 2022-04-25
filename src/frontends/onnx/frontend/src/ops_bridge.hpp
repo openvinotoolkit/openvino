@@ -47,7 +47,11 @@ public:
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
 
     template <typename Container = std::set<std::string>>
-    Container get_supported_operators(int64_t version, const std::string& domain) const {
+    Container get_supported_operators(int64_t version, std::string domain) const {
+        if (domain == "ai.onnx") {
+            domain = "";
+        }
+        
         Container ops{};
         const auto dm = m_map.find(domain);
         if (dm == std::end(m_map)) {
