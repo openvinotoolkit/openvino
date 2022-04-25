@@ -7,11 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from tests_compatibility.conftest import image_path, create_encoder
-import ngraph as ng
-
-
-path_to_image = image_path()
+from tests_compatibility.test_utils.test_utils import generate_image
 
 
 def test_init_with_tensor_desc():
@@ -89,16 +85,9 @@ def test_incompatible_array_and_td():
 
 
 def test_incompatible_input_precision():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_image)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1))
-    image = image.reshape((n, c, h, w))
+    image = generate_image(dtype="float64") 
     tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
+    print(tensor_desc)
     with pytest.raises(ValueError) as e:
         Blob(tensor_desc, image)
     assert "Data type float64 of provided numpy array " \

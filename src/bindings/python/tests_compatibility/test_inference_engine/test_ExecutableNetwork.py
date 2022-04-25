@@ -4,12 +4,11 @@
 import numpy as np
 import os
 import pytest
-import warnings
 import time
 
 from openvino.inference_engine import ie_api as ie
 from tests_compatibility.conftest import model_path
-from tests.test_utils.test_utils import generate_image
+from tests_compatibility.test_utils.test_utils import generate_image
 
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
