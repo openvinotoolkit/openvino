@@ -12,7 +12,7 @@ from openvino.runtime import Node, Output
 
 from openvino.runtime.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset8"
+DEFAULT_OPSET = "opset9"
 
 
 class NodeFactory(object):
@@ -23,6 +23,7 @@ class NodeFactory(object):
 
         :param      opset_version:  The opset version the factory will use to produce ops from.
         """
+        import pdb;pdb.set_trace()
         self.factory = _NodeFactory(opset_version)
 
     def create(

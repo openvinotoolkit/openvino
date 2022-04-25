@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from openvino.runtime import PartialShape, Dimension
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset9 as ov
 from openvino.runtime.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -142,6 +142,32 @@ def test_roi_align():
         sampling_ratio,
         spatial_scale,
         mode,
+    )
+
+
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
+    [([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, 'avg', 'asymmetric', [7, 3, 2, 2]),
+     ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, 'avg', 'tf_half_pixel_for_nn', [7, 3, 3, 4]),
+     ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, 'avg', 'half_pixel', [3, 3, 3, 4])],
+)
+def test_roi_alignv9(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode,aligned_mode, expected_shape):
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    spatial_scale = np.float32(1)
+
+    node = ov.roi_align(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        np.float32(spatial_scale),
+        mode,
+        aligned_mode,
     )
 
     assert node.get_type_name() == "ROIAlign"
