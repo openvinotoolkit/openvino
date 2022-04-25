@@ -312,43 +312,46 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    // Create CNNNetwork from ngraph::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    #if defined(_WIN32) || defined(_WIN64)
+        GTEST_SKIP();
+    #else
+        std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+        // Create CNNNetwork from ngraph::Function
+        InferenceEngine::CNNNetwork cnnNet(function);
+        for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+            std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+            std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
-        try {
-            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
-            ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
-            // Load CNNNetwork to target plugins
-            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-            execNet = {};
-            // Check that directory with cached kernels exists after loading network
-            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
-            // Check that folder contains cache files and remove them
-            for (auto& ext : m_extList) {
+            try {
+                auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+                ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
+                // Load CNNNetwork to target plugins
+                auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+                execNet = {};
+                // Check that directory with cached kernels exists after loading network
+                ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
-            }
-            //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
-            // Remove directory and check that it doesn't exist anymore
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
-        } catch (std::exception& ex) {
-            // Cleanup in case of any exception
-            if (CommonTestUtils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
                 }
+                //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+                // Remove directory and check that it doesn't exist anymore
                 ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+            } catch (std::exception& ex) {
+                // Cleanup in case of any exception
+                if (CommonTestUtils::directoryExists(cache_path_w)) {
+                    for (auto& ext : m_extList) {
+                        // Check that folder contains cache files and remove them
+                        ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    }
+                    ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                }
+                FAIL() << ex.what() << std::endl;
             }
-            FAIL() << ex.what() << std::endl;
         }
-    }
+    #endif
 }
 #endif
-
 } // namespace LayerTestsDefinitions
