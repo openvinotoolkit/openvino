@@ -43,9 +43,7 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
     NODE_VALIDATION_CHECK(op, input_shapes.size() == op->get_input_size() && output_shapes.size() == 1);
     // output_shape = dims_batch_shape + dims_matrix
     T batch_shape;
-    T dims_matrix = {ov::Dimension::dynamic(), ov::Dimension::dynamic()};
-    auto& dim_num_rows = dims_matrix[0];
-    auto& dim_num_columns = dims_matrix[1];
+    T dims_matrix;
     auto& output_shape = output_shapes[0];
 
     util::check_1D_or_scalar_shape(op, input_shapes[0], "'num_rows'");
@@ -62,7 +60,9 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
                               num_rows.front() >= 0,
                               "'num_rows' must be non-negative value. Got: ",
                               num_rows.front());
-        dim_num_rows = num_rows.front();
+        dims_matrix.push_back(num_rows.front());
+    } else {
+        dims_matrix.push_back(Dimension::dynamic());
     }
 
     std::vector<int64_t> num_columns;
@@ -75,7 +75,9 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
                               num_columns.front() >= 0,
                               "'num_columns' must be non-negative value. Got: ",
                               num_columns.front());
-        dim_num_columns = num_columns.front();
+        dims_matrix.push_back(num_columns.front());
+    } else {
+        dims_matrix.push_back(Dimension::dynamic());
     }
 
     if (op->get_input_size() == 4) {
