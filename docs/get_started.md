@@ -27,17 +27,20 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Get Started Guides
+   :caption: Learning Materials
    
-   Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
-   Get Started with Tutorials <tutorials>
+   Step-by-step Demo <openvino_docs_get_started_get_started_demos>
+   Python Tutorials <tutorials>
+   OpenVINO Code Samples <openvino_docs_OV_UG_Samples_Overview>
 
+<!--
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: OpenVINO Code Samples
-
+<!--
    openvino_docs_OV_UG_Samples_Overview
+-->
 
 .. toctree::
    :maxdepth: 1
@@ -77,7 +80,7 @@
         <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
      </a>
      <a href="tutorials.html" >
-        <h4>Python Tutorials		</h4>
+        <h4>Python tutorials		</h4>
         <p>Learn from a choice of interactive Python tutorials targeting typical OpenVINO use cases.</p>
      </a> 		
      <a href="workbench_docs_Workbench_DG_Introduction.html" >
