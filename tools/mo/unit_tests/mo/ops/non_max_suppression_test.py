@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-import pytest
 
 import numpy as np
 
