@@ -10,7 +10,7 @@ To accomplish that, the 2022.1 release OpenVINO introduced significant changes t
 
 ## The Installer Package Contains OpenVINO™ Runtime Only
 
-Starting from OpenVINO 2022.1, development tools are distributed only via [PyPI](https://pypi.org/project/openvino-dev/), and are no longer included in the OpenVINO installer package. For a list of those components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md) guide. Benefits of this approach include:
+Since OpenVINO 2022.1, development tools have been distributed only via [PyPI](https://pypi.org/project/openvino-dev/), and are no longer included in the OpenVINO installer package. For a list of these components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md) guide. Benefits of this approach include:
 
 * simplification of the user experience - in previous versions, installation and usage of OpenVINO Development Tools differed from one distribution type to another (the OpenVINO installer vs. PyPI), 
 * ensuring that dependencies are handled properly via the PIP package manager, and support virtual environments of development tools.
