@@ -8,7 +8,7 @@ To infer models with OpenVINO™ Runtime, you usually need to perform the follow
 - 3. Load the model to the device.
 - 4. Create an inference request.
 - 5. Fill input tensors with data.
-- 6. Start the inference.
+- 6. Start inference.
 - 7. Process the inference results.
 
 The following code explains how to change the application code for migration to OpenVINO™ Runtime 2.0.
