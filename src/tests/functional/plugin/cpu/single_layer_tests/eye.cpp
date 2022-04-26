@@ -155,9 +155,9 @@ const std::vector<std::vector<int>> batchShapes1D = {
 const std::vector<std::vector<int>> batchShapes2D = {
     {3, 2}, {2, 1}, {0, 0}
 };
-// const std::vector<std::vector<int>> batchShapes3D = {
-//     {3, 2, 1}, {1, 1, 1}
-// };
+const std::vector<std::vector<int>> batchShapes3D = {
+    {3, 2, 1}, {1, 1, 1}
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLikeLayerCPUTest,
                          ::testing::Combine(
@@ -207,17 +207,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLikeLayerCPUTest,
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLikeLayerCPUTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLikeLayerCPUTest,
-//                          ::testing::Combine(
-//                                  ::testing::Combine(
-//                                          ::testing::ValuesIn(static_shapes_to_test_representation(
-//                                              std::vector<std::vector<ov::Shape>> {{{}, {}, {}, {3}}})),
-//                                          ::testing::ValuesIn(batchShapes3D),
-//                                          ::testing::ValuesIn(eyePars),
-//                                          ::testing::ValuesIn(netPrecisions),
-//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-//                          EyeLikeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLikeLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         ::testing::ValuesIn(static_shapes_to_test_representation(
+                                             std::vector<std::vector<ov::Shape>> {{{}, {}, {}, {3}}})),
+                                         ::testing::ValuesIn(batchShapes3D),
+                                         ::testing::ValuesIn(eyePars),
+                                         ::testing::ValuesIn(netPrecisions),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
+                         EyeLikeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynShapes = {
         {
@@ -227,14 +227,14 @@ const std::vector<std::vector<InputShape>> dynShapes = {
         },
 };
 
-// const std::vector<std::vector<InputShape>> dynShapesWithBatches = {
-//         {
-//             {{-1}, {{1}, {1}, {1}}},  // input 0
-//             {{-1}, {{1}, {1}, {1}}},  // input 1
-//             {{-1}, {{1}, {1}, {1}}},  // input 2
-//             {{3}, {{3}, {3}, {3}}}    // input 3
-//         },
-// };
+const std::vector<std::vector<InputShape>> dynShapesWithBatches = {
+        {
+            {{-1}, {{1}, {1}, {1}}},  // input 0
+            {{-1}, {{1}, {1}, {1}}},  // input 1
+            {{-1}, {{1}, {1}, {1}}},  // input 2
+            {{3}, {{3}, {3}, {3}}}    // input 3
+        },
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
                          ::testing::Combine(
@@ -247,15 +247,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLikeLayerCPUTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Eye_WithBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
-//                          ::testing::Combine(
-//                                  ::testing::Combine(
-//                                          ::testing::ValuesIn(dynShapesWithBatches),
-//                                          ::testing::ValuesIn(batchShapes3D),
-//                                          ::testing::ValuesIn(eyePars),
-//                                          ::testing::ValuesIn(netPrecisions),
-//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-//                          EyeLikeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_WithBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         ::testing::ValuesIn(dynShapesWithBatches),
+                                         ::testing::ValuesIn(batchShapes3D),
+                                         ::testing::ValuesIn(eyePars),
+                                         ::testing::ValuesIn(netPrecisions),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
+                         EyeLikeLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
