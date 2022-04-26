@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_c_2.0)
+set(TARGET_NAME openvino_c_legacy)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
