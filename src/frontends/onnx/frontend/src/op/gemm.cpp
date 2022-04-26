@@ -74,7 +74,7 @@ OutputVector gemm(const Node& node) {
     }
 
     const auto alpha = node.get_attribute_value<float>("alpha", 1);
-    const auto beta = node.get_attribute_value<float>("beta", 1);
+    const auto beta_node = node.get_attribute_as_constant<float>("beta", 1, input_c.get_element_type());
 
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
@@ -87,7 +87,6 @@ OutputVector gemm(const Node& node) {
         matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
     }
 
-    const auto beta_node = default_opset::Constant::create(input_c.get_element_type(), Shape{}, {beta});
     auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
 
     return OutputVector{std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c)};
