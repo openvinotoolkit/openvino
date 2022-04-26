@@ -89,6 +89,8 @@ def test_incompatible_array_and_td():
 
 
 def test_incompatible_input_precision():
+    import os
+    print("ENVIRONNN", os.environ)
     import cv2
     n, c, h, w = (1, 3, 32, 32)
     image = cv2.imread(path_to_image)
