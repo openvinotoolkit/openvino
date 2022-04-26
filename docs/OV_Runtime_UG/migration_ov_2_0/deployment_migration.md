@@ -18,8 +18,8 @@ Since OpenVINO 2022.1, development tools have been distributed only via [PyPI](h
 The structure of the OpenVINO 2022.1 installer package has been organized as follows:
 
 - The `runtime` folder includes headers, libraries and CMake interfaces.
-- The `tools` folder, which contains: [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md), and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
-- The `python` folder, which contains the Python version for OpenVINO Runtime.
+- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md), and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
+- The `python` folder contains the Python version for OpenVINO Runtime.
 
 ## Installing OpenVINO Development Tools via PyPI
 
