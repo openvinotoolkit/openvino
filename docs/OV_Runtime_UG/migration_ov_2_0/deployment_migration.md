@@ -6,7 +6,7 @@ One of the main concepts for OpenVINO™ API 2.0 is being *"easy to use"*, which
 * Usage of development tools.
 * Development and deployment of OpenVINO-based applications.
 
-To accomplish that, there were made some changes to the installation and deployment processes of OpenVINO in the 2022.1 release. This guide will walk you through these changes.
+To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation and deployment processes. This guide will walk you through these changes.
 
 ## The Installer Package Contains OpenVINO™ Runtime Only
 
