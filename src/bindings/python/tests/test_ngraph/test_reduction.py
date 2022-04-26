@@ -144,6 +144,10 @@ def test_roi_align():
         mode,
     )
 
+    assert node.get_type_name() == "ROIAlign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
 
 @pytest.mark.parametrize(
     ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
