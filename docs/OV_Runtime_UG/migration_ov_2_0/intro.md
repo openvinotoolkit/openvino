@@ -44,7 +44,7 @@ Some OpenVINO Development Tools also support both IR v10 and IR v11 as an input:
 - Accuracy checker uses API 2.0 for model accuracy measurement by default. It also supports switching to the old API by using the `--use_new_api False` command line parameter. Both launchers accept IR v10 and v11, but in some cases configuration files should be updated. For more details, see the [Accuracy Checker documentation](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/openvino/tools/accuracy_checker/launcher/openvino_launcher_readme.md).
 - [Compile tool](../../../tools/compile_tool/README.md) compiles the model to be used in API 2.0 by default. If a user wants to use the resulting compiled blob under the Inference Engine API, the additional `ov_api_1_0` option should be passed.
 
-The following OpenVINO tools don't support IR v10 as an input: Post-Training Optimization tool, and Deep Learning Workbench. They require the latest version of Model Optimizer to generate IR v11 files.
+Not all tools under the OpenVINO umbrella continue to support IR v10 and will require the latest version of Model Optimizer to generate IR v11 files. They are: Post-Training Optimization Tool and Deep Learning Workbench.
 
 > **NOTE**: If you need to quantize your IR v10 models to run with OpenVINO 2022.1, it is recommended to download, and use Post-Training Optimization tool from the OpenVINO 2021.4 release.
 
