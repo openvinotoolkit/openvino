@@ -430,9 +430,7 @@ def test_infer_queue_get_idle_handle(device):
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
-                          pytest.param(np.float16,
-                                       marks=pytest.mark.xfail(reason="FP16 isn't "
-                                                                      "supported in the CPU plugin"))])
+                          np.float16])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",

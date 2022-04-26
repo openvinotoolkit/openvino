@@ -57,10 +57,6 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
-    // TODO add a dedicated method in OpsBridge which removes all existing operators and registrs the custom mapping
-    // with version one (ensures fallback)
-    // TODO check if it works for operators with custom domains - custom mappings from extensions are always registered
-    // in the default ONNX domain
     for (const auto& extension : conversions) {
         if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
             bridge.overwrite_operator(
