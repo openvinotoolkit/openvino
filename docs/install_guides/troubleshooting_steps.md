@@ -37,7 +37,7 @@ If you have installed OpenVINO before and added `setupvars` to your `PATH /.bash
 
 ## Check If You Can Import OpenVINO
 
-Use the following coommand to check if you can import OpenVINO:
+Use the following command to check if you can import OpenVINO:
 ```sh
 python -c "from openvino.runtime import Core"
 ```
@@ -83,4 +83,4 @@ Users in People's Repulic of China (PRC) might encounter errors while downloadin
 
 ### Proxy Issues with Installing OpenVINO on Linux from Docker
 
-If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
+If you met proxy issues during the installation with Docker, set up the proxy settings for Docker. See the Proxy section in [Install the DL Workbench from DockerHub](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy).
