@@ -24,16 +24,6 @@ void check_1D_or_scalar_shape(const ov::op::v9::Eye* op, const T& input_shape, c
     }
 }
 
-template<class T>
-void check_batch_shape_shape(const ov::op::v9::Eye* op, const T& input_shape) {
-    if (input_shape.is_static()) {
-        const auto& diagonal_index_rank = input_shape.rank().get_length();
-        NODE_VALIDATION_CHECK(op, diagonal_index_rank == 1, "'batch_shape' value must be a 1D tensor.");
-    } else {
-        NODE_VALIDATION_CHECK(op, input_shape.rank().is_static(), "'batch_shape' should have static shape rank");
-        NODE_VALIDATION_CHECK(op, input_shape.rank() == 1, "'batch_shape' value must be a 1D tensor.");
-    }
-}
 
 }  // namespace util
 
@@ -82,7 +72,7 @@ void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, 
 
     if (op->get_input_size() == 4) {
         const auto batch_shape_pshape = input_shapes[3];
-        util::check_batch_shape_shape(op, batch_shape_pshape);
+        NODE_VALIDATION_CHECK(op, batch_shape_pshape.rank().compatible(1), "'batch_shape' input must be a 1D tensor.");
         if (batch_shape_pshape.is_static()) {
             if (get_data_as_shape<T>(3, op, batch_shape, constant_data)) {
                 NODE_VALIDATION_CHECK(op, batch_shape_pshape[0].get_length() == batch_shape.rank().get_length());
