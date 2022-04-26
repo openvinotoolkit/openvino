@@ -285,6 +285,34 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (!is_bias)
             continue;
 
+        // Target pattern: FC - Eltwise1(this node) - Quantize - Eltwise2
+        // If 'Quantize' node can be fused into this 'Eltwise1', it's better that 'Eltwise1' is NOT fused.
+        auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
+                auto out_layout = node.get_output_layout();
+                if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
+                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        int user_will_fusing = 0;
+        auto users = eltw_node.get_users();
+        for (auto& user: users) {
+            if (user->is_type<quantize>()) {
+                quantize_node& quantize_node = user->as<quantize>();
+                if ((node->get_dependency(0).is_type<fully_connected>() || node->get_dependency(1).is_type<fully_connected>()) && 
+                    eltwise_supports_fusings(eltw_node) && quantize_node.get_scale_shift_opt()) {
+                    user_will_fusing += 1;
+                }
+            }
+        }
+
+        if (user_will_fusing > 0)
+            continue;
+
         auto is_3d_fully_connected = [](program_node& node) {
             if (!node.is_type<fully_connected>())
                 return false;
