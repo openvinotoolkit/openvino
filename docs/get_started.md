@@ -31,7 +31,7 @@
    
    Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Python Tutorials <tutorials>
-   OpenVINO Code Samples <openvino_docs_OV_UG_Samples_Overview>
+   Code Samples <openvino_docs_OV_UG_Samples_Overview>
 
 <!--
 .. toctree::
@@ -53,13 +53,13 @@
  
 @sphinxdirective
 .. raw:: html
+
+   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
     
    <p>To get started with OpenVINO™, the first thing is to install it. You can decide which version of OpenVINO to install according to your needs:<br />
-    <li>Intel® Distribution of OpenVINO™ toolkit - the CLI-based version of OpenVINO. This guide will introduce how to install and get started with it.</li>
-   <li>Deep Learning Workbench (DL Workbench) - the web version of OpenVINO with a graphical interface. It's developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
+    <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. This guide will introduce how to install and get started with it.</li>
+   <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface. It's developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
    </p>
-   
-   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    
    <p id="GSG_introtext">To install Intel® Distribution of OpenVINO™ toolkit, click <b>Install OpenVINO</b> below to learn more options. After the installation, you may also need do some additional configurations for your specific device. When all the installation and configuration steps are completed, you can view tutorials, demos, or samples to quickly start using OpenVINO. Click each of the the following option to view detailed steps:<br />
      <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>
