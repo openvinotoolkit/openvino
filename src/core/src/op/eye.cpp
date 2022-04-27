@@ -130,8 +130,8 @@ bool ov::op::v9::Eye::has_evaluate() const {
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v9_Eye_evaluate);
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) &&
-                 ngraph::validate_host_tensor_vector(inputs, get_input_size()));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
 
     const auto& num_rows_data = inputs[0];
 
@@ -151,7 +151,7 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             diagonal_index = diagonal_index_data->get_data_ptr<const int64_t>()[0];
             break;
         default:
-            throw ov::Exception("Unsupported type of input `diagonal_index` in EyeLike operation: " +
+            throw ov::Exception("Unsupported type of input `diagonal_index` in Eye operation: " +
                                 diagonal_index_data->get_element_type().get_type_name());
         }
 
@@ -173,7 +173,7 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
 
     shape_infer(this, input_shapes, output_shapes, constant_data);
 
-    NGRAPH_CHECK(ov::PartialShape(output_shapes[0]).is_static());
+    OPENVINO_ASSERT(ov::PartialShape(output_shapes[0]).is_static(), "Eye op evaluate needs output shape to be static.");
     ov::Shape output_shape = output_shapes[0].to_shape();
     outputs[0]->set_element_type(get_out_type());
     outputs[0]->set_shape(output_shape);
