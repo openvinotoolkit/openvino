@@ -733,8 +733,10 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     auto isStateful = [&]() {
         for (auto& op : model->get_ops()) {
             if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
-                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op))
-                return true;
+                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+                    LOG_INFO("[AUTOPLUGIN]:stateful mode, try deployed to CPU");
+                    return true;
+                }
         }
         return false;
     };
