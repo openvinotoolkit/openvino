@@ -114,13 +114,13 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
 bool ov::op::v9::Eye::has_evaluate() const {
     NGRAPH_OP_SCOPE(v9_Eye_has_evaluate);
     switch (m_output_type) {
-    case ngraph::element::i8:
-    case ngraph::element::u8:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
-    case ngraph::element::i32:
-    case ngraph::element::f32:
-    case ngraph::element::i64:
+    case ov::element::i8:
+    case ov::element::u8:
+    case ov::element::f16:
+    case ov::element::bf16:
+    case ov::element::i32:
+    case ov::element::f32:
+    case ov::element::i64:
         return true;
     default:
         break;
