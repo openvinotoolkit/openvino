@@ -35,7 +35,6 @@
 #include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
-#include <ngraph/runtime/reference/eye.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
 #include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -3568,27 +3567,6 @@ bool evaluate(const shared_ptr<op::v8::AdaptiveMaxPool>& op,
                                               inputs[0]->get_shape(),
                                               op->get_output_shape(0));
     }
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v9::Eye>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-
-    int64_t diagonal_index = 0;
-    if (inputs.size() > 1) {
-        switch (inputs[2]->get_element_type()) {
-        case element::i32:
-            return inputs[2]->get_data_ptr<const int32_t>()[0];
-        case element::i64:
-            return inputs[2]->get_data_ptr<const int64_t>()[0];
-        default:
-            throw ngraph_error("Unsupported type of input `diagonal_index`in EyeLike operation: " +
-                               inputs[2]->get_element_type().get_type_name());
-        }
-    }
-
-    runtime::reference::eye<T>(outputs[0]->get_data_ptr<ET>(), outputs[0]->get_shape(), diagonal_index);
     return true;
 }
 
