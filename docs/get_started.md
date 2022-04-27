@@ -63,7 +63,7 @@
    
    <p id="GSG_introtext">To install Intel® Distribution of OpenVINO™ toolkit, click <b>Install OpenVINO</b> below to learn more options. After the installation, you may also need do some additional configurations for your specific device. When all the installation and configuration steps are completed, you can view tutorials, demos, or samples to quickly start using OpenVINO. Click each of the the following option to view detailed steps:<br />
      <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>
-     <a href="openvino_docs_install_guides_configurations_for_intel_gpu.html" >Configure <br/>Your Device</a>
+     <a href="openvino_docs_install_guides_configurations_header.html" >Configure <br/>Your Device</a>
      <a href="#get-started-learning-path" >View <br/>Learning Materials</a>
    </p>
    <div style="clear:both;"> </div> 
