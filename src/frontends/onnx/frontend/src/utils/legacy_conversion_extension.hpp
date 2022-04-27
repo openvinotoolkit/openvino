@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <mutex>
+
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
@@ -26,14 +28,17 @@ public:
 
     /// The legacy API entry point for registering custom operations globally (but not for ONNX FE)
     void register_operator(const std::string& name, int64_t version, const std::string& domain, Operator fn) {
+        std::lock_guard<std::mutex> lock{m_mutex};
         m_legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
     }
 
     void unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
+        std::lock_guard<std::mutex> lock{m_mutex};
         m_legacy_ops_bridge.unregister_operator(name, version, domain);
     }
 
 private:
+    std::mutex m_mutex;
     OperatorsBridge m_legacy_ops_bridge;
 };
 }  // namespace onnx_import

@@ -51,7 +51,7 @@ public:
         if (domain == "ai.onnx") {
             domain = "";
         }
-        
+
         Container ops{};
         const auto dm = m_map.find(domain);
         if (dm == std::end(m_map)) {
