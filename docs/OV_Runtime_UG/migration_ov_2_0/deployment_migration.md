@@ -50,7 +50,7 @@ $ mo -h
 $ pot -h
 ```
 
-It is not required to install any other dependencies. For more details on the installation steps, see the [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
+Installation of any other dependencies is not required. For more details on the installation steps, see the [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
 
 ## Interface Changes for Building C/C++ Applications
 
