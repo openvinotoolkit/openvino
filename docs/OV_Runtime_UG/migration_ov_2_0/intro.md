@@ -50,7 +50,7 @@ Not all tools under the OpenVINO umbrella continue to support IR v10 and will re
 
 ### Differences between Inference Engine and OpenVINO Runtime 2022.1
 
-Inference Engine and nGraph APIs are not outdated. They are still fully functional and can be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers additional features (further extended in future releases). Below is a list of additional features supported by API 2.0:
+Inference Engine and nGraph APIs have not become deprecated with the introduction of the new API, and they can still be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers more features (further extended in future releases), such as:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md) -- increases performance when working with compatible models, such as NLP (Neural Language Processing) and super-resolution models.
 - [Preprocessing of the model](../preprocessing_overview.md) -- adds preprocessing operations to inference models, and fully occupies the accelerator, freeing CPU resources.
 
