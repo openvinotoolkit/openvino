@@ -6,20 +6,22 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
@@ -27,7 +29,7 @@ template <cpu_isa_t isa>
 struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
-    constexpr static int sampledPointsPerPixel = MKLDNNDeformableConvolutionNode::sampledPointsPerPixel;
+    constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
     explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
 
@@ -665,7 +667,7 @@ private:
     }
 };
 
-bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ngraph::op::v1::DeformableConvolution::get_type_info_static(),
@@ -679,8 +681,8 @@ bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr
     return true;
 }
 
-MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
+        const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -716,7 +718,7 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     }
 }
 
-void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
+void DeformableConvolution::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
@@ -735,7 +737,7 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
+void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -820,7 +822,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
+void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         const float* offsets, const float* modulation, bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -943,7 +945,7 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
     });
 }
 
-MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
+DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
                                 const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) {
     if (descVector.size() != 4 && descVector.size() != 5) {
         IE_THROW() << "Deformable Convolution executor got incorrect desc's count (" << descVector.size() << ")";
@@ -1021,7 +1023,7 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     jcp.nthr = dnnl_get_max_threads();
 }
 
-MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
+DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
                 DefConvExecutor(defConvAttr, descVector) {
     if (mayiuse(cpu::x64::avx512_common)) {
@@ -1040,7 +1042,7 @@ MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const De
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src, const float* offsets,
+void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst,
         int *pSampledCoordsVector, float *pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
@@ -1099,7 +1101,7 @@ void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src,
                 });
 }
 
-void MKLDNNDeformableConvolutionNode::prepareParams() {
+void DeformableConvolution::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
@@ -1160,11 +1162,11 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+void DeformableConvolution::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src, const float* offsets,
+void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst,
         int *pSampledCoordsVector, float *pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
@@ -1196,7 +1198,7 @@ void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src,
     });
 }
 
-void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
+void DeformableConvolution::execute(dnnl::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
@@ -1226,18 +1228,20 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::updatePadding() {
+void DeformableConvolution::updatePadding() {
     if (isDynamicNode() && autoPadding) {
         defConvAttr.padL = shapeInference->get_pads_begin();
     }
 }
 
-bool MKLDNNDeformableConvolutionNode::created() const {
-    return getType() == DeformableConvolution;
+bool DeformableConvolution::created() const {
+    return getType() == Type::DeformableConvolution;
 }
 
-InferenceEngine::Precision MKLDNNDeformableConvolutionNode::getRuntimePrecision() const {
+InferenceEngine::Precision DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNDeformableConvolutionNode, DeformableConvolution);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

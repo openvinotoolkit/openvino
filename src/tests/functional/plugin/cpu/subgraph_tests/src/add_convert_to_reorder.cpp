@@ -57,7 +57,7 @@ namespace  {
     Parameter[FP32]     Constant[I8]
           \                 /
            \               /
-            \       Reorder[I32] (Is inserted by the MKLDNNGraph)
+            \       Reorder[I32] (Is inserted by the Graph)
              \           /
              Gather[FP32]
                   |

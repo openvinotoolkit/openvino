@@ -10,7 +10,7 @@ namespace kernel_selector {
 
 Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppression_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
-    auto out_dt = params.output.GetDType();
+    auto out_dt = params.outputs[0].GetDType();
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
         if (candidate != Datatype::F32 && candidate != Datatype::F16)
@@ -76,7 +76,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     jit.AddConstants({MakeJitConstant("SORT_RESULT_DESCENDING", params.sort_result_descending),
                       MakeJitConstant("BOX_ENCODING", static_cast<int>(params.box_encoding))});
 
-    jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.output.Batch().v));
+    jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.outputs[0].Batch().v));
 
     if (params.num_select_per_class_type == NmsArgType::Input) {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", GetInputTypeStr(params.GetIndexNumSelectPerClass())));

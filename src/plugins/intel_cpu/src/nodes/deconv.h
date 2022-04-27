@@ -13,14 +13,15 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNDeconvolutionNode : public MKLDNNNode {
-    using DefaultDeconvDescs = std::pair<std::shared_ptr<mkldnn::convolution_backward_data::desc>,
-                                         std::shared_ptr<mkldnn::convolution_forward::primitive_desc>>;
-    using Int8DeconvDesc = std::shared_ptr<mkldnn::deconvolution_forward::desc>;
+class Deconvolution : public Node {
+    using DefaultDeconvDescs = std::pair<std::shared_ptr<dnnl::convolution_backward_data::desc>,
+                                         std::shared_ptr<dnnl::convolution_forward::primitive_desc>>;
+    using Int8DeconvDesc = std::shared_ptr<dnnl::deconvolution_forward::desc>;
 
 public:
-    MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -33,24 +34,24 @@ public:
         return false;
     }
 
-    size_t descInputNumbers(MKLDNNDescriptor desc) override {
+    size_t descInputNumbers(DnnlDesriptor desc) override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
     const std::vector<ptrdiff_t>& getStride() const { return stride; }
 
     void prepareParams() override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
 
@@ -68,20 +69,20 @@ private:
 
     class DeconvExecutorDefault : public DnnlExecutor {
         public:
-            DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
-                                  const mkldnn::memory::desc& inMemDesc,
-                                  const mkldnn::memory::desc& weightMemDesc,
-                                  const mkldnn::memory::desc& outMemDesc,
-                                  const mkldnn::engine& engine);
+            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
+                                  const dnnl::memory::desc& inMemDesc,
+                                  const dnnl::memory::desc& weightMemDesc,
+                                  const dnnl::memory::desc& outMemDesc,
+                                  const dnnl::engine& engine);
     };
 
     class DeconvExecutorInt8 : public DnnlExecutor {
         public:
-            DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
-                               const mkldnn::memory::desc& inMemDesc,
-                               const mkldnn::memory::desc& weightMemDesc,
-                               const mkldnn::memory::desc& outMemDesc,
-                               const mkldnn::engine& engine);
+            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+                               const dnnl::memory::desc& inMemDesc,
+                               const dnnl::memory::desc& weightMemDesc,
+                               const dnnl::memory::desc& outMemDesc,
+                               const dnnl::engine& engine);
     };
 
     bool withGroups = false;
@@ -105,8 +106,8 @@ private:
 
     AttrPtr pAttr;
 
-    std::shared_ptr<mkldnn::primitive_attr> attr;
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
+    std::shared_ptr<dnnl::primitive_attr> attr;
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
     void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
@@ -114,25 +115,25 @@ private:
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
 
-    DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
-                                                       const mkldnn::memory::desc& wgh_candidate,
-                                                       const mkldnn::memory::desc& out_candidate,
-                                                       mkldnn::algorithm alg) const;
-    Int8DeconvDesc createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
-                                                const mkldnn::memory::desc& wgh_candidate,
-                                                const mkldnn::memory::desc& out_candidate) const;
-    std::shared_ptr<MKLDNNDescriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                    const mkldnn::memory::desc& wghDesc,
-                                                                    const mkldnn::memory::desc& dstDesc,
-                                                                    bool isWinograd) const;
-    std::shared_ptr<MKLDNNDescriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                 const mkldnn::memory::desc& wghDesc,
-                                                                 const mkldnn::memory::desc& dstDesc) const;
+    DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
+                                                       const dnnl::memory::desc& wgh_candidate,
+                                                       const dnnl::memory::desc& out_candidate,
+                                                       dnnl::algorithm alg) const;
+    Int8DeconvDesc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
+                                                const dnnl::memory::desc& wgh_candidate,
+                                                const dnnl::memory::desc& out_candidate) const;
+    std::shared_ptr<DnnlDesriptor> createDefaultDnnlDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                               const dnnl::memory::desc& wghDesc,
+                                                               const dnnl::memory::desc& dstDesc,
+                                                               bool isWinograd) const;
+    std::shared_ptr<DnnlDesriptor> createInt8DnnlDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                            const dnnl::memory::desc& wghDesc,
+                                                            const dnnl::memory::desc& dstDesc) const;
 
-    void createDeconvPrim(std::shared_ptr<MKLDNNDescriptor> desc,
-                          MKLDNNMemoryPtr srcMemPtr,
-                          MKLDNNMemoryPtr wghMemPtr,
-                          MKLDNNMemoryPtr dstMemPtr,
+    void createDeconvPrim(std::shared_ptr<DnnlDesriptor> desc,
+                          MemoryPtr srcMemPtr,
+                          MemoryPtr wghMemPtr,
+                          MemoryPtr dstMemPtr,
                           AttrPtr attr,
                           impl_desc_type selectedImpl);
 
@@ -142,5 +143,6 @@ private:
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

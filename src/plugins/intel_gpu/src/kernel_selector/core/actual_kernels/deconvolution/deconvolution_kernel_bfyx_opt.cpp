@@ -36,9 +36,9 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
 
     auto wg_size = 16;
 
-    dispatchData.gws[0] = Align(params.output.X().v, wg_size * params.stride.x);
-    dispatchData.gws[1] = params.output.Y().v;
-    dispatchData.gws[2] = params.output.Batch().v * params.output.Feature().v;
+    dispatchData.gws[0] = Align(params.outputs[0].X().v, wg_size * params.stride.x);
+    dispatchData.gws[1] = params.outputs[0].Y().v;
+    dispatchData.gws[2] = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
 
     dispatchData.lws[0] = wg_size;
     dispatchData.lws[1] = 1;

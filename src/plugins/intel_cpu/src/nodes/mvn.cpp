@@ -10,7 +10,7 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
@@ -26,20 +26,23 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct MVNKey {
-    MKLDNNMVNNode::MVNAttrs mvnAttrs;
-    mkldnn::primitive_attr attr;
+    MVN::MVNAttrs mvnAttrs;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const MVNKey& rhs) const;
@@ -409,7 +412,7 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -657,7 +660,7 @@ private:
 };
 //////////////////////////////////////////////////////////////////////////////////
 
-bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_output_partial_shape(0).rank().is_dynamic()) {
             errorMessage = "Unsupported dynamic input rank.";
@@ -723,8 +726,8 @@ bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -750,9 +753,9 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }
 
-void MKLDNNMVNNode::getSupportedDescriptors() {}
+void MVN::getSupportedDescriptors() {}
 
-void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
+void MVN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -832,13 +835,13 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
-MKLDNNMVNNode::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs)
+MVN::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs)
     : mvnAttrs(mvnAttrs),
       src_data_size(mvnAttrs.src_prc.size()),
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
-MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                                              const mkldnn::primitive_attr& attr):
+MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
+                                              const dnnl::primitive_attr& attr):
                                               MVNExecutor(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
@@ -886,7 +889,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_variance_kernel->create_ker();
 }
 
-void MKLDNNMVNNode::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
+void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
     if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
         IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
     }
@@ -897,13 +900,13 @@ void MKLDNNMVNNode::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_d
     }
 }
 
-MKLDNNMVNNode::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutor(mvnAttrs) {}
+MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutor(mvnAttrs) {}
 
-void MKLDNNMVNNode::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
+void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_) {
     mvn_ref(src_data, dst_data);
 }
 
-void MKLDNNMVNNode::prepareParams() {
+void MVN::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -916,20 +919,18 @@ void MKLDNNMVNNode::prepareParams() {
     const SizeVector in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
 
-    if (mayiuse(cpu::x64::sse41)) {
-        auto selectedPD = getSelectedPrimitiveDescriptor();
-        mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
-        mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
-        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-            mvnAttrs.layout = MVNLayoutType::planar;
-        } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
-            mvnAttrs.layout = MVNLayoutType::by_channel;
-        } else {
-            mvnAttrs.layout = MVNLayoutType::block;
-        }
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
+    mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
+        mvnAttrs.layout = MVNLayoutType::planar;
+    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+        mvnAttrs.layout = MVNLayoutType::by_channel;
+    } else {
+        mvnAttrs.layout = MVNLayoutType::block;
     }
 
-    MVNKey key = {mvnAttrs, mkldnn::primitive_attr()};
+    MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
     setPostOps(key.attr, true);
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutor> {
@@ -947,7 +948,7 @@ void MKLDNNMVNNode::prepareParams() {
     execPtr = result.first;
 }
 
-void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
+void MVN::transformTo5DCase(const SizeVector& shape) {
     switch (shape.size()) {
         // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
         // otherwise there are not enough data in spatial dimension to process in one kernel.
@@ -976,20 +977,20 @@ void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
     }
 }
 
-void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    mkldnn::post_ops ops;
+void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
+    dnnl::post_ops ops;
     VectorDims postOpDims(5);
     std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = mvnAttrs.shape5D;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
             continue;
@@ -999,11 +1000,11 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     attr.set_post_ops(ops);
 }
 
-void MKLDNNMVNNode::executeDynamicImpl(mkldnn::stream strm) {
+void MVN::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNMVNNode::execute(mkldnn::stream strm) {
+void MVN::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute MVN node. Primitive didn't created";
     }
@@ -1015,7 +1016,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
 }
 
-void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
+void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1155,7 +1156,7 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* ds
     }
 }
 
-void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
+void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
     const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
     float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
@@ -1253,7 +1254,7 @@ void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* ds
     }
 }
 
-void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
+void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1495,16 +1496,28 @@ void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* ds
     }
 }
 
-bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
+bool MVN::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41)) {
         return false;
     }
     // limit post ops to unary when shape transformed on channel
     // 1D only fused with unary
     int inputRank = getInputShapeAtPort(0).getRank();
-    bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
-                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                                            EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    bool unaryEltwise = one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
+                                                     Algorithm::EltwiseGelu,
+                                                     Algorithm::EltwiseElu,
+                                                     Algorithm::EltwiseSigmoid,
+                                                     Algorithm::EltwiseClamp,
+                                                     Algorithm::EltwiseTanh,
+                                                     Algorithm::EltwiseSwish,
+                                                     Algorithm::EltwiseHswish,
+                                                     Algorithm::EltwiseMish,
+                                                     Algorithm::EltwiseHsigmoid,
+                                                     Algorithm::EltwiseRoundHalfToEven,
+                                                     Algorithm::EltwiseRoundHalfAwayFromZero,
+                                                     Algorithm::EltwiseAbs,
+                                                     Algorithm::EltwiseSqrt,
+                                                     Algorithm::EltwiseSoftRelu);
     if ((inputRank == 1 && !unaryEltwise) ||
         (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
         return false;
@@ -1513,8 +1526,10 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-bool MKLDNNMVNNode::created() const {
-    return getType() == MVN;
+bool MVN::created() const {
+    return getType() == Type::MVN;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMVNNode, MVN);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

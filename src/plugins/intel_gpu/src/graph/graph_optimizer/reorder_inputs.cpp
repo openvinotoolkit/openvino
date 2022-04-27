@@ -559,6 +559,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ weights_layout.data_type, preferred_format, weights_layout.size });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
+                p.get_or_create(reorder.first).recalc_output_layout(false);
             }
         }
     };
@@ -575,6 +576,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     layout{ weights_layout.data_type, preferred_format, weights_layout.size });
                 if (reorder.first) {
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+                    p.get_or_create(reorder.first).recalc_output_layout(false);
                 }
             }
         }
@@ -649,44 +651,38 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // When the conv node is of onednn impl type and eltwise sum with full tensor is fused,
         // changes the input format of eltwise sum post-op to use binary add.
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
-            std::vector<size_t> eltw_sum_dep_indices;
-            for (size_t i = 1; i < conv_node.get_dependencies().size(); i++) {
-                auto& dep = conv_node.get_dependency(i);
-                for (auto& fused_op : conv_node.get_fused_primitives()) {
-                    if (fused_op.node->is_type<eltwise>()
-                        && fused_op.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum
-                        && !program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(),
-                                conv_node.get_dependency(fused_op.dep_start_idx).get_output_layout())
-                        && conv_node.get_dependency(fused_op.dep_start_idx).get_users().size() == 1
-                        && conv_node.get_dependency(fused_op.dep_start_idx).id() == dep.id()) {
-                        eltw_sum_dep_indices.push_back(i);
-                    }
-                }
-            }
+            onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
+                [&](const program_node& p_node, const eltwise_node& e_node, const fused_primitive_desc& desc) {
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
+                    if (fusing_type == add_fusing_type::binary_per_tensor) {
+                        auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+                        auto d_layout = dep_node.get_output_layout();
+                        auto d_format = d_layout.format;
+                        auto expected_format = format::any;
 
-            auto conv_layout = conv_node.get_output_layout();
-            for (auto& dep_id : eltw_sum_dep_indices) {
-                auto& prev_node = conv_node.get_dependency(dep_id);
-                auto old_layout = prev_node.get_output_layout();
-                auto expected_format = format::any;
-                if ((conv_layout.data_type == data_types::f16 || conv_layout.data_type == data_types::f32)
-                    && data_type_traits::is_i8_u8(old_layout.data_type)) {
-                    if (conv_layout.format == format::b_fs_yx_fsv16)
-                        expected_format = format::b_fs_yx_fsv32;
-                    if (conv_layout.format == format::bs_fs_yx_bsv32_fsv16)
-                        expected_format = format::bs_fs_yx_bsv32_fsv32;
-                }
+                        if (data_type_traits::is_i8_u8(d_layout.data_type)) {
+                            if (d_format == format::b_fs_yx_fsv16)
+                                expected_format = format::b_fs_yx_fsv32;
+                            else if (d_format == format::bs_fs_yx_bsv32_fsv16)
+                                expected_format = format::bs_fs_yx_bsv32_fsv32;
+                        } else if (data_type_traits::is_floating_point(d_layout.data_type)) {
+                            if (d_format == format::b_fs_yx_fsv32)
+                                expected_format = format::b_fs_yx_fsv16;
+                            else if (d_format == format::bs_fs_yx_bsv32_fsv32)
+                                expected_format = format::bs_fs_yx_bsv32_fsv16;
+                        }
 
-                if (expected_format != format::any && old_layout.format != expected_format) {
-                    auto new_layout = old_layout;
-                    new_layout.format = expected_format;
-                    auto new_input = rf.get_reorder(prev_node.id(), old_layout, new_layout);
-                    if (new_input.first) {
-                        p.add_intermediate(new_input.first, conv_node, dep_id, !new_input.second);
+                        if (expected_format != format::any && d_layout.format != expected_format) {
+                            auto new_layout = d_layout;
+                            new_layout.format = expected_format;
+                            auto new_input = rf.get_reorder(dep_node.id(), d_layout, new_layout);
+                            if (new_input.first) {
+                                p.add_intermediate(new_input.first, conv_node, desc.dep_start_idx, !new_input.second);
+                            }
+                            conv_node.get_dependency(desc.dep_start_idx).set_output_layout(new_layout, false);
+                        }
                     }
-                    conv_node.get_dependency(dep_id).set_output_layout(new_layout, false);
-                }
-            }
+                });
         }
     };
 
@@ -714,7 +710,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected);
-   }
+    }
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && fmt_map.count(n) != 0) {

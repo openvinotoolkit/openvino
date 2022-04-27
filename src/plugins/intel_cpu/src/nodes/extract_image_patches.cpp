@@ -9,12 +9,10 @@
 #include <ngraph/opsets/opset3.hpp>
 #include "ie_parallel.hpp"
 #include "extract_image_patches.h"
-#include "list.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "caseless.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 using details::CaselessEq;
@@ -23,6 +21,10 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
@@ -269,7 +271,7 @@ private:
     }
 };
 
-bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
@@ -298,7 +300,7 @@ struct ExtractImagePatchesKey {
     VectorDims kSizes;
     VectorDims strides;
     VectorDims rates;
-    MKLDNNExtractImagePatchesNode::ExtImgPatcherPadType padType;
+    ExtractImagePatches::ExtImgPatcherPadType padType;
     size_t prcSize;
     size_t hash() const;
     bool operator==(const ExtractImagePatchesKey& rhs) const;
@@ -325,8 +327,8 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -362,7 +364,7 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
         IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
 }
 
-void MKLDNNExtractImagePatchesNode::prepareParams() {
+void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
@@ -401,7 +403,7 @@ void MKLDNNExtractImagePatchesNode::prepareParams() {
     execPtr = result.first;
 }
 
-void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
+void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -414,7 +416,7 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
+void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
         auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
         auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
@@ -426,11 +428,11 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNExtractImagePatchesNode::executeDynamicImpl(mkldnn::stream strm) {
+void ExtractImagePatches::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::executeReference(
+void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
@@ -477,7 +479,7 @@ void MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::executeRefer
     });
 }
 
-void MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
+void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
@@ -507,7 +509,7 @@ void MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::executeOptim
     });
 }
 
-jit_extract_image_patches_params MKLDNNExtractImagePatchesNode::ExtractImagePatchesExecutor::fillJpp(
+jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecutor::fillJpp(
     const VectorDims& inDims,
     const VectorDims& outDims,
     const VectorDims& kSizes,
@@ -575,7 +577,7 @@ jit_extract_image_patches_params MKLDNNExtractImagePatchesNode::ExtractImagePatc
     return jpp;
 }
 
-MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(
+ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(
     const VectorDims& inDims,
     const VectorDims& outDims,
     const VectorDims& kSizes,
@@ -598,14 +600,14 @@ MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::ExtractImagePatch
         pKernel->create_ker();
 }
 
-void MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::exec(
+void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) {
     if (!pKernel)
         IE_THROW() << "Can't execute, kernel for extract image patches node is not compiled";
     executeOptimizedGeneric(src, dst, istrides, ostrides);
 }
 
-MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(
+ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(
     const VectorDims& inDims,
     const VectorDims& outDims,
     const VectorDims& kSizes,
@@ -614,15 +616,17 @@ MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::ExtractImagePatch
     const ExtImgPatcherPadType& padType,
     const size_t prcSize) : jpp(fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize)) {}
 
-void MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::exec(
+void ExtractImagePatches::ExtractImagePatchesRefExecutor::exec(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) {
     executeReference(src, dst, istrides, ostrides);
 }
 
-const std::set<size_t> MKLDNNExtractImagePatchesNode::_supported_precisions_sizes = {1, 2, 4};
+const std::set<size_t> ExtractImagePatches::_supported_precisions_sizes = {1, 2, 4};
 
-bool MKLDNNExtractImagePatchesNode::created() const {
-    return getType() == ExtractImagePatches;
+bool ExtractImagePatches::created() const {
+    return getType() == Type::ExtractImagePatches;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExtractImagePatchesNode, ExtractImagePatches)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

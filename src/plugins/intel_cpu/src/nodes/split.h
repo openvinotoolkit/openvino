@@ -10,16 +10,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSplitNode : public MKLDNNNode {
+class Split : public Node {
 public:
-    MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool isOptimized() const;
@@ -31,7 +32,7 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
     std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:
     struct SplitExecutor {
@@ -64,5 +65,6 @@ private:
     size_t INPUTS_NUM = 2;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

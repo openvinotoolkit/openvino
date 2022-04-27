@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -14,10 +14,13 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v1::Broadcast>(op)) {
             errorMessage = "Only Broadcast operations from opset1 are supported.";
@@ -46,8 +49,8 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::N
     return true;
 }
 
-MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -81,7 +84,7 @@ MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, co
     }
 }
 
-void MKLDNNBroadcastNode::getSupportedDescriptors() {
+void Broadcast::getSupportedDescriptors() {
     if (!isDynamicNode()) {
         const auto& srcDims = getInputShapeAtPort(INPUT_DATA_IDX).getDims();
         repeats.assign(targetShape.begin(), targetShape.end());
@@ -100,18 +103,18 @@ void MKLDNNBroadcastNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
+void Broadcast::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     supportedPrimitiveDescriptors = getSupportedConfigs(this);
 }
 
-bool MKLDNNBroadcastNode::needPrepareParams() const {
+bool Broadcast::needPrepareParams() const {
     return needPrepareParamsVar;
 }
 
-void MKLDNNBroadcastNode::prepareParams() {
+void Broadcast::prepareParams() {
     if (!constMap[TARGET_SHAPE_IDX]) {
         const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
         const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
@@ -149,7 +152,7 @@ void MKLDNNBroadcastNode::prepareParams() {
     optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
 }
 
-bool MKLDNNBroadcastNode::needShapeInfer() const {
+bool Broadcast::needShapeInfer() const {
     needPrepareParamsVar = true;
     if (inputShapesModified()) {
         return true;
@@ -181,19 +184,19 @@ bool MKLDNNBroadcastNode::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
+std::vector<VectorDims> Broadcast::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
 }
 
-bool MKLDNNBroadcastNode::isExecutable() const {
+bool Broadcast::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void MKLDNNBroadcastNode::executeDynamicImpl(mkldnn::stream strm) {
+void Broadcast::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
+void Broadcast::execute(dnnl::stream strm) {
     if (optimizedCase) {
         optimizedExecute(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
@@ -201,7 +204,7 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNBroadcastNode::plainExecute(mkldnn::stream strm) {
+void Broadcast::plainExecute(dnnl::stream strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetShape().getRank();
@@ -257,8 +260,10 @@ void MKLDNNBroadcastNode::plainExecute(mkldnn::stream strm) {
     });
 }
 
-bool MKLDNNBroadcastNode::created() const {
-    return getType() == Broadcast;
+bool Broadcast::created() const {
+    return getType() == Type::Broadcast;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNBroadcastNode, Broadcast)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

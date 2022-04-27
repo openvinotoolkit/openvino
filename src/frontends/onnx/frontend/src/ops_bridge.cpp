@@ -52,6 +52,7 @@
 #include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
+#include "op/dynamic_quantize_linear.hpp"
 #include "op/einsum.hpp"
 #include "op/elu.hpp"
 #include "op/equal.hpp"
@@ -132,6 +133,7 @@
 #include "op/rnn.hpp"
 #include "op/roi_align.hpp"
 #include "op/round.hpp"
+#include "op/scan.hpp"
 #include "op/scatter_elements.hpp"
 #include "op/scatter_nd.hpp"
 #include "op/selu.hpp"
@@ -329,6 +331,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
     REGISTER_OPERATOR("Dropout", 12, dropout);
+    REGISTER_OPERATOR("DynamicQuantizeLinear", 1, dynamic_quantize_linear);
     REGISTER_OPERATOR("Einsum", 1, einsum);
     REGISTER_OPERATOR("Elu", 1, elu);
     REGISTER_OPERATOR("Equal", 1, equal);
@@ -418,6 +421,8 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("RNN", 1, rnn);
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
+    REGISTER_OPERATOR("Scan", 1, scan);
+    REGISTER_OPERATOR("Scan", 9, scan);
     REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);

@@ -10,16 +10,19 @@
 #include <vector>
 
 #include <ie_parallel.hpp>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "PriorBox layer with name '" << getName() << "': "
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
 }
@@ -27,9 +30,10 @@ float clip_great(float x, float threshold) {
 float clip_less(float x, float threshold) {
     return x > threshold ? x : threshold;
 }
-}
 
-bool MKLDNNPriorBoxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+}   // namespace
+
+bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
         if (!priorBox) {
@@ -42,10 +46,10 @@ bool MKLDNNPriorBoxNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNPriorBoxNode::MKLDNNPriorBoxNode(
+PriorBox::PriorBox(
     const std::shared_ptr<ngraph::Node>& op,
-    const mkldnn::engine& eng,
-    MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    const dnnl::engine& eng,
+    WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -107,7 +111,7 @@ MKLDNNPriorBoxNode::MKLDNNPriorBoxNode(
     }
 }
 
-bool MKLDNNPriorBoxNode::needShapeInfer() const {
+bool PriorBox::needShapeInfer() const {
     auto& memory = getChildEdgeAt(0)->getMemoryPtr();
     if (memory->GetShape().isDynamic()) {
         return true;
@@ -122,7 +126,7 @@ bool MKLDNNPriorBoxNode::needShapeInfer() const {
     return outputShape[1] != output;
 }
 
-std::vector<VectorDims> MKLDNNPriorBoxNode::shapeInfer() const {
+std::vector<VectorDims> PriorBox::shapeInfer() const {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int H = in_data[0];
     const int W = in_data[1];
@@ -130,11 +134,11 @@ std::vector<VectorDims> MKLDNNPriorBoxNode::shapeInfer() const {
     return {{2, output}};
 }
 
-bool MKLDNNPriorBoxNode::needPrepareParams() const {
+bool PriorBox::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNPriorBoxNode::initSupportedPrimitiveDescriptors() {
+void PriorBox::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -144,7 +148,7 @@ void MKLDNNPriorBoxNode::initSupportedPrimitiveDescriptors() {
         impl_desc_type::ref_any);
 }
 
-void MKLDNNPriorBoxNode::createPrimitive() {
+void PriorBox::createPrimitive() {
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -152,7 +156,7 @@ void MKLDNNPriorBoxNode::createPrimitive() {
     }
 }
 
-void MKLDNNPriorBoxNode::execute(mkldnn::stream strm) {
+void PriorBox::execute(dnnl::stream strm) {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int H = in_data[0];
     const int W = in_data[1];
@@ -317,8 +321,10 @@ void MKLDNNPriorBoxNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNPriorBoxNode::created() const {
-    return getType() == PriorBox;
+bool PriorBox::created() const {
+    return getType() == Type::PriorBox;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNPriorBoxNode, PriorBox)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

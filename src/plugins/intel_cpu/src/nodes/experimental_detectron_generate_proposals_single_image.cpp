@@ -19,7 +19,13 @@
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
 
+using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct Indexer4d {
     int dim3_;
     int dim23_;
@@ -34,13 +40,7 @@ struct Indexer4d {
         return  i * dim123_ + j * dim23_ + k * dim3_ + n;
     }
 };
-}  // namespace
 
-
-using namespace ov::intel_cpu;
-using namespace InferenceEngine;
-
-static
 void refine_anchors(const float* deltas, const float* scores, const float* anchors,
                     float* proposals, const int anchors_num, const int bottom_H,
                     const int bottom_W, const float img_H, const float img_W,
@@ -108,7 +108,7 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
     });
 }
 
-static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
+void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
     parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0*pre_nms_topn + i] = p_proposals[5*i + 0];
         unpacked_boxes[1*pre_nms_topn + i] = p_proposals[5*i + 1];
@@ -118,7 +118,6 @@ static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pr
     });
 }
 
-static
 void nms_cpu(const int num_boxes, int is_dead[],
              const float* boxes, int index_out[], int* const num_out,
              const int base_index, const float nms_thresh, const int max_num_out,
@@ -242,8 +241,6 @@ void nms_cpu(const int num_boxes, int is_dead[],
     *num_out = count;
 }
 
-
-static
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores,
                        const int num_proposals, const int num_rois, const int post_nms_topn) {
@@ -272,7 +269,9 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
     }
 }
 
-bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOperation
+}  // namespace
+
+bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
@@ -286,9 +285,9 @@ bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOpe
     return true;
 }
 
-MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -307,7 +306,7 @@ MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::MKLDNNExperimentalD
     roi_indices_.resize(post_nms_topn_);
 }
 
-void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedPrimitiveDescriptors() {
+void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -320,7 +319,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             IE_THROW() << "Incorrect number of input or output edges!";
@@ -423,16 +422,18 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
     }
 }
 
-bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::created() const {
-    return getType() == ExperimentalDetectronGenerateProposalsSingleImage;
+bool ExperimentalDetectronGenerateProposalsSingleImage::created() const {
+    return getType() == Type::ExperimentalDetectronGenerateProposalsSingleImage;
 }
 
-bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::needShapeInfer() const {
+bool ExperimentalDetectronGenerateProposalsSingleImage::needShapeInfer() const {
     return false;
 }
 
-bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::needPrepareParams() const {
+bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() const {
     return false;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode, ExperimentalDetectronGenerateProposalsSingleImage)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

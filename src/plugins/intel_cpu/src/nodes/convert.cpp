@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 #include "convert.h"
 #include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
@@ -10,11 +10,14 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
         if (!convert) {
@@ -27,8 +30,8 @@ bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
@@ -40,13 +43,13 @@ MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, co
     origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
-std::vector<VectorDims> MKLDNNConvertNode::shapeInfer() const {
+std::vector<VectorDims> Convert::shapeInfer() const {
     return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
-MKLDNNConvertNode::MKLDNNConvertNode(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                                     const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode("Convert", nodeName, eng, cache)
+Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+                 const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node("Convert", nodeName, eng, cache)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
@@ -58,7 +61,7 @@ MKLDNNConvertNode::MKLDNNConvertNode(const Shape &shape, const InferenceEngine::
     errorPrefix = "Convert node with name '" + getName() + "'";
 }
 
-void MKLDNNConvertNode::getSupportedDescriptors() {
+void Convert::getSupportedDescriptors() {
     // if tensor descriptors are set via setDescs method we need to update the inDims/outDims data
     // from correspond tensor descriptors.
     if (outputShapes.empty())
@@ -71,14 +74,14 @@ void MKLDNNConvertNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 }
 
-bool MKLDNNConvertNode::isSupportedDesc(const MemoryDesc &desc) {
+bool Convert::isSupportedDesc(const MemoryDesc &desc) {
     bool isSupported = desc.getType() & MemoryDescType::Blocked;
     if (desc.getType() == MemoryDescType::DnnlBlocked)
         isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
     return isSupported;
 }
 
-void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
+void Convert::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -129,11 +132,11 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNConvertNode::executeDynamicImpl(mkldnn::stream strm) {
+void Convert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNConvertNode::execute(mkldnn::stream strm) {
+void Convert::execute(dnnl::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 
@@ -154,8 +157,10 @@ void MKLDNNConvertNode::execute(mkldnn::stream strm) {
                 parentPaddElemCount);
 }
 
-bool MKLDNNConvertNode::created() const {
-    return getType() == Convert;
+bool Convert::created() const {
+    return getType() == Type::Convert;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNConvertNode, Convert);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

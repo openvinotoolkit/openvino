@@ -8,10 +8,13 @@
 #include "ie_parallel.hpp"
 #include "log_softmax.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNLogSoftmaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
@@ -24,8 +27,8 @@ bool MKLDNNLogSoftmaxNode::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -51,7 +54,7 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
         IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
 }
 
-void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
+void LogSoftmax::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -60,7 +63,7 @@ void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNLogSoftmaxNode::prepareParams() {
+void LogSoftmax::prepareParams() {
     const auto &dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     reducedAxisStride = 1;
     axisStep = 1;
@@ -79,11 +82,11 @@ void MKLDNNLogSoftmaxNode::prepareParams() {
         reducedAxisStride *= dims[i];
 }
 
-void MKLDNNLogSoftmaxNode::executeDynamicImpl(mkldnn::stream strm) {
+void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
+void LogSoftmax::execute(dnnl::stream strm) {
     const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
@@ -123,8 +126,10 @@ void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNLogSoftmaxNode::created() const {
-    return getType() == LogSoftmax;
+bool LogSoftmax::created() const {
+    return getType() == Type::LogSoftmax;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNLogSoftmaxNode, LogSoftmax)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

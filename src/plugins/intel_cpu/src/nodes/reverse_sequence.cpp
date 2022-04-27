@@ -9,10 +9,13 @@
 #include "ie_parallel.hpp"
 #include "reverse_sequence.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -29,8 +32,8 @@ bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -82,7 +85,7 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
     work_amount_dst = srcStrides[0] * src_dims[0];
 }
 
-void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
+void ReverseSequence::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -96,7 +99,7 @@ void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
+void ReverseSequence::execute(dnnl::stream strm) {
     size_t i;
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
@@ -180,8 +183,10 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNReverseSequenceNode::created() const {
-    return getType() == ReverseSequence;
+bool ReverseSequence::created() const {
+    return getType() == Type::ReverseSequence;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNReverseSequenceNode, ReverseSequence)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

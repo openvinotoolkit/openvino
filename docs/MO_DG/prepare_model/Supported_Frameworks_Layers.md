@@ -480,146 +480,186 @@ Some TensorFlow operations do not match to any OpenVINO operation, but are still
 
 ## ONNX Supported Operators
 
+### Standard ONNX Operators
 
-| Symbol Name in ONNX| Limitations|
-| :----------| :----------|
-| Abs |  |
-| Acos |  |
-| Acosh |  |
-| Add |  |
-| Affine |  |
-| And |  |
-| ArgMax |  |
-| ArgMin |  |
-| Asin |  |
-| Asinh |  |
-| Atan |  |
-| Atanh |  |
-| ATen | Supported only for the 'embedding_bag' operator |
-| AveragePool |  |
-| BatchMatMul |  |
-| BatchNormalization |  |
-| Cast |  |
-| Ceil |  |
-| Clip |  |
-| Concat |  |
-| Constant |  |
-| ConstantFill |  |
-| ConstantOfShape |  |
-| Conv |  |
-| ConvTranspose |  |
-| Cos |  |
-| Cosh |  |
-| Crop |  |
-| CumSum |  |
-| DepthToSpace |  |
-| DequantizeLinear |  |
-| DetectionOutput (Intel experimental) |  |
-| Div |  |
-| Dropout | Not needed for inference |
-| Elu |  |
-| Equal |  |
-| Erf |  |
-| Exp |  |
-| Expand |  |
-| ExperimentalDetectronDetectionOutput (Intel experimental) |  |
-| ExperimentalDetectronGenerateProposalsSingleImage (Intel experimental) |  |
-| ExperimentalDetectronGroupNorm (Intel experimental) |  |
-| ExperimentalDetectronPriorGridGenerator (Intel experimental) |  |
-| ExperimentalDetectronROIFeatureExtractor (Intel experimental) |  |
-| ExperimentalDetectronTopKROIs (Intel experimental) |  |
-| FakeQuantize (Intel experimental) |  |
-| Fill |  |
-| Flatten |  |
-| Floor |  |
-| GRU |  |
-| Gather |  |
-| GatherElements | Doesn't work with negative indices |
-| GatherND | Doesn't work with negative indices |
-| GatherTree |  |
-| Gemm |  |
-| GlobalAveragePool |  |
-| GlobalMaxPool |  |
-| Greater |  |
-| GreaterEqual |  |
-| HardSigmoid |  |
-| Identity | Not needed for inference |
-| ImageScaler |  |
-| InstanceNormalization |  |
-| LRN |  |
-| LSTM | Peepholes are not supported |
-| LeakyRelu |  |
-| Less |  |
-| LessEqual |  |
-| Log |  |
-| LogicalAnd |  |
-| LogicalOr |  |
-| LogSoftmax |  |
-| Loop |  |
-| LpNormalization |  |
-| MatMul |  |
-| Max |  |
-| MaxPool |  |
-| MeanVarianceNormalization | Reduction over the batch dimension is not supported, reduction over all dimensions except batch and channel ones is obligatory |
-| Min |  |
-| Mul |  |
-| Neg |  |
-| NonMaxSuppression |  |
-| NonZero |  |
-| Not |  |
-| NotEqual |  |
-| OneHot |  |
-| Pad |  |
-| Pow |  |
-| PriorBox (Intel experimental) |  |
-| PriorBoxClustered |  |
-| QuantizeLinear |  |
-| RNN |  |
-| ROIAlign |  |
-| Range |  |
-| RandomUniform | Operation provides sequence from uniform distribution, but exact values won't match. |
-| Reciprocal |  |
-| ReduceL1 |  |
-| ReduceL2 |  |
-| ReduceMax |  |
-| ReduceMean |  |
-| ReduceMin |  |
-| ReduceProd |  |
-| ReduceSum |  |
-| Relu |  |
-| Reshape |  |
-| Resize | Coordinate transformation mode `tf_crop_and_resize` is not supported, `nearest` mode is not supported for 5D+ inputs. |
-| ReverseSequence |  |
-| Round |  |
-| Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
-| ScatterND |  |
-| ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |
-| Select |  |
-| Shape |  |
-| Sigmoid |  |
-| Sign |  |
-| Sin |  |
-| Size |  |
-| Slice |  |
-| Softmax |  |
-| Softplus |  |
-| Softsign |  |
-| SpaceToDepth |  |
-| Split |  |
-| Sqrt |  |
-| Squeeze | The case when squeeze axis is not specified is not supported |
-| Sub |  |
-| Sum |  |
-| Tan |  |
-| Tanh |  |
-| ThresholdedRelu |  |
-| TopK |  |
-| Transpose |  |
-| Unsqueeze |  |
-| Upsample |  |
-| Where |  |
-| Xor |  |
+| ONNX Operator Name |
+| :----------|
+| Abs |
+| Acos |
+| Acosh |
+| And |
+| ArgMin | 
+| ArgMax | 
+| Asin |
+| Asinh |
+| Atan |
+| ATen |
+| Atanh |
+| AveragePool |
+| BatchNormalization |
+| BitShift |
+| Cast |
+| CastLike |
+| Ceil |
+| Clip |
+| Concat |
+| Constant |
+| ConstantOfShape |
+| Conv |
+| ConvInteger |
+| ConvTranspose |
+| Compress |
+| Cos |
+| Cosh |
+| ConstantFill |
+| CumSum |
+| DepthToSpace |
+| DequantizeLinear |
+| Div |
+| Dropout |
+| Einsum |
+| Elu |
+| Equal |
+| Erf |
+| Exp |
+| Expand |
+| EyeLike |
+| Flatten |
+| Floor |
+| Gather |
+| GatherElements |
+| GatherND |
+| Gemm |
+| GlobalAveragePool |
+| GlobalLpPool |
+| GlobalMaxPool |
+| Greater |
+| GRU |
+| Hardmax |
+| HardSigmoid |
+| HardSwish |
+| Identity |
+| If |
+| ImageScaler |
+| InstanceNormalization |
+| LeakyRelu |
+| Less |
+| Log |
+| LogSoftmax |
+| Loop |
+| LpNormalization |
+| LRN |
+| LSTM |
+| MatMulInteger |
+| MatMul |
+| MaxPool |
+| Max |
+| Mean |
+| MeanVarianceNormalization |
+| Min |
+| Mod |
+| Mul |
+| Neg |
+| NonMaxSuppression |
+| NonZero |
+| Not |
+| Or |
+| OneHot |
+| Pad |
+| Pow |
+| PRelu |
+| QLinearConv |
+| QLinearMatMul |
+| QuantizeLinear |
+| Range |
+| RandomNormal |
+| RandomNormalLike |
+| RandomUniform |
+| RandomUniformLike |
+| Reciprocal |
+| ReduceLogSum |
+| ReduceLogSumExp |
+| ReduceL1 |
+| ReduceL2 |
+| ReduceMax |
+| ReduceMean |
+| ReduceMin |
+| ReduceProd |
+| ReduceSum |
+| ReduceSumSquare |
+| Relu |
+| Reshape |
+| Resize |
+| ReverseSequence |
+| RNN |
+| RoiAlign |
+| Round |
+| ScatterElements |
+| ScatterND |
+| Selu |
+| Shape |
+| Shrink |
+| Sigmoid |
+| Sign |
+| Sin |
+| Sinh |
+| Size |
+| Slice |
+| Softmax |
+| Softplus |
+| Softsign |
+| SpaceToDepth |
+| Split |
+| Sqrt |
+| Squeeze |
+| Sub |
+| Sum |
+| Tan |
+| Tanh |
+| ThresholdedRelu |
+| Tile |
+| TopK |
+| Transpose |
+| Unsqueeze |
+| Where |
+| Xor |
 
+### Deprecated ONNX Operators (Supported)
+
+| ONNX Operator Name |
+| :----------|
+| Affine |
+| Crop |
+| Scatter |
+| Upsample |
+
+### Operators From the org.openvinotoolkit Domain
+
+| Custom ONNX Operator Name |
+| :----------|
+| DeformableConv2D |
+| DetectionOutput |
+| ExperimentalDetectronDetectionOutput |
+| ExperimentalDetectronGenerateProposalsSingleImage |
+| ExperimentalDetectronGroupNorm |
+| ExperimentalDetectronPriorGridGenerator |
+| ExperimentalDetectronROIFeatureExtractor |
+| ExperimentalDetectronTopKROIs |
+| FakeQuantize |
+| GroupNorm |
+| Normalize |
+| PriorBox |
+| PriorBoxClustered |
+| Swish |
+
+### Operators From the com.microsoft Domain
+
+| Custom ONNX Operator Name |
+| :----------|
+| Attention |
+| BiasGelu |
+| EmbedLayerNormalization |
+| SkipLayerNormalization |
 
 ## PaddlePaddle Supported Operators
 

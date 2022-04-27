@@ -6,12 +6,11 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <set>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 #include "ie_parallel.hpp"
@@ -26,12 +25,11 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) IB = batch;   \
@@ -71,10 +69,14 @@ using namespace Xbyak;
 #define GET_PTR_NCD_BASE_PTR_N_BLK const uint8_t    *in_ptr_ncd    = in_ptr_n     + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
                                          uint8_t    *out_ptr_ncd   = out_ptr_n    + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct ReduceKey {
     jit_reduce_config_params jcp;
-    mkldnn::post_ops postOps;
+    dnnl::post_ops postOps;
 
     size_t hash() const;
     bool operator==(const ReduceKey& rhs) const;
@@ -118,7 +120,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     }
 
     void generate() override {
-        if (jcp_.reduce_mode == ReduceLogSumExp) {
+        if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1);
         }
 
@@ -136,15 +138,15 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         if (planar_layout)
             mov(reg_reduce_w, ptr[reg_params + GET_OFF(reduce_w)]);
 
-        if (jcp_.reduce_mode == ReduceAnd || jcp_.reduce_mode == ReduceL1 || jcp_.reduce_mode == ReduceMax ||
-            jcp_.reduce_mode == ReduceMin || jcp_.reduce_mode == ReduceProd || jcp_.reduce_mode == ReduceOr) {
+        if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 || jcp_.reduce_mode == Algorithm::ReduceMax ||
+            jcp_.reduce_mode == Algorithm::ReduceMin || jcp_.reduce_mode == Algorithm::ReduceProd || jcp_.reduce_mode == Algorithm::ReduceOr) {
             mov(reg_table, l_table);
         }
 
-        if (isa == cpu::x64::avx512_common || jcp_.reduce_mode == ReduceAnd || jcp_.reduce_mode == ReduceOr)
+        if (isa == cpu::x64::avx512_common || jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceOr)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        if ((isa == cpu::x64::avx512_common && jcp_.reduce_mode == ReduceAnd) || jcp_.reduce_mode == ReduceOr) {
+        if ((isa == cpu::x64::avx512_common && jcp_.reduce_mode == Algorithm::ReduceAnd) || jcp_.reduce_mode == Algorithm::ReduceOr) {
             uni_vmovups(vmm_aux, table_val(0));
         }
 
@@ -156,10 +158,10 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16->emit_data();
 
-        if (jcp_.reduce_mode == ReduceAnd || jcp_.reduce_mode == ReduceL1 || jcp_.reduce_mode == ReduceMax ||
-            jcp_.reduce_mode == ReduceMin || jcp_.reduce_mode == ReduceProd || jcp_.reduce_mode == ReduceOr) {
+        if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 || jcp_.reduce_mode == Algorithm::ReduceMax ||
+            jcp_.reduce_mode == Algorithm::ReduceMin || jcp_.reduce_mode == Algorithm::ReduceProd || jcp_.reduce_mode == Algorithm::ReduceOr) {
             prepare_aux_table();
-        } else if (jcp_.reduce_mode == ReduceLogSumExp) {
+        } else if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             exp_injector->prepare_table();
         }
     }
@@ -288,7 +290,7 @@ private:
             cmp(reg_work_amount, step);
             jl(reduce_main_end_label, T_NEAR); //avoid illegal loading and storing
 
-            if (jcp_.reduce_mode == ReduceL1) {
+            if (jcp_.reduce_mode == Algorithm::ReduceL1) {
                 uni_vmovups(vmm_aux, table_val(1));
             }
 
@@ -310,30 +312,30 @@ private:
         {
             // init dst, dst loading is embedded in horiz_reduce_store
             switch (jcp_.reduce_mode) {
-                case ReduceAnd:
-                case ReduceProd:
+                case Algorithm::ReduceAnd:
+                case Algorithm::ReduceProd:
                     uni_vmovups(vmm_dst, table_val(0));
                     break;
-                case ReduceL1:
+                case Algorithm::ReduceL1:
                     uni_vmovups(vmm_aux, table_val(1));
                     uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                     break;
-                case ReduceL2:
-                case ReduceLogSum:
-                case ReduceLogSumExp:
-                case ReduceMean:
-                case ReduceOr:
-                case ReduceSum:
-                case ReduceSumSquare:
+                case Algorithm::ReduceL2:
+                case Algorithm::ReduceLogSum:
+                case Algorithm::ReduceLogSumExp:
+                case Algorithm::ReduceMean:
+                case Algorithm::ReduceOr:
+                case Algorithm::ReduceSum:
+                case Algorithm::ReduceSumSquare:
                     uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                     break;
-                case ReduceMax:
+                case Algorithm::ReduceMax:
                     if (isFloatCompatible(jcp_.dst_dt))
                         uni_vmovups(vmm_dst, table_val(2));
                     else
                         uni_vmovups(vmm_dst, table_val(4));
                     break;
-                case ReduceMin:
+                case Algorithm::ReduceMin:
                     if (isFloatCompatible(jcp_.dst_dt))
                         uni_vmovups(vmm_dst, table_val(3));
                     else
@@ -344,7 +346,7 @@ private:
             }
             // reduce
             reduce_main_loop();
-            if (jcp_.reduce_mode == ReduceOr && isa != cpu::x64::avx512_common) {
+            if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_common) {
                 uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
                 uni_vandps(vmm_dst, vmm_dst, vmm_aux);
             }
@@ -366,7 +368,7 @@ private:
             mov(reg_idx, ptr[reg_params + GET_OFF(idx)]);
             uni_vmovdqu(vmm_idx, ptr[reg_idx]);
 
-            if (jcp_.reduce_mode == ReduceL1) {
+            if (jcp_.reduce_mode == Algorithm::ReduceL1) {
                 uni_vmovups(vmm_aux, table_val(1));
             }
 
@@ -402,7 +404,7 @@ private:
     }
 
     inline void reduce_tail() {
-        if (jcp_.reduce_mode == ReduceL1) {
+        if (jcp_.reduce_mode == Algorithm::ReduceL1) {
             uni_vmovups(xmm_aux, table_val(1));
         }
 
@@ -443,7 +445,7 @@ private:
                 load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
 
                 reduce_kernel_scalar(xmm_src, xmm_dst);
-                if (jcp_.reduce_mode == ReduceOr) {
+                if (jcp_.reduce_mode == Algorithm::ReduceOr) {
                     uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
                     uni_vandps(xmm_dst, xmm_dst, xmm_aux);
                 }
@@ -677,7 +679,7 @@ private:
     inline void reduce_once_tail() {
         load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel_scalar(xmm_src, xmm_dst);
-        if (jcp_.reduce_mode == ReduceOr) {
+        if (jcp_.reduce_mode == Algorithm::ReduceOr) {
             uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
             uni_vandps(xmm_dst, xmm_dst, xmm_aux);
         }
@@ -696,7 +698,7 @@ private:
 
             load_scalar(xmm_src, ptr[reg_src_aux], jcp_.src_dt);
             reduce_kernel_scalar(xmm_src, xmm_dst);
-            if (jcp_.reduce_mode == ReduceOr) {
+            if (jcp_.reduce_mode == Algorithm::ReduceOr) {
                 uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
                 uni_vandps(xmm_dst, xmm_dst, xmm_aux);
             }
@@ -736,7 +738,7 @@ private:
 
     inline void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
+            case Algorithm::ReduceAnd:
                 if (isa == cpu::x64::avx512_common) {
                     vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
                     vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
@@ -745,38 +747,38 @@ private:
                 }
                 uni_vandps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceL1:
+            case Algorithm::ReduceL1:
                 uni_vandps(vmm_src, vmm_src, vmm_aux);
                 uni_vaddps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
+            case Algorithm::ReduceLogSum:
+            case Algorithm::ReduceMean:
+            case Algorithm::ReduceSum:
                 uni_vaddps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceMax:
+            case Algorithm::ReduceMax:
                 uni_vmaxps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceMin:
+            case Algorithm::ReduceMin:
                 uni_vminps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceL2:
-            case ReduceSumSquare:
+            case Algorithm::ReduceL2:
+            case Algorithm::ReduceSumSquare:
                 uni_vmulps(vmm_src, vmm_src, vmm_src);
                 uni_vaddps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceLogSumExp:
+            case Algorithm::ReduceLogSumExp:
                 exp_injector->compute_vector_range(vmm_src.getIdx(), vmm_src.getIdx() + 1);
                 uni_vaddps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceOr:
+            case Algorithm::ReduceOr:
                 if (isa == cpu::x64::avx512_common) {
                     vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
                     vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
                 }
                 uni_vorps(vmm_dst, vmm_dst, vmm_src);
                 break;
-            case ReduceProd:
+            case Algorithm::ReduceProd:
                 uni_vmulps(vmm_dst, vmm_dst, vmm_src);
                 break;
             default:
@@ -786,38 +788,38 @@ private:
 
     inline void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
+            case Algorithm::ReduceAnd:
                 uni_cmpneqps(xmm_src, xmm_src, xmm_zero);
                 uni_vandps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceL1:
+            case Algorithm::ReduceL1:
                 uni_vandps(xmm_src, xmm_src, xmm_aux);
                 uni_vaddps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
+            case Algorithm::ReduceLogSum:
+            case Algorithm::ReduceMean:
+            case Algorithm::ReduceSum:
                 uni_vaddps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceMax:
+            case Algorithm::ReduceMax:
                 uni_vmaxps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceMin:
+            case Algorithm::ReduceMin:
                 uni_vminps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceL2:
-            case ReduceSumSquare:
+            case Algorithm::ReduceL2:
+            case Algorithm::ReduceSumSquare:
                 uni_vmulps(xmm_src, xmm_src, xmm_src);
                 uni_vaddps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceLogSumExp:
+            case Algorithm::ReduceLogSumExp:
                 exp_injector->compute_vector_range(xmm_src.getIdx(), xmm_src.getIdx() + 1);
                 uni_vaddps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceOr:
+            case Algorithm::ReduceOr:
                 uni_vorps(xmm_dst, xmm_dst, xmm_src);
                 break;
-            case ReduceProd:
+            case Algorithm::ReduceProd:
                 uni_vmulps(xmm_dst, xmm_dst, xmm_src);
                 break;
             default:
@@ -832,7 +834,7 @@ private:
     }
 
     inline void store_dst_vector() {
-        if (jcp_.reduce_mode == ReduceOr && isa != cpu::x64::avx512_common) {
+        if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_common) {
             uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
 
@@ -1018,28 +1020,28 @@ private:
 
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
+            case Algorithm::ReduceAnd:
                 uni_vandps(xmm, xmm, op);
                 break;
-            case ReduceL1:
-            case ReduceL2:
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-            case ReduceSumSquare:
-            case ReduceLogSumExp:
+            case Algorithm::ReduceL1:
+            case Algorithm::ReduceL2:
+            case Algorithm::ReduceLogSum:
+            case Algorithm::ReduceMean:
+            case Algorithm::ReduceSum:
+            case Algorithm::ReduceSumSquare:
+            case Algorithm::ReduceLogSumExp:
                 uni_vaddps(xmm, xmm, op);
                 break;
-            case ReduceMax:
+            case Algorithm::ReduceMax:
                 uni_vmaxps(xmm, xmm, op);
                 break;
-            case ReduceMin:
+            case Algorithm::ReduceMin:
                 uni_vminps(xmm, xmm, op);
                 break;
-            case ReduceOr:
+            case Algorithm::ReduceOr:
                 uni_vorps(xmm, xmm, op);
                 break;
-            case ReduceProd:
+            case Algorithm::ReduceProd:
                 uni_vmulps(xmm, xmm, op);
                 break;
             default:
@@ -1079,7 +1081,7 @@ template <cpu_isa_t isa>
 struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
-    explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const mkldnn_primitive_attr &attr)
+    explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -1103,7 +1105,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             }
         }
 
-        if (jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
+        if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
         }
 
@@ -1159,7 +1161,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16->emit_data();
 
-        if (jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
+        if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->prepare_table();
         }
 
@@ -1259,9 +1261,9 @@ private:
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean]
         L(reduce_map_label);
         {
-            if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean ||
-                jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
-                if (jcp_.reduce_mode == ReduceMean)
+            if (jcp_.reduce_mode == Algorithm::ReduceL2 || jcp_.reduce_mode == Algorithm::ReduceMean ||
+                jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
+                if (jcp_.reduce_mode == Algorithm::ReduceMean)
                     uni_vbroadcastss(vmm_aux, ptr[reg_divisor]);
 
                 Xbyak::Label reduce_loop_label;
@@ -1341,9 +1343,9 @@ private:
     inline void reduce_post_tail() {
         // reduce map for tail in dst memory
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean] in planar layout
-        if (jcp_.reduce_mode == ReduceL2 || jcp_.reduce_mode == ReduceMean ||
-                jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp) {
-            if (jcp_.reduce_mode == ReduceMean)
+        if (jcp_.reduce_mode == Algorithm::ReduceL2 || jcp_.reduce_mode == Algorithm::ReduceMean ||
+                jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
+            if (jcp_.reduce_mode == Algorithm::ReduceMean)
                 uni_vbroadcastss(xmm_aux, ptr[reg_divisor]);
 
             Xbyak::Label reduce_loop_label;
@@ -1448,20 +1450,20 @@ private:
     }
 
     inline void reduce_map_kernel(Vmm vmm_dst) {
-        if (jcp_.reduce_mode == ReduceMean)
+        if (jcp_.reduce_mode == Algorithm::ReduceMean)
             uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
-        else if (jcp_.reduce_mode == ReduceL2)
+        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
             uni_vsqrtps(vmm_dst, vmm_dst);
-        else if (jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp)
+        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
             log_injector->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
     }
 
     inline void reduce_map_kernel_scalar(Xmm xmm_dst) {
-        if (jcp_.reduce_mode == ReduceMean)
+        if (jcp_.reduce_mode == Algorithm::ReduceMean)
             uni_vdivps(xmm_dst, xmm_dst, xmm_aux);
-        else if (jcp_.reduce_mode == ReduceL2)
+        else if (jcp_.reduce_mode == Algorithm::ReduceL2)
             uni_vsqrtps(xmm_dst, xmm_dst);
-        else if (jcp_.reduce_mode == ReduceLogSum || jcp_.reduce_mode == ReduceLogSumExp)
+        else if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp)
             log_injector->compute_vector_range(xmm_dst.getIdx(), xmm_dst.getIdx() + 1);
     }
 
@@ -1637,28 +1639,28 @@ private:
 
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
-            case ReduceAnd:
+            case Algorithm::ReduceAnd:
                 uni_vandps(xmm, xmm, op);
                 break;
-            case ReduceL1:
-            case ReduceL2:
-            case ReduceLogSum:
-            case ReduceMean:
-            case ReduceSum:
-            case ReduceSumSquare:
-            case ReduceLogSumExp:
+            case Algorithm::ReduceL1:
+            case Algorithm::ReduceL2:
+            case Algorithm::ReduceLogSum:
+            case Algorithm::ReduceMean:
+            case Algorithm::ReduceSum:
+            case Algorithm::ReduceSumSquare:
+            case Algorithm::ReduceLogSumExp:
                 uni_vaddps(xmm, xmm, op);
                 break;
-            case ReduceMax:
+            case Algorithm::ReduceMax:
                 uni_vmaxps(xmm, xmm, op);
                 break;
-            case ReduceMin:
+            case Algorithm::ReduceMin:
                 uni_vminps(xmm, xmm, op);
                 break;
-            case ReduceOr:
+            case Algorithm::ReduceOr:
                 uni_vorps(xmm, xmm, op);
                 break;
-            case ReduceProd:
+            case Algorithm::ReduceProd:
                 uni_vmulps(xmm, xmm, op);
                 break;
             default:
@@ -1667,37 +1669,37 @@ private:
     }
 };
 
-const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>> MKLDNNReduceNode::initializers = {
-    {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceL1;
+const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> Reduce::initializers = {
+    {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceL1;
     }},
-    {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceL2;
+    {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceL2;
     }},
-    {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceAnd;
+    {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceAnd;
     }},
-    {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceOr;
+    {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceOr;
     }},
-    {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMax;
+    {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceMax;
     }},
-    {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMean;
+    {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceMean;
     }},
-    {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceMin;
+    {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceMin;
     }},
-    {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceProd;
+    {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceProd;
     }},
-    {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
-        node.algorithm = ReduceSum;
+    {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        node.algorithm = Algorithm::ReduceSum;
     }}
 };
 
-bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
                 std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
@@ -1732,8 +1734,8 @@ bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1757,7 +1759,7 @@ MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, cons
     }
 }
 
-void MKLDNNReduceNode::getSupportedDescriptors() {
+void Reduce::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
@@ -1782,7 +1784,7 @@ void MKLDNNReduceNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
+void Reduce::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1801,8 +1803,8 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         if (Precision::BF16 == output_prec) {
             if (!mayiuse(avx512_core)) {
                     output_prec = Precision::FP32;
-            } else if (algorithm != ReduceAnd && algorithm != ReduceOr &&
-                       algorithm != ReduceMin && algorithm != ReduceMax) {
+            } else if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+                       algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
                             output_prec = Precision::FP32;
             }
         }
@@ -1867,15 +1869,15 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNReduceNode::isExecutable() const {
+bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-std::vector<VectorDims> MKLDNNReduceNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(REDUCE_INDEXES));
+std::vector<VectorDims> Reduce::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
 }
 
-void MKLDNNReduceNode::prepareParams() {
+void Reduce::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
     if (jit_mode && jit_beyond_5D) {
@@ -1927,7 +1929,7 @@ void MKLDNNReduceNode::prepareParams() {
     }
 }
 
-void MKLDNNReduceNode::createPrimitive() {
+void Reduce::createPrimitive() {
     if (!isExecutable()) {
         return;
     }
@@ -1956,10 +1958,10 @@ void MKLDNNReduceNode::createPrimitive() {
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     jcp = jit_reduce_config_params();
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
-    jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
+    jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision());
+    jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.src_dt);
+    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
 
@@ -1986,11 +1988,11 @@ void MKLDNNReduceNode::createPrimitive() {
     jit_mode = jit_mode && reduce_kernel;
 }
 
-void MKLDNNReduceNode::executeDynamicImpl(mkldnn::stream strm) {
+void Reduce::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNReduceNode::execute(mkldnn::stream strm) {
+void Reduce::execute(dnnl::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
 
@@ -2013,7 +2015,7 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNReduceNode::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size) {
+void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size) {
     init_dst_data(out_ptr, dst_size);
     reduce_stride = IW;
 
@@ -2039,7 +2041,7 @@ void MKLDNNReduceNode::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size
     }
 }
 
-void MKLDNNReduceNode::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
     if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
         size_t IA = IC * ID * IH * IW;
         reduce_stride = IA;
@@ -2193,7 +2195,7 @@ void MKLDNNReduceNode::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
     reduce_kernel_post_process(out_ptr);
 }
 
-void MKLDNNReduceNode::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
 
@@ -2205,8 +2207,8 @@ void MKLDNNReduceNode::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
         } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
-            if (input_prec != output_prec || getAlgorithm() == ReduceL2 ||
-                 algorithm == ReduceLogSumExp || algorithm == ReduceSumSquare) {
+            if (input_prec != output_prec || getAlgorithm() == Algorithm::ReduceL2 ||
+                 algorithm == Algorithm::ReduceLogSumExp || algorithm == Algorithm::ReduceSumSquare) {
                 reduce_kernel_process(in_ptr_n, out_ptr_n, ICB * ID * IH * IW * blk_size);
             } else {
                 // reduce parallelly
@@ -2263,7 +2265,7 @@ void MKLDNNReduceNode::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     reduce_kernel_post_process(out_ptr);
 }
 
-void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
+void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
 
@@ -2347,7 +2349,7 @@ void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t
     reduce_kernel_post_process(out_ptr);
 }
 
-inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount,
+inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount,
                                                     size_t reduce_w, size_t work_batch, const int *tab_idx) {
     auto arg = jit_reduce_call_args();
     arg.src = static_cast<const void *>(in_p);
@@ -2361,7 +2363,7 @@ inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t *in_p, uint8_t
     (*reduce_kernel)(&arg);
 }
 
-inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
+inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const float divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp || layout == ReduceLayoutType::reduce_nspc) {
@@ -2392,7 +2394,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
     }
 }
 
-void MKLDNNReduceNode::nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
+void Reduce::nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
     // dimension reinterpret after nspc reusing routine reduce_PLN
     // demote -- nspc -- ncsp
     //  DIM0  --   B  --  B
@@ -2447,7 +2449,7 @@ void MKLDNNReduceNode::nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
     }
 }
 
-void MKLDNNReduceNode::blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
+void Reduce::blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
     const size_t DIM0 = OB;
     const size_t DIM1 = OC;
     const size_t DIM2 = OD;
@@ -2523,20 +2525,20 @@ void MKLDNNReduceNode::blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr) {
     }
 }
 
-inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
+inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
     switch (algorithm) {
-        case ReduceL1:
-        case ReduceL2:
-        case ReduceLogSum:
-        case ReduceLogSumExp:
-        case ReduceMean:
-        case ReduceOr:
-        case ReduceSum:
-        case ReduceSumSquare:
+        case Algorithm::ReduceL1:
+        case Algorithm::ReduceL2:
+        case Algorithm::ReduceLogSum:
+        case Algorithm::ReduceLogSumExp:
+        case Algorithm::ReduceMean:
+        case Algorithm::ReduceOr:
+        case Algorithm::ReduceSum:
+        case Algorithm::ReduceSumSquare:
             memset(out_ptr, 0, dst_size);
             break;
-        case ReduceAnd:
-        case ReduceProd:
+        case Algorithm::ReduceAnd:
+        case Algorithm::ReduceProd:
             if (output_prec == Precision::FP32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<float>(1); });
@@ -2554,7 +2556,7 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int8_t>(1); });
             }
             break;
-        case ReduceMax:
+        case Algorithm::ReduceMax:
             if (output_prec == Precision::FP32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::lowest(); });
@@ -2572,7 +2574,7 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int8_t>::min(); });
             }
             break;
-        case ReduceMin:
+        case Algorithm::ReduceMin:
             if (output_prec == Precision::FP32) {
                 auto out_p = reinterpret_cast<float *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<float>::max(); });
@@ -2595,18 +2597,18 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
     }
 }
 
-inline void MKLDNNReduceNode::create_working_memory() {
+inline void Reduce::create_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
     memory::format_tag format = (layout == ReduceLayoutType::reduce_nspc) ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
                                         : (rank == 4 ? (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
                                                      : (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
-    auto desc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(prc_dims), MKLDNNExtensionUtils::IEPrecisionToDataType(output_prec), format);
-    prc_mem = std::make_shared<mkldnn::memory>(desc, getEngine());
+    auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
+    prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());
     dst_size = desc.get_size();
 }
 
-inline void MKLDNNReduceNode::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
+inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
     std::set<size_t> axes;
     SizeVector out_dims;
     process_dst_dims.clear();
@@ -2647,7 +2649,7 @@ inline void MKLDNNReduceNode::calc_process_dst_dims(std::vector<int> &reduce_axe
     }
 }
 
-inline void MKLDNNReduceNode::set_reduce_dim_flags() {
+inline void Reduce::set_reduce_dim_flags() {
     size_t dims_size = src_dims.size();
     if (dims_size == 5) {
         SET_SRC_DIM_VALUE(src_dims[0], src_dims[1], src_dims[2], src_dims[3], src_dims[4]);
@@ -2698,44 +2700,44 @@ inline void MKLDNNReduceNode::set_reduce_dim_flags() {
     }
 }
 
-inline void MKLDNNReduceNode::reduce_ref(const float *in_ptr, float *out_ptr) {
+inline void Reduce::reduce_ref(const float *in_ptr, float *out_ptr) {
     switch (algorithm) {
-        case ReduceAnd:
+        case Algorithm::ReduceAnd:
             reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y)->float { return x && y; });
             break;
-        case ReduceL1:
+        case Algorithm::ReduceL1:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + (y >= 0 ? y : -y); });
             break;
-        case ReduceL2:
+        case Algorithm::ReduceL2:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
             break;
-        case ReduceLogSum:
+        case Algorithm::ReduceLogSum:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
             break;
-        case ReduceLogSumExp:
+        case Algorithm::ReduceLogSumExp:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + expf(y); });
             break;
-        case ReduceMax:
+        case Algorithm::ReduceMax:
             reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::lowest(),
                                                     [](float x, float y)->float { return x > y ? x : y; });
             break;
-        case ReduceMean:
+        case Algorithm::ReduceMean:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
             break;
-        case ReduceMin:
+        case Algorithm::ReduceMin:
             reduce_ref_process(in_ptr, out_ptr, std::numeric_limits<float>::max(),
                                                     [](float x, float y)->float { return x < y ? x : y; });
             break;
-        case ReduceOr:
+        case Algorithm::ReduceOr:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x || y; });
             break;
-        case ReduceProd:
+        case Algorithm::ReduceProd:
             reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y)->float { return x * y; });
             break;
-        case ReduceSum:
+        case Algorithm::ReduceSum:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y)->float { return x + y; });
             break;
-        case ReduceSumSquare:
+        case Algorithm::ReduceSumSquare:
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
             break;
     default:
@@ -2743,7 +2745,7 @@ inline void MKLDNNReduceNode::reduce_ref(const float *in_ptr, float *out_ptr) {
     }
 }
 
-void MKLDNNReduceNode::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func) {
+void Reduce::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
     for (size_t i = 0; i < process_dst_dims.size(); i++)
         work_amount_dst *= process_dst_dims[i];
@@ -2798,29 +2800,29 @@ void MKLDNNReduceNode::reduce_ref_process(const float *in_ptr, float *out_ptr, f
     reduce_ref_map(out_ptr, work_amount_dst, reduced_dims_work_amount);
 }
 
-inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
+inline void Reduce::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
     switch (algorithm) {
-        case ReduceAnd:
-        case ReduceL1:
-        case ReduceMax:
-        case ReduceMin:
-        case ReduceOr:
-        case ReduceProd:
-        case ReduceSum:
-        case ReduceSumSquare:
+        case Algorithm::ReduceAnd:
+        case Algorithm::ReduceL1:
+        case Algorithm::ReduceMax:
+        case Algorithm::ReduceMin:
+        case Algorithm::ReduceOr:
+        case Algorithm::ReduceProd:
+        case Algorithm::ReduceSum:
+        case Algorithm::ReduceSumSquare:
             break;
-        case ReduceL2:
+        case Algorithm::ReduceL2:
             parallel_for(work_amount_dst, [&](size_t i) {
                 out_ptr[i] = std::sqrt(out_ptr[i]);
             });
             break;
-        case ReduceLogSum:
-        case ReduceLogSumExp:
+        case Algorithm::ReduceLogSum:
+        case Algorithm::ReduceLogSumExp:
             parallel_for(work_amount_dst, [&](size_t i) {
                 out_ptr[i] = logf(out_ptr[i]);
             });
             break;
-        case ReduceMean:
+        case Algorithm::ReduceMean:
             parallel_for(work_amount_dst, [&](size_t i) {
                 out_ptr[i] /= reduced_dims_work_amount;
             });
@@ -2830,17 +2832,17 @@ inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_
     }
 }
 
-void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
-    mkldnn::post_ops ops;
+void Reduce::setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
+    dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
             continue;
@@ -2851,7 +2853,7 @@ void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
     attr.set_post_ops(ops);
 }
 
-void MKLDNNReduceNode::setJITBeyond5D() {
+void Reduce::setJITBeyond5D() {
     jit_beyond_5D = false;
     if (getInputShapeAtPort(REDUCE_DATA).getRank() > 5) {
         for (auto &axis : raw_axes) {
@@ -2873,7 +2875,7 @@ void MKLDNNReduceNode::setJITBeyond5D() {
     }
 }
 
-std::vector<int> MKLDNNReduceNode::update_src_dims() {
+std::vector<int> Reduce::update_src_dims() {
     std::vector<int> reduce_axes = raw_axes;
 
     if (reduce_axes.size() < 1)
@@ -2905,7 +2907,7 @@ std::vector<int> MKLDNNReduceNode::update_src_dims() {
     return reduce_axes;
 }
 
-bool MKLDNNReduceNode::canApplyJIT(const Precision &input_prec, const Precision &output_prec) const {
+bool Reduce::canApplyJIT(const Precision &input_prec, const Precision &output_prec) const {
     static const Precision supportedPrecisions[] = {
             Precision::FP32,
             Precision::BF16,
@@ -2919,10 +2921,10 @@ bool MKLDNNReduceNode::canApplyJIT(const Precision &input_prec, const Precision 
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) != std::end(supportedPrecisions);
 }
 
-bool MKLDNNReduceNode::canFuse(const MKLDNNNodePtr& node) const {
+bool Reduce::canFuse(const NodePtr& node) const {
     Precision input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     Precision output_prec = getOriginalOutputPrecisionAtPort(0);
-    if (!canApplyJIT(input_prec, output_prec) || jit_beyond_5D || algorithm == ReduceAnd || algorithm == ReduceOr) {
+    if (!canApplyJIT(input_prec, output_prec) || jit_beyond_5D || algorithm == Algorithm::ReduceAnd || algorithm == Algorithm::ReduceOr) {
         return false;
     }
 
@@ -2930,8 +2932,8 @@ bool MKLDNNReduceNode::canFuse(const MKLDNNNodePtr& node) const {
     // If the post ops node has a lower precision for such modes, post ops fusing won't be supposted, in order to avoid accuracy loss.
     if (output_prec == Precision::FP32 &&
         !node->getOriginalOutputPrecisions().empty() && node->getOriginalOutputPrecisionAtPort(0) != Precision::FP32) {
-        if (algorithm != ReduceAnd && algorithm != ReduceOr &&
-            algorithm != ReduceMin && algorithm != ReduceMax) {
+        if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+            algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
             return false;
         }
     }
@@ -2939,8 +2941,10 @@ bool MKLDNNReduceNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-bool MKLDNNReduceNode::created() const {
-    return getType() == Reduce;
+bool Reduce::created() const {
+    return getType() == Type::Reduce;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNReduceNode, Reduce);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

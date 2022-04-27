@@ -30,7 +30,7 @@ ParamsKey LRNKernelAcrossChannelMultipleFeatures::GetSupportedKey() const {
 }
 
 static unsigned int GetOfmPerSimd(const lrn_params& params) {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto local_size = params.localSize;
 
     if ((output.Feature().v % 8 == 0) && local_size > 4) {
@@ -51,7 +51,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
     unsigned int ofm_per_simd = GetOfmPerSimd(params);
 
     if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::b_fs_yx_fsv4) {
-        const auto& out = params.output;
+        const auto& out = params.outputs[0];
         const unsigned int alignment = out.X().v > 16 ? 32 : 16;
 
         dispatchData.gws[0] = Align(out.X().v, alignment);
@@ -89,7 +89,7 @@ JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_p
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input = params.inputs[0];
     const auto& input_dt = params.inputs[0].GetDType();
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     unsigned int ofm_per_simd = GetOfmPerSimd(params);
     jit.AddConstant(MakeJitConstant("OFM_PER_SIMD", ofm_per_simd));

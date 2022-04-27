@@ -14,6 +14,7 @@ namespace op {
 namespace v1 {
 
 /// \brief Splits the input tensor into a list of equal sized tensors
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Split : public Op {
 public:
     OPENVINO_OP("Split", "opset1", op::Op, 1);

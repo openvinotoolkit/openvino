@@ -7,6 +7,9 @@
 #include "primitive.hpp"
 #include <vector>
 
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -46,9 +49,9 @@ struct pooling : public primitive_base<pooling> {
     pooling(const primitive_id& id,
             const primitive_id& input,
             pooling_mode mode,
-            const tensor& size,
-            const tensor& stride,
-            const tensor& pad = {0, 0, 0, 0},
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Shape& pad = {0, 0},
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
@@ -58,7 +61,8 @@ struct pooling : public primitive_base<pooling> {
           pad(pad),
           stride(stride),
           size(size),
-          with_output_size(false) {}
+          with_output_size(false),
+          pad_end(size.size(), 0) {}
 
     /// @brief Constructs pooling primitive with argmax.
     /// @param id This primitive id.
@@ -74,9 +78,9 @@ struct pooling : public primitive_base<pooling> {
             const primitive_id& input,
             const primitive_id& argmax,
             pooling_mode mode,
-            const tensor& size,
-            const tensor& stride,
-            const tensor& pad = {0, 0, 0, 0},
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Shape& pad = {0, 0},
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
@@ -86,7 +90,8 @@ struct pooling : public primitive_base<pooling> {
           pad(pad),
           stride(stride),
           size(size),
-          with_output_size(false) {}
+          with_output_size(false),
+          pad_end(size.size(), 0) {}
 
     /// @brief Constructs pooling primitive (computes input paddings to match output size).
     /// @param id This primitive id.
@@ -99,9 +104,9 @@ struct pooling : public primitive_base<pooling> {
     pooling(const primitive_id& id,
             const primitive_id& input,
             pooling_mode mode,
-            const tensor& size,
-            const tensor& stride,
-            const tensor& pad,
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Shape& pad,
             tensor output_size,
             const data_types output_data_type,
             const primitive_id& ext_prim_id = "",
@@ -114,7 +119,8 @@ struct pooling : public primitive_base<pooling> {
           stride(stride),
           size(size),
           with_output_size(true),
-          output_size(output_size) {}
+          output_size(output_size),
+          pad_end(size.size(), 0) {}
 
     /// @brief Constructs pooling primitive with argmax (computes input paddings to match output size).
     /// @param id This primitive id.
@@ -130,9 +136,9 @@ struct pooling : public primitive_base<pooling> {
             const primitive_id& input,
             const primitive_id& argmax,
             pooling_mode mode,
-            const tensor& size,
-            const tensor& stride,
-            const tensor& pad,
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Shape& pad,
             tensor output_size,
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
@@ -144,7 +150,8 @@ struct pooling : public primitive_base<pooling> {
           stride(stride),
           size(size),
           with_output_size(true),
-          output_size(output_size) {}
+          output_size(output_size),
+          pad_end(size.size(), 0) {}
 
     /// @brief Constructs pooling primitive with kernel size equal to the spatial dimension of input tensor.
     /// @param id This primitive id.
@@ -159,10 +166,11 @@ struct pooling : public primitive_base<pooling> {
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(true),
-          pad(0, 0, 0, 0),
-          stride(1, 1, 1, 1),
-          size(0, 0, 0, 0),
-          with_output_size(false) {}
+          pad({0, 0}),
+          stride({1, 1}),
+          size({0, 0}),
+          with_output_size(false),
+          pad_end(size.size(), 0) {}
 
     /// @brief Constructs pooling primitive that supports MaxPool features from opset8 (dilation and indices output).
     /// @param id This primitive id.
@@ -179,11 +187,11 @@ struct pooling : public primitive_base<pooling> {
     pooling(const primitive_id& id,
             const primitive_id& input,
             const primitive_id& indices_output,
-            const tensor& size,
-            const tensor& stride,
-            const tensor& dilation,
-            const tensor& pad,
-            const tensor& pad_end,
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Strides& dilation,
+            const ov::Shape& pad,
+            const ov::Shape& pad_end,
             int64_t axis,
             data_types index_element_type,
             tensor output_size,
@@ -217,19 +225,19 @@ struct pooling : public primitive_base<pooling> {
     /// @brief Global pooling (kernel size is equal to the spatial dimension of input tensor)
     bool global_pooling;
     /// @brief Defines logical pad value added to input tensor.
-    tensor pad;
+    ov::Shape pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
-    tensor stride;
+    ov::Strides stride;
     /// @brief Defines index of next pixel to select when pooling
-    tensor dilation;
+    ov::Strides dilation;
     /// @brief Pooling kernel size.
-    tensor size;
+    ov::Shape size;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
     bool with_output_size;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Defines a shift, relative to the end of padding shape.
-    tensor pad_end;
+    ov::Shape pad_end;
     /// @brief first dimension of input that should be used to calculate the upper bound of index output
     int64_t axis = 0;
     /// @brief type of index output

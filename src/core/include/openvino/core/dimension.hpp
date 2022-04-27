@@ -20,6 +20,7 @@ class TableOfEquivalence;
 ///
 /// Static dimensions may be implicitly converted from value_type. A dynamic dimension is
 /// constructed with Dimension() or Dimension::dynamic().
+/// \ingroup ov_model_cpp_api
 class OPENVINO_API Dimension {
 public:
     using value_type = int64_t;

@@ -209,7 +209,7 @@ onnx_model_eye_like_dyn_rank
 
 
 # Constant network
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
@@ -496,7 +496,7 @@ relu_4Dbackprop
 # data [<name>] doesn't exist
 parameter_as_output
 
-# MKLDNNGraph::CreateGraph: No inputs for the topology
+# intel_cpu::Graph::CreateGraph: No inputs for the topology
 range_v0_int32
 range_v0_float32
 range_v4_int32
@@ -834,7 +834,7 @@ non_zero_all_1s
 non_zero_all_0s
 
 # NormalizeL2 - output mismatch,
-# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# dnnl_normalize_nchw applies eps after sqrt for across_spatial
 # Issue: 59586
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add
@@ -1551,3 +1551,10 @@ onnx_model_skip_layer_normalization_dynamic_shapes
 onnx_model_embed_layer_normalization_dynamic_shapes
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_attention_dynamic_shapes
+
+# CPU plug-in doesn't support Parameter operation with dynamic rank
+IE_CPU.onnx_scan15_dyn_rank_vals
+
+# z node not found in graph cache ticket: 81976
+IE_CPU.onnx_expand_context_dependent_function
+IE_CPU.onnx_softmax_crossentropy_loss_mean

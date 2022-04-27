@@ -12,7 +12,9 @@
 #include <cmath>
 #include <cstddef>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace op {
 
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
@@ -74,4 +76,6 @@ bool SoftSign::has_evaluate() const {
     return false;
 }
 
-} // namespace GNAPluginNS
+} // namespace op
+} // namespace intel_gna
+} // namespace ov

@@ -33,25 +33,27 @@
 #include <utility>
 #include <cstring>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+namespace ov {
+namespace intel_cpu {
+
 InferenceEngine::IInferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+ExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     if (!this->_plugin)
         return nullptr;
     const auto& core = _plugin->GetCore();
     if (!core || !core->isNewAPI())
         return nullptr;
-    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+    return std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
 }
 
 InferenceEngine::IInferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                          InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNLegacyInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+ExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
+                                    InferenceEngine::OutputsDataMap networkOutputs) {
+    return std::make_shared<LegacyInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
 }
 
 struct ImmediateSerialExecutor : public ITaskExecutor {
@@ -62,16 +64,14 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
     std::mutex _mutex;
 };
 
-MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
-                                     const Config &cfg,
-                                     const MKLDNNExtensionManager::Ptr& extMgr,
-                                     NumaNodesWeights &numaNodesWeights,
-                                     const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
+ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
+                         const Config &cfg,
+                         const ExtensionManager::Ptr& extMgr,
+                         const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
     _network(network) {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
@@ -92,7 +92,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(_network)) {
-            IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
+            IE_THROW() << "Graph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
 
@@ -124,14 +124,21 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
     if (_cfg.streamExecutorConfig._streams != 0) {
-        for (auto&& task : tasks) {
-            task = [this] {
-                MKLDNNExecNetwork::GetGraph();
-            };
-        }
-        _taskExecutor->runAndWait(tasks);
+        auto all_graphs_ready = [&] {
+            return std::all_of(_graphs.begin(), _graphs.end(), [&] (Graph& graph) {
+                return graph.IsReady();
+            });
+        };
+        do {
+            for (auto&& task : tasks) {
+                task = [this] {
+                    ExecNetwork::GetGraph();
+                };
+            }
+            _taskExecutor->runAndWait(tasks);
+        } while (!all_graphs_ready());
     } else {
-        MKLDNNExecNetwork::GetGraph();
+        ExecNetwork::GetGraph();
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
@@ -139,10 +146,10 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     // producer as storage for tensor to keep it between infer calls.
     if (_graphs.size() == 1) {
         for (auto &node : GetGraph()._graph.GetNodes()) {
-            if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            if (node->getType() == Type::MemoryInput) {
+                auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
                 if (!memoryNode) {
-                    IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                    IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
                 }
                 auto state_store = memoryNode->getStore();
                 auto state_name = memoryNode->getId();
@@ -152,13 +159,13 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
+                memoryStates.emplace_back(new VariableState(state_name, state_store));
             }
         }
     }
 }
 
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
+ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
@@ -166,7 +173,7 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
         streamId = streamsExecutor->GetStreamId();
         numaNodeId = streamsExecutor->GetNumaNodeId();
     }
-    auto graphLock = Graph::Lock(_graphs[streamId % _graphs.size()]);
+    auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
         auto makeGraph = [&] {
@@ -192,31 +199,31 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
     return graphLock;
 }
 
-void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
+void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
     {
         std::lock_guard<std::mutex> lock{_cfgMutex};
         _cfg.readProperties(properties);
     }
     for (auto& g : _graphs) {
-        auto graphLock = Graph::Lock(g);
+        auto graphLock = GraphGuard::Lock(g);
         if (graphLock._graph.IsReady()) {
             graphLock._graph.setProperty(properties);
         }
     }
 }
 
-InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferRequest() {
-    return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
+InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<AsyncInferRequest>();
 }
 
-std::shared_ptr<ngraph::Function> MKLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> ExecNetwork::GetExecGraphInfo() {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
 
     return GetGraph()._graph.dump();
 }
 
-bool MKLDNNExecNetwork::isLegacyAPI() const {
+bool ExecNetwork::isLegacyAPI() const {
     const auto& core = _plugin->GetCore();
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
@@ -224,7 +231,7 @@ bool MKLDNNExecNetwork::isLegacyAPI() const {
     return !core->isNewAPI();
 }
 
-Parameter MKLDNNExecNetwork::GetConfigLegacy(const std::string &name) const {
+Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
     /* legacy implementation return all the parameters which is actually not correct
@@ -244,13 +251,13 @@ Parameter MKLDNNExecNetwork::GetConfigLegacy(const std::string &name) const {
  * All the RO properties are covered with GetMetric() method and
  * GetConfig() is not expected to be called by new API with params from new configuration API.
  */
-Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
+Parameter ExecNetwork::GetConfig(const std::string &name) const {
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
     return GetConfigLegacy(name);
 }
 
-InferenceEngine::Parameter MKLDNNExecNetwork::GetMetricLegacy(const std::string &name, const Graph& graph) const {
+InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name, const GraphGuard& graph) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -278,7 +285,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetricLegacy(const std::string 
     }
 }
 
-InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
+InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
     // @todo Can't we just use local copy (_cfg) instead?
@@ -354,7 +361,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
     return GetMetricLegacy(name, graph);
 }
 
-bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const {
+bool ExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const {
     maxBatchSize = -1;
     auto isDynBatchWithUpperBound = [maxBatchSize](const ov::PartialShape& shape) -> bool {
         if (shape.rank().is_dynamic()) {
@@ -401,20 +408,20 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
         }
 
         auto type = TypeFromName(op->get_type_name());
-        if (!one_of(type, Input,
-                          Output,
-                          Convolution,
-                          Deconvolution,
-                          Lrn,
-                          Pooling,
-                          FullyConnected,
-                          MatMul,
-                          Softmax,
-                          Split,
-                          Concatenation,
-                          Eltwise,
-                          Reshape,
-                          Tile)) {
+        if (!one_of(type, Type::Input,
+                          Type::Output,
+                          Type::Convolution,
+                          Type::Deconvolution,
+                          Type::Lrn,
+                          Type::Pooling,
+                          Type::FullyConnected,
+                          Type::MatMul,
+                          Type::Softmax,
+                          Type::Split,
+                          Type::Concatenation,
+                          Type::Eltwise,
+                          Type::Reshape,
+                          Type::Tile)) {
             return false;
         }
 
@@ -424,7 +431,7 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
             }
         }
 
-        if (type == Tile) {
+        if (type == Type::Tile) {
             const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
             if (!(tile && repeatsNode && repeatsNode->cast_vector<int64_t>()[0] == 1)) {
@@ -432,7 +439,7 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
             }
         }
 
-        if (type == Reshape) {
+        if (type == Type::Reshape) {
             const auto inShape = op->get_input_partial_shape(0);
             const auto outShape = op->get_output_partial_shape(0);
             if (isDynBatchWithUpperBound(inShape) && isDynBatchWithUpperBound(outShape)) {
@@ -452,34 +459,34 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
             }
         }
 
-        if (type == Split) {
+        if (type == Type::Split) {
             const auto axis = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             if (!axis || axis->cast_vector<int64_t>()[0] == 0) {
                 return false;
             }
         }
 
-        if (type == Concatenation) {
+        if (type == Type::Concatenation) {
             const auto concat = std::dynamic_pointer_cast<const ngraph::op::v0::Concat>(op);
             if (!concat || concat->get_axis() == 0) {
                 return false;
             }
         }
 
-        if (type == Softmax) {
+        if (type == Type::Softmax) {
             const auto softmax = std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op);
             if (!softmax || softmax->get_axis() == 0) {
                 return false;
             }
         }
 
-        if ((type == MatMul || type == FullyConnected) &&
+        if ((type == Type::MatMul || type == Type::FullyConnected) &&
             (op->get_input_node_ptr(1)->get_type_info() != ngraph::op::Constant::get_type_info_static() ||
                 op->get_input_partial_shape(0).rank().get_length() < 2)) {
             return false;
         }
 
-        if (type == Eltwise && std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(op) &&
+        if (type == Type::Eltwise && std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(op) &&
             !(op->get_input_node_ptr(0)->get_type_info() == ngraph::op::Constant::get_type_info_static() ||
             op->get_input_node_ptr(1)->get_type_info() == ngraph::op::Constant::get_type_info_static()) &&
                     op->get_input_partial_shape(0).rank().get_length() != op->get_input_partial_shape(1).rank().get_length()) {
@@ -489,7 +496,7 @@ bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Mod
     return true;
 }
 
-bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
+bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
     InputsDataMap inputs = network.getInputsInfo();
 
     if (inputs.empty())
@@ -503,7 +510,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     auto ops = function->get_ordered_ops();
     for (const auto& op : ops) {
         auto type = TypeFromName(op->get_type_name());
-        if (type == Tile) {
+        if (type == Type::Tile) {
             const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
             if (!repeatsNode)
                 return false;
@@ -512,23 +519,23 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
                 continue;
         }
 
-        if (type == Reshape) {
+        if (type == Type::Reshape) {
             if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
                 continue;
         }
 
-        if (type != Input &&
-            type != Output &&
-            type != Convolution &&
-            type != Deconvolution &&
-            type != Lrn &&
-            type != Pooling &&
-            type != FullyConnected &&
-            type != MatMul &&
-            type != Softmax &&
-            type != Split &&
-            type != Concatenation &&
-                type != Eltwise) {
+        if (type != Type::Input &&
+            type != Type::Output &&
+            type != Type::Convolution &&
+            type != Type::Deconvolution &&
+            type != Type::Lrn &&
+            type != Type::Pooling &&
+            type != Type::FullyConnected &&
+            type != Type::MatMul &&
+            type != Type::Softmax &&
+            type != Type::Split &&
+            type != Type::Concatenation &&
+                type != Type::Eltwise) {
             return false;
         }
     }
@@ -536,7 +543,10 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     return true;
 }
 
-void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
+void ExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);
     serializer <<_network;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

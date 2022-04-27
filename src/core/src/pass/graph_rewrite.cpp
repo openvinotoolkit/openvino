@@ -308,6 +308,11 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     };
 }
 
+void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
+                                             const ov::graph_rewrite_callback& callback) {
+    register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+}
+
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();

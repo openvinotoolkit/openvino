@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header that defines wrappers for internal GPU plugin-specific
+ * @brief A header that defines wrappers for internal GPU plugin-specific
  * shared Video Acceleration device contexts
  * and shared memory tensors which contain Video Acceleration surfaces
  *
@@ -35,6 +35,7 @@ namespace ocl {
  * which is shared with Direct3D 11 buffer.
  * The plugin object derived from this class can be obtained with D3DContext::create_tensor() call.
  * @note User can also obtain OpenCL buffer handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class D3DBufferTensor : public ClBufferTensor {
 public:
@@ -62,6 +63,7 @@ public:
  * which is shared with Direct3D 11 2D texture.
  * The plugin object derived from this class can be obtained with D3DContext::create_tensor() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class D3DSurface2DTensor : public ClImage2DTensor {
 public:
@@ -99,6 +101,7 @@ public:
  * The plugin object derived from this class can be obtained either with
  * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class D3DContext : public ClContext {
 public:

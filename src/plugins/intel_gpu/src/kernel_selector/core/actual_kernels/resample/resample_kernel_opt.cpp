@@ -13,7 +13,7 @@ static constexpr size_t sub_group_size = 16;
 size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
     for (auto& w : block_width)
-        if (params.output.X().v % w == 0)
+        if (params.outputs[0].X().v % w == 0)
             return w;
     return 1;
 }
@@ -63,15 +63,15 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = arg.output;
+    const auto& out = arg.outputs[0];
 
     if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         dispatchData.gws[0] = out.X().v * out.Y().v;
         dispatchData.gws[1] = CeilDiv(out.Feature().v, GetFeatureBlockSize(arg));
-        dispatchData.gws[2] = arg.output.Batch().v;
+        dispatchData.gws[2] = arg.outputs[0].Batch().v;
 
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE},
@@ -85,14 +85,14 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
 
         dispatchData.gws[0] = CeilDiv(out.X().v, opt_x_block_size) * out.Y().v;
         dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
-        dispatchData.gws[2] = arg.output.Batch().v;
+        dispatchData.gws[2] = arg.outputs[0].Batch().v;
 
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
 
-        if (arg.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16
-            || arg.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        if (arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16
+            || arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
             dispatchData.lws[2] = GetOptimalDivisor(dispatchData.gws[2]);
         }
     }
@@ -106,6 +106,9 @@ KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/, 
 
 bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) const {
     const resample_params& params = static_cast<const resample_params&>(p);
+
+    if (params.outputs[0].Feature().v == 2) // Temporal WA to fix accuracy issue
+        return false;
 
     if (!Parent::Validate(p, o))
         return false;
@@ -137,12 +140,12 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     auto jit = Parent::GetJitConstants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
-    if (params.output.X().v > 32 && opt_x_block_size == 1) {
-        opt_x_block_size = GetOptimalDivisor(params.output.X().v, 32);
+    if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {
+        opt_x_block_size = GetOptimalDivisor(params.outputs[0].X().v, 32);
     }
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", opt_x_block_size));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, opt_x_block_size)));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
 
     size_t vec_size = 0;

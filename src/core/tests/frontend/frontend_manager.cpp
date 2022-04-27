@@ -344,3 +344,140 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
     }
     FAIL() << "Test is expected to throw an exception.";
 }
+
+// FrontEndManager exception safety
+#define CHECK_EXCEPTION_FRONTEND(statement)                                                             \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_next");                                                      \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Load_By_Framework) {
+    EXPECT_ANY_THROW({
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        fe->load("throw_now");
+    });
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Convert){CHECK_EXCEPTION_FRONTEND(fe->convert(input_model))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_FrontEnd_Convert_OV_Model){CHECK_EXCEPTION_FRONTEND(fe->convert(std::shared_ptr<ov::Model>()))}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Get_Name){CHECK_EXCEPTION_FRONTEND(fe->get_name())}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported) {
+    EXPECT_ANY_THROW({
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        fe->supported("throw_now");
+    });
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Add_Extension){
+    CHECK_EXCEPTION_FRONTEND(fe->add_extension(std::make_shared<ov::Extension>()))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_FrontEnd_Convert_Partially){CHECK_EXCEPTION_FRONTEND(fe->convert_partially(input_model))}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Normalize){CHECK_EXCEPTION_FRONTEND(fe->normalize(nullptr))}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Decode) {
+    CHECK_EXCEPTION_FRONTEND(fe->decode(input_model))
+}
+
+// InputModel exception safety
+
+#define CHECK_EXCEPTION_INPUT_MODEL(statement)                                                          \
+    try {                                                                                               \
+        FrontEndManager fem;                                                                            \
+        auto fe = fem.load_by_framework("mock1");                                                       \
+        auto input_model = fe->load("throw_model");                                                     \
+        statement;                                                                                      \
+        FAIL() << "Throw was expected";                                                                 \
+    } catch (ov::frontend::GeneralFailure & error) {                                                    \
+        EXPECT_NE(std::string(error.what()).find("Test exception"), std::string::npos) << error.what(); \
+    } catch (...) {                                                                                     \
+        FAIL() << "Unexpected error is thrown";                                                         \
+    }
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_get_inputs){CHECK_EXCEPTION_INPUT_MODEL(input_model->get_inputs())}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_get_outputs){CHECK_EXCEPTION_INPUT_MODEL(input_model->get_outputs())}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_tensor_name){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_tensor_name({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name_and_input_port){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name_and_input_port({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_get_place_by_operation_name_and_output_port){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->get_place_by_operation_name_and_output_port({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_tensor){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_tensor({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_add_name_for_tensor){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->add_name_for_tensor({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_operation){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_operation({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_free_name_for_tensor){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->free_name_for_tensor({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_free_name_for_operation){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->free_name_for_operation({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_name_for_dimension){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_name_for_dimension({}, {}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_cut_and_add_new_input){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->cut_and_add_new_input({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_cut_and_add_new_output){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->cut_and_add_new_output({}, {}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_add_output){CHECK_EXCEPTION_INPUT_MODEL(input_model->add_output({}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_remove_output){CHECK_EXCEPTION_INPUT_MODEL(input_model->remove_output({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_override_all_outputs){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->override_all_outputs({}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_override_all_inputs){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->override_all_inputs({}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_extract_subgraph){CHECK_EXCEPTION_INPUT_MODEL(input_model->extract_subgraph({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_partial_shape){
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_partial_shape({}, {}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_get_partial_shape){CHECK_EXCEPTION_INPUT_MODEL(input_model->get_partial_shape({}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_set_element_type){CHECK_EXCEPTION_INPUT_MODEL(input_model->set_element_type({}, {}))}
+
+TEST(FrontEndManagerTest,
+     Exception_Safety_Input_Model_set_tensor_value){CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_value({}, {}))}
+
+TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value) {
+    CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
+}

@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "list.hpp"
 
 #include <string>
 #include <vector>
@@ -14,10 +13,13 @@
 #include "cum_sum.h"
 #include "utils/bfloat16.hpp"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
         if (!cumsum) {
@@ -30,8 +32,8 @@ bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -66,7 +68,7 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
 }
 
-void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
+void CumSum::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -91,7 +93,7 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
+void CumSum::execute(dnnl::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
@@ -107,7 +109,7 @@ void MKLDNNCumSumNode::execute(mkldnn::stream strm) {
 }
 
 template <typename dataType>
-void MKLDNNCumSumNode::exec() {
+void CumSum::exec() {
     const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -128,7 +130,7 @@ void MKLDNNCumSumNode::exec() {
 }
 
 template <bool reverse, bool exclusive, typename dataType>
-void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
+void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
     SizeVector iterationRange(numOfDims - 1);
     size_t j = 0;
     const auto &shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
@@ -192,7 +194,7 @@ void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const Vec
     });
 }
 
-void MKLDNNCumSumNode::parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+void CumSum::parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
     auto itCounter = counters.rbegin();
     auto itWork = iterationRange.rbegin();
     while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
@@ -203,7 +205,7 @@ void MKLDNNCumSumNode::parallelItInit(size_t start, std::vector<size_t>& counter
     }
 }
 
-inline void MKLDNNCumSumNode::parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+inline void CumSum::parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
     auto itCounter = counters.rbegin();
     auto itWork = iterationRange.rbegin();
 
@@ -217,7 +219,7 @@ inline void MKLDNNCumSumNode::parallelItStep(std::vector<size_t>& counters, cons
     }
 }
 
-inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const {
+inline size_t CumSum::getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const {
     size_t startOffset = 0;
     for (size_t idx = 0; idx < forStartOffset.size(); ++idx) {
         startOffset += forStartOffset[idx] * strides[idx];
@@ -225,7 +227,7 @@ inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forSta
     return startOffset;
 }
 
-size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const {
+size_t CumSum::getAxis(const Memory& _axis, const Memory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
     const int64_t dataShapeSize = static_cast<int64_t>(_data.GetShape().getRank());
     int64_t axisValueFromBlob = 0;
@@ -249,16 +251,18 @@ size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& 
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 
-bool MKLDNNCumSumNode::created() const {
-    return getType() == CumSum;
+bool CumSum::created() const {
+    return getType() == Type::CumSum;
 }
 
-bool MKLDNNCumSumNode::needPrepareParams() const {
+bool CumSum::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNCumSumNode::executeDynamicImpl(mkldnn::stream strm) {
+void CumSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNCumSumNode, CumSum)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

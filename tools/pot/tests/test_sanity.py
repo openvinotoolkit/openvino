@@ -23,12 +23,12 @@ from .utils.config import get_engine_config, merge_configs, \
     get_dataset_info, PATHS2DATASETS_CONFIG, make_algo_config
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.731,
-                                                                                    'accuracy@top5': 0.907},
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.737,
+                                                                                    'accuracy@top5': 0.909},
      {}, 'CPU'),
 
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.731,
-                                                                              'accuracy@top5': 0.906},
+                                                                              'accuracy@top5': 0.908},
      {}, 'CPU'),
 
     ('mobilenet-v1-1.0-224-tf', 'tf', 'DefaultQuantization', 'performance', 100, {'accuracy@top1': 0.728,
@@ -39,10 +39,10 @@ TEST_MODELS = [
                                                                                   'accuracy@top5': 0.911},
      {}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.6801},
      {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.674},
+    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.6801},
      {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
       'metrics': [{'name': 'map', 'baseline_value': 0.669}]}, 'CPU'),
 
@@ -51,9 +51,9 @@ TEST_MODELS = [
     # {'drop_type': 'relative', 'max_iter_num': 1, 'accuracy_drop': 0.005, 'metrics': [
     #     {'name': 'accuracy@top1', 'baseline_value': 0.431}]}, 'GNA'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6844}, {}, 'CPU'),
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6618}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.6638},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.68, 'map': 0.4406},
      {'use_fast_bias': False}, 'CPU'),
     ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'performance', 300,
      {'accuracy@top1': 0.766, 'accuracy@top5': 0.927}, {'use_fast_bias': False}, 'CPU'),
@@ -173,7 +173,7 @@ SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
      {'accuracy@top1': 0.701, 'accuracy@top5': 0.91}, []),
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.707, 'accuracy@top5': 0.904}, ['--input_shape=[1,3,?,?]'])
+     {'accuracy@top1': 0.712, 'accuracy@top5': 0.906}, ['--input_shape=[1,3,?,?]'])
 ]
 
 

@@ -13,10 +13,10 @@ from ..utils.utils import convert_output_key
 logger = get_logger(__name__)
 
 
-def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index, inference_for_shape):
+def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
     inplace_stats_mapping = get_inplace_stats_mapping(stats_layout)
     if isinstance(value, list):
-        value = parse_sequential_stats(value, stats_layout, inference_for_shape)
+        value = parse_sequential_stats(value, stats_layout)
     else:
         value = process_raw_output(value)
     for layer, stats in stats_layout.items():
@@ -29,7 +29,7 @@ def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index, in
                     (dataset_index, compute_statistic(stat_fn, value, layer_stat_name)))
 
 
-def parse_sequential_stats(value_sequential, stats_layout, inference_for_shape):
+def parse_sequential_stats(value_sequential, stats_layout):
     stat_names_by_layer, old_names_mapping = get_per_layer_stat_mapping(stats_layout)
     activation_seq = defaultdict(lambda: [])
     for value in value_sequential:
@@ -40,7 +40,8 @@ def parse_sequential_stats(value_sequential, stats_layout, inference_for_shape):
 
     for layer, act_seq in activation_seq.items():
         seq_len = len(act_seq[0].shape)
-        if inference_for_shape:
+        if isinstance(stat_names_by_layer[layer], Statistic) and \
+                stat_names_by_layer[layer].kwargs.get('shape_for_inference', False):
             activation_seq[layer] = act_seq[0]
             continue
         if not isinstance(stat_names_by_layer[layer], Statistic) or \

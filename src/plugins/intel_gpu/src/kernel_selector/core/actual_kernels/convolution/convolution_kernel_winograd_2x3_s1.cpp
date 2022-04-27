@@ -43,15 +43,15 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
                               // should remain the same as original filter's
 
     const size_t nr_tiles_x =
-        Align(params.output.X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
+        Align(params.outputs[0].X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
                                                            // width by tile's width to get tiles count
-    const size_t nr_tiles_y = Align(params.output.Y().v, 8) / input_tile_height;
+    const size_t nr_tiles_y = Align(params.outputs[0].Y().v, 8) / input_tile_height;
     const size_t total_tiles_count = nr_tiles_x * nr_tiles_y;
 
     jit.AddConstants({
         MakeJitConstant("INPUT0_SIZE_WINOGRAD_X", Align(params.inputs[0].X().v, 4)),
         MakeJitConstant("INPUT0_SIZE_WINOGRAD_Y", Align(params.inputs[0].Y().v - 2, 8) + 2),
-        MakeJitConstant("N", params.output.Feature().v),
+        MakeJitConstant("N", params.outputs[0].Feature().v),
         MakeJitConstant("M", total_tiles_count),
         MakeJitConstant("K", params.inputs[0].Feature().v * winograd_filter_height),
     });
@@ -70,11 +70,11 @@ ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winogr
     const size_t input_tile_height = winograd_input_tile_height;
 
     const size_t nr_tiles_x =
-        Align(arg.output.X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
+        Align(arg.outputs[0].X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
                                                         // width by tile's width to get tiles count
-    const size_t nr_tiles_y = Align(arg.output.Y().v, 8) / input_tile_height;
+    const size_t nr_tiles_y = Align(arg.outputs[0].Y().v, 8) / input_tile_height;
 
-    dispatchData.gws[0] = arg.output.Feature().v / tile_n;
+    dispatchData.gws[0] = arg.outputs[0].Feature().v / tile_n;
     dispatchData.gws[1] = nr_tiles_x * nr_tiles_y / tile_m;
     dispatchData.gws[2] = input_tile_width * input_tile_height * arg.inputs[0].Batch().v;
 

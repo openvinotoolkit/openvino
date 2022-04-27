@@ -6,10 +6,9 @@
 
 #include "ie_layouts.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "extension_utils.h"
+#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include <mkldnn.hpp>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <cpu_shape.h>
 
 #include "memory_desc/dnnl_memory_desc.h"
@@ -23,7 +22,7 @@
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
  *
- * MKLDNNMemory is an abstraction of some real tensor which contains some data. As in short it's a pair of
+ * Memory is an abstraction of some real tensor which contains some data. As in short it's a pair of
  * memory descriptor and raw buffer handler to contains data. In case of system memory raw buffer it's simple
  * "void*" on some system memory buffer.
  *
@@ -32,7 +31,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNMemory;
+class Memory;
 
 /**
  * @interface IMemoryMngr
@@ -100,14 +99,14 @@ public:
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
-    void registerMemory(MKLDNNMemory* memPtr);
-    void unregisterMemory(MKLDNNMemory* memPtr);
+    void registerMemory(Memory* memPtr);
+    void unregisterMemory(Memory* memPtr);
 
 private:
     void notifyUpdate();
 
 private:
-    std::unordered_set<MKLDNNMemory*> _setMemPtrs;
+    std::unordered_set<Memory*> _setMemPtrs;
     std::unique_ptr<IMemoryMngr> _pMemMngr;
 };
 
@@ -116,7 +115,7 @@ using DnnlMemoryMngrCPtr = std::shared_ptr<const DnnlMemoryMngr>;
 
 class DnnlMemMngrHandle {
 public:
-    DnnlMemMngrHandle(DnnlMemoryMngrPtr pMgr, MKLDNNMemory* pMem) : _pMgr(pMgr), _pMem(pMem) {
+    DnnlMemMngrHandle(DnnlMemoryMngrPtr pMgr, Memory* pMem) : _pMgr(pMgr), _pMem(pMem) {
         if (_pMgr) {
             _pMgr->registerMemory(_pMem);
         }
@@ -151,21 +150,21 @@ public:
 
 private:
     DnnlMemoryMngrPtr _pMgr = nullptr;
-    MKLDNNMemory* _pMem = nullptr;
+    Memory* _pMem = nullptr;
 };
 
-class MKLDNNMemory {
+class Memory {
 public:
-    explicit MKLDNNMemory(const mkldnn::engine& eng);
-    MKLDNNMemory(const mkldnn::engine& eng, std::unique_ptr<IMemoryMngr> mngr);
+    explicit Memory(const dnnl::engine& eng);
+    Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr);
 
-    MKLDNNMemory(const MKLDNNMemory&) = delete;
-    MKLDNNMemory& operator= (const MKLDNNMemory&) = delete;
+    Memory(const Memory&) = delete;
+    Memory& operator= (const Memory&) = delete;
 
-    MKLDNNMemory(MKLDNNMemory&&) = delete;
-    MKLDNNMemory& operator= (MKLDNNMemory&&) = delete;
+    Memory(Memory&&) = delete;
+    Memory& operator= (Memory&&) = delete;
 
-    mkldnn::memory GetPrimitive() const {
+    dnnl::memory GetPrimitive() const {
         if (isAllocated()) {
             return *prim;
         } else {
@@ -212,8 +211,8 @@ public:
      */
     void* GetPtr() const;
 
-    mkldnn::memory::data_type GetDataType() const {
-        return MKLDNNExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+    dnnl::memory::data_type GetDataType() const {
+        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
     }
 
     size_t GetSize() const;
@@ -233,14 +232,14 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     void redefineDesc(MemoryDescPtr desc);
 
-    void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
+    void SetData(const Memory& memory, bool ftz = true) const;
     void FillZero();
 
     const VectorDims& getStaticDims() const {
         return getDesc().getShape().getStaticDims();
     }
 
-    mkldnn::engine getEngine() const {
+    dnnl::engine getEngine() const {
         return eng;
     }
 
@@ -256,18 +255,18 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void update();
 
 private:
     MemoryDescPtr pMemDesc;
-    std::shared_ptr<mkldnn::memory> prim;
-    mkldnn::engine eng;
+    std::shared_ptr<dnnl::memory> prim;
+    dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
 };
 
-using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
-using MKLDNNMemoryCPtr = std::shared_ptr<const MKLDNNMemory>;
+using MemoryPtr = std::shared_ptr<Memory>;
+using MemoryCPtr = std::shared_ptr<const Memory>;
 
 }   // namespace intel_cpu
 }   // namespace ov

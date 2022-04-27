@@ -13,23 +13,24 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNIfNode : public MKLDNNNode {
+class If : public Node {
 public:
-    MKLDNNIfNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
 
-    void inline setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
+    void inline setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override { return false; };
     bool needShapeInfer() const override { return false; }
 
@@ -37,7 +38,7 @@ private:
     void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
     void prepareAfterMappers(const bool isThen, const dnnl::engine& eng);
 
-    std::deque<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
+    std::deque<MemoryPtr> getToMemories(const Node* node, const size_t port) const;
 
     struct PortMap {
         int from; /**< Index of external/internal out data */
@@ -46,24 +47,24 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MKLDNNMemoryPtr& from, const std::deque<MKLDNNMemoryPtr>& to, const mkldnn::engine& eng);
+        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
         ~PortMapHelper() = default;
-        void execute(mkldnn::stream& strm);
+        void execute(dnnl::stream& strm);
 
     private:
         void redefineTo();
 
-        MKLDNNMemoryPtr srcMemPtr;
-        std::deque<MKLDNNMemoryPtr> dstMemPtrs;
+        MemoryPtr srcMemPtr;
+        std::deque<MemoryPtr> dstMemPtrs;
 
         ptrdiff_t size;
     };
 
-    MKLDNNExtensionManager::Ptr ext_mng;
-    MKLDNNGraph subGraphThen;
-    MKLDNNGraph subGraphElse;
-    std::vector<std::deque<MKLDNNMemoryPtr>> inputMemThen, inputMemElse;
-    std::deque<MKLDNNMemoryPtr> outputMemThen, outputMemElse;
+    ExtensionManager::Ptr ext_mng;
+    Graph subGraphThen;
+    Graph subGraphElse;
+    std::vector<std::deque<MemoryPtr>> inputMemThen, inputMemElse;
+    std::deque<MemoryPtr> outputMemThen, outputMemElse;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         beforeThenMappers,
@@ -80,5 +81,6 @@ private:
     const std::shared_ptr<ov::Node> ovOp;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

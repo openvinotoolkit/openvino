@@ -10,6 +10,7 @@ function(add_common_utils ADD_TARGET_NAME)
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${CMAKE_CURRENT_SOURCE_DIR}/gtest
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
@@ -17,7 +18,6 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     gtest
                     gtest_main
-                    ngraph_test_util
                     ngraphFunctions
                     openvino::runtime
                     openvino::runtime::dev
@@ -68,3 +68,5 @@ set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
 add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
+
+add_subdirectory(tests)

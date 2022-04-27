@@ -90,7 +90,9 @@ protected:
 };
 
 TEST_P(ShuffleChannelsFusion, CompareFunctions) {
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::NODES);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

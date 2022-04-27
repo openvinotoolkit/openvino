@@ -7,6 +7,8 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
+#include "itt.hpp"
+
 using namespace ngraph;
 
 namespace ov {
@@ -297,6 +299,7 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
@@ -338,7 +341,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 NodeFusingType updatedChainType = fusingChainType;
                 if (isSuitableChildForFusingMatMul(node, updatedChainType))
                     PropagateIfHasOnlyChild(node, updatedChainType);
-            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && snippets::pass::AppropriateForSubgraph(node)) {
+            } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
+                        ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
+                // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
+                // Transpose layer. These brakes an idea to leave Eltwise node with I8/U8 inputs and FP32 outputs instead of Subgrath node
+                // TODO Remove an additional check on Convert/Transpose here after enabling Subgraths with I8/U8 inputs and FP32 outputs
                 SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
             }
         }

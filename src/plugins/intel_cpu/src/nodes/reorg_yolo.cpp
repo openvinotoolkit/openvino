@@ -8,10 +8,13 @@
 #include "ie_parallel.hpp"
 #include "reorg_yolo.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNReorgYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
         if (!reorgYolo) {
@@ -24,8 +27,8 @@ bool MKLDNNReorgYoloNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNReorgYoloNode::MKLDNNReorgYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -42,7 +45,7 @@ MKLDNNReorgYoloNode::MKLDNNReorgYoloNode(const std::shared_ptr<ngraph::Node>& op
     stride = strides[0];
 }
 
-void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
+void ReorgYolo::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -51,11 +54,11 @@ void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNReorgYoloNode::executeDynamicImpl(mkldnn::stream strm) {
+void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNReorgYoloNode::execute(mkldnn::stream strm) {
+void ReorgYolo::execute(dnnl::stream strm) {
     const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
@@ -89,8 +92,10 @@ void MKLDNNReorgYoloNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNReorgYoloNode::created() const {
-    return getType() == ReorgYolo;
+bool ReorgYolo::created() const {
+    return getType() == Type::ReorgYolo;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNReorgYoloNode, ReorgYolo)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

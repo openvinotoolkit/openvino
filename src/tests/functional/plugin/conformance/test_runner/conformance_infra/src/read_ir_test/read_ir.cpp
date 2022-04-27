@@ -56,19 +56,21 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto &s = LayerTestsUtils::Summary::getInstance();
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         if (functionRefs == nullptr) {
             functionRefs = ngraph::clone_function(*function);
             functionRefs->set_friendly_name("refFunction");
         }
-
-        auto &s = LayerTestsUtils::Summary::getInstance();
         s.setDeviceName(targetDevice);
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
@@ -83,7 +85,10 @@ void ReadIRTest::query_model() {
         } catch (...) {
             s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
         }
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
@@ -93,11 +98,14 @@ void ReadIRTest::SetUp() {
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
     // place to jump in case of a crash
+    int jmpRes = 0;
 #ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
+    jmpRes = setjmp(CommonTestUtils::env);
 #else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
         std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
         function = core->read_model(pathToModel);
         const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");
@@ -212,9 +220,14 @@ void ReadIRTest::SetUp() {
                 inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
             }
         }
+        if (inputShapes.empty()) {
+            GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+        }
         init_input_shapes(inputShapes);
-    } else {
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        IE_THROW() << "Hange happens";
     }
 }
 

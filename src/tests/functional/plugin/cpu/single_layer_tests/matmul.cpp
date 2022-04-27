@@ -142,7 +142,7 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
-        // see comment in MKLDNNMatMulNode::canFuse
+        // see comment in MatMul::canFuse
         if (!(nodeType == MatMulNodeType::MatMul &&
               std::get<0>(fusingParams) && std::get<0>(fusingParams)->getFusedOpsNames().find("(PerChannel)") != std::string::npos &&
               std::max(inShapeA.size(), inShapeB.size()) > 2))

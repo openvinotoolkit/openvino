@@ -9,6 +9,7 @@
 #include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
+using namespace ov::intel_cpu;
 
 template <class T>
 std::shared_ptr<T> constructGraph();
