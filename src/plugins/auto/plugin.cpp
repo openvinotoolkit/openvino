@@ -730,7 +730,15 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
 
     std::vector<DeviceInformation> filterDevice;
     auto model = network.getFunction();
-    if (model->is_dynamic()) {
+    auto isStateful = [&]() {
+        for (auto& op : model->get_ops()) {
+            if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
+                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op))
+                return true;
+        }
+        return false;
+    };
+    if (model->is_dynamic() || isStateful()) {
         for (auto& iter : metaDevices) {
             if (iter.deviceName.find("CPU") != std::string::npos) {
                 filterDevice.push_back(iter);
