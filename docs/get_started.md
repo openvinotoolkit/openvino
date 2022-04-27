@@ -55,8 +55,8 @@
 .. raw:: html
     
    <p>To get started with OpenVINO™, the first thing is to install it. You can decide which version of OpenVINO to install according to your needs:<br />
-    <li>Intel® Distribution of OpenVINO™ toolkit - a CLI-based tool. This guide will introduce how to install and get started with it.</li>
-   <li>Deep Learning Workbench (DL Workbench) - a web tool with a graphical interface. It's developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
+    <li>Intel® Distribution of OpenVINO™ toolkit - the CLI-based version of OpenVINO. This guide will introduce how to install and get started with it.</li>
+   <li>Deep Learning Workbench (DL Workbench) - the web version of OpenVINO with a graphical interface. It's developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
    </p>
    
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
