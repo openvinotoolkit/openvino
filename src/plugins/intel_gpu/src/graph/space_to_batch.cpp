@@ -49,7 +49,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node) 
             "pads_end[0] is expected to be 0. Actual pads_end[0] is " +
             std::to_string(pads_end.batch[0]));
 
-    if ((input_layout.size.feature[0] + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0)
+    if ((input_layout.feature() + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Input feature shape after padding must be divisible by block_shape");
 
