@@ -168,7 +168,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace {
-template <typename Container = std::map<int64_t, std::shared_ptr<Operator>>>
+template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {
     // Get the latest version.
     if (version == -1) {
@@ -190,9 +190,9 @@ void OperatorsBridge::register_operator(const std::string& name,
                                         Operator fn) {
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
-        m_map[domain][name].emplace(version, std::make_shared<Operator>(std::move(fn)));
+        m_map[domain][name].emplace(version, std::move(fn));
     } else {
-        it->second = std::make_shared<Operator>(std::move(fn));
+        it->second = std::move(fn);
         NGRAPH_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
                     << "." + name + ":" + std::to_string(version);
     }
@@ -275,11 +275,10 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
-    m_map[""][name_].emplace(ver_, std::make_shared<Operator>(std::bind(op::set_##ver_::fn_, std::placeholders::_1)));
+    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 #define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_) \
-    m_map[domain_][name_].emplace(ver_,                          \
-                                  std::make_shared<Operator>(std::bind(op::set_##ver_::fn_, std::placeholders::_1)));
+    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Abs", 1, abs);

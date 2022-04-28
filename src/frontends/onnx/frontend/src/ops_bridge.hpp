@@ -91,7 +91,7 @@ private:
     //    domain_2: { ... },
     //    ...
     // }
-    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, std::shared_ptr<Operator>>>;
+    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, Operator>>;
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 

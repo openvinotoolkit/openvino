@@ -48,7 +48,7 @@ const Operator& Model::get_operator(const std::string& name, const std::string& 
     if (op == std::end(dm->second)) {
         throw error::UnknownOperator{name, domain};
     }
-    return *(op->second);
+    return op->second;
 }
 
 bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const {

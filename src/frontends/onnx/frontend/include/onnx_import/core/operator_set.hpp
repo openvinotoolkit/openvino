@@ -17,7 +17,7 @@ namespace onnx_import {
 using Operator = std::function<OutputVector(const Node&)>;
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.
-using OperatorSet = std::unordered_map<std::string, std::shared_ptr<Operator>>;
+using OperatorSet = std::unordered_map<std::string, Operator>;
 
 }  // namespace onnx_import
 
