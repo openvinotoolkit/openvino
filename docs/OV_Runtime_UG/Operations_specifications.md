@@ -44,7 +44,7 @@
    DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_8>
-   Discrete Fourier Transformation (DFT)-7 <openvino_docs_ops_signals_DFT_7>
+   DFT-7 <openvino_docs_ops_signals_DFT_7>
    Divide-1 <openvino_docs_ops_arithmetic_Divide_1>
    Einsum-7 <openvino_docs_ops_matrix_Einsum_7>
    Elu-1 <openvino_docs_ops_activation_Elu_1>
@@ -74,8 +74,8 @@
    GatherElements-6 <openvino_docs_ops_movement_GatherElements_6>
    GatherND-5 <openvino_docs_ops_movement_GatherND_5>
    GatherND-8 <openvino_docs_ops_movement_GatherND_8>
-   Gaussian Error Linear Unit (GELU)-2 <openvino_docs_ops_activation_GELU_2>
-   Gaussian Error Linear Unit (GELU)-7 <openvino_docs_ops_activation_GELU_7>
+   GELU-2 <openvino_docs_ops_activation_GELU_2>
+   GELU-7 <openvino_docs_ops_activation_GELU_7>
    GreaterEqual-1 <openvino_docs_ops_comparison_GreaterEqual_1>
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
@@ -119,6 +119,7 @@
    NonMaxSuppression-3 <openvino_docs_ops_sort_NonMaxSuppression_3>
    NonMaxSuppression-4 <openvino_docs_ops_sort_NonMaxSuppression_4>
    NonMaxSuppression-5 <openvino_docs_ops_sort_NonMaxSuppression_5>
+   NonMaxSuppression-9 <openvino_docs_ops_sort_NonMaxSuppression_9>
    NonZero-3 <openvino_docs_ops_condition_NonZero_3>
    NormalizeL2-1 <openvino_docs_ops_normalization_NormalizeL2_1>
    NotEqual-1 <openvino_docs_ops_comparison_NotEqual_1>

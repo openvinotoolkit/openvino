@@ -156,6 +156,7 @@ void InferRequestBase::InferImpl() {
     graph = &(graphLock._graph);
 
     ThrowIfCanceled();
+    convertBatchedInputBlobs();
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
@@ -724,6 +725,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             externalPtr.erase(name);
         }
         _inputs[name] = data;
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "Can't set compound blob: supported only for input pre-processing";
@@ -756,6 +758,10 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
         _outputs[name] = data;
     }
+}
+
+void InferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
+    _batched_inputs[name] = batched_blob;
 }
 
 InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
