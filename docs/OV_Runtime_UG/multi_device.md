@@ -19,15 +19,15 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 
 @sphinxdirective
 
-+---------------------------+---------------------------------+-----------------------------------------------------------+
-| Property                  | Property values                 | Description                                               |
-+===========================+=================================+===========================================================+
-| <device list>             | | MULTI: <device names>         || Specifies the devices available for selection.           |
-|                           | | comma-separated, no spaces    || The device sequence will be taken as priority            |
-+---------------------------+---------------------------------+| from high to low.                                        |
-| ov::device::priorities    | | device names                  || Priorities can be set directly as a string.              |
-|                           | | comma-separated, no spaces    |                                                           |
-+---------------------------+---------------------------------+-----------------------------------------------------------+
++---------------------------+---------------------------------+------------------------------------------------------------+
+| Property                  | Property values                 | Description                                                |
++===========================+=================================+============================================================+
+| <device list>             | | MULTI: <device names>         | | Specifies the devices available for selection.           |
+|                           | | comma-separated, no spaces    | | The device sequence will be taken as priority            |
++---------------------------+---------------------------------+ | from high to low.                                        |
+| ov::device::priorities    | | device names                  | | Priorities can be set directly as a string.              |
+|                           | | comma-separated, no spaces    |                                                            |
++---------------------------+---------------------------------+------------------------------------------------------------+
 
 @endsphinxdirective
 
