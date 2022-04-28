@@ -58,13 +58,14 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint dim2 = get_global_id(2);
 
 #ifndef IS_SECOND_ITER // First kernel
-    const uint out_x = dim0 % OUTPUT_SIZE_X;
-    const uint out_y = dim0 / OUTPUT_SIZE_X;
-    const uint out_z = dim1 % OUTPUT_SIZE_Z;
-    const uint out_w = dim1 / OUTPUT_SIZE_Z;
-    const uint out_f = dim2 % OUTPUT_FEATURE_NUM;
-    const uint out_b = dim2 / OUTPUT_FEATURE_NUM;
-    const uint output_idx = GET_OUTPUT_INDEX(OUT_ORDER);
+    const uint x = dim0 % OUTPUT_SIZE_X;
+    const uint y = dim0 / OUTPUT_SIZE_X;
+    const uint z = dim1 % OUTPUT_SIZE_Z;
+    const uint w = dim1 / OUTPUT_SIZE_Z;
+    const uint f = dim2 % OUTPUT_FEATURE_NUM;
+    const uint b = dim2 / OUTPUT_FEATURE_NUM;
+
+    const uint output_idx = GET_OUTPUT_INDEX(ORDER);
     INPUT0_TYPE val = data[output_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
@@ -153,25 +154,97 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         uint upd_idx = GET_UPDATES_INDEX(INPUT2, UPD_ORDER);
         
         // Get output index
-        const uint out_b = out[0];
-        const uint out_f = out[1];
+        const uint b = out[0];
+        const uint f = out[1];
         #if INPUT0_DIMS == 4
-            const uint out_y = out[2];
-            const uint out_x = out[3];
+            const uint y = out[2];
+            const uint x = out[3];
         #elif INPUT0_DIMS == 5
-            const uint out_z = out[2];
-            const uint out_y = out[3];
-            const uint out_x = out[4];
+            const uint z = out[2];
+            const uint y = out[3];
+            const uint x = out[4];
         #elif INPUT0_DIMS == 6
-            const uint out_w = out[2];
-            const uint out_z = out[3];
-            const uint out_y = out[4];
-            const uint out_x = out[5];   
+            const uint w = out[2];
+            const uint z = out[3];
+            const uint y = out[4];
+            const uint x = out[5];   
         #endif
-        uint out_idx = GET_OUTPUT_INDEX(OUT_ORDER);
-        float val = updates[upd_idx];
+        uint out_idx = GET_OUTPUT_INDEX(ORDER);
+        INPUT2_TYPE val = updates[upd_idx];
 
         #if HAS_FUSED_OPS
+            // #if IS_PLANAR_FORMAT
+            //     #if OUTPUT_DIMS == 4
+            //         const uint y_pitch = OUTPUT_SIZE_X;
+            //         const uint f_pitch = y_pitch * OUTPUT_SIZE_Y;
+            //         const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            //         const uint b_remain = out_idx % b_pitch;
+            //         const uint f_remain = b_remain % f_pitch;
+            //         const uint y_remain = f_remain % y_pitch;
+
+            //         const uint b = out_idx / b_pitch;
+            //         const uint f = b_remain / f_pitch;
+            //         const uint y = f_remain / y_pitch;
+            //         const uint x = y_remain;
+            //     #elif OUTPUT_DIMS == 5
+            //         const uint y_pitch = OUTPUT_SIZE_X;
+            //         const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
+            //         const uint f_pitch = z_pitch * OUTPUT_SIZE_Z;
+            //         const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            //         const uint b_remain = out_idx % b_pitch;
+            //         const uint f_remain = b_remain % f_pitch;
+            //         const uint z_remain = f_remain % z_pitch;
+            //         const uint y_remain = z_remain % y_pitch;
+
+            //         const uint b = out_idx / b_pitch;
+            //         const uint f = b_remain / f_pitch;
+            //         const uint z = f_remain / z_pitch;
+            //         const uint y = z_remain / y_pitch;
+            //         const uint x = y_remain;
+            //     #elif OUTPUT_DIMS == 6
+            //         const uint y_pitch = OUTPUT_SIZE_X;
+            //         const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
+            //         const uint w_pitch = z_pitch * OUTPUT_SIZE_Z;
+            //         const uint f_pitch = w_pitch * OUTPUT_SIZE_W;
+            //         const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            //         const uint b_remain = out_idx % b_pitch;
+            //         const uint f_remain = b_remain % f_pitch;
+            //         const uint w_remain = f_remain % w_pitch;
+            //         const uint z_remain = w_remain % z_pitch;
+            //         const uint y_remain = z_remain % y_pitch;
+
+            //         const uint b = out_idx / b_pitch;
+            //         const uint f = b_remain / f_pitch;
+            //         const uint w = f_remain / w_pitch;
+            //         const uint z = w_remain / z_pitch;
+            //         const uint y = z_remain / y_pitch;
+            //         const uint x = y_remain;
+            //     #endif
+            // #else
+            //     #if OUTPUT_DIMS == 4
+            //         const uint b = out_b;
+            //         const uint f = out_f;
+            //         const uint y = out_y;
+            //         const uint x = out_x;
+            //     #elif OUTPUT_DIMS == 5
+            //         const uint b = out_b;
+            //         const uint f = out_f;
+            //         const uint z = out_z;
+            //         const uint y = out_y;
+            //         const uint x = out_x;
+            //     #elif OUTPUT_DIMS == 6
+            //         const uint b = out_b;
+            //         const uint f = out_f;
+            //         const uint w = out_w;
+            //         const uint z = out_z;
+            //         const uint y = out_y;
+            //         const uint x = out_x;
+            //     #endif
+            // #endif
+            // printf("dim2 = %d, [b f w z y x] = %d %d %d %d %d %d\n", dim2, b, f, w, z, y, x);
             FUSED_OPS_SECOND_KERNEL;
             output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
         #else
