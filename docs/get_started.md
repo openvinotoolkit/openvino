@@ -1,4 +1,4 @@
-# Get Started {#get_started}
+# Get Started with OpenVINO™ {#get_started}
 
 @sphinxdirective
 
@@ -59,8 +59,8 @@
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
     
-   <p>If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
-    <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. See more details in this guide.</li>
+   <p>If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:
+   <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. See more details in this guide.</li>
    <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface, developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
    </p>
    
@@ -78,7 +78,7 @@
    
    <h3><a name="get-started-tutorials">Get Started with Tutorials, Demos, and Samples</a></h3>
    
-   <p>After all the installation and configuration steps are done, you are ready to run your first inference and learn the workflow. <br />Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run code samples, demo applications, or Jupyter notebooks. <br /></p>
+   <p>After all the installation and configuration steps are done, you are ready to run your first inference and learn the workflow. Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run code samples, demo applications, or Jupyter notebooks.</p>
  
    <div id="GSG_nextstepchoice">
      <a href="openvino_docs_get_started_get_started_demos.html" >
