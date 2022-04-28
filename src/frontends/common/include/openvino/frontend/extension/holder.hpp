@@ -11,14 +11,7 @@
 namespace ov {
 namespace frontend {
 struct ExtensionHolder {
-    ExtensionHolder() : progress_reporter{std::make_shared<ProgressReporterExtension>()} {}
-    ~ExtensionHolder() = default;
-    ExtensionHolder(const ExtensionHolder&) = default;
-    ExtensionHolder(ExtensionHolder&&) = default;
-    ExtensionHolder& operator=(const ExtensionHolder&) = default;
-    ExtensionHolder& operator=(ExtensionHolder&&) = default;
-
-    std::shared_ptr<ProgressReporterExtension> progress_reporter;
+    std::shared_ptr<ProgressReporterExtension> progress_reporter{std::make_shared<ProgressReporterExtension>()};
     std::shared_ptr<TelemetryExtension> telemetry;
     std::vector<std::shared_ptr<ConversionExtensionBase>> conversions;
 };

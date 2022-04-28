@@ -26,7 +26,7 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
                   return lhs.version() > rhs.version();
               });
 
-    for (const auto& opset_import : model_proto.opset_import()) {
+    for (const auto& opset_import : opset_imports) {
         if (domain == opset_import.domain()) {
             return opset_import.version();
         }
@@ -36,7 +36,7 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
 }
 
 Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset)
-    : m_model_proto{model_proto},
+    : m_model_proto{std::move(model_proto)},
       m_opset{std::move(model_opset)} {}
 
 const Operator& Model::get_operator(const std::string& name, const std::string& domain) const {

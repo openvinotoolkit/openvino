@@ -29,7 +29,6 @@ public:
     // built based on the opset imports in the ModelProto object
     using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
 
-    Model() = delete;
     explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset);
 
     Model(const Model&) = delete;

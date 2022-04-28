@@ -17,7 +17,7 @@
 #include "utils/onnx_internal.hpp"
 
 namespace {
-auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
+const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::LegacyConversionExtension>();
 }  // namespace
 
 namespace ngraph {

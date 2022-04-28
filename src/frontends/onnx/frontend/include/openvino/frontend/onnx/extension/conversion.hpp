@@ -14,8 +14,6 @@ namespace onnx {
 class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
-    ConversionExtension() = delete;
-    virtual ~ConversionExtension() override = default;
 
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
         : ConversionExtensionBase(op_type),

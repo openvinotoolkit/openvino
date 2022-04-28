@@ -20,13 +20,12 @@ public:
     using Ptr = std::shared_ptr<LegacyConversionExtension>;
 
     LegacyConversionExtension() : ov::frontend::ConversionExtensionBase("") {}
-    ~LegacyConversionExtension() = default;
 
     const OperatorsBridge& ops_bridge() const {
         return m_legacy_ops_bridge;
     }
 
-    /// The legacy API entry point for registering custom operations globally (but not for ONNX FE)
+    /// The legacy API entry point for registering custom operations globally (does not affect ONNX FE)
     void register_operator(const std::string& name, int64_t version, const std::string& domain, Operator fn) {
         std::lock_guard<std::mutex> lock{m_mutex};
         m_legacy_ops_bridge.register_operator(name, version, domain, std::move(fn));
