@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+#include <cstdlib>
 
 #include "common_utils.h"
 #include "timetests_helper/timer.h"
@@ -25,6 +26,18 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::ExecutableNetwork exeNetwork;
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
+        bool use_vpux_driver = false;
+        std::map<std::string, std::string> config;
+
+        // Read VPUX_COMPILER_TYPE from environment, if the value equals to DRIVER,
+        // set VPUX_COMPILER_TYPE in config as DRIVER and apply the config in LoadNetwork
+        if (device.rfind("VPUX", 0) == 0) {
+            const char* env_compiler_type = std::getenv("VPUX_COMPILER_TYPE");
+            if (env_compiler_type != NULL && std::strcmp(env_compiler_type, "DRIVER") == 0) {
+                config["VPUX_COMPILER_TYPE"] = "DRIVER";
+                use_vpux_driver = true;
+            }
+        }
 
         // first_inference_latency = time_to_inference + first_inference
         {
@@ -52,7 +65,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                         }
                         {
                             SCOPED_TIMER(load_network);
-                            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                            if (use_vpux_driver) {
+                                exeNetwork = ie.LoadNetwork(cnnNetwork, device, config);
+                            }
+                            else {
+                                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                            }
                         }
                     }
                 }
