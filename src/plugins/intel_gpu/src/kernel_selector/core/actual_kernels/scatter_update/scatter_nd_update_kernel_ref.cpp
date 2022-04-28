@@ -136,6 +136,13 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, int n
     return str_result;
 }
 
+static std::string GetMemoryFormat(const scatter_nd_update_params& params)
+{
+    const auto& data = params.inputs[0];
+
+    return data.SimpleLayout() ? "true" : "false";
+}
+
 KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
@@ -157,6 +164,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0)));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1)));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
+            cldnn_jit.AddConstant(MakeJitConstant("IS_PLANAR_FORMAT", GetMemoryFormat(newParams)));
         }
         std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
