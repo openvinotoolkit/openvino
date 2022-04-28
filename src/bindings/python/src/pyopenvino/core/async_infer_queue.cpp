@@ -210,6 +210,7 @@ void regclass_AsyncInferQueue(py::module m) {
             AsyncInferQueue's pool.
             :type inputs: openvino.runtime.Tensor
             :param userdata: Any data that will be passed to a callback
+            :type userdata: Any
             :rtype: None
 
             GIL is released while waiting for the next available InferRequest.
