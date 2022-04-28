@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/border.hpp>
-#include "ngraph/runtime/reference/pad.hpp"
 
 #include <cstddef>
 
@@ -72,10 +71,9 @@ public:
         auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
         set_values(input, input_data);
 
-        topology topology;
-        topology.add(input_layout("input", input->get_layout()));
-
-        topology.add(reorder("border_input", "input", fmt, T_dt),
+        topology target_topology;
+        target_topology.add(input_layout("input", input->get_layout()));
+        target_topology.add(reorder("border_input", "input", fmt, T_dt),
                      border("border",
                             "border_input",
                             {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
@@ -83,47 +81,26 @@ public:
                             pad_mode,
                             pad_value),
                      reorder("output", "border", cldnn::format::bfyx, T_dt));
+        cldnn::network target_network(engine, target_topology);
+        target_network.set_input_data("input", input);
+        auto target_output = target_network.execute().at("output").get_memory();
+        cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+        
+        topology base_topology;
+        base_topology.add(input_layout("input", input->get_layout()));
+        base_topology.add(border("border",
+                            "input",
+                            {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
+                            {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                            pad_mode,
+                            pad_value));
 
-        cldnn::network network(engine, topology);
-        network.set_input_data("input", input);
-
-        auto output = network.execute().at("output").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
-
-        ngraph::op::PadMode pad_mode_ng;
-        switch (pad_mode) {
-        case border_type::constant:
-            pad_mode_ng = ngraph::op::PadMode::CONSTANT;
-            break;
-        case border_type::zero:
-            pad_mode_ng = ngraph::op::PadMode::CONSTANT;
-            pad_value = T(0);
-            break;
-        case border_type::edge:
-            pad_mode_ng = ngraph::op::PadMode::EDGE;
-            break;
-        case border_type::mirror:
-            pad_mode_ng = ngraph::op::PadMode::SYMMETRIC;
-            break;
-        case border_type::mirror_101:
-            pad_mode_ng = ngraph::op::PadMode::REFLECT;
-            break;
-        default:
-            throw "Unknown pad_mode";
-        }
-        std::vector<T> ans(mult(sh_out));
-        ngraph::runtime::reference::pad((const char*)(input_data.data()),
-                                        (const char*)(&pad_value),
-                                        (char*)ans.data(),
-                                        sizeof(T),
-                                        {sh_in.begin(), sh_in.end()},
-                                        {sh_out.begin(), sh_out.end()},
-                                        {cd_lt.begin(), cd_lt.end()},
-                                        {cd_rb.begin(), cd_rb.end()},
-                                        pad_mode_ng);
-
-        ASSERT_EQ(ans.size(), mult(sh_out));
-        EXPECT_TRUE(!memcmp(output_ptr.data(), ans.data(), sizeof(T) * ans.size()));
+        cldnn::network base_network(engine, base_topology);
+        base_network.set_input_data("input", input);
+        auto base_output = base_network.execute().at("border").get_memory();
+        cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+        
+        EXPECT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out) ));
     }
 };
 using border_test_i8 = border_test<char, data_types::i8>;
