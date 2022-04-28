@@ -25,6 +25,7 @@ public:
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
     void setTbbFlag(bool flag) override;
+    void handleTbb() override;
 
 private:
     bool tbbTerminateFlag = false;
@@ -54,8 +55,9 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 #endif
 }
 
-ExecutorManagerImpl::~ExecutorManagerImpl() {
-    clear();
+ExecutorManagerImpl::~ExecutorManagerImpl() = default;
+
+void ExecutorManagerImpl::handleTbb() {
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
@@ -68,6 +70,7 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
         }
 #endif
     }
+    tbbTerminateFlag = false;
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
@@ -136,6 +139,7 @@ namespace {
 class ExecutorManagerHolder {
     std::mutex _mutex;
     std::shared_ptr<ExecutorManager> _manager = nullptr;
+    int32_t _refCount = 0;
 
     ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
@@ -143,17 +147,23 @@ class ExecutorManagerHolder {
 public:
     ExecutorManagerHolder() = default;
 
-    ExecutorManager::Ptr get() {
+    ExecutorManager::Ptr get(bool addRef) {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_manager) {
             _manager = std::make_shared<ExecutorManagerImpl>();
+        }
+        if (addRef) {
+            _refCount++;
         }
         return _manager;
     }
 
     void reset() {
         std::lock_guard<std::mutex> lock(_mutex);
-        _manager = nullptr;
+        _refCount--;
+        if (!_refCount) {
+            _manager->handleTbb();
+        }
     }
 };
 
@@ -168,8 +178,8 @@ void resetExecutorManager() {
     executorManagerHolder().reset();
 }
 
-ExecutorManager::Ptr executorManager() {
-    return executorManagerHolder().get();
+ExecutorManager::Ptr executorManager(bool addRef) {
+    return executorManagerHolder().get(addRef);
 }
 
 ExecutorManager* ExecutorManager::getInstance() {

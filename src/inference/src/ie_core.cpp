@@ -420,7 +420,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl(bool _newAPI) : executorManagerPtr(executorManager()), newAPI(_newAPI) {
+    CoreImpl(bool _newAPI) : executorManagerPtr(executorManager(true)), newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -1196,12 +1196,9 @@ public:
             if (config_is_device_name_in_regestry) {
                 SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
             }
-            if (config.first == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
-                if (config.second == ov::Any(CONFIG_VALUE(YES))) {
-                    executorManagerPtr->setTbbFlag(true);
-                } else {
-                    executorManagerPtr->setTbbFlag(false);
-                }
+            if (config.first == ov::force_tbb_terminate) {
+                auto flag = config.second.is<bool>() ? config.second.as<bool>() : false;
+                executorManagerPtr->setTbbFlag(flag);
             }
         }
     }

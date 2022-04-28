@@ -75,9 +75,10 @@ public:
      * @return void
      */
     virtual void setTbbFlag(bool flag) = 0;
+    virtual void handleTbb() = 0;
 };
 
-INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
+INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager(bool addRef = false);
 INFERENCE_ENGINE_API_CPP(void) resetExecutorManager();
 
 }  // namespace InferenceEngine

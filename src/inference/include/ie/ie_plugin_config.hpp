@@ -450,14 +450,6 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
-/**
- * @brief The key for setting to whether terminate tbb when plugin executor destructing
- * value type: boolean
- *   - YES will explicitly terminate tbb when plugin executor destructing
- *   - NO will not explicitly terminate tbb when plugin executor destructing
- */
-DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
-
 }  // namespace PluginConfigParams
 
 /**
