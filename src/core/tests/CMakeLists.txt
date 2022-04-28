@@ -145,6 +145,7 @@ set(SRC
     type_prop/extractimagepatches.cpp
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
+    type_prop/eye.cpp
     type_prop/fake_quantize.cpp
     type_prop/floor.cpp
     type_prop/floor_mod.cpp
@@ -306,6 +307,7 @@ set(SRC
     visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
+    visitors/op/eye.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp

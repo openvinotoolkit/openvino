@@ -383,7 +383,7 @@ class Core(CoreBase):
         :type device_name: str
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
-        :type config: dict
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
@@ -407,9 +407,9 @@ class Core(CoreBase):
                             Note: if device_name is not used to compile the original model,
                             an exception is thrown.
         :type device_name: str
-        :param properties: Optional map of pairs: (property name,
-                           property value) relevant only for this load operation.
-        :type properties: dict, optional
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
 
