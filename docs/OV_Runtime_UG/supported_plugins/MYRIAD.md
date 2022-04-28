@@ -1,4 +1,4 @@
-# MYRIAD device {#openvino_docs_OV_UG_supported_plugins_MYRIAD}
+# MYRIAD Device {#openvino_docs_OV_UG_supported_plugins_MYRIAD}
 
 ## Introducing MYRIAD Plugin
 
@@ -6,16 +6,16 @@ The OpenVINO Runtime MYRIAD plugin has been developed for inference of neural ne
 
 ## Configuring the MYRIAD Plugin
 
-To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
+To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systems, refer to the installation [guide](../../install_guides/installing-openvino-config-ivad-vpu).
 
- > **NOTE**: The HDDL and MYRIAD plugins may cause conflicts when used at the same time.
-> To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.
+> **NOTE**: The HDDL and MYRIAD plugins may cause conflicts when used at the same time.
+> To ensure proper operation in such a case, the number of booted devices needs to be limited in the *'hddl_autoboot.config'* file.
 > Otherwise, the HDDL plugin will boot all available Intel® Movidius™ Myriad™ X devices.
 
 ## Supported Configuration Parameters
 
 See VPU common configuration parameters for the [VPU Plugins](VPU.md).
-When specifying key values as raw strings (that is, when using the Python API), omit the `KEY_` prefix.
+When specifying key values as raw strings (when using the Python API), omit the `KEY_` prefix.
 
 In addition to common parameters, the MYRIAD plugin accepts the following options:
 
