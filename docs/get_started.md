@@ -5,29 +5,32 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install OpenVINO
+   :caption: Install & Configure OpenVINO
    
    Overview <openvino_docs_install_guides_overview>
    Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
    Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
+<!--
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Additional Configurations
-   
+<!--   
    Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
    Configurations for NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
    Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
    Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>
+-->
    
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Learning Materials
+   :caption: Get Started Guides
    
    Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Python Tutorials <tutorials>
@@ -56,15 +59,15 @@
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
     
-   <p>To get started with OpenVINO™, the first thing is to install it. You can decide which version of OpenVINO to install according to your needs:<br />
-    <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. This guide will introduce how to install and get started with it.</li>
-   <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface. It's developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
+   <p>If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
+    <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. See more details in this guide.</li>
+   <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface, developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
    </p>
    
-   <p id="GSG_introtext">To install Intel® Distribution of OpenVINO™ toolkit, click <b>Install OpenVINO</b> in the box below to learn more options. After the installation, you may also need do some additional configurations for your device to work with OpenVINO. When all the installation and configuration steps are completed, you can view tutorials, demos, or samples to quickly start using OpenVINO. Click each of the the following option to view detailed steps:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>
-     <a href="openvino_docs_install_guides_configurations_header.html" >Configure <br/>Your Device</a>
-     <a href="#get-started-learning-path" >View <br/>Learning Materials</a>
+   <p id="GSG_introtext">To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps from left to right:<br />
+     <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
+     <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
+     <a href="#get-started-tutorials" >Try <br/>Get Started Steps</a>
    </p>
    <div style="clear:both;"> </div> 
    
@@ -73,9 +76,9 @@
    </p>
    -->
    
-   <h3><a name="get-started-learning-path">Learning Materials</a></h3>
+   <h3><a name="get-started-tutorials">Get Started with Tutorials, Demos, and Samples</a></h3>
    
-   <p>With OpenVINO installed, you are ready to run your first inference and learn the workflow. <br /> Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run code samples, demo applications, or Jupyter notebooks. <br /></p>
+   <p>After all the installation and configuration steps are done, you are ready to run your first inference and learn the workflow. <br />Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run code samples, demo applications, or Jupyter notebooks. <br /></p>
  
    <div id="GSG_nextstepchoice">
      <a href="openvino_docs_get_started_get_started_demos.html" >
