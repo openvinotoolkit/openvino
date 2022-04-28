@@ -28,11 +28,32 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto add = std::make_shared<ngraph::opset8::Add>(reduce_sum, eps_const);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
+    // Sqrt can be as Sqrt node or as Power node with exponent 2
     auto sqrt = std::make_shared<ngraph::opset8::Sqrt>(max_or_add);
-    auto divide = std::make_shared<ngraph::opset8::Divide>(input, sqrt);
+    auto exp2 = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto pow_as_sqrt = std::make_shared<ngraph::opset8::Power>(max_or_add, exp2);
+    auto power_or_sqrt = std::make_shared<pattern::op::Or>(OutputVector{sqrt, pow_as_sqrt});
+
+    // divide(input,sqrt(..)) can be as mul(input, power(..., -0.5f))
+    auto divide = std::make_shared<ngraph::opset8::Divide>(input, power_or_sqrt);
+    auto exp3 = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto un_sqrt = std::make_shared<ngraph::opset8::Power>(max_or_add, exp3);
+    auto mul = std::make_shared<ngraph::opset8::Multiply>(input, un_sqrt);
+    auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        // its value is true if last node of patter will be Divide node
+        bool is_divide_variant = pattern_to_output.count(divide);
+        if (!is_divide_variant && !pattern_to_output.count(mul)) {
+            return false;
+        }
+        // Its value is true if Sqrt willl be Sqrt Node(not Power(..., 0.5f))
+        bool sqrt_as_sqrt = false;
+        if (is_divide_variant) {
+            sqrt_as_sqrt = pattern_to_output.count(sqrt);
+        }
 
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input =
@@ -41,8 +62,24 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
         const auto eps_attr =
             std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+        const auto exp2_input =
+            (is_divide_variant && !sqrt_as_sqrt)
+                ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                : nullptr;
+        const auto exp3_input =
+            (!is_divide_variant)
+                ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                : nullptr;
 
         if (!exp_input || !axes_input || !eps_attr) {
+            return false;
+        }
+
+        if (exp2_input && !op::util::has_constant_value<float>(exp2_input, 0.5f)) {
+            return false;
+        }
+
+        if (exp3_input && !op::util::has_constant_value<float>(exp3_input, -0.5f)) {
             return false;
         }
 
@@ -72,16 +109,34 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             return false;
 
         normalize_l2->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
-                                   pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
-                                   pattern_to_output.at(sqrt).get_node_shared_ptr(),
-                                   pattern_to_output.at(divide).get_node_shared_ptr(),
-                                   eps_node.get_node_shared_ptr()},
-                                  normalize_l2);
+        if (is_divide_variant) {
+            if (sqrt_as_sqrt) {
+                ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
+                                           pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
+                                           pattern_to_output.at(sqrt).get_node_shared_ptr(),
+                                           pattern_to_output.at(divide).get_node_shared_ptr(),
+                                           eps_node.get_node_shared_ptr()},
+                                          normalize_l2);
+            } else {
+                ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
+                                           pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
+                                           pattern_to_output.at(pow_as_sqrt).get_node_shared_ptr(),
+                                           pattern_to_output.at(divide).get_node_shared_ptr(),
+                                           eps_node.get_node_shared_ptr()},
+                                          normalize_l2);
+            }
+        } else {
+            ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
+                                       pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
+                                       pattern_to_output.at(un_sqrt).get_node_shared_ptr(),
+                                       pattern_to_output.at(mul).get_node_shared_ptr(),
+                                       eps_node.get_node_shared_ptr()},
+                                      normalize_l2);
+        }
         ngraph::replace_node(m.get_match_root(), normalize_l2);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(divide, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(divide_or_mul, matcher_name);
     register_matcher(m, callback);
 }
