@@ -138,6 +138,10 @@ def cli_parser():
                         dest="model_cache",
                         action="store_true",
                         help="Enable model cache usage")
+    parser.add_argument("-f",
+                        dest="config_message",
+                        type=Path,
+                        help="Path to configuration file")
 
     args = parser.parse_args()
 
