@@ -99,6 +99,14 @@ namespace {
     const std::vector<std::map<std::string, std::string>> autoConfigs = {
         {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
     };
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(

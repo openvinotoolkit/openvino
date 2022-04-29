@@ -100,6 +100,15 @@ namespace {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
     };
 
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            CompileModelCacheTestBase::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, CompileModelCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),

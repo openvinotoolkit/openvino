@@ -197,6 +197,7 @@ void CompileModelCacheTestBase::run() {
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
         compiledModel = {}; // Destroy network object
+        inferRequest = {};
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));

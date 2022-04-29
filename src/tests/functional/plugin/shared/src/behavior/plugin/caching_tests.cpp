@@ -199,6 +199,7 @@ void LoadNetworkCacheTestBase::Run() {
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
         executableNetwork = {}; // Destroy network object
+        inferRequest = {};
         {
             core->SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheFolderName}});
             ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration));
