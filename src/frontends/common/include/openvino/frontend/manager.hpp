@@ -82,7 +82,7 @@ private:
 template <>
 FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
 
-FRONTEND_API void reset_frontend_manager();
+FRONTEND_API void release_frontend_manager();
 FRONTEND_API FrontEndManager::Ptr get_frontend_manager();
 
 // --------- Plugin exporting information --------------

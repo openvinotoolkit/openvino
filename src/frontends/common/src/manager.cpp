@@ -260,12 +260,13 @@ public:
 
     FrontEndManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
-        if (!_manager)
+        if (!_manager) {
             _manager = std::make_shared<FrontEndManager>();
+        }
         return _manager;
     }
 
-    void reset() {
+    void release() {
         std::lock_guard<std::mutex> lock(_mutex);
         _manager = nullptr;
     }
@@ -278,8 +279,8 @@ FrontEndManagerHolder& frontEndManagerHolder() {
 
 }  // namespace
 
-void reset_frontend_manager() {
-    frontEndManagerHolder().reset();
+void release_frontend_manager() {
+    frontEndManagerHolder().release();
 }
 
 FrontEndManager::Ptr get_frontend_manager() {

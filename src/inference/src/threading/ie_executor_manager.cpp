@@ -25,7 +25,6 @@ public:
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
     void setTbbFlag(bool flag) override;
-    void handleTbb() override;
 
 private:
     bool tbbTerminateFlag = false;
@@ -55,9 +54,8 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 #endif
 }
 
-ExecutorManagerImpl::~ExecutorManagerImpl() = default;
-
-void ExecutorManagerImpl::handleTbb() {
+ExecutorManagerImpl::~ExecutorManagerImpl() {
+    clear();
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
@@ -70,7 +68,6 @@ void ExecutorManagerImpl::handleTbb() {
         }
 #endif
     }
-    tbbTerminateFlag = false;
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
@@ -151,6 +148,7 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_manager) {
             _manager = std::make_shared<ExecutorManagerImpl>();
+            _refCount = 0;
         }
         if (addRef) {
             _refCount++;
@@ -158,11 +156,12 @@ public:
         return _manager;
     }
 
-    void reset() {
+    void unref() {
         std::lock_guard<std::mutex> lock(_mutex);
         _refCount--;
-        if (!_refCount) {
-            _manager->handleTbb();
+        if (_refCount <= 0) {
+            _manager = nullptr;
+            _refCount = 0;
         }
     }
 };
@@ -175,7 +174,7 @@ ExecutorManagerHolder& executorManagerHolder() {
 }  // namespace
 
 void resetExecutorManager() {
-    executorManagerHolder().reset();
+    executorManagerHolder().unref();
 }
 
 ExecutorManager::Ptr executorManager(bool addRef) {

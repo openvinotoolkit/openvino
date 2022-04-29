@@ -483,7 +483,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
 
     // Try to load with FrontEndManager
-    auto manager = ov::frontend::get_frontend_manager();
+    auto frontEndManager = ov::frontend::get_frontend_manager();
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
@@ -498,7 +498,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         params.emplace_back(weights_path);
     }
 
-    FE = manager->load_by_model(params);
+    FE = frontEndManager->load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
         if (!exts.empty())
@@ -513,7 +513,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     std::string FEs;
-    for (const auto& fe_name : manager->get_available_front_ends())
+    for (const auto& fe_name : frontEndManager->get_available_front_ends())
         FEs += fe_name + " ";
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
@@ -550,7 +550,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 #endif  // ENABLE_IR_V7_READER
 
     // Try to load with FrontEndManager
-    auto manager = ov::frontend::get_frontend_manager();
+    auto frontEndManager = ov::frontend::get_frontend_manager();
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
@@ -562,7 +562,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         params.emplace_back(weights_buffer);
     }
 
-    FE = manager->load_by_model(params);
+    FE = frontEndManager->load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
         if (!exts.empty())
