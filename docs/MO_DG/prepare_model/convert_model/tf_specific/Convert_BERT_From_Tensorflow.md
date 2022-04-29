@@ -5,7 +5,7 @@ Pre-trained models for BERT (Bidirectional Encoder Representations from Transfor
 
 ## <a name="supported_models"></a>Supported Models
 
-Currently, the following models from the [pre-trained BERT model list](https://github.com/google-research/bert#pre-trained-models) are supported:
+The following models from the [pre-trained BERT model list](https://github.com/google-research/bert#pre-trained-models) are currently supported:
 
 * `BERT-Base, Cased`
 * `BERT-Base, Uncased`
@@ -30,7 +30,7 @@ Pre-trained model meta-graph files are `bert_model.ckpt.*`.
 
 ## Convert TensorFlow BERT Model to IR
 
-To generate the BERT Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
+To generate the BERT Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 ```sh
  mo \
 --input_meta_graph uncased_L-12_H-768_A-12/bert_model.ckpt.meta \
@@ -40,10 +40,10 @@ To generate the BERT Intermediate Representation (IR) of the model, run the Mode
 
 Pre-trained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
 
-# Convert Reshape-able TensorFlow* BERT Model to the Intermediate Representation
+# Convert Reshape-able TensorFlow BERT Model to the Intermediate Representation
 
 Follow these steps to make pre-trained TensorFlow BERT model reshape-able over batch dimension:
-1. Download pre-trained BERT model you would like to use from the <a href="#supported_models">Supported Models list</a>
+1. Download pre-trained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
 2. Clone google-research/bert git repository:
 ```sh
 https://github.com/google-research/bert.git
@@ -57,11 +57,11 @@ cd bert
 git checkout eedf5716c
 ```
 5. Download script to load GLUE data:
-    * For UNIX*-like systems, run the following command:
+    * For UNIX-like systems, run the following command:
 ```sh
 wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
 ```
-    * For Windows* systems:<br>
+    * For Windows systems:<br>
         Download the [Python script](https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py) to the current working directory.
 6. Download GLUE data by running:
 ```sh
@@ -108,12 +108,12 @@ python3 run_classifier.py \
     --output_dir=./
 ```
 
-Run the Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
+Run Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 ```sh
  mo \
 --input_model inference_graph.pb \
 --input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]"
 ```
-For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
+Refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide for other applicable parameters.
 
-For more information about reshape abilities, refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).
+Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) guide for more information about reshape abilities.
