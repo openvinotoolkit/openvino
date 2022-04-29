@@ -1,4 +1,4 @@
-# Get Started with OpenVINO™ {#get_started}
+# Get Started {#get_started}
 
 @sphinxdirective
 
