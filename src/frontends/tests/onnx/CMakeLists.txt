@@ -54,7 +54,7 @@ endif()
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
-# 2) They must be in the `test/backend` directory
+# 2) They must be in the `frontends/tests/onnx` directory
 # 3) Include "util/test_control.hpp" in your cpp file
 # 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
 # 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
