@@ -246,29 +246,8 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                     return;
             }
 
-            if (use_onednn_impls) {
-                if (input.is_type<reshape>())
-                    return;
-
-                std::vector<cldnn::activation_func> supported_onednn_activations = {
-                    cldnn::activation_func::relu,
-                    cldnn::activation_func::relu_negative_slope,
-                    cldnn::activation_func::gelu,
-                    cldnn::activation_func::elu,
-                    cldnn::activation_func::mish,
-                    cldnn::activation_func::swish,
-                    cldnn::activation_func::hswish,
-                    cldnn::activation_func::abs,
-                    cldnn::activation_func::exp,
-                    cldnn::activation_func::logistic,
-                    cldnn::activation_func::clamp,
-                    cldnn::activation_func::hyperbolic_tan,
-                };
-
-                auto af = node.get_primitive()->activation_function;
-                if (std::find(supported_onednn_activations.begin(), supported_onednn_activations.end(), af) == supported_onednn_activations.end())
-                    return;
-            }
+            if (input.is_type<reshape>() && use_onednn_impls)
+                return;
 
             if (input.get_fused_primitives().empty()) {
                 input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
