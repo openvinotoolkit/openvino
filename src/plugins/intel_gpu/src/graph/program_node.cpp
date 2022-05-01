@@ -1127,20 +1127,10 @@ void program_node::init_onednn_primitive_attributes() {
 
     for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
         auto activation_type = get_fused_activations_funcs()[i];
-        if (activation_type == cldnn::activation_func::hsigmoid) {
-            // Splits hsigmoid activation min(max(val + 3, 0), 6) / 6
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 0.f, 3.f);
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.0f, 6.0f);
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1/6, 0.f);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-        } else {
-            auto params = get_fused_activations_params()[i];
-            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-            post_ops.append_eltwise(1.0f, alg, params.a, params.b);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
-        }
+        auto params = get_fused_activations_params()[i];
+        dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
+        post_ops.append_eltwise(1.0f, alg, params.a, params.b);
+        update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
     }
 
     // Trying to optimize more than 1 post-ops
