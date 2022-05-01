@@ -672,4 +672,10 @@ public:
     RemoteContext get_default_context(const std::string& device_name);
 };
 
+class OPENVINO_RUNTIME_API Cleanup {
+public:
+    Cleanup() = default;
+    ~Cleanup() = default;
+    void cleanup();
+};
 }  // namespace ov

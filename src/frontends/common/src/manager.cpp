@@ -25,7 +25,9 @@ public:
         search_all_plugins();
     }
 
-    ~Impl() = default;
+    ~Impl() {
+        std::cout << "FrontEndManager is released." << std::endl;
+    }
 
     FrontEnd::Ptr load_by_framework(const std::string& framework) {
         // Mapping of default FE name to file name (without prefix and suffix)
@@ -257,11 +259,15 @@ class FrontEndManagerHolder {
 
 public:
     FrontEndManagerHolder() = default;
+    ~FrontEndManagerHolder() {
+        std::cout << "FrontEndManagerHolder is released." << std::endl;
+    }
 
     FrontEndManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_manager) {
             _manager = std::make_shared<FrontEndManager>();
+            std::cout << "FrontEndManager is created..." << std::endl;
         }
         return _manager;
     }

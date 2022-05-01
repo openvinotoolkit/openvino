@@ -154,8 +154,10 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::force_tbb_terminate) {
         if (value == CONFIG_VALUE(YES)) {
             _forceTbbTerminate = true;
+            executorManager()->setTbbFlag(true);
         } else {
             _forceTbbTerminate = false;
+            executorManager()->setTbbFlag(false);
         }
     } else {
         IE_THROW() << "Wrong value for property key " << key;

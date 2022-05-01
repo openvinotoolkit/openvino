@@ -1624,3 +1624,8 @@ void ie_blob_free(ie_blob_t **blob) {
         *blob = NULL;
     }
 }
+
+void ie_cleanup() {
+   auto obj = IE::Cleanup();
+   obj.cleanup();
+}
