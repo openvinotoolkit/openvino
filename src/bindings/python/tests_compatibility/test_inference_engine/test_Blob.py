@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from tests_compatibility.test_utils.test_utils import generate_image
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 
 
 def test_init_with_tensor_desc():

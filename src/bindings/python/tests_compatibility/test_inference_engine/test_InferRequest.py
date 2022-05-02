@@ -10,7 +10,7 @@ import time
 
 from openvino.inference_engine import ie_api as ie
 from tests_compatibility.conftest import model_path, create_encoder
-from tests_compatibility.test_utils.test_utils import generate_image
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 import ngraph as ng
 from ngraph.impl import Function, Type
 
