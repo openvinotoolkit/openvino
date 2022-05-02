@@ -69,7 +69,7 @@ def get_model_with_template_extension():
 
 def model_path(is_myriad=False):
     base_path = os.path.dirname(__file__)
-    if is_myriad: 
+    if is_myriad:
         test_xml = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.xml")
         test_bin = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.bin")
     else:
