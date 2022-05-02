@@ -48,24 +48,29 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const uint in_split_offset = conv_group * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
 #endif
 
-    for (uint dg = 0; dg < DEFORMABLE_GROUPS; ++dg)
-    {
-        const int ifm_offset = dg * channel_per_deformable_group;
-        const int dg_offset = dg * FILTER_SIZE_Y * FILTER_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
-        const int trans_offset = b * INPUT1_BATCH_PITCH + 2 * dg_offset;
-#if DEFORMABLE_MASK_ENABLED
-        const int mask_offset = b * INPUT2_BATCH_PITCH + dg_offset;
+    const int offset_size = FILTER_SIZE_Y * FILTER_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
+
+    for (uint c = 0; c < FILTER_IFM_NUM; ++c) {
+#if GROUPED
+        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS);
+#else
+        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
 #endif
+        const int trans_offset = deformable_group_idx * 2 * offset_size;
+
         for (uint j = 0; j < FILTER_SIZE_Y ; ++j)
         {
             const int input_offset_y = input_y + j * DILATION_SIZE_Y;
+
             for (uint i = 0; i < FILTER_SIZE_X ; ++i)
             {
                 const int trans_y_idx = ((2 * (j * FILTER_SIZE_X + i)) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
                 float transformed_y = input_offset_y + (float)trans[trans_offset + trans_y_idx];
                 const int input_offset_x = input_x + i * DILATION_SIZE_X;
+
                 const int trans_x_idx = ((2 * (j * FILTER_SIZE_X + i) + 1) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
                 float transformed_x = input_offset_x + (float)trans[trans_offset + trans_x_idx];
+
 #if BILINEAR_INTERPOLATION_PAD
                 const bool x_is_out_of_boundaries = (int)transformed_x >= INPUT0_SIZE_X || (int)transformed_x <= -1;
                 const bool y_is_out_of_boundaries = (int)transformed_y >= INPUT0_SIZE_Y || (int)transformed_y <= -1;
@@ -73,60 +78,60 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
                 const bool x_is_out_of_boundaries = transformed_x >= INPUT0_SIZE_X || transformed_x < 0;
                 const bool y_is_out_of_boundaries = transformed_y >= INPUT0_SIZE_Y || transformed_y < 0;
 #endif
+#if DEFORMABLE_MASK_ENABLED
+                const int mask_idx = deformable_group_idx * INPUT2_FEATURE_NUM / DEFORMABLE_GROUPS * INPUT2_FEATURE_PITCH +
+                                        ((j * FILTER_SIZE_X + i) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
+#endif
+                uint ifm = c;
+                uint filter_idx = GET_FILTER_INDEX(FILTER, conv_group, f, ifm, j, i);
+
+                int top_y_index    = (int)(floor(transformed_y));
+                int left_x_index   = (int)(floor(transformed_x));
+
                 if (!y_is_out_of_boundaries && !x_is_out_of_boundaries) {
-#if DEFORMABLE_MASK_ENABLED
-                    const int mask_idx = mask_offset + ((j * FILTER_SIZE_X + i) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
-#endif
-                    for (uint c = 0; c < channel_per_deformable_group; ++c) {
-                        uint ifm = ifm_offset + c;
-                        uint filter_idx = GET_FILTER_INDEX(FILTER, conv_group, f, ifm, j, i);
-
-                        int top_y_index    = (int)(floor(transformed_y));
-                        int left_x_index   = (int)(floor(transformed_x));
 #if BILINEAR_INTERPOLATION_PAD
-                        int bottom_y_index = top_y_index + 1;
-                        int right_x_index  = left_x_index + 1;
+                    int bottom_y_index = top_y_index + 1;
+                    int right_x_index  = left_x_index + 1;
 
-                        INPUT0_TYPE top_left     = top_y_index < 0 || left_x_index < 0 ? 0 :
-                            (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, left_x_index) + in_split_offset];
-                        INPUT0_TYPE top_right    = top_y_index < 0 || right_x_index >= INPUT0_SIZE_X ? 0 :
-                            (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, right_x_index) + in_split_offset];
-                        INPUT0_TYPE bottom_left  = bottom_y_index >= INPUT0_SIZE_Y || left_x_index < 0 ? 0 :
-                            (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, left_x_index) + in_split_offset];
-                        INPUT0_TYPE bottom_right = bottom_y_index >= INPUT0_SIZE_Y || right_x_index >= INPUT0_SIZE_X ? 0 :
-                            (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, right_x_index) + in_split_offset];
+                    INPUT0_TYPE top_left     = top_y_index < 0 || left_x_index < 0 ? 0 :
+                        (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, left_x_index) + in_split_offset];
+                    INPUT0_TYPE top_right    = top_y_index < 0 || right_x_index >= INPUT0_SIZE_X ? 0 :
+                        (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, right_x_index) + in_split_offset];
+                    INPUT0_TYPE bottom_left  = bottom_y_index >= INPUT0_SIZE_Y || left_x_index < 0 ? 0 :
+                        (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, left_x_index) + in_split_offset];
+                    INPUT0_TYPE bottom_right = bottom_y_index >= INPUT0_SIZE_Y || right_x_index >= INPUT0_SIZE_X ? 0 :
+                        (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, right_x_index) + in_split_offset];
 #else
-                        int bottom_y_index = (int)(min(ceil(transformed_y), (float)INPUT0_SIZE_Y - 1));
-                        int right_x_index  = (int)(min(ceil(transformed_x), (float)INPUT0_SIZE_X - 1));
+                    int bottom_y_index = (int)(min(ceil(transformed_y), (float)INPUT0_SIZE_Y - 1));
+                    int right_x_index  = (int)(min(ceil(transformed_x), (float)INPUT0_SIZE_X - 1));
 
-                        INPUT0_TYPE top_left     = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, left_x_index) + in_split_offset];
-                        INPUT0_TYPE top_right    = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, right_x_index) + in_split_offset];
-                        INPUT0_TYPE bottom_left  = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, left_x_index) + in_split_offset];
-                        INPUT0_TYPE bottom_right = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, right_x_index) + in_split_offset];
+                    INPUT0_TYPE top_left     = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, left_x_index) + in_split_offset];
+                    INPUT0_TYPE top_right    = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, top_y_index, right_x_index) + in_split_offset];
+                    INPUT0_TYPE bottom_left  = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, left_x_index) + in_split_offset];
+                    INPUT0_TYPE bottom_right = (INPUT0_TYPE)data[GET_DATA_INDEX(INPUT0, b, ifm, bottom_y_index, right_x_index) + in_split_offset];
 #endif
-                        INPUT0_TYPE top    = top_left + (top_right - top_left) * (transformed_x - left_x_index);
-                        INPUT0_TYPE bottom = bottom_left + (bottom_right - bottom_left) * (transformed_x - left_x_index);
+                    INPUT0_TYPE top    = top_left + (top_right - top_left) * (transformed_x - left_x_index);
+                    INPUT0_TYPE bottom = bottom_left + (bottom_right - bottom_left) * (transformed_x - left_x_index);
 
-                        INPUT0_TYPE value  = top + (bottom - top) * (transformed_y - top_y_index);
+                    INPUT0_TYPE value  = top + (bottom - top) * (transformed_y - top_y_index);
 
 #if DEFORMABLE_MASK_ENABLED
-                        dotProd += value * weights[filter_idx] * (float)mask[mask_idx];
+                    dotProd += value * weights[filter_idx] * (float)mask[mask_idx];
 #else
-                        dotProd += value * weights[filter_idx];
+                    dotProd += value * weights[filter_idx];
 #endif
-                    }
                 } // !y_is_out_of_boundaries && !x_is_out_of_boundaries
             } // i
         } // j
-    } // dg
+    } // c
 
 #if BIAS_TERM
 #if   BIAS_PER_OUTPUT
-        const uint bias_index = GET_DATA_INDEX(BIAS, b, of, y, x);
+    const uint bias_index = GET_DATA_INDEX(BIAS, b, of, y, x);
 #elif BIAS_PER_OFM
-        const uint bias_index = of;
+    const uint bias_index = of;
 #endif
-        dotProd += (UNIT_TYPE)biases[bias_index];
+    dotProd += (UNIT_TYPE)biases[bias_index];
 #endif
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x) + out_split_offset;
