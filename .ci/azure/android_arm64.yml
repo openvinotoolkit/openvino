@@ -13,6 +13,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2022/1
 
 jobs:
 - job: android_arm64

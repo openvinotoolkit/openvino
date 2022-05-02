@@ -1,74 +1,6 @@
-# Post-Training Optimization Tool API {#pot_compression_api_README}
+# API Reference  {#pot_compression_api_README}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   
-   API Samples <pot_sample_README>
-
-@endsphinxdirective
-
-## Overview
-The Post-Training Optimization Tool (POT) Python* API allows injecting optimization methods supported by POT into a 
-model inference script written with OpenVINO&trade; [Python* API](ie_python_api/api.html). 
-Thus, POT API helps to implement a custom 
-optimization pipeline for a single or cascaded/composite DL model (set of joint models). By the optimization pipeline, 
-we mean the consecutive application of optimization algorithms to the model. The input for the optimization pipeline is 
-a full-precision model, and the result is an optimized model. The optimization pipeline is configured to sequentially 
-apply optimization algorithms in the order they are specified. The key requirement for applying the optimization 
-algorithm is the availability of the calibration dataset for statistics collection and validation dataset for accuracy 
-validation which in practice can be the same. The Python* POT API provides simple interfaces for implementing:
-- custom model inference pipeline with OpenVINO Inference Engine,
-- data loading and pre-processing on an arbitrary dataset,
-- custom accuracy metrics,
- 
-to make it possible to use optimization algorithms from the POT.
-
-The Python* POT API provides `Pipeline` class for creating and configuring the optimization pipeline and applying it to 
-the model. The `Pipeline` class depends on the implementation of the following model specific interfaces which 
-should be implemented according to the custom DL model:
-- `Engine` is responsible for model inference and provides statistical data and accuracy metrics for the model.
-  > **NOTE**: The POT has the implementation of the Engine class with the class name IEEngine located in 
-  >           `<POT_DIR>/engines/ie_engine.py`, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
-  >           It is based on the [OpenVINO™ Inference Engine Python* API](ie_python_api/api.html)
-  >           and can be used as a baseline engine in the customer pipeline instead of the abstract Engine class.
-- `DataLoader` is responsible for the dataset loading, including the data pre-processing.
-- `Metric` is responsible for calculating the accuracy metric for the model.
-  > **NOTE**: Metric is required if you want to use accuracy-aware optimization algorithms, such as `AccuracyAwareQuantization`
-  >           algorithm.
-
-The pipeline with implemented model specific interfaces such as `Engine`, `DataLoader` and `Metric` we will call the custom 
-optimization pipeline (see the picture below that shows relationships between classes).
-
-![](../../../../docs/images/api.png)
-
-## Use Cases
-Before diving into the Python* POT API, it is highly recommended to read [Best Practices](@ref pot_docs_BestPractices) document where various 
-scenarios of using the Post-Training Optimization Tool are described. 
-
-The POT Python* API for model optimization can be used in the following cases:
-- [Accuracy Checker](@ref omz_tools_accuracy_checker) tool does not support the model or dataset.
-- POT does not support the model in the [Simplified Mode](@ref pot_docs_BestPractices) or produces the optimized model with low 
-accuracy in this mode.
-- You already have the Python* script to validate the accuracy of the model using the [OpenVINO&trade; Runtime](@ref openvino_docs_OV_UG_OV_Runtime_User_Guide).
-
-## Examples
-
-* API tutorials:
-  * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
-  * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
-  * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
-* API examples:
-  * [Quantization of 3D segmentation model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/3d_segmentation)
-  * [Quantization of Face Detection model](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/face_detection)
-  * [Speech example for GNA device](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/speech)
-
-## API Description
-
-Below is a detailed explanation of POT Python* APIs which should be implemented in order to create a custom optimization
-pipeline.
+Post-training Optimization Tool API provides a full set of interfaces and helpers that allow users to implement a custom optimization pipeline for various types of DL models including cascaded or compound models. Below is a full specification of this API:
 
 ### DataLoader
 
@@ -81,7 +13,15 @@ The base class for all DataLoaders.
 by index. 
 
 All subclasses should override `__len__()` function, which should return the size of the dataset, and `__getitem__()`, 
-which supports integer indexing in range of 0 to `len(self)`
+which supports integer indexing in the range of 0 to `len(self)`. `__getitem__()` method can return data in one of the possible formats:
+```
+(data, annotation)
+```
+or
+```
+(data, annotation, metadata)
+```
+`data` is the input that is passed to the model at inference so that it should be properly preprocessed. `data` can be either `numpy.array` object or dictionary where the key is the name of the model input and value is `numpy.array` which corresponds to this input. The format of `annotation` should correspond to the expectations of the `Metric` class. `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ### Metric
 
@@ -90,10 +30,15 @@ class openvino.tools.pot.Metric()
 ```
 An abstract class representing an accuracy metric.
 
-All subclasses should override the following properties:
-- `value` - returns the accuracy metric value for the last model output.
-- `avg_value` - returns the average accuracy metric value for all model outputs.
-- `attributes` - returns a dictionary of metric attributes:
+All instances should override the following properties:
+- `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
+- `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
+- `higher_better` should return `True` if a higher value of the metric corresponds to better performance, otherwise, returns `False`. Default implementation returns `True`.
+
+and methods:
+- `update(output, annotation)` - calculates and updates the accuracy metric value using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
+- `reset()` - resets collected accuracy metric. 
+- `get_attributes()` - returns a dictionary of metric attributes:
    ```
    {metric_name: {attribute_name: value}}
    ```
@@ -101,10 +46,6 @@ All subclasses should override the following properties:
    - `direction` - (`higher-better` or `higher-worse`) a string parameter defining whether metric value 
     should be increased in accuracy-aware algorithms.
    - `type` - a string representation of metric type. For example, 'accuracy' or 'mean_iou'.
-
-All subclasses should override the following methods:
-- `update(output, annotation)` - calculates and updates the accuracy metric value using last model output and annotation.
-- `reset()` - resets collected accuracy metric.
 
 ### Engine
 
@@ -232,11 +173,11 @@ The following methods can be overridden in subclasses:
   
 `IEEngine` supports data returned by `DataLoader` in the format:
 ```
-(img_id, img_annotation), image)
+(data, annotation)
 ```
 or
 ```
-((img_id, img_annotation), image, image_metadata)
+(data, annotation, metadata)
 ```
 
 Metric values returned by a `Metric` instance are expected to be in the format:
