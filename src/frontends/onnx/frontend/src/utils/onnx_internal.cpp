@@ -52,7 +52,6 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
 }
 
 void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path) {
-    transform::expand_onnx_functions(model_proto);
     transform::fixup_legacy_operators(model_proto);
     transform::update_external_data_paths(model_proto, model_path);
 }
