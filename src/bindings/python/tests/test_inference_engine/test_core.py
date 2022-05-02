@@ -10,9 +10,10 @@ from pathlib import Path
 from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, Extension,\
     tensor_from_file, compile_model
 
+# TODO: reformat into absolute paths
 from ..conftest import model_path, model_onnx_path, plugins_path, \
     get_model_with_template_extension
-from ..test_utils.test_utils import generate_image, generate_relu_model  # TODO: reformat into an absolute path
+from ..test_utils.test_utils import generate_image, generate_relu_model
 
 
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
@@ -41,7 +42,6 @@ def test_compact_api_onnx():
 def test_core_class():
     input_shape = [1, 3, 4, 4]
     model = generate_relu_model(input_shape)
-    print(type(model))
 
     request = model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5

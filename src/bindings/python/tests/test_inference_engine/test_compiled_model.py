@@ -5,6 +5,7 @@ import os
 import pytest
 import numpy as np
 
+# TODO: refactor into absolute paths
 from ..conftest import model_path, get_model_with_template_extension
 from ..test_utils.test_utils import generate_image
 from openvino.runtime import Model, ConstOutput, Shape
