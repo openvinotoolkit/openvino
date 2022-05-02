@@ -1,7 +1,7 @@
-# Convert PyTorch* RNN-T Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT}
+# Converting PyTorch RNN-T Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT}
 
-This instruction covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow
-the steps below to export a PyTorch* model into ONNX* before converting it to IR:
+This guide covers conversion of RNN-T model from [MLCommons](https://github.com/mlcommons) repository. Follow
+the instructions below to export a PyTorch model into ONNX, before converting it to IR:
 
 **Step 1**. Clone RNN-T PyTorch implementation from MLCommons repository (revision r1.0). Make a shallow clone to pull
 only RNN-T model without full repository. If you already have a full repository, skip this and go to **Step 2**:
@@ -21,23 +21,23 @@ cd rnnt_for_openvino
 ```
 
 **Step 3**. Download pretrained weights for PyTorch implementation from [https://zenodo.org/record/3662521#.YG21DugzZaQ](https://zenodo.org/record/3662521#.YG21DugzZaQ).
-For UNIX*-like systems you can use `wget`:
+For UNIX-like systems, you can use *`wget`*:
 ```bash
 wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt
 ```
-The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as
-if you were following the steps from [https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt](https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt).
+The link was taken from *`setup.sh`* in the *`speech_recoginitin/rnnt`* subfolder. You will get exactly the same weights as
+if you were following the guide from [https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt](https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt).
 
 **Step 4**. Install required Python packages:
 ```bash
 pip3 install torch toml
 ```
 
-**Step 5**. Export RNN-T model into ONNX with the script below. Copy the code below into a file named
-`export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
+**Step 5**. Export RNN-T model into ONNX, using the script below. Copy the code below into a file named
+*`export_rnnt_to_onnx.py`* and run it in the current directory *`rnnt_for_openvino`*:
 
 > **NOTE**: If you already have a full clone of MLCommons inference repository, you need to
-> specify the `mlcommons_inference_path` variable.
+> specify the *`mlcommons_inference_path`* variable.
 
 ```python
 import toml
@@ -94,7 +94,7 @@ torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
 python3 export_rnnt_to_onnx.py
 ```
 
-After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory.
+After completing this step, the files *`rnnt_encoder.onnx`*, *`rnnt_prediction.onnx`*, and *`rnnt_joint.onnx`* will be saved in the current directory.
 
 **Step 6**. Run the conversion commands:
 
@@ -103,6 +103,6 @@ mo --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157
 mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
 mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
-Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves
-network [reshapeability](../../../../OV_Runtime_UG/ShapeInference.md), this means you can change input shapes manually to any value either during conversion or
+> **NOTE**: Hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves
+network [reshapeability](../../../../OV_Runtime_UG/ShapeInference.md). Therefore, input shapes can be changed manually to any value during either conversion or
 inference.

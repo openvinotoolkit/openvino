@@ -1,14 +1,14 @@
-# Convert TensorFlow GNMT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
+# Converting TensorFlow GNMT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
 
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
 You will find on GitHub several public versions of TensorFlow GNMT model implementation. This tutorial explains how to convert the GNMT model from the [TensorFlow Neural Machine Translation (NMT) repository](https://github.com/tensorflow/nmt) to the IR.
 
-## Create a Patch File <a name="patch-file"></a>
+## Creating a Patch File <a name="patch-file"></a>
 
 Before converting the model, you need to create a patch file for the repository. The patch modifies the framework code by adding a special command-line argument to the framework options that enables inference graph dumping:
 
-1. Go to a writable directory and create a `GNMT_inference.patch` file.
+1. Go to a writable directory and create a *`GNMT_inference.patch`* file.
 2. Copy the following diff code to the file:
 ```git
 diff --git a/nmt/inference.py b/nmt/inference.py
@@ -137,7 +137,7 @@ index f5823d8..a733748 100644
 ```
 3. Save and close the file.
 
-## Convert GNMT Model to the IR
+## Converting GNMT Model to the IR
 
 > **NOTE**: Use TensorFlow version 1.13 or lower.
 
@@ -154,17 +154,17 @@ git checkout b278487980832417ad8ac701c672b5c3dc7fa553
 
 **Step 2**. Get a trained model. You have two options:
 
-* Train the model with the GNMT `wmt16_gnmt_4_layer.json` or `wmt16_gnmt_8_layer.json` configuration file using the NMT framework.
+* Train the model with the GNMT *`wmt16_gnmt_4_layer.json`* or *`wmt16_gnmt_8_layer.json`* configuration file using the NMT framework.
 * *Do not use the pre-trained checkpoints provided in the NMT repository, as they are outdated and can be incompatible with the current repository version.*
 
-This tutorial assumes the use of the trained GNMT model from `wmt16_gnmt_4_layer.json` config, German to English translation.
+This tutorial assumes the use of the trained GNMT model from *`wmt16_gnmt_4_layer.json`* config, German to English translation.
 
 **Step 3**. Create an inference graph:
 
 The OpenVINO&trade; assumes that a model is used for inference only. Hence, before converting the model into the IR, you need to transform the training graph into the inference graph.
 For the GNMT model, the training graph and the inference graph have different decoders: the training graph uses a greedy search decoding algorithm, while the inference graph uses a beam search decoding algorithm.
 
-1. Apply the `GNMT_inference.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
+1. Apply the *`GNMT_inference.patch`* patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
 ```sh
  git apply /path/to/patch/GNMT_inference.patch
 ```
@@ -184,10 +184,10 @@ python -m nmt.nmt
     --path_to_dump /path/to/dump/model/
 ```
 
-If you use different checkpoints, use the corresponding values for the `src`,`tgt`,`ckpt`,`hparams_path`, and `vocab_prefix` parameters.
-Inference checkpoint `inference_GNMT_graph` and frozen inference graph `frozen_GNMT_inference_graph.pb` will appear in the `/path/to/dump/model/` folder.
+If you use different checkpoints, use the corresponding values for the *`src`*,*`tgt`*,*`ckpt`*,*`hparams_path`*, and *`vocab_prefix`* parameters.
+Inference checkpoint *`inference_GNMT_graph`* and frozen inference graph *`frozen_GNMT_inference_graph.pb`* will appear in the *`/path/to/dump/model/`* folder.
 
-To generate `vocab.bpe.32000`, execute the `nmt/scripts/wmt16_en_de.sh` script. If you face an issue of a size mismatch between the checkpoint graph's embedding layer and vocabulary (both src and target), make sure you add the following code to the `nmt.py` file to the `extend_hparams` function after the line 508 (after initialization of the `src_vocab_size` and `tgt_vocab_size` variables):
+To generate *`vocab.bpe.32000`*, execute the *`nmt/scripts/wmt16_en_de.sh`* script. If you face an issue of a size mismatch between the checkpoint graph's embedding layer and vocabulary (both src and target), make sure you add the following code to the *`nmt.py`* file to the *`extend_hparams`* function after the line 508 (after initialization of the *`src_vocab_size`* and *`tgt_vocab_size`* variables):
 ```py
 src_vocab_size -= 1
 tgt_vocab_size -= 1
@@ -203,40 +203,40 @@ mo
 --output_dir /path/to/output/IR/
 ```
 
-Input and output cutting with the `--input` and `--output` options is required since OpenVINO&trade; does not support `IteratorGetNext` and `LookupTableFindV2` operations.
+Input and output cutting with the *`--input`* and *`--output`* options is required since OpenVINO&trade; does not support *`IteratorGetNext`* and *`LookupTableFindV2`* operations.
 
 Input cutting:
 
-* `IteratorGetNext` operation iterates over a dataset. It is cut by output ports: port 0 contains data tensor with shape `[batch_size, max_sequence_length]`, port 1 contains `sequence_length` for every batch with shape `[batch_size]`.
+* *`IteratorGetNext`* operation iterates over a dataset. It is cut by output ports: port 0 contains data tensor with shape *`[batch_size, max_sequence_length]`*, port 1 contains *`sequence_length`* for every batch with shape *`[batch_size]`*.
 
-* `LookupTableFindV2` operations (`dynamic_seq2seq/hash_table_Lookup_1` and `dynamic_seq2seq/hash_table_Lookup` nodes in the graph) are cut with constant values).
+* *`LookupTableFindV2`* operations (*`dynamic_seq2seq/hash_table_Lookup_1`* and *`dynamic_seq2seq/hash_table_Lookup`* nodes in the graph) are cut with constant values).
 
 Output cutting:
 
-* `LookupTableFindV2` operation is cut from the output and the `dynamic_seq2seq/decoder/decoder/GatherTree` node is treated as a new exit point.
+* *`LookupTableFindV2`* operation is cut from the output and the *`dynamic_seq2seq/decoder/decoder/GatherTree`* node is treated as a new exit point.
 
 Refer to the [Cutting Off Parts of a Model](../Cutting_Model.md) guide for more information about model cutting .
 
-## How to Use GNMT Model <a name="run_GNMT"></a>
+## Using GNMT Model <a name="run_GNMT"></a>
 
 > **NOTE**: This step assumes you have converted a model to the Intermediate Representation.
 
 Inputs of the model:
-* `IteratorGetNext/placeholder_out_port_0` input with shape `[batch_size, max_sequence_length]` contains `batch_size` decoded input sentences.
- Every sentence is decoded the same way as indices of sentence elements in vocabulary and padded with index of `eos` (end of sentence symbol). If the length of the sentence is less than `max_sequence_length`, remaining elements are filled with index of `eos` token.
+* *`IteratorGetNext/placeholder_out_port_0`* input with shape *`[batch_size, max_sequence_length]`* contains *`batch_size`* decoded input sentences.
+ Every sentence is decoded the same way as indices of sentence elements in vocabulary and padded with index of *`eos`* (end of sentence symbol). If the length of the sentence is less than *`max_sequence_length`*, remaining elements are filled with index of *`eos`* token.
 
-* `IteratorGetNext/placeholder_out_port_1` input with shape `[batch_size]` contains sequence lengths for every sentence from the first input.
- For example, if `max_sequence_length = 50`, `batch_size = 1` and the sentence has only 30 elements, then the input tensor for `IteratorGetNext/placeholder_out_port_1` should be `[30]`.
+* *`IteratorGetNext/placeholder_out_port_1`* input with shape *`[batch_size]`* contains sequence lengths for every sentence from the first input.
+ For example, if *`max_sequence_length = 50`*, *`batch_size = 1`* and the sentence has only 30 elements, then the input tensor for *`IteratorGetNext/placeholder_out_port_1`* should be *`[30]`*.
 
 
 Outputs of the model:
 
-* `dynamic_seq2seq/decoder/decoder/GatherTree` tensor with shape `[max_sequence_length * 2, batch, beam_size]`,
-  that contains `beam_size` best translations for every sentence from input (also decoded as indices of words in
+* *`dynamic_seq2seq/decoder/decoder/GatherTree`* tensor with shape *`[max_sequence_length * 2, batch, beam_size]`*,
+  that contains *`beam_size`* best translations for every sentence from input (also decoded as indices of words in
   vocabulary).
-> **NOTE**: Shape of this tensor in TensorFlow can be different: instead of `max_sequence_length * 2`, it can be any value less than that, because OpenVINO&trade; does not support dynamic shapes of outputs, while TensorFlow can stop decoding iterations when `eos` symbol is generated.
+> **NOTE**: Shape of this tensor in TensorFlow can be different: instead of *`max_sequence_length * 2`*, it can be any value less than that, because OpenVINO&trade; does not support dynamic shapes of outputs, while TensorFlow can stop decoding iterations when *`eos`* symbol is generated.
 
-#### How to RUN GNMT IR <a name="run_GNMT"></a>
+#### Running GNMT IR <a name="run_GNMT"></a>
 
 1. With benchmark app:
 ```sh
@@ -245,7 +245,7 @@ benchmark_app -m <path to the generated GNMT IR> -d CPU
 
 2. With OpenVINO Runtime Python API:
 
-> **NOTE**: Before running the example, insert a path to your GNMT `.xml` and `.bin` files into `MODEL_PATH` and `WEIGHTS_PATH`, and fill `input_data_tensor` and `seq_lengths` tensors according to your input data.
+> **NOTE**: Before running the example, insert a path to your GNMT *`.xml`* and *`.bin`* files into *`MODEL_PATH`* and *`WEIGHTS_PATH`*, and fill *`input_data_tensor`* and *`seq_lengths`* tensors according to your input data.
 
 ```python
 from openvino.inference_engine import IENetwork, IECore
