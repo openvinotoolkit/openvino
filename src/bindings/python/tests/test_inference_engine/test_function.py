@@ -8,12 +8,7 @@ import openvino.runtime.opset8 as ops
 from openvino.runtime import Core, Model, Tensor, Output, Dimension,\
     Layout, Type, PartialShape, Shape, set_batch, get_batch
 
-
-def create_test_model():
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
-    add = ops.add(param1, param2)
-    return Model(add, [param1, param2], "TestFunction")
+from ..test_utils.test_utils import generate_add_model  # TODO: reformat into an absolute path
 
 
 def test_test_descriptor_tensor():
@@ -184,7 +179,7 @@ def test_add_outputs_incorrect_outputs_list():
 
 
 def test_validate_nodes_and_infer_types():
-    model = create_test_model()
+    model = generate_add_model()
     invalid_shape = Shape([3, 7])
     param3 = ops.parameter(invalid_shape, dtype=np.float32, name="data3")
     model.replace_parameter(0, param3)
@@ -250,7 +245,7 @@ def test_replace_parameter():
 
 
 def test_evaluate():
-    model = create_test_model()
+    model = generate_add_model()
     input1 = np.array([2, 1], dtype=np.float32).reshape(2, 1)
     input2 = np.array([3, 7], dtype=np.float32).reshape(2, 1)
     out_tensor = Tensor("float32", Shape([2, 1]))
@@ -260,7 +255,7 @@ def test_evaluate():
 
 
 def test_evaluate_invalid_input_shape():
-    model = create_test_model()
+    model = generate_add_model()
     with pytest.raises(RuntimeError) as e:
         assert model.evaluate(
             [Tensor("float32", Shape([2, 1]))],
@@ -270,7 +265,7 @@ def test_evaluate_invalid_input_shape():
 
 
 def test_get_batch():
-    model = create_test_model()
+    model = generate_add_model()
     param = model.get_parameters()[0]
     param.set_layout(Layout("NC"))
     assert get_batch(model) == 2
@@ -289,7 +284,7 @@ def test_get_batch_CHWN():
 
 
 def test_set_batch_dimension():
-    model = create_test_model()
+    model = generate_add_model()
     model_param1 = model.get_parameters()[0]
     model_param2 = model.get_parameters()[1]
     # batch == 2
@@ -305,7 +300,7 @@ def test_set_batch_dimension():
 
 
 def test_set_batch_int():
-    model = create_test_model()
+    model = generate_add_model()
     model_param1 = model.get_parameters()[0]
     model_param2 = model.get_parameters()[1]
     # batch == 2
@@ -321,7 +316,7 @@ def test_set_batch_int():
 
 
 def test_set_batch_default_batch_size():
-    model = create_test_model()
+    model = generate_add_model()
     model_param1 = model.get_parameters()[0]
     model_param1.set_layout(Layout("NC"))
     set_batch(model)
@@ -329,7 +324,7 @@ def test_set_batch_default_batch_size():
 
 
 def test_reshape_with_ports():
-    model = create_test_model()
+    model = generate_add_model()
     new_shape = PartialShape([1, 4])
     for input in model.inputs:
         assert isinstance(input, Output)
@@ -338,7 +333,7 @@ def test_reshape_with_ports():
 
 
 def test_reshape_with_indexes():
-    model = create_test_model()
+    model = generate_add_model()
     new_shape = PartialShape([1, 4])
     for index, input in enumerate(model.inputs):
         model.reshape({index: new_shape})
@@ -346,7 +341,7 @@ def test_reshape_with_indexes():
 
 
 def test_reshape_with_names():
-    model = create_test_model()
+    model = generate_add_model()
     new_shape = PartialShape([1, 4])
     for input in model.inputs:
         model.reshape({input.any_name: new_shape})
@@ -366,7 +361,7 @@ def test_reshape(device):
 
 
 def test_reshape_with_python_types(device):
-    model = create_test_model()
+    model = generate_add_model()
 
     def check_shape(new_shape):
         for input in model.inputs:
@@ -383,7 +378,7 @@ def test_reshape_with_python_types(device):
     check_shape(PartialShape(shape2))
 
     shape3 = [1, 8]
-    new_shapes = {i: shape3 for i, input in enumerate(model.inputs)}
+    new_shapes = {i: shape3 for i, _ in enumerate(model.inputs)}
     model.reshape(new_shapes)
     check_shape(PartialShape(shape3))
 

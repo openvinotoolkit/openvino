@@ -13,6 +13,7 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
+# TODO: reformat into absolute paths
 from ..conftest import model_path
 from ..test_utils.test_utils import generate_image
 

@@ -13,7 +13,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from ..test_utils.test_utils import generate_image
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [

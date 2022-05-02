@@ -7,13 +7,12 @@ import os
 from sys import platform
 from pathlib import Path
 
-import openvino.runtime.opset8 as ov
 from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, Extension,\
     tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, \
     get_model_with_template_extension
-from ..test_utils.test_utils import generate_image, generate_onnx_model
+from ..test_utils.test_utils import generate_image, generate_relu_model  # TODO: reformat into an absolute path
 
 
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
@@ -41,13 +40,8 @@ def test_compact_api_onnx():
 
 def test_core_class():
     input_shape = [1, 3, 4, 4]
-    param = ov.parameter(input_shape, np.float32, name="parameter")
-    relu = ov.relu(param, name="relu")
-    func = Model([relu], [param], "test")
-    func.get_ordered_ops()[2].friendly_name = "friendly"
-
-    core = Core()
-    model = core.compile_model(func, "CPU", {})
+    model = generate_relu_model(input_shape)
+    print(type(model))
 
     request = model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
