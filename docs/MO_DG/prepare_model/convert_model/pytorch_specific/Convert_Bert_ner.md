@@ -1,15 +1,15 @@
-# Convert PyTorch* BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
+# Converting PyTorch BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
 
-## Download and Convert the Model to ONNX*
+## Downloading and Converting the Model to ONNX
 
-To download a pre-trained model or train the model yourself, refer
-to the [instruction](https://github.com/kamalkraj/BERT-NER/blob/dev/README.md) in the
-BERT-NER model repository. The model with config files is stored in the `out_base` directory.
+To download a pretrained model or train the model yourself, refer
+to the [instructions](https://github.com/kamalkraj/BERT-NER/blob/dev/README.md) in the
+BERT-NER model repository. The model with configuration files is stored in the *`out_base`* directory.
 
-To convert the model to ONNX* format, create and run the script with the following content in the root
-directory of the model repository. If you download the pre-trained model, you need
+To convert the model to ONNX format, create and run the following script in the root
+directory of the model repository. If you download the pretrained model, you need
 to download [`bert.py`](https://github.com/kamalkraj/BERT-NER/blob/dev/bert.py) to run the script.
-The instruction was tested with the repository hash commit `e5be564156f194f1becb0d82aeaf6e762d9eb9ed`.
+The instructions were tested with the commit-SHA: *`e5be564156f194f1becb0d82aeaf6e762d9eb9ed`*.
 
 ```python
 import torch
@@ -44,12 +44,12 @@ torch.onnx.export(ner_model,
                   )
 ```
 
-The script generates ONNX* model file `bert-ner.onnx`.
+The script generates ONNX model file *`bert-ner.onnx`*.
 
-## Convert ONNX* BERT-NER model to IR
+## Converting ONNX BERT-NER model to IR
 
 ```bash
 mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
 ```
 
-where `1` is `batch_size` and `128` is `sequence_length`.
+where *`1`* is *`batch_size`* and *`128`* is *`sequence_length`*.

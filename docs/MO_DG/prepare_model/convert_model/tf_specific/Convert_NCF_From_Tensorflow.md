@@ -1,10 +1,10 @@
-# Convert TensorFlow Neural Collaborative Filtering Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
+# Converting TensorFlow Neural Collaborative Filtering Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
 
 This tutorial explains how to convert Neural Collaborative Filtering (NCF) model to the Intermediate Representation (IR).
 
-[Public TensorFlow NCF model](https://github.com/tensorflow/models/tree/master/official/recommendation) does not contain pre-trained weights. To convert this model to the IR:
+[Public TensorFlow NCF model](https://github.com/tensorflow/models/tree/master/official/recommendation) does not contain pretrained weights. To convert this model to the IR:
  1. Use [the instructions](https://github.com/tensorflow/models/tree/master/official/recommendation#train-and-evaluate-model) from this repository to train the model.
- 2. Freeze the inference graph you get in previous step in `model_dir`, following
+ 2. Freeze the inference graph you get in previous step in *`model_dir`*, following
 the instructions from the **Freezing Custom Models in Python** section of the
 [Converting a TensorFlow Model](../Convert_Model_From_TensorFlow.md) guide.
 Run the following commands:
@@ -20,15 +20,15 @@ frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph
                                                       ["rating/BiasAdd"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
-where `rating/BiasAdd` is an output node.
+where *`rating/BiasAdd`* is an output node.
 
- 3. Convert the model to the IR. If you look at your frozen model, you can see that
-it has one input that is split into four `ResourceGather` layers. (Click image to zoom in.)
+ 3. Convert the model to IR. If you look at your frozen model, you can see that
+it has one input that is split into four *`ResourceGather`* layers. (Click image to zoom in.)
 
 ![NCF model beginning](../../../img/NCF_start.png)
 
  However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
-the edges incoming in `ResourceGather`s port 1:
+the edges incoming in *`ResourceGather`*s port 1:
 ```sh
  mo --input_model inference_graph.pb                    \
 --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \
@@ -36,7 +36,7 @@ the edges incoming in `ResourceGather`s port 1:
 --input_shape [256],[256],[256],[256]                                \
 --output_dir <OUTPUT_MODEL_DIR>
 ```
-In the `input_shape` parameter, 256 specifies the `batch_size` for your model.
+In the *`input_shape`* parameter, 256 specifies the *`batch_size`* for your model.
 
 Alternatively, you can do steps 2 and 3 in one command line:
 ```sh

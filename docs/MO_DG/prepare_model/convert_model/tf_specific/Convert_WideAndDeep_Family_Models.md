@@ -1,4 +1,4 @@
-# Convert TensorFlow Wide and Deep Family Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
+# Converting TensorFlow Wide and Deep Family Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
 
 The Wide and Deep models is a combination of wide and deep parts for memorization and generalization of object features respectively.
 These models can contain different types of object features such as numerical, categorical, sparse and sequential features. These feature types are specified
@@ -8,9 +8,9 @@ through Tensorflow tf.feature_column API. Table below presents what feature type
 |:-------:|:----------------------:|:---------------------:|:----------:|:----------:|:-------:|
 | yes     | yes                    | no                    | yes        | yes        | no      |
 
-> **NOTE**: The categorical with hash and crossed features are currently unsupported since the OpenVINO&trade; toolkit does not support tensors of `string` type and operations with them.
+> **NOTE**: The categorical with hash and crossed features are currently unsupported since the OpenVINO&trade; toolkit does not support tensors of *`string`* type and operations with them.
 
-## Prepare an Example of Wide and Deep Model
+## Preparing an Example of Wide and Deep Model
 
 **Step 1**. Clone the GitHub repository with TensorFlow models and move to the directory with an example of Wide and Deep model:
 
@@ -25,7 +25,7 @@ The Wide and Deep model is no longer in the master branch of the repository but 
 **Step 2**. Train the model
 
 As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
-by changing the `build_model_columns()` function in `census_dataset.py` as follows:
+by changing the *`build_model_columns()`* function in *`census_dataset.py`* as follows:
 
 ```python
 def build_model_columns():
@@ -87,7 +87,7 @@ After that, start training by the following command:
 python census_main.py
 ```
 
-## Convert the Wide and Deep Model to the IR
+## Converting the Wide and Deep Model to IR
 
 Use the following command line to convert the saved model file with the checkpoint:
 
@@ -126,8 +126,8 @@ Use the following command line to convert the saved model file with the checkpoi
 --output head/predictions/probabilities
 ```
 
-The model contains operations unsupported by the OpenVINO&trade; toolkit such as `IteratorGetNext` and `LookupTableFindV2`, so the Model Optimizer must prune these nodes.
-The pruning is specified through `--input` option. The prunings for `IteratorGetNext:*` nodes correspond to numeric features.
-The pruning for each categorical feature consists of three prunings for the following nodes: `*/to_sparse_input/indices:0`, `*/hash_table_Lookup/LookupTableFindV2:0`, and `*/to_sparse_input/dense_shape:0`.
+The model contains operations unsupported by the OpenVINO&trade; toolkit such as *`IteratorGetNext`* and *`LookupTableFindV2`*, so the Model Optimizer must prune these nodes.
+The pruning is specified through *`--input`* option. The prunings for *`IteratorGetNext:*`* nodes correspond to numeric features.
+The pruning for each categorical feature consists of three prunings for the following nodes: *`*/to_sparse_input/indices:0`*, *`*/hash_table_Lookup/LookupTableFindV2:0`*, and *`*/to_sparse_input/dense_shape:0`*.
 
 The above command line generates the IR for a batch of two objects, with total number of actual categorical feature values equal to 10 and maximum size of sparse categorical feature for one object equal to 50.
