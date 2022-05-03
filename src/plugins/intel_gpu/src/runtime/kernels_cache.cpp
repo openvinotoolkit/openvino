@@ -259,10 +259,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
-    // bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
-    // std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
-    bool dump_sources = true;
-    std::string dump_sources_dir = "/home/sieun/Documents/dump/CVS-74957/scatter_nd_update_fusing_source_dump";
+    bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
+    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
         dump_sources = true;
@@ -369,11 +367,6 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             std::cout << err_log << std::endl;
             std::cout << "-------- End of OpenCL build error" << std::endl;
         }
-
-        // std::cout << "-------- OpenCL build error" << std::endl;
-        // std::cout << err_log << std::endl;
-        // std::cout << "-------- End of OpenCL build error" << std::endl;
-
         std::stringstream err_ss(err_log);
         std::string line;
         int cnt = 0;

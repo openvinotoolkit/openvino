@@ -106,7 +106,6 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
     }
 
     std::string jit = code.str();
-    // std::cout << jit << std::endl;
     std::pair<std::string, std::string> jit_undefs(jit, undefs);
 
     return jit_undefs;

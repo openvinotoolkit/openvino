@@ -1731,7 +1731,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 // Output conversion with rounding and saturation
                 op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
-                // std::cout << "quantize op_decls: " << op_decls << std::endl;
                 break;
             } else {
                 // Input range

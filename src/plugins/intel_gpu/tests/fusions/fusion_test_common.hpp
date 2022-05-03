@@ -82,21 +82,9 @@ public:
         if (output_not_fused_prim->get_layout().data_type == data_types::f32) {
             cldnn::mem_lock<float> ref(output_not_fused_prim, get_test_stream());
             cldnn::mem_lock<float> output_ptr(output_fused_prim, get_test_stream());
-            // std::cout << output_fused_prim->get_layout().count() << std::endl;
             for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
                 ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
-                // if(i != 0 && i % 8 == 0)
-                //     std::cout << std::endl;
-                // std::cout << std::setw(5) << ref[i];
             }
-            // std::cout << std::endl << std::endl << std::endl;
-            // for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
-            //     // ASSERT_NEAR(ref[i], output_ptr[i], tolerance) << "i = " << i;
-            //     if(i != 0 && i % 8 == 0)
-            //         std::cout << std::endl;
-            //     std::cout << std::setw(5) << output_ptr[i];
-            // }
-            // std::cout << std::endl << std::endl;
         } else {
             cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
             cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
