@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "edgpsi_kernel_ref.h"
+#include "experimental_detectron_generate_proposals_single_image_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <algorithm>
 #include <string>
 
 namespace kernel_selector {
 
-ParamsKey EDGPSIRef::GetSupportedKey() const {
+ParamsKey ExperimentalDetectronGenerateProposalsSingleImageRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -22,11 +22,11 @@ ParamsKey EDGPSIRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority EDGPSIRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&, const optional_params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool EDGPSIRef::Validate(const Params& p, const optional_params& o) const {
+bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p, const optional_params& o) const {
     if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE
         || o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
         return false;
@@ -41,8 +41,9 @@ constexpr size_t kDeltasInputIdx = 2;
 constexpr size_t kScoresInputIdx = 3;
 constexpr size_t kRoiScoresOutputIdx = 4;
 
-EDGPSIRef::DispatchData SetDefault(const edgpsi_params& params, size_t idx) {
-    EDGPSIRef::DispatchData dispatch_data;
+ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData SetDefault(
+        const experimental_detectron_generate_proposals_single_image_params& params, size_t idx) {
+    ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData dispatch_data;
 
     if (idx == 0) {
         const auto bottom_H = params.inputs[kDeltasInputIdx].Feature().v;
@@ -60,7 +61,9 @@ EDGPSIRef::DispatchData SetDefault(const edgpsi_params& params, size_t idx) {
 }
 }  // namespace
 
-void EDGPSIRef::SetKernelArguments(const edgpsi_params& params, size_t idx, cldnn::arguments_desc& arguments) const {
+void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
+        const experimental_detectron_generate_proposals_single_image_params& params,
+        size_t idx, cldnn::arguments_desc& arguments) const {
     switch (idx) {
         case 0: { // refine anchors
             arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});
@@ -89,18 +92,19 @@ void EDGPSIRef::SetKernelArguments(const edgpsi_params& params, size_t idx, cldn
             break;
         }
         default:
-            throw std::invalid_argument("EDGPSI has 4 kernels. valid index is 0 ~ 3.");
+            throw std::invalid_argument("experimental_detectron_generate_proposals_single_image has 4 kernels. valid index is 0 ~ 3.");
     }
 }
 
-KernelsData EDGPSIRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
 
     constexpr size_t kKernelsNum = 4;
-    KernelData kd = KernelData::Default<edgpsi_params>(params, kKernelsNum);
-    const edgpsi_params& new_params = static_cast<const edgpsi_params&>(params);
+    KernelData kd = KernelData::Default<experimental_detectron_generate_proposals_single_image_params>(params, kKernelsNum);
+    const experimental_detectron_generate_proposals_single_image_params& new_params
+        = static_cast<const experimental_detectron_generate_proposals_single_image_params&>(params);
 
     const auto anchors_num = new_params.inputs[kScoresInputIdx].Batch().v;
     const auto bottom_H = new_params.inputs[kDeltasInputIdx].Feature().v;

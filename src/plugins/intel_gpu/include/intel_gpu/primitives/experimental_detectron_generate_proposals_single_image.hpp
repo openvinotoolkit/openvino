@@ -16,11 +16,11 @@ namespace cldnn {
 /// @{
 
 /// @brief experimental detectron generate proposals single image
-struct edgpsi
-        : public primitive_base<edgpsi> {
-    CLDNN_DECLARE_PRIMITIVE(edgpsi)
+struct experimental_detectron_generate_proposals_single_image
+        : public primitive_base<experimental_detectron_generate_proposals_single_image> {
+    CLDNN_DECLARE_PRIMITIVE(experimental_detectron_generate_proposals_single_image)
 
-    /// @brief Constructs edgpsi primitive
+    /// @brief Constructs experimental_detectron_generate_proposals_single_image primitive
     /// @param id This primitive id
     /// @param input_im_info image size info
     /// @param input_anchors anchors
@@ -31,7 +31,7 @@ struct edgpsi
     /// @param nms_threshold threshold to be used in NonMaxSuppression stage
     /// @param pre_nms_count number of top-n proposals before NMS
     /// @param post_nms_count number of top-n proposals after NMS
-    edgpsi(const primitive_id& id,
+    experimental_detectron_generate_proposals_single_image(const primitive_id& id,
            const primitive_id& input_im_info,
            const primitive_id& input_anchors,
            const primitive_id& input_deltas,

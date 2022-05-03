@@ -7,11 +7,11 @@
 #include "kernel_selector.h"
 
 namespace kernel_selector {
-class edgpsi_kernel_selector : public kernel_selector_base {
+class experimental_detectron_generate_proposals_single_image_kernel_selector : public kernel_selector_base {
 public:
-    static edgpsi_kernel_selector& Instance();
+    static experimental_detectron_generate_proposals_single_image_kernel_selector& Instance();
 
-    edgpsi_kernel_selector();
+    experimental_detectron_generate_proposals_single_image_kernel_selector();
 
     KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
 };

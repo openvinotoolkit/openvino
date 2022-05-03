@@ -8,7 +8,7 @@
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/edgpsi.hpp"
+#include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 
 namespace ov {
 namespace runtime {
@@ -47,7 +47,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     p.AddPrimitive(mutable_prim_w);
     inputs.push_back(mutable_id_w);
 
-    const cldnn::edgpsi prim{layer_name,
+    const cldnn::experimental_detectron_generate_proposals_single_image prim{layer_name,
                              inputs[0], inputs[1], inputs[2], inputs[3], inputs.back(),
                              attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count,
                              op_friendly_name};

@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#include "intel_gpu/primitives/edgpsi.hpp"
-#include "edgpsi_inst.hpp"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-#include "edgpsi/edgpsi_kernel_selector.h"
-#include "edgpsi/edgpsi_kernel_ref.h"
+#include "edgpsi/experimental_detectron_generate_proposals_single_image_kernel_selector.h"
+#include "edgpsi/experimental_detectron_generate_proposals_single_image_kernel_ref.h"
 
 
 namespace cldnn {
 namespace ocl {
-struct edgpsi_impl : public typed_primitive_impl_ocl<edgpsi> {
-    using parent = typed_primitive_impl_ocl<edgpsi>;
+struct experimental_detectron_generate_proposals_single_image_impl
+        : public typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image> {
+    using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<edgpsi_impl>(*this);
+        return make_unique<experimental_detectron_generate_proposals_single_image_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<edgpsi>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -36,9 +36,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const edgpsi_node& arg) {
-        auto params = get_default_params<kernel_selector::edgpsi_params>(arg);
-        auto optional_params = get_default_optional_params<kernel_selector::edgpsi_optional_params>(arg.get_program());
+    static primitive_impl* create(const experimental_detectron_generate_proposals_single_image_node& arg) {
+        auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(arg);
+        auto optional_params = get_default_optional_params<
+                kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(arg.get_program());
 
         const auto& primitive = arg.get_primitive();
 
@@ -53,7 +54,7 @@ public:
 
         params.inputs.push_back(convert_data_tensor(arg.output_roi_scores_node().get_output_layout()));
 
-        const auto& kernel_selector = kernel_selector::edgpsi_kernel_selector::Instance();
+        const auto& kernel_selector = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector::Instance();
         const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),
@@ -61,14 +62,14 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new edgpsi_impl(arg, best_kernels[0]);
+        return new experimental_detectron_generate_proposals_single_image_impl(arg, best_kernels[0]);
     }
 };
 
 namespace detail {
-attach_edgpsi_impl::attach_edgpsi_impl() {
-    implementation_map<edgpsi>::add(impl_types::ocl,
-                                    edgpsi_impl::create, {
+attach_experimental_detectron_generate_proposals_single_image_impl::attach_experimental_detectron_generate_proposals_single_image_impl() {
+    implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
+                                                                                    experimental_detectron_generate_proposals_single_image_impl::create, {
                                                  std::make_tuple(data_types::f16, format::bfyx),
                                                  std::make_tuple(data_types::f32, format::bfyx)
                                          });
