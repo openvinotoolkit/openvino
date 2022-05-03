@@ -70,9 +70,13 @@ struct FLOAT16 {
 
 inline FLOAT16 operator+(const FLOAT16 &v1, const FLOAT16 &v2) { return (float)v1 + (float)v2; }
 
+inline FLOAT16 operator+(const int &v1, const FLOAT16 &v2) { return (float)v1 + (float)v2; }
+
 inline FLOAT16 operator-(const FLOAT16 &v1, const FLOAT16 &v2) { return (float)v1 - (float)v2; }
 
 inline FLOAT16 operator*(const FLOAT16 &v1, const FLOAT16 &v2) { return (float)v1 * (float)v2; }
+
+inline FLOAT16 operator*(const FLOAT16 &v1, const int &v2) { return (float)v1 * (float)v2; }
 
 inline FLOAT16 operator/(const FLOAT16 &v1, const FLOAT16 &v2) { return (float)v1 / (float)v2; }
 
@@ -87,6 +91,8 @@ inline bool operator>(const FLOAT16 &v1, const float &v2) { return (float)v1 > v
 inline bool operator<(const FLOAT16 &v1, const float &v2) { return (float)v1 < v2; }
 
 inline bool operator==(const FLOAT16 &v1, const FLOAT16 &v2) { return v1.v == v2.v; }
+
+inline bool operator==(const FLOAT16 &v1, const int &v2) { return v1.v == v2; }
 
 inline bool operator!=(const FLOAT16 &v1, const FLOAT16 &v2) { return v1.v != v2.v; }
 
