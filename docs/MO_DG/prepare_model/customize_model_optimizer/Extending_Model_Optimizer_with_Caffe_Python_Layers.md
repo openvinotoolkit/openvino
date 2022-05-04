@@ -1,4 +1,4 @@
-# Extending Model Optimizer with Caffe* Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
+# Extending Model Optimizer with Caffe Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
 
 This section provides instruction on how to support a custom Caffe operation written only in Python. For example, the
 [Faster-R-CNN model](http://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0) implemented in
@@ -25,17 +25,17 @@ operation enabling pipeline and documentation on how to support other Caffe oper
 the main document [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
 
 ## Writing Extractor for Caffe Python Layer
-Custom Caffe Python layers have an attribute `type` (defining the type of the operation) equal to `Python` and two
-mandatory attributes `module` and `layer` in the `python_param` dictionary. The `module` defines the Python module name
-with the layer implementation, while `layer` value is an operation type defined by an user. In order to extract
+Custom Caffe Python layers have an attribute *`type`* (defining the type of the operation) equal to *`Python`* and two
+mandatory attributes *`module`* and *`layer`* in the *`python_param`* dictionary. The *`module`* defines the Python module name
+with the layer implementation, while *`layer`* value is an operation type defined by an user. In order to extract
 attributes for such an operation it is necessary to implement extractor class inherited from the
-`CaffePythonFrontExtractorOp` class instead of `FrontExtractorOp` class used for standard framework layers. The `op`
-class attribute value should be set to the `module + "." + layer` value so the extractor is triggered for this kind of
+*`CaffePythonFrontExtractorOp`* class instead of *`FrontExtractorOp`* class used for standard framework layers. The *`op`*
+class attribute value should be set to the *`module + "." + layer`* value so the extractor is triggered for this kind of
 operation.
 
 Here is a simplified example of the extractor for the custom operation Proposal from Faster-R-CNN model mentioned above.
 The full code with additional checks is provided in the [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py) file. The sample code uses
-operation `ProposalOp` which corresponds to `Proposal` operation described in the [Available Operations Sets](../../../ops/opset.md)
+operation *`ProposalOp`* which corresponds to *`Proposal`* operation described in the [Available Operations Sets](../../../ops/opset.md)
 document. Refer to the source code below for a detailed explanation of the extractor.
 
 ```py
