@@ -51,7 +51,7 @@ cd <path_to_kaldi_repo>/egs/aspire/s5/
 ```sh
 ./steps/online/nnet2/extract_ivectors_online.sh --nj 1 --ivector_period <max_frame_count_in_utterance> <data folder> exp/tdnn_7b_chain_online/ivector_extractor <ivector folder>
 ```
-You can simplify the preparation of ivectors for the Speech Recognition sample. To do it specify the maximum number of frames in utterances as a parameter for `--ivector_period`
+You can simplify the preparation of ivectors for the Speech Recognition sample. To do it, specify the maximum number of frames in utterances as a parameter for `--ivector_period`
 to get only one ivector per utterance.
 
 To get the maximum number of frames in utterances, use the following command line:
