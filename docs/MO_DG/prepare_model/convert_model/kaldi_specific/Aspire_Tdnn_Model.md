@@ -24,7 +24,7 @@ To run the ASpIRE Chain TDNN Model with Speech Recognition sample, You need to p
 3. Download the [model archive](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz) from Kaldi website.
 4. Extract the downloaded model archive to the *`egs/aspire/s5`* folder of the Kaldi repository.
 
-Once everything prepared, You can start proper run:
+Once everything has been prepared, you can start a proper run:
 
 1. Prepare the model for decoding. Refer to the *`README.txt`* file from the downloaded model archive for instructions.
 2. Convert data and ivectors to *`.ark`* format. Refer to the corresponding sections below for instructions.
