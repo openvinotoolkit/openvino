@@ -123,8 +123,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
-    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
