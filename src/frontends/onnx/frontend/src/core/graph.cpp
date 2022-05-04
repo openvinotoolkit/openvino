@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 
+#include "core/transform.hpp"
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
@@ -133,6 +134,8 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
       m_extensions{std::move(extensions)} {
     const auto ops_bridge = detail::init_ops_bridge(m_extensions.conversions);
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
+
+    transform::expand_onnx_functions(*model_proto);
 
     std::map<std::string, Tensor> initializers;
 

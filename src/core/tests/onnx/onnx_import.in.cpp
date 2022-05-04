@@ -428,6 +428,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_greater_or_equal_inside_if) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal_inside_if.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // case when condition == true and any(x >= y)
+    // expected value == x * y
+    std::vector<float> x(40, 2);
+    std::vector<float> y(40);
+    std::iota(y.begin(), y.end(), -20);
+    std::vector<float> expected;
+    std::transform(x.begin(), x.end(), y.begin(), std::back_inserter(expected), [](float i, float j) -> float {
+        return i * j;
+    });
+    test_case.add_input<bool>({true});  // condition
+    test_case.add_input<float>(x);
+    test_case.add_input<float>(y);
+    test_case.add_expected_output<float>(expected);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx"));
