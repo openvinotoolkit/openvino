@@ -4,7 +4,7 @@ Model Optimizer provides the option of making models more efficient by providing
 It is achieved with two parameters: *`--input_shape`* and *`--static_shape`*, used under certain conditions.
 
 @anchor when_to_specify_input_shapes
-## Specifying *`--input_shape`* Command-line Parameter
+## Specifying --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
@@ -63,7 +63,7 @@ Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
 Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
 
-## Specifying *`--static_shape`* Command-line Parameter
+## Specifying --static_shape Command-line Parameter
 Model Optimizer provides the *`--static_shape`* parameter that allows evaluating shapes of all operations in the model for fixed input shapes
 and folding shape computing sub-graphs into constants. The resulting IR may be more compact in size and the loading time for such IR may decrease.
 However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.
