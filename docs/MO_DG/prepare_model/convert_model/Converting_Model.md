@@ -63,7 +63,7 @@ Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
 For more information about shape follow the [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model) guides. 
 
-## Specifying -static_shape Command-line Parameter
+## Specifying --static_shape Command-line Parameter
 Model Optimizer provides the *`--static_shape`* parameter that allows evaluating shapes of all operations in the model for fixed input shapes
 and folding shape computing sub-graphs into constants. The resulting IR may be more compact in size and the loading time for such IR may decrease.
 However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.

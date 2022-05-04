@@ -8,8 +8,8 @@ The following examples are the situations when model cutting is useful or even r
 
 *   model has pre- or post-processing parts that cannot be translated to existing OpenVINO operations.
 *   model has a training part that is convenient to be kept in the model but not used during inference.
-*   model is too complex (contains lots of unsupported operations that cannot be easily implemented as custom layers), so the complete model cannot be converted in one go.
-*   problem with model conversion in the Model Optimizer or inference in the OpenVINO Runtime occurred. To identify the issue, limit the scope for conversion by iterative search for problematic areas in the model.
+*   model is too complex (contains a lot of unsupported operations that cannot be easily implemented as custom layers), so the complete model cannot be converted in one go.
+*   problem with model conversion in Model Optimizer or inference in the OpenVINO™ Runtime occurred. To identify the issue, limit the scope for conversion by iterative search for problematic areas in the model.
 *   single custom layer or a combination of custom layers is isolated for debugging purposes.
 
 ## Command-Line Options
@@ -19,9 +19,9 @@ Model Optimizer provides command line options *`--input`* and *`--output`* to sp
 *   *`--input`* option accepts a comma-separated list of layer names of the input model that should be treated as new entry points to the model.
 *   *`--output`* option accepts a comma-separated list of layer names of the input model that should be treated as new exit points from the model.
 
-The *`--input`* option is required for cases unrelated to model cutting. For example, when the model contains several inputs and *`--input_shape`* or *`--mean_values`* options are used, you should use the *`--input`* option to specify the order of input nodes for correct mapping between multiple items provided in *`--input_shape`* and *`--mean_values`* and the inputs in the model. Details on these options are out of scope for this document, which focuses on model cutting.
+The *`--input`* option is required for cases unrelated to model cutting. For example, when the model contains several inputs and *`--input_shape`* or *`--mean_values`* options are used, use the *`--input`* option. It specifies the order of input nodes for correct mapping between multiple items provided in *`--input_shape`* and *`--mean_values`* and the inputs in the model. Details on these options are out of scope for this document, which focuses on model cutting.
 
-Model cutting is illustrated with Inception V1. This model is in *`models/research/slim`* repository. [This section](Converting_Model.md) describes pre-work to prepare the model for the Model Optimizer to be ready to proceed with this chapter.
+Model cutting is illustrated with Inception V1. This model is in *`models/research/slim`* repository. [This section](Converting_Model.md) describes pre-work to prepare the model for Model Optimizer to be ready to proceed with this chapter.
 
 ## Default Behavior without --input and --output
 
@@ -41,7 +41,7 @@ Convert this model and put the results in a writable output directory:
 ```sh
 mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
-(The other examples on this page assume that you first cd to the *`model_optimizer`* directory and add the *`--output_dir`* argument with a directory where you have write permissions.)
+(The other examples on this page assume that you first cd to the *`model_optimizer`* directory and add the *`--output_dir`* argument with a directory where you have read/write permissions.)
 
 The output *`.xml`* file with an Intermediate Representation contains the *`Input`* layer among other layers in the model:
 ```xml
@@ -78,7 +78,7 @@ The last layer in the model is *`InceptionV1/Logits/Predictions/Reshape_1`*, whi
     </output>
 </layer>
 ```
-Due to automatic identification of inputs and outputs, you do not need to provide the *`--input`* and *`--output`* options to convert the whole model. The following commands are equivalent for the Inception V1 model:
+Due to automatic identification of inputs and outputs, providing the *`--input`* and *`--output`* options to convert the whole model is not required. The following commands are equivalent for the Inception V1 model:
 ```sh
 mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 
@@ -138,7 +138,7 @@ If you want to cut your model at the end, you have the following options:
 	</edges>
 </net>
 ```
-   As shown in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization *`InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm`* to the convolution *`InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`*, and it is not present in the final Intermediate Representation. This is not an effect of the *`--output`* option, it is usual behavior of the Model Optimizer for batch normalizations and convolutions. The effect of the *`--output`* is that the *`ReLU`* layer becomes the last one in the converted model.
+   As shown in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization *`InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm`* to the convolution *`InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`*, and it is not present in the final Intermediate Representation. This is not an effect of the *`--output`* option, it is usual behavior of Model Optimizer for batch normalizations and convolutions. The effect of the *`--output`* is that the *`ReLU`* layer becomes the last one in the converted model.
 
 2. The following command cuts the edge that comes from 0 output port of the *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* and the rest of the model, making this node the last one in the model:
    ```sh
@@ -222,7 +222,7 @@ If you want to cut your model at the end, you have the following options:
 
 If you want to go further and cut the beginning of the model, leaving only the *`ReLU`* layer, you have the following options:
 
-1.  You can use the following command line, where *`--input`* and *`--output`* specify the same node in the graph:
+1.  Use the following command line, where *`--input`* and *`--output`* specify the same node in the graph:
    ```sh
    mo --input_model=inception_v1.pb -b 1 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --input InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
    ```
@@ -250,10 +250,10 @@ If you want to go further and cut the beginning of the model, leaving only the *
 	</edges>
 </net>
 ```
-   *`Input`* layer is automatically created to feed the layer that is converted from the node specified in *`--input`*, which is *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* in this case. Model Optimizer does not replace the *`ReLU`* node by the *`Input`* layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. Therefore, the Model Optimizer creates enough *`Inputs`* to feed all input ports of the node that is passed in *`--input`*.<br>
+   *`Input`* layer is automatically created to feed the layer that is converted from the node specified in *`--input`*, which is *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* in this case. Model Optimizer does not replace the *`ReLU`* node by the *`Input`* layer. It produces such Intermediate Representation to make the node the first executable node in the final Intermediate Representation. Therefore, Model Optimizer creates enough *`Inputs`* to feed all input ports of the node that is passed in *`--input`*.<br>
 Even though *`--input_shape`* is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow model to the point, at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
-2. You can cut edge incoming to layer by port number. To specify incoming port use notation *`--input=port:input_node`*. 
+2. Cut edge incoming to layer by port number. To specify incoming port, use notation *`--input=port:input_node`*. 
 To cut everything before *`ReLU`* layer, cut edge incoming in port 0 of *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* node:
    ```sh
    mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
@@ -282,10 +282,10 @@ To cut everything before *`ReLU`* layer, cut edge incoming in port 0 of *`Incept
 	</edges>
 </net>
 ```
-   *`Input`* layer is automatically created to feed the layer that is converted from the node specified in *`--input`*, which is *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* in this case. Model Optimizer does not replace the *`ReLU`* node by the *`Input`* layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. Therefore, the Model Optimizer creates enough *`Inputs`* to feed all input ports of the node that is passed in *`--input`*.<br>
+   *`Input`* layer is automatically created to feed the layer that is converted from the node specified in *`--input`*, which is *`InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu`* in this case. Model Optimizer does not replace the *`ReLU`* node by the *`Input`* layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. Therefore, Model Optimizer creates enough *`Inputs`* to feed all input ports of the node that is passed in *`--input`*.<br>
 Even though *`--input_shape`* is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow model to the point, at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
-3. You can cut edge outcoming from layer by port number. To specify outcoming port use notation *`--input=input_node:port`*.
+3. Cut edge outcoming from layer by port number. To specify outcoming port, use notation *`--input=input_node:port`*.
 To cut everything before *`ReLU`* layer, cut edge from *`InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1`* node to *`ReLU`*:
    ```sh
    mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
@@ -356,7 +356,7 @@ gives the following shapes in the *`Input`* and *`ReLU`* layers:
 ```
 An input shape [1,20,5,10] in the final Intermediate Representation differs from the shape [1,5,10,20] specified in the command line, because the original TensorFlow model uses NHWC layout, but the Intermediate Representation uses NCHW layout. Thus, usual NHWC to NCHW layout conversion occurred.
 
-When *`--input_shape`* is specified, shape inference inside the Model Optimizer is not performed for the nodes in the beginning of the model that are not included in the translated region. It differs from the case when *`--input_shape`* is not specified as noted in the previous section, where the shape inference is still performed for such nodes to deduce shape for the layers that should fall into the final Intermediate Representation. Therefore, *`--input_shape`* should be used for a model with a complex graph with loops, which are not supported by the Model Optimizer, to exclude such parts from the Model Optimizer shape inference process completely.
+When *`--input_shape`* is specified, shape inference inside Model Optimizer is not performed for the nodes in the beginning of the model that are not included in the translated region. It differs from the case when *`--input_shape`* is not specified as noted in the previous section, where the shape inference is still performed for such nodes to deduce shape for the layers that should fall into the final Intermediate Representation. Therefore, *`--input_shape`* should be used for a model with a complex graph with loops, which are not supported by Model Optimizer, to exclude such parts from the Model Optimizer shape inference process completely.
 
 ## Inputs with Multiple Input Ports
 
@@ -365,7 +365,7 @@ There are operations that contain more than one input port. In the example consi
 *   port 0: input tensor for convolution (dynamic)
 *   port 1: convolution weights (constant)
 
-Following this behavior, the Model Optimizer creates an *`Input`* layer for port 0 only, leaving port 1 as a constant. Thus, the result of:
+Following this behavior, Model Optimizer creates an *`Input`* layer for port 0 only, leaving port 1 as a constant. Thus, the result of:
 
 ```sh
 mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --output_dir <OUTPUT_MODEL_DIR>
@@ -377,13 +377,13 @@ Different behavior occurs when *`--input_shape`* is also used as an attempt to o
 ```sh
 mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 ```
-An error occurs (for more information, see <a href="MO_FAQ.html#FAQ30">FAQ #30</a>):
+An error occurs (for more information, see the <a href="MO_FAQ.html#FAQ30">FAQ #30</a>):
 ```sh
 [ ERROR ]  Node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution has more than 1 input and input shapes were provided.
 Try not to provide input shapes or specify input port with PORT:NODE notation, where PORT is an integer.
 For more information, see FAQ #30
 ```
-When *`--input_shape`* is specified and the node contains multiple input ports, you need to specify an input port index together with an input node name. The input port index is specified in front of the node name with ':' as a separator (*`PORT:NODE`*). In the considered case, the port index 0 of the node *`InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`* should be specified as *`0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`*.
+When *`--input_shape`* is specified and the node contains multiple input ports, you need to provide an input port index together with an input node name. The input port index is specified in front of the node name with ':' as a separator (*`PORT:NODE`*). In this case, the port index 0 of the node *`InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`* should be specified as *`0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`*.
 
 The correct command line is:
 ```sh
