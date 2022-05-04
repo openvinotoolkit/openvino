@@ -1,6 +1,6 @@
 # Convert MXNet Style Transfer Model {#openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet}
 
-This article provides instructions on how to generate a model for style transfer using the public MXNet neural style transfer sample.
+This article provides instructions on how to generate a model for style transfer, using the public MXNet neural style transfer sample.
 
 **Step 1**: Download or clone the repository [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) with an MXNet neural style transfer sample.
 
@@ -35,7 +35,7 @@ def decoder_symbol():
     data = mx.sym.Variable('data')
     data = mx.sym.Convolution(data=data, num_filter=256, kernel=(3,3), pad=(1,1), stride=(1, 1), name='deco_conv1')
 ```
-Replace above code with following:<br>
+Replace the code above with the following:<br>
 ```py
 def decoder_symbol_with_vgg(vgg_symbol):
     data = mx.sym.Convolution(data=vgg_symbol, num_filter=256, kernel=(3,3), pad=(1,1), stride=(1, 1), name='deco_conv1')
@@ -64,7 +64,7 @@ decoder = symbol.decoder_symbol_with_vgg(vgg_symbol)
    arg_dict.update(args)
    ```
 
-6. Use *`arg_dict`* instead of *`args`* as a parameter of the *`decoder.bind()`* function. Find line below:<br>
+6. Use *`arg_dict`* instead of *`args`* as a parameter of the *`decoder.bind()`* function. Find the line below:<br>
 ```py
 self.deco_executor = decoder.bind(ctx=mx.gpu(), args=args, aux_states=auxs)
 ```
@@ -86,11 +86,11 @@ import make_image
 maker = make_image.Maker('models/13', (1024, 768))
 maker.generate('output.jpg', '../images/tubingen.jpg')
 ```
-The *`models/13`* string in the above code is composed of the following substrings:
+The *`models/13`* string in the code above is composed of the following substrings:
 * *`models/`* -- path to the folder that contains *`.nd`* files with pre-trained styles weights.
 * *`13`* -- prefix pointing to the default decoder for the repository, *`13_decoder`*.
 
-> **NOTE**: If an error prompts announcing that there is "No module named *`cPickle`*", try running the script from Step 5 in Python 2. After that return to Python 3 for the remaining steps.
+> **NOTE**: If an error prompts with "No module named *`cPickle`*", try running the script from Step 5 in Python 2. After that return to Python 3 for the remaining steps.
 
 Any style can be selected from [collection of pre-trained weights](https://pan.baidu.com/s/1skMHqYp). On the Chinese-language page, click the down arrow next to a size in megabytes. Then wait for an overlay box to appear, and click the blue button in it to download. The *`generate()`* function generates *`nst_vgg19-symbol.json`* and *`vgg19-symbol.json`* files for the specified shape. In the code, it is [1024 x 768] for a 4:3 ratio. You can specify another, for example, [224,224] for a square ratio.
 
