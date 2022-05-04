@@ -17,7 +17,7 @@ The instructions below are applicable **only** to the Faster R-CNN model convert
 
 Be aware that the height and width specified with the `input_shape` command line parameter could be different. For more information about supported input image dimensions and required pre- and post-processing steps, refer to the [Faster R-CNN article](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/faster-rcnn).
 
-3. Interpret the outputs. The generated IR file has several outputs from the *`DetectionOutput`* layer: 
+3. Interpret the outputs of the generated IR: class indices, probabilities and box coordinates. Below are the outputs from the "DetectionOutput" layer:
    * class indices.
    * probabilities.
    * box coordinates.
