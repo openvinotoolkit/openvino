@@ -84,7 +84,7 @@ Optional parameters without default values and not specified by the user in the 
 Internally, when you run the Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list of known layers. If your topology contains any layers that are not in this list of known layers, the Model Optimizer classifies them as custom.
 
 ## Supported Caffe Layers
-Refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
 
 ## Frequently Asked Questions (FAQ)
 

@@ -72,7 +72,7 @@ The Model Optimizer outputs the mapping between inputs and outputs. For example:
 must be copied to *`Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`*.
 
 ## Supported Kaldi Layers
-Refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)

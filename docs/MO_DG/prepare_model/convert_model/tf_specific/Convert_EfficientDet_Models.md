@@ -68,7 +68,7 @@ The attribute names are self-explanatory or match the name in the *`hparams_conf
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the *`RGB<->BGR`* conversion specifying the command-line parameter: *`--reverse_input_channels`*. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
 
 OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. 
-Refer to the [Open Model Zoo Demos](@ref omz_demos) for more information.
+For more information, refer to the [Open Model Zoo Demos](@ref omz_demos).
 
 ## <a name="efficientdet-ir-results-interpretation"></a>Interpreting Results of the TensorFlow Model and the IR
 

@@ -15,7 +15,7 @@ To convert an ONNX model, run Model Optimizer with the path to the input model *
 There are no ONNX specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) guide.
 
 ## Supported ONNX Layers
-Refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)

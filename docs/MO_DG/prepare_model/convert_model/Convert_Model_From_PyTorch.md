@@ -10,7 +10,7 @@ PyTorch framework is supported through export to ONNX format. In order to optimi
 PyTorch models are defined in a Python code. Use *`torch.onnx.export()`* method to export such models. The code to
 evaluate or test the model is usually provided with the model code and can be used to initialize and export model.
 Only the basics will be covered here. The export to ONNX is crucial, but it is covered by PyTorch framework.
-Refer to the [Exporting PyTorch models to ONNX format](https://pytorch.org/docs/stable/onnx.html) guide for more information.
+For more information, refer to the [Exporting PyTorch models to ONNX format](https://pytorch.org/docs/stable/onnx.html) guide.
 
 To export a PyTorch model, you need to obtain the model as an instance of *`torch.nn.Module`* class and call the *`export`* function.
 
@@ -31,7 +31,7 @@ torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 
 * As of version 1.8.1, not all PyTorch operations can be exported to ONNX opset 9 which is used by default.
 It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use *`opset_version`*
-option of the *`torch.onnx.export`*. Refer to the [Operator Schemas](https://github.com/onnx/onnx/blob/master/docs/Operators.md) page for more information about ONNX opset.
+option of the *`torch.onnx.export`*. For more information about ONNX opset, refer to the [Operator Schemas](https://github.com/onnx/onnx/blob/master/docs/Operators.md) page.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)

@@ -14,7 +14,7 @@ Below is the example command to convert yolo v3 PaddlePaddle network to OpenVINO
 ```
 
 ## Supported PaddlePaddle Layers
-Refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
 
 ## Frequently Asked Questions (FAQ)
 

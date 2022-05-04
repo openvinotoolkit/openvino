@@ -215,7 +215,7 @@ Output cutting:
 
 * *`LookupTableFindV2`* operation is cut from the output and the *`dynamic_seq2seq/decoder/decoder/GatherTree`* node is treated as a new exit point.
 
-Refer to the [Cutting Off Parts of a Model](../Cutting_Model.md) guide for more information about model cutting .
+For more information about model cutting, refer to the [Cutting Off Parts of a Model](../Cutting_Model.md) guide.
 
 ## Using GNMT Model <a name="run_GNMT"></a>
 
@@ -273,4 +273,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-Refer to the [OpenVINO Runtime Python API](ie_python_api/api.html) guide for more information about Python API.
+For more information about Python API, refer to the [OpenVINO Runtime Python API](ie_python_api/api.html) guide.

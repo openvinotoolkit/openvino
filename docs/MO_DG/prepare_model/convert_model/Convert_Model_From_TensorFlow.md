@@ -136,7 +136,7 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 ```
 
 ## Supported TensorFlow and TensorFlow 2 Keras Layers
-Refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page.
 
 ## Frequently Asked Questions (FAQ)
 The Model Optimizer provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.

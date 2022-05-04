@@ -9,7 +9,7 @@
 
 You can download TensorFlow Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
-> **NOTE**: Before converting, make sure you have configured Model Optimizer. Refer to the [Configuring Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md) for configuration steps.
+> **NOTE**: Before converting, make sure you have configured Model Optimizer. For configuration steps, refer to the [Configuring Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 To convert a TensorFlow Object Detection API model, run the *`mo`* command with the following required parameters:
 
@@ -43,7 +43,7 @@ To convert a TensorFlow Object Detection API model, run the *`mo`* command with 
     * *`rfcn_support_api_v1.13.json`* --- for RFCN topology from the models zoo frozen with TensorFlow version 1.13.X
     * *`rfcn_support_api_v1.14.json`* --- for RFCN topology from the models zoo frozen with TensorFlow version 1.14.0 or higher
 * *`--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>`* --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow Object Detection API zoo, the configuration file is named *`pipeline.config`*. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
-* *`--input_shape`* (optional) --- A custom input image shape. Refer to the [Custom Input Shape](#custom-input-shape) guide for more information how the *`--input_shape`* parameter is handled for the TensorFlow Object Detection API models.
+* *`--input_shape`* (optional) --- A custom input image shape. For more information how the *`--input_shape`* parameter is handled for the TensorFlow Object Detection API models, refer to the [Custom Input Shape](#custom-input-shape) guide.
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the *`RGB<->BGR`* conversion specifying the command-line parameter: *`--reverse_input_channels`*. Otherwise, inference results may be incorrect. If you convert a TensorFlow Object Detection API model to use with the OpenVINO sample applications, you must specify the *`--reverse_input_channels`* parameter. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
 

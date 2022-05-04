@@ -226,6 +226,6 @@ where:
 * *`--scale`* specifies scale factor that input values will be divided by.
 The model was trained with input values in the range *`[0,1]`*. OpenVINO&trade; toolkit samples read input images as values in *`[0,255]`* range, so the scale 255 must be applied.
 * *`--transformations_config`* adds missing *`Region`* layers to the model. In the IR, the *`Region`* layer has name *`RegionYolo`*.
-Refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide for other applicable parameters.
+For other applicable parameters, refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide.
 
-> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the *`RGB<->BGR`* conversion specifying the command-line parameter: *`--reverse_input_channels`*. Otherwise, inference results may be incorrect. Refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide for more information about the parameter.
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the *`RGB<->BGR`* conversion specifying the command-line parameter: *`--reverse_input_channels`*. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
