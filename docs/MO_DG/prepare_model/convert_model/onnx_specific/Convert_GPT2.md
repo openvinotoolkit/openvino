@@ -9,7 +9,7 @@ To download the model, go to [this model](https://github.com/onnx/models/blob/ma
 
 To download the model and sample test data, go to [this model](https://github.com/onnx/models/blob/master/text/machine_comprehension/gpt-2/model/gpt2-10.tar.gz), and press **Download**.
 
-## Convert ONNX* GPT-2 Model to IR
+## Convert ONNX GPT-2 Model to IR
 
 Generate the Intermediate Representation (IR) of the model GPT-2 by running the Model Optimizer with the following parameters:
 ```sh
