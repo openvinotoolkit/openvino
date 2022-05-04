@@ -41,7 +41,7 @@ Convert this model and put the results in a writable output directory:
 ```sh
 mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
-(The other examples on this page assume that you first cd to the *`model_optimizer`* directory and add the *`--output_dir`* argument with a directory where you have read/write permissions.)
+(The other examples on this page assume that you first *`cd`* to the *`model_optimizer`* directory and add the *`--output_dir`* argument with a directory where you have read/write permissions.)
 
 The output *`.xml`* file with an Intermediate Representation contains the *`Input`* layer among other layers in the model:
 ```xml
