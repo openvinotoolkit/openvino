@@ -64,7 +64,7 @@ decoder = symbol.decoder_symbol_with_vgg(vgg_symbol)
    arg_dict.update(args)
    ```
 
-6. Use *`arg_dict`* instead of *`args`* as a parameter of the *`decoder.bind()`* function. Find line below:<br>
+6. Use *`arg_dict`* instead of *`args`* as a parameter of the *`decoder.bind()`* function. Find the line below:<br>
 ```py
 self.deco_executor = decoder.bind(ctx=mx.gpu(), args=args, aux_states=auxs)
 ```
