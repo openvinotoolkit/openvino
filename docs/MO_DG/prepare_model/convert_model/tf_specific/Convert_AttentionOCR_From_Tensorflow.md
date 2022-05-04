@@ -12,7 +12,7 @@ This library contains a pretrained model and allows training and running AOCR, u
 ```
 aocr export --format=frozengraph model/path/
 ```
-Then, you can find the model in *`model/path/`* folder.
+Once extracted, the model can be found in *`model/path/`* folder.
 
 ## Converting the TensorFlow AOCR Model to IR
 
