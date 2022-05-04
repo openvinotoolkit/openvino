@@ -35,7 +35,7 @@ def decoder_symbol():
     data = mx.sym.Variable('data')
     data = mx.sym.Convolution(data=data, num_filter=256, kernel=(3,3), pad=(1,1), stride=(1, 1), name='deco_conv1')
 ```
-Replace above code with following:<br>
+Replace the code above with the following:<br>
 ```py
 def decoder_symbol_with_vgg(vgg_symbol):
     data = mx.sym.Convolution(data=vgg_symbol, num_filter=256, kernel=(3,3), pad=(1,1), stride=(1, 1), name='deco_conv1')
