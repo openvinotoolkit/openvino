@@ -75,14 +75,17 @@ fi
 # splitting Python version variable depending on the used shell 
 if [ -n "$ZSH_VERSION" ]; then
     version_arr=(${(@s:.:)python_version})
+    if [ "${#version_arr[@]}" -ge "2" ]; then
+        # zsh starts indexing from 1
+        python_version_major=${version_arr[1]}
+        python_version_minor=${version_arr[2]}
+    fi
 else
     version_arr=(${python_version//./ })
-fi
-
-if [ "${#version_arr[@]}" -ge "2" ]; then
-    # Use negative indices because zsh starts indexing from 1 instead of 0
-    python_version_major=${version_arr[-2]}
-    python_version_minor=${version_arr[-1]}
+    if [ "${#version_arr[@]}" -ge "2" ]; then
+        python_version_major=${version_arr[0]}
+        python_version_minor=${version_arr[1]}
+    fi
 fi
 
 PYTHON_VERSION_MAJOR="3"
