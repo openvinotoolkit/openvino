@@ -17,8 +17,9 @@ class ROIAlignExtractor(FrontExtractorOp):
         output_width = onnx_attr(node, 'output_width', 'i', default=1)
         sampling_ratio = onnx_attr(node, 'sampling_ratio', 'i', default=0)
         spatial_scale = onnx_attr(node, 'spatial_scale', 'f', default=1.0)
+        aligned_mode = onnx_attr(node, 'aligned_mode', 's', default=b'asymmetric').decode()
 
         ROIAlign.update_node_stat(node, {'pooled_h': output_height, 'pooled_w': output_width,
                                          'sampling_ratio': sampling_ratio, 'spatial_scale': spatial_scale,
-                                         'mode': mode})
+                                         'mode': mode, 'aligned_mode': aligned_mode})
         return cls.enabled
