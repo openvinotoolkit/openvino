@@ -20,7 +20,7 @@ In this example, the input data contains one utterance from one speaker.
 
 To run the ASpIRE Chain TDNN Model with Speech Recognition sample, You need to prepare environment. Do it by following the steps below :
 1. Download a [Kaldi repository](https://github.com/kaldi-asr/kaldi).
-2. Build it, by following instructions in *`README.md`* from the repository.
+2. Build it by following instructions in *`README.md`* from the repository.
 3. Download the [model archive](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz) from Kaldi website.
 4. Extract the downloaded model archive to the *`egs/aspire/s5`* folder of the Kaldi repository.
 
