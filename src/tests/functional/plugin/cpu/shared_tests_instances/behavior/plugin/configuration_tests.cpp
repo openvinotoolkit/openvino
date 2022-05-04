@@ -12,7 +12,10 @@ namespace {
     #if (defined(__APPLE__) || defined(_WIN32))
     auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
         auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-        if (numaNodes.size() > 1) {
+        auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+        if (coreTypes.size() > 1) {
+                return std::string{CONFIG_VALUE(HYBRID_AWARE)};
+        } else if (numaNodes.size() > 1) {
             return std::string{CONFIG_VALUE(NUMA)};
         } else {
             return std::string{CONFIG_VALUE(NO)};
