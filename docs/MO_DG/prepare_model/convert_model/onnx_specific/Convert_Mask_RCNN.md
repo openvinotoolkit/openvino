@@ -15,7 +15,7 @@ The instructions below are applicable **only** to the Mask R-CNN model converted
 --transformations_config front/onnx/mask_rcnn.json
 ```
 
-Be aware that the height and width specified with the `input_shape` command line parameter could be different. Refer to the [documentation](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn) for more information about supported input image dimensions and required pre- and post-processing steps.
+Be aware that the height and width specified with the *`input_shape`* command line parameter could be different. For more information about supported input image dimensions and required pre- and post-processing steps, refer to the [documentation](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn).
 
 3. Interpret the outputs. The generated IR file has several outputs: 
    * masks.
