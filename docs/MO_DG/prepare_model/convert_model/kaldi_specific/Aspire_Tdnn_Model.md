@@ -65,7 +65,7 @@ As a result, you will find the *`ivector_online.1.ark`* file in *`<ivector folde
 cd <ivector folder>
 ```
 
-4. Convert the *`ivector_online.1.ark`* file to text format using the *`copy-feats`* tool. Run the following command:
+4. Convert the *`ivector_online.1.ark`* file to text format, using the *`copy-feats`* tool. Run the following command:
 ```sh
 <path_to_kaldi_repo>/src/featbin/copy-feats --binary=False ark:ivector_online.1.ark ark,t:ivector_online.1.ark.txt
 ```
