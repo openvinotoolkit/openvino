@@ -1,6 +1,6 @@
 # Convert Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
 
-At the beginning You should [download a pre-trained model](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz)
+At the beginning, you should [download a pre-trained model](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz)
 for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project official website.
 
 ## Convert ASpIRE Chain TDNN Model to IR
