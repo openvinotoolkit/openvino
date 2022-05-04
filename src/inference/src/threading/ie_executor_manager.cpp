@@ -62,7 +62,6 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
         try {
             if (_tbb) {
                 _tbb->blocking_terminate();
-                std::cout << "\ttbb::blocking_terminate() is called." << std::endl;
             }
             _tbb = nullptr;
         } catch (std::exception& e) {

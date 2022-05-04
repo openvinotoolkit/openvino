@@ -1086,7 +1086,6 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_precision(const ie
  */
 INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t **blob);
 
-INFERENCE_ENGINE_C_API(void) ie_cleanup();
 /** @} */ // end of Blob
 
 #endif  // IE_C_API_H

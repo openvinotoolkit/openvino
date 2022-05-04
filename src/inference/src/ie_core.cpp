@@ -420,7 +420,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl(bool _newAPI) : executorManagerPtr(executorManager()), newAPI(_newAPI) {
+    CoreImpl(bool _newAPI) : executorManagerPtr(executorManager(true)), newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -431,7 +431,9 @@ public:
         opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() = default;
+    ~CoreImpl() {
+        resetExecutorManager();
+    }
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
@@ -1350,11 +1352,6 @@ private:
     }
 };
 
-void Cleanup::cleanup() {
-    ov::frontend::release_frontend_manager();
-    resetExecutorManager();
-}
-
 }  // namespace ov
 
 namespace InferenceEngine {
@@ -1444,11 +1441,6 @@ class Core::Impl : public ov::CoreImpl {
 public:
     Impl() : ov::CoreImpl(false) {}
 };
-
-void Cleanup::cleanup() {
-    ov::frontend::release_frontend_manager();
-    resetExecutorManager();
-}
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();

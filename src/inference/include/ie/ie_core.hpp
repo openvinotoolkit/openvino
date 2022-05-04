@@ -356,11 +356,4 @@ public:
      */
     RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
 };
-
-class INFERENCE_ENGINE_API_CLASS(Cleanup) {
-public:
-    Cleanup() = default;
-    ~Cleanup() = default;
-    void cleanup();
-};
 }  // namespace InferenceEngine
