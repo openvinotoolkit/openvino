@@ -1,5 +1,7 @@
 # Converting a PyTorch BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
 
+Goal of this article is to present you with a step-by-step guide on how to convert PyTorch BERT-NER Model to IR. First of all, it is required to download and convert the model to ONNX.
+
 ## Downloading and Converting the Model to ONNX
 
 To download a pretrained model or train the model yourself, refer
