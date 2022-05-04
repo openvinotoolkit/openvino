@@ -1,4 +1,4 @@
-# Converting TensorFlow XLNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
+# Converting a TensorFlow XLNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow}
 
 Pretrained models for XLNet (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/zihangdai/xlnet).
@@ -178,7 +178,7 @@ with tf.compat.v1.Session() as sess:
 
 The script should save into *`~/XLNet-Large/xlnet`*.
 
-## Converting frozen TensorFlow XLNet Model to IR
+## Converting a frozen TensorFlow XLNet Model to IR
 
 To generate the XLNet Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 

@@ -10,7 +10,7 @@ There are two inputs in this network: boolean *`phase_train`* which manages stat
 
 ![FaceNet model view](../../../img/FaceNet.png)
 
-## Converting TensorFlow FaceNet Model to the IR
+## Converting a TensorFlow FaceNet Model to the IR
 
 To generate FaceNet IR provide TensorFlow FaceNet model to Model Optimizer with parameters:
 ```sh

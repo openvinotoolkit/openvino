@@ -1,15 +1,15 @@
 # Converting a TensorFlow Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
-## Convert TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
+## Converting TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
 
-### Convert Frozen Model Format <a name="Convert_From_TF"></a>
+### Converting Frozen Model Format <a name="Convert_From_TF"></a>
 To convert a TensorFlow model, use the *`mo`* script to simply convert a model with a path to the input model *`.pb`* file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.pb
 ```
 
-### Convert Non-Frozen Model Formats <a name="loading-nonfrozen-models"></a>
+### Converting Non-Frozen Model Formats <a name="loading-nonfrozen-models"></a>
 There are three ways to store non-frozen TensorFlow models and convert them by Model Optimizer:
 
 1. **Checkpoint**. In this case, a model consists of two files: *`inference_graph.pb`* (or *`inference_graph.pbtxt`*) and *`checkpoint_file.ckpt`*.
@@ -65,7 +65,7 @@ Where:
 * *`inference_graph.pb`* is the name of the generated inference graph file.
 * *`as_text`* specifies whether the generated file should be in human readable text format or binary.
 
-## Convert TensorFlow 2 Models <a name="Convert_From_TF2X"></a>
+## Converting TensorFlow 2 Models <a name="Convert_From_TF2X"></a>
 To convert TensorFlow 2 models, ensure that *`openvino-dev[tensorflow2]`* is installed via *`pip`*.
 TensorFlow 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).
 Below are the instructions on how to convert each of them.

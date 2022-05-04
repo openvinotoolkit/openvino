@@ -1,4 +1,4 @@
-# Converting TensorFlow GNMT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
+# Converting a TensorFlow GNMT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow}
 
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
@@ -137,7 +137,7 @@ index f5823d8..a733748 100644
 ```
 3. Save and close the file.
 
-## Converting GNMT Model to the IR
+## Converting a GNMT Model to the IR
 
 > **NOTE**: Use TensorFlow version 1.13 or lower.
 
@@ -217,7 +217,7 @@ Output cutting:
 
 For more information about model cutting, refer to the [Cutting Off Parts of a Model](../Cutting_Model.md) guide.
 
-## Using GNMT Model <a name="run_GNMT"></a>
+## Using a GNMT Model <a name="run_GNMT"></a>
 
 > **NOTE**: This step assumes you have converted a model to the Intermediate Representation.
 

@@ -1,4 +1,4 @@
-# Converting PyTorch RCAN Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
+# Converting a PyTorch RCAN Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN}
 
 [RCAN](https://github.com/yulunzhang/RCAN): Image Super-Resolution Using Very Deep Residual Channel Attention Networks
 
@@ -23,7 +23,7 @@ torch.onnx.export(net, dummy_input, 'RCAN.onnx')
 ```
 The script generates the ONNX model file *`RCAN.onnx`*. More information about model parameters (`n_resblocks`, `n_resgroups`, and others) and different values of them can be found in the model repository. The model conversion was tested with the commit-SHA: *`3339ebc59519c3bb2b5719b87dd36515ec7f3ba7`*.
 
-## Converting ONNX RCAN Model to IR
+## Converting an ONNX RCAN Model to IR
 
 ```sh
 mo --input_model RCAN.onnx

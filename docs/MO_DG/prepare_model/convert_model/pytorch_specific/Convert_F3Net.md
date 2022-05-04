@@ -1,4 +1,4 @@
-# Converting PyTorch F3Net Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
+# Converting a PyTorch F3Net Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net}
 
 [F3Net](https://github.com/weijun88/F3Net): Fusion, Feedback and Focus for Salient Object Detection
 
@@ -26,7 +26,7 @@ torch.onnx.export(net, image, 'f3net.onnx', export_params=True, do_constant_fold
 ```
 The script generates the ONNX model file *`f3net.onnx`*. The model conversion was tested with the commit-SHA: *`eecace3adf1e8946b571a4f4397681252f9dc1b8`*.
 
-## Converting ONNX F3Net Model to IR
+## Converting an ONNX F3Net Model to IR
 
 ```sh
 mo --input_model <MODEL_DIR>/f3net.onnx

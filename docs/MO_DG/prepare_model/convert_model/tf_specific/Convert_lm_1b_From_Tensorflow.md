@@ -1,4 +1,4 @@
-# Converting TensorFlow Language Model on One Billion Word Benchmark {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
+# Converting a TensorFlow Language Model on One Billion Word Benchmark {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow}
 
 ## Downloading the Pretrained Language Model on One Billion Word Benchmark
 
@@ -75,7 +75,7 @@ from variables, and states of current inference of *`lstm`* is reassigned to the
 
 It helps the model to remember the context of the words that it takes as input.
 
-## Converting TensorFlow Language Model on One Billion Word Benchmark to IR
+## Converting a TensorFlow Language Model on One Billion Word Benchmark to IR
 
 Model Optimizer assumes that output model is for inference only.
 Therefore, you should cut those variables off and resolve keeping cell and hidden states on application level.

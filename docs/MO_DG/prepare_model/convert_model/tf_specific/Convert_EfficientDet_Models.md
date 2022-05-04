@@ -8,7 +8,7 @@ You will find on Github several public versions of EfficientDet model implementa
 convert models from the [https://github.com/google/automl/tree/master/efficientdet](https://github.com/google/automl/tree/master/efficientdet)
 repository (commit 96e1fee) to the IR.
 
-### Getting Frozen TensorFlow Model
+### Getting a Frozen TensorFlow Model
 
 Follow the instructions below to get frozen TensorFlow EfficientDet model. EfficientDet-D4 model is an example:
 
@@ -43,7 +43,7 @@ As a result, the frozen model file *`savedmodeldir/efficientdet-d4_frozen.pb`* w
 
 > **NOTE**: If you see an error *`AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'`*, apply the fix from the [patch](https://github.com/google/automl/pull/846).
 
-### Converting EfficientDet TensorFlow Model to the IR
+### Converting an EfficientDet TensorFlow Model to the IR
 
 To generate the IR of the EfficientDet TensorFlow model, run:<br>
 ```sh

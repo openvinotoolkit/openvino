@@ -1,4 +1,4 @@
-# Converting PyTorch QuartzNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
+# Converting a PyTorch QuartzNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
 
 [NeMo project](https://github.com/NVIDIA/NeMo) provides the QuartzNet model.
 
@@ -25,7 +25,7 @@ quartznet.export('qn.onnx')
 This code produces 3 ONNX model files: *`encoder_qn.onnx`*, *`decoder_qn.onnx`*, *`qn.onnx`*.
 They are *`decoder`*, *`encoder`*, and a combined *`decoder(encoder(x))`* models, respectively.
 
-## Converting ONNX QuartzNet model to IR
+## Converting an ONNX QuartzNet model to IR
 
 If using a combined model:
 ```sh

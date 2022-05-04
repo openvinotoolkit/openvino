@@ -1,4 +1,4 @@
-# Converting PyTorch BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
+# Converting a PyTorch BERT-NER Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner}
 
 ## Downloading and Converting the Model to ONNX
 
@@ -46,7 +46,7 @@ torch.onnx.export(ner_model,
 
 The script generates ONNX model file *`bert-ner.onnx`*.
 
-## Converting ONNX BERT-NER model to IR
+## Converting an ONNX BERT-NER model to IR
 
 ```bash
 mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"

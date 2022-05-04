@@ -1,9 +1,9 @@
-# Convert Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
+# Converting a Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model {#openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model}
 
 At the beginning, you should [download a pre-trained model](https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz)
 for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project official website.
 
-## Convert ASpIRE Chain TDNN Model to IR
+## Converting an ASpIRE Chain TDNN Model to IR
 
 Generate the Intermediate Representation (IR) of the model by running the Model Optimizer with the following parameters:
 ```sh
@@ -12,7 +12,7 @@ Generate the Intermediate Representation (IR) of the model by running the Model 
 
 The IR will have two inputs: *`input`* for data, and *`ivector`* for ivectors.
 
-## Example: Run ASpIRE Chain TDNN Model with the Speech Recognition Sample
+## Example: Running ASpIRE Chain TDNN Model with the Speech Recognition Sample
 
 > **NOTE**: Before you continue with this part of the article, get familiar with the [Speech Recognition sample](../../../../../samples/cpp/speech_sample/README.md).
 
@@ -29,7 +29,7 @@ Once everything has been prepared, you can start a proper run:
 1. Prepare the model for decoding. Refer to the *`README.txt`* file from the downloaded model archive for instructions.
 2. Convert data and ivectors to *`.ark`* format. Refer to the corresponding sections below for instructions.
 
-### Prepare Data
+### Preparing Data
 
 If you have a *`.wav`* data file, convert it to *`.ark`* format using the following command:
 ```sh
@@ -37,7 +37,7 @@ If you have a *`.wav`* data file, convert it to *`.ark`* format using the follow
 ```
 Add the *`feats.ark`* absolute path to *`feats.scp`* to avoid errors in later commands.
 
-### Prepare Ivectors
+### Preparing Ivectors
 
 Prepare ivectors for the Speech Recognition sample by doing the following:
 
@@ -99,7 +99,7 @@ length_file.close()
 <path_to_kaldi_repo>/src/featbin/copy-feats --binary=True ark,t:ivector_online_ie.ark.txt ark:ivector_online_ie.ark
 ```
 
-### Run the Speech Recognition Sample
+### Running the Speech Recognition Sample
 
 Run the Speech Recognition sample with the created ivector *`.ark`* file:
 ```sh

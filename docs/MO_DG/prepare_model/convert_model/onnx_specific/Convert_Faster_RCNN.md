@@ -1,4 +1,4 @@
-# Convert ONNX Faster R-CNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN}
+# Converting an ONNX Faster R-CNN Model {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN}
 
 The instructions below are applicable **only** to the Faster R-CNN model converted to the ONNX file format from the [maskrcnn-benchmark model](https://github.com/facebookresearch/maskrcnn-benchmark):
 

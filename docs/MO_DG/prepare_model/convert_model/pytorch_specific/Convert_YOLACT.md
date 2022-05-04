@@ -1,4 +1,4 @@
-# Converting PyTorch YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
+# Converting a PyTorch YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
 
 You Only Look At CoefficienTs (YOLACT) is a simple, fully convolutional model for real-time instance segmentation.
 The PyTorch implementation is publicly available in [this GitHub repository](https://github.com/dbolya/yolact).
@@ -123,7 +123,7 @@ index d83703b..f8c787c 100644
 ```
 3. Save and close the file.
 
-## Converting YOLACT Model to the IR format
+## Converting a YOLACT Model to the IR format
 
 **Step 1**. Clone the GitHub repository and check out the commit:
 

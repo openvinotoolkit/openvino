@@ -1,12 +1,12 @@
 # Converting a PyTorch Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
-## Typical Steps to Convert PyTorch Model <a name="typical-pytorch"></a>
+## Typical Steps to Convert a PyTorch Model <a name="typical-pytorch"></a>
 PyTorch framework is supported through export to ONNX format. In order to optimize and deploy a model that was trained with the PyTorch framework:
 
 1. [Export PyTorch model to ONNX](#export-to-onnx).
 2. [Convert an ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 
-## Exporting PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
+## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
 PyTorch models are defined in a Python code. Use *`torch.onnx.export()`* method to export such models. The code to
 evaluate or test the model is usually provided with the model code and can be used to initialize and export model.
 Only the basics will be covered here. The export to ONNX is crucial, but it is covered by PyTorch framework.

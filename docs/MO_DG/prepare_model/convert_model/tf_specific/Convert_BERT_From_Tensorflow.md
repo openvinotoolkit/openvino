@@ -1,4 +1,4 @@
-# Converting TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
+# Converting a TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
 
 Pretrained models for BERT (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/google-research/bert).
@@ -28,7 +28,7 @@ After the archive is unzipped, the directory *`uncased_L-12_H-768_A-12`* is crea
 
 Pretrained model meta-graph files are *`bert_model.ckpt.*`*.
 
-## Converting TensorFlow BERT Model to IR
+## Converting a TensorFlow BERT Model to IR
 
 To generate the BERT Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
 ```sh
@@ -40,10 +40,10 @@ To generate the BERT Intermediate Representation (IR) of the model, run Model Op
 
 Pretrained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
 
-# Converting Reshape-able TensorFlow BERT Model to IR
+# Converting a Reshape-able TensorFlow BERT Model to IR
 
-Follow these steps to make pretrained TensorFlow BERT model reshape-able over batch dimension:
-1. Download pretrained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
+Follow these steps to make a pretrained TensorFlow BERT model reshape-able over batch dimension:
+1. Download a pretrained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
 2. Clone google-research/bert git repository:
 ```sh
 https://github.com/google-research/bert.git
