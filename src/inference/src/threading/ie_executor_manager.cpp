@@ -47,11 +47,9 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     if (tbbTerminateFlag) {
         if (!_tbb) {
             _tbb = std::make_shared<tbb::task_scheduler_init>();
-            std::cout << "\ttbb::task_scheduler_init is created." << std::endl;
         }
     } else {
         _tbb = nullptr;
-        std::cout << "\ttbb::task_scheduler_init is release." << std::endl;
     }
 #endif
 }
@@ -71,7 +69,6 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
         }
 #endif
     }
-    std::cout << "ExecutorManager is released." << std::endl;
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
@@ -147,16 +144,13 @@ class ExecutorManagerHolder {
 
 public:
     ExecutorManagerHolder() = default;
-    ~ExecutorManagerHolder() {
-        std::cout << "ExecutorManagerHolder is released." << std::endl;
-    }
+    ~ExecutorManagerHolder() = default;
 
     ExecutorManager::Ptr get(bool addRef) {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_manager) {
             _manager = std::make_shared<ExecutorManagerImpl>();
             _refCount = 0;
-            std::cout << "ExecutorManager is created..." << std::endl;
         }
         if (addRef) {
             _refCount++;
@@ -170,7 +164,6 @@ public:
         if (_refCount <= 0) {
             _manager = nullptr;
             _refCount = 0;
-            std::cout << "ExecutorManager is released by unref." << std::endl;
         }
     }
 };

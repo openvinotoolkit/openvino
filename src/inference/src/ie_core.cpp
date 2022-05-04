@@ -1194,10 +1194,6 @@ public:
             if (config_is_device_name_in_regestry) {
                 SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
             }
-            // if (config.first == ov::force_tbb_terminate) {
-            //    auto flag = config.second.is<bool>() ? config.second.as<bool>() : false;
-            //    executorManagerPtr->setTbbFlag(flag);
-            // }
         }
     }
 
