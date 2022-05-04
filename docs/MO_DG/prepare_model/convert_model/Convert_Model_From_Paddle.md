@@ -1,13 +1,12 @@
-# Converting a PaddlePaddle Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
+# Converting a PaddlePaddle Model <a name="Convert_From_Paddle"></a> {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
 
-## Convert a PaddlePaddle Model <a name="Convert_From_Paddle"></a>
-To convert a PaddlePaddle model, use the `mo` script and specify a path to the input model `.pdmodel` file:
+To convert a PaddlePaddle model, use the *`mo`* script and specify a path to the input model *`.pdmodel`* file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.pdmodel
 ```
 
-### Example of Converting a PaddlePaddle Model
+## Example of Converting a PaddlePaddle Model
 Below is the example command to convert yolo v3 PaddlePaddle network to OpenVINO IR network with Model Optimizer.
 
 ```sh

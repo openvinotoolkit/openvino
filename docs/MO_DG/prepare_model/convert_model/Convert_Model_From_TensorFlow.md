@@ -3,7 +3,7 @@
 ## Convert TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
 
 ### Convert Frozen Model Format <a name="Convert_From_TF"></a>
-To convert a TensorFlow model, use the `mo` script to simply convert a model with a path to the input model `.pb` file:
+To convert a TensorFlow model, use the *`mo`* script to simply convert a model with a path to the input model *`.pb`* file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.pb
@@ -12,35 +12,35 @@ To convert a TensorFlow model, use the `mo` script to simply convert a model wit
 ### Convert Non-Frozen Model Formats <a name="loading-nonfrozen-models"></a>
 There are three ways to store non-frozen TensorFlow models and convert them by Model Optimizer:
 
-1. **Checkpoint**. In this case, a model consists of two files: `inference_graph.pb` (or `inference_graph.pbtxt`) and `checkpoint_file.ckpt`.
+1. **Checkpoint**. In this case, a model consists of two files: *`inference_graph.pb`* (or *`inference_graph.pbtxt`*) and *`checkpoint_file.ckpt`*.
 If you do not have an inference graph file, refer to the [Freezing Custom Models in Python](#freeze-the-tensorflow-model) section.
-To convert the model with the inference graph in `.pb` format, run the `mo` script with a path to the checkpoint file:
+To convert the model with the inference graph in *`.pb`* format, run the *`mo`* script with a path to the checkpoint file:
 ```sh
  mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT>
 ```
-To convert the model with the inference graph in `.pbtxt` format, run the `mo` script with a path to the checkpoint file:
+To convert the model with the inference graph in *`.pbtxt`* format, run the *`mo`* script with a path to the checkpoint file:
 ```sh
  mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text
 ```
 
-2. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: `model_name.meta`, `model_name.index`,
-`model_name.data-00000-of-00001` (number part may vary), and `checkpoint` (optional).
-To convert such TensorFlow model, run the `mo` script with a path to the MetaGraph `.meta` file:
+2. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: *`model_name.meta`*, *`model_name.index`*,
+*`model_name.data-00000-of-00001`* (number part may vary), and *`checkpoint`* (optional).
+To convert such TensorFlow model, run the *`mo`* script with a path to the MetaGraph *`.meta`* file:
 ```sh
  mo --input_meta_graph <INPUT_META_GRAPH>.meta
 ```
 
-3. **SavedModel format**. In this case, a model consists of a special directory with a `.pb` file
-and several subfolders: `variables`, `assets`, and `assets.extra`. For more information about the SavedModel directory, refer to the [README](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components) file in the TensorFlow repository.
-To convert such TensorFlow model, run the `mo` script with a path to the SavedModel directory:
+3. **SavedModel format**. In this case, a model consists of a special directory with a *`.pb`* file
+and several subfolders: *`variables`*, *`assets`*, and *`assets.extra`*. For more information about the SavedModel directory, refer to the [README](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components) file in the TensorFlow repository.
+To convert such TensorFlow model, run the *`mo`* script with a path to the SavedModel directory:
 ```sh
  mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
 ```
 
 You can convert TensorFlow 1.x SavedModel format in the environment that has a 1.x or 2.x version of TensorFlow. However, TensorFlow 2.x SavedModel format strictly requires the 2.x version of TensorFlow.
-If a model contains operations currently unsupported by OpenVINO, prune these operations by explicit specification of input nodes using the `--input` option.
-To determine custom input nodes, display a graph of the model in TensorBoard. To generate TensorBoard logs of the graph, use the `--tensorboard_logs` option.
-TensorFlow 2.x SavedModel format has a specific graph due to eager execution. In case of pruning, find custom input nodes in the `StatefulPartitionedCall/*` subgraph of TensorFlow 2.x SavedModel format.
+If a model contains operations currently unsupported by OpenVINO, prune these operations by explicit specification of input nodes using the *`--input`* option.
+To determine custom input nodes, display a graph of the model in TensorBoard. To generate TensorBoard logs of the graph, use the *`--tensorboard_logs`* option.
+TensorFlow 2.x SavedModel format has a specific graph due to eager execution. In case of pruning, find custom input nodes in the *`StatefulPartitionedCall/*`* subgraph of TensorFlow 2.x SavedModel format.
 
 ### Freezing Custom Models in Python <a name="freeze-the-tensorflow-model"></a>
 When a network is defined in Python code, you have to create an inference graph file. Graphs are usually built in a form
@@ -56,23 +56,23 @@ graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 
 Where:
 
-* `sess` is the instance of the TensorFlow Session object where the network topology is defined.
-* `["name_of_the_output_node"]` is the list of output node names in the graph; `frozen` graph will
-    include only those nodes from the original `sess.graph_def` that are directly or indirectly used
-    to compute given output nodes. The `'name_of_the_output_node'` is an example of possible output
+* *`sess`* is the instance of the TensorFlow Session object where the network topology is defined.
+* *`["name_of_the_output_node"]`* is the list of output node names in the graph; *`frozen`* graph will
+    include only those nodes from the original *`sess.graph_def`* that are directly or indirectly used
+    to compute given output nodes. The *`'name_of_the_output_node'`* is an example of possible output
     node name. You should derive the names based on your own graph.
-* `./` is the directory where the inference graph file should be generated.
-* `inference_graph.pb` is the name of the generated inference graph file.
-* `as_text` specifies whether the generated file should be in human readable text format or binary.
+* *`./`* is the directory where the inference graph file should be generated.
+* *`inference_graph.pb`* is the name of the generated inference graph file.
+* *`as_text`* specifies whether the generated file should be in human readable text format or binary.
 
 ## Convert TensorFlow 2 Models <a name="Convert_From_TF2X"></a>
-To convert TensorFlow 2 models, ensure that `openvino-dev[tensorflow2]` is installed via `pip`.
+To convert TensorFlow 2 models, ensure that *`openvino-dev[tensorflow2]`* is installed via *`pip`*.
 TensorFlow 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).
 Below are the instructions on how to convert each of them.
 
 ### SavedModel Format
-A model in the SavedModel format consists of a directory with a `saved_model.pb` file and two subfolders: `variables` and `assets`.
-To convert such a model, run the `mo` script with a path to the SavedModel directory:
+A model in the SavedModel format consists of a directory with a *`saved_model.pb`* file and two subfolders: *`variables`* and *`assets`*.
+To convert such a model, run the *`mo`* script with a path to the SavedModel directory:
 
 ```sh
  mo --saved_model_dir <SAVED_MODEL_DIRECTORY>
@@ -82,14 +82,14 @@ TensorFlow 2 SavedModel format strictly requires the 2.x version of TensorFlow i
 environment for conversion to the Intermediate Representation (IR).
 
 If a model contains operations currently unsupported by OpenVINO™,
-prune these operations by explicit specification of input nodes using the `--input` or `--output`
+prune these operations by explicit specification of input nodes using the *`--input`* or *`--output`*
 options. To determine custom input nodes, visualize a model graph in the TensorBoard.
 
-To generate TensorBoard logs of the graph, use the Model Optimizer `--tensorboard_logs` command-line
+To generate TensorBoard logs of the graph, use the Model Optimizer *`--tensorboard_logs`* command-line
 option.
 
 TensorFlow 2 SavedModel format has a specific graph structure due to eager execution. In case of
-pruning, find custom input nodes in the `StatefulPartitionedCall/*` subgraph.
+pruning, find custom input nodes in the *`StatefulPartitionedCall/*`* subgraph.
 
 ### Keras H5
 If you have a model in the HDF5 format, load the model using TensorFlow* 2 and serialize it in the
@@ -102,7 +102,7 @@ tf.saved_model.save(model,'model')
 ```
 
 The Keras H5 model with a custom layer has specifics to be converted into SavedModel format.
-For example, the model with a custom layer `CustomLayer` from `custom_layer.py` is converted as follows:
+For example, the model with a custom layer *`CustomLayer`* from *`custom_layer.py`* is converted as follows:
 
 ```python
 import tensorflow as tf
@@ -122,7 +122,7 @@ Then follow the above instructions for the SavedModel format.
  mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
 ```
 
-* Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`
+* Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir *`/tmp/log_dir`*
 
 ```sh
  mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir

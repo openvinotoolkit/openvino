@@ -3,10 +3,10 @@
 ## Introduction to ONNX
 [ONNX](https://github.com/onnx/onnx) is a representation format for deep learning models. ONNX allows AI developers to easily transfer models between different frameworks that helps to choose the best combination for them. Today, PyTorch, Caffe2, Apache MXNet, Microsoft Cognitive Toolkit and other tools are developing ONNX support.
 
-## Convert an ONNX Model <a name="Convert_From_ONNX"></a>
+## Converting an ONNX Model <a name="Convert_From_ONNX"></a>
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX model, run Model Optimizer with the path to the input model `.onnx` file:
+To convert an ONNX model, run Model Optimizer with the path to the input model *`.onnx`* file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.onnx
