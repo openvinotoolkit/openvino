@@ -282,6 +282,7 @@ class TestLoop(OnnxRuntimeLayerTest):
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
     def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir, api_2):
-        pytest.skip('The model used in the test is incorrect according to ONNX standart: 70158')
+        if ie_device == 'GPU':
+            pytest.skip('Loop not supported on GPU')
         self._test(*self.create_loop_in_loop(), ie_device, precision, ir_version, temp_dir=temp_dir,
                    infer_timeout=150, api_2=api_2)
