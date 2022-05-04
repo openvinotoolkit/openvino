@@ -39,7 +39,7 @@ Add the *`feats.ark`* absolute path to *`feats.scp`* to avoid errors in later co
 
 ### Prepare Ivectors
 
-Prepare ivectors for the Speech Recognition sample, do the following:
+Prepare ivectors for the Speech Recognition sample by doing the following:
 
 1. Copy the *`feats.scp`* file to the *`egs/aspire/s5/`* directory of the built Kaldi repository and navigate there:
 ```sh
