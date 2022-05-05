@@ -144,7 +144,7 @@ declared in `namespace opset9`.
 * [ReverseSequence](movement/ReverseSequence_1.md)
 * [RNNCell](sequence/RNNCell_3.md)
 * [RNNSequence](sequence/RNNSequence_5.md)
-* [ROIAlign](detection/ROIAlign_3.md)
+* [ROIAlign](detection/ROIAlign_9.md)
 * [ROIPooling](detection/ROIPooling_1.md)
 * [Roll](movement/Roll_7.md)
 * [Round](arithmetic/Round_5.md)
