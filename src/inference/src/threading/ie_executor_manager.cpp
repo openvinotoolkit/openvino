@@ -55,7 +55,6 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 }
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {
-    clear();
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
