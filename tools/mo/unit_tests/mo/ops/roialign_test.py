@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-from front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 
 import numpy as np
 from openvino.tools.mo.graph.graph import Node
