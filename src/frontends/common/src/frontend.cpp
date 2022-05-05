@@ -9,7 +9,6 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
-#include "openvino/op/constant.hpp"
 #include "plugin_loader.hpp"
 #include "so_extension.hpp"
 #include "utils.hpp"
@@ -27,11 +26,6 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
                                         ov_model->get_friendly_name());
     copy->m_shared_object = shared_object;
     copy->get_rt_info() = ov_model->get_rt_info();
-    for (auto& op : copy->get_ordered_ops()) {
-        if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
-            c->m_shared_object = shared_object;
-        }
-    }
     return copy;
 }
 

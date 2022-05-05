@@ -249,8 +249,8 @@ namespace frontend {
 namespace {
 
 class FrontEndManagerHolder {
-    std::mutex _mutex;
-    std::shared_ptr<FrontEndManager> _manager = nullptr;
+    std::mutex m_mutex;
+    std::shared_ptr<FrontEndManager> m_manager = nullptr;
 
     FrontEndManagerHolder(const FrontEndManagerHolder&) = delete;
     FrontEndManagerHolder& operator=(const FrontEndManagerHolder&) = delete;
@@ -260,32 +260,32 @@ public:
     ~FrontEndManagerHolder() = default;
 
     FrontEndManager::Ptr get() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!_manager) {
-            _manager = std::make_shared<FrontEndManager>();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_manager) {
+            m_manager = std::make_shared<FrontEndManager>();
         }
-        return _manager;
+        return m_manager;
     }
 
     void release() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _manager = nullptr;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_manager = nullptr;
     }
 };
 
-FrontEndManagerHolder& frontEndManagerHolder() {
-    static FrontEndManagerHolder frontEndManagerHolder;
-    return frontEndManagerHolder;
+FrontEndManagerHolder& get_frontend_manager_holder() {
+    static FrontEndManagerHolder frontend_manager_holder;
+    return frontend_manager_holder;
 }
 
 }  // namespace
 
 void release_frontend_manager() {
-    frontEndManagerHolder().release();
+    get_frontend_manager_holder().release();
 }
 
 FrontEndManager::Ptr get_frontend_manager() {
-    return frontEndManagerHolder().get();
+    return get_frontend_manager_holder().get();
 }
 
 }  // namespace frontend

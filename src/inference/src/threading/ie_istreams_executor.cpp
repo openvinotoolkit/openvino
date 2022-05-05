@@ -17,6 +17,7 @@
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}

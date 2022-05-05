@@ -6,10 +6,6 @@ add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(cmake/install_tbb.cmake)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-fno-gnu-unique)
-endif()
-
 # CC library should be registered before other cc targets
 add_subdirectory(common)
 # TODO: Fix Wall for core, frontends, tests and  c binding

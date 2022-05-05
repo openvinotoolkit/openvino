@@ -65,6 +65,8 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
             }
             _tbb = nullptr;
         } catch (std::exception& e) {
+            _tbb = nullptr;
+            IE_THROW() << e.what();
         }
 #endif
     }

@@ -10,7 +10,6 @@
 #include "ie_blob.h"
 #include "ie_iextension.h"
 #include "openvino/core/extension.hpp"
-#include "openvino/frontend/manager.hpp"
 
 namespace InferenceEngine {
 namespace details {
