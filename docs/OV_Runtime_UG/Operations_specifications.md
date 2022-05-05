@@ -76,6 +76,7 @@
    GatherND-8 <openvino_docs_ops_movement_GatherND_8>
    GELU-2 <openvino_docs_ops_activation_GELU_2>
    GELU-7 <openvino_docs_ops_activation_GELU_7>
+   GenerateProposals-9 <openvino_docs_ops_detection_GenerateProposals_9>
    GreaterEqual-1 <openvino_docs_ops_comparison_GreaterEqual_1>
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>

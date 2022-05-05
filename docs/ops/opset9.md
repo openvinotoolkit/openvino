@@ -69,6 +69,7 @@ declared in `namespace opset9`.
 * [GatherND](movement/GatherND_8.md)
 * [GatherTree](movement/GatherTree_1.md)
 * [Gelu](activation/GELU_7.md)
+* [GenerateProposals](detection/GenerateProposals_9.md)
 * [Greater](comparison/Greater_1.md)
 * [GreaterEqual](comparison/GreaterEqual_1.md)
 * [GRN](normalization/GRN_1.md)
