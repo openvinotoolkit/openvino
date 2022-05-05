@@ -13,7 +13,7 @@ namespace {
 CommonDispatchData SetDefault(const dft_params &params) {
     CommonDispatchData dispatchData;
 
-    auto outDims = params.output.LogicalDims();
+    auto outDims = params.outputs.front().LogicalDims();
     // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
     // we are skipping x, since it contains complex pairs
     auto complexSize = std::accumulate(outDims.begin() + 1, outDims.end(), size_t{1}, std::multiplies<size_t>{});
@@ -70,7 +70,7 @@ bool DFTKernelRef::Validate(const Params &p, const optional_params &o) const {
 
 JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     auto jit_constants = MakeBaseParamsJitConstants(params);
-    const auto output_sizes = params.output.LogicalDims();
+    const auto output_sizes = params.outputs.front().LogicalDims();
     const auto input_sizes = params.inputs.front().LogicalDims();
     const auto n1 = input_sizes.size() - 1;
     for (auto axis : params.axes) {
