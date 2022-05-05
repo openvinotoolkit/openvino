@@ -1,10 +1,8 @@
-# Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™ {#openvino_docs_MO_DG_IR_and_opsets}
+# Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO {#openvino_docs_MO_DG_IR_and_opsets}
 
-This document provides essential information on the format used for representation of deep learning models in OpenVINO™ toolkit and supported operation sets.  
+This article provides essential information on the format used for representation of deep learning models in OpenVINO toolkit and supported operation sets.  
 
 ## Overview of Artificial Neural Networks Representation
-
-This paragraph provides an overview of how a deep learning network is represented in various deep learning frameworks.
 
 A deep learning network is usually represented as a directed graph describing the flow of data from the network input data to the inference results.
 Input data can be represented as a photograph, video, audio information or some preprocessed data that represent object from the target area of interest in a convenient way.
@@ -14,10 +12,10 @@ Here is an illustration of a small graph representing a model that consists of a
 ![](img/small_IR_graph_demonstration.png)
 
 Vertices in the graph represent layers or operation instances, like convolution, pooling or element-wise operations with tensors.
-Layer and operation terms are used interchangeably along the OpenVINO™ documentation and define how input data is processed to produce output data for a node in a graph.
+Layer and operation terms are used interchangeably along the OpenVINO documentation and define how input data is processed to produce output data for a node in a graph.
 An operation node in a graph may consume data at one or multiple input ports.
 For example, element-wise addition operation has two input ports which accepts tensors that are added together.
-Some operations don't have any input ports, for example Const operation which knowns the data to be produced without any input.
+Some operations don't have any input ports, for example *`Const`* operation which knowns the data to be produced without any input.
 An edge between operations represent data flow or data dependency implied from one operation node to another operation node.
 
 Each operation produces data on one or multiple output ports. For example, convolution produces output tensor with activations at a single output port. Split operation usually has multiple output ports each producing part of an input tensor.
@@ -30,15 +28,15 @@ A set of various operations used in a network is usually fixed for each deep lea
 It determines expressiveness and level of representation available in that framework.
 It may happen that a network that can be represented in one framework is hard or impossible to be represented in another one or should use significantly different graph because operation sets used in those two frameworks do not match.
 
-## Intermediate Representation Used in OpenVINO™
+## Intermediate Representation Used in OpenVINO
 
-OpenVINO™ toolkit introduces its own format of graph representation and its own operation set.
+OpenVINO toolkit introduces its own format of graph representation and its own operation set.
 A graph is represented with two files: an XML file and a binary file.
 This representation is commonly referred to as the *Intermediate Representation* or *IR*.
 
-The XML file describes a network topology using a `<layer>` tag for an operation node and an `<edge>` tag for a data-flow connection.
+The XML file describes a network topology using a *`<layer>`* tag for an operation node and an *`<edge>`* tag for a data-flow connection.
 Each operation has a fixed number of attributes that define operation flavor used for a node.
-For example, `Convolution` operation has such attributes as `dilation`, `stride`, `pads_begin` and `pads_end`.
+For example, *`Convolution`* operation has such attributes as *`dilation`*, *`stride`*, *`pads_begin`* and *`pads_end`*.
 
 The XML file doesn't have big constant values, like convolution weights.
 Instead, it refers to a part of the accompanying binary file that stores such values in a binary format.
@@ -156,43 +154,43 @@ In contrast, properties of data such as tensor dimensions and their data types a
 
 ## Operation Set
 
-Operations in the OpenVINO™ Operation Set are selected based on capabilities of supported deep learning frameworks and hardware capabilities of the target inference device.
+Operations in the OpenVINO Operation Set are selected based on capabilities of supported deep learning frameworks and hardware capabilities of the target inference device.
 It consists of several groups of operations:
 
- * Conventional deep learning layers like Convolution, MaxPool, MatMul (also known as FullyConnected).
+ * Conventional deep learning layers, like *`Convolution`*, *`MaxPool`*, *`MatMul`* (also known as *`FullyConnected`*).
 
- * Various activation functions, e.g. ReLU, Tanh, PReLU.
+ * Various activation functions, like *`ReLU`*, *`Tanh`*, *`PReLU`*.
 
- * Generic element-wise arithmetic tensor operations like Add, Subtract, Multiply.
+ * Generic element-wise arithmetic tensor operations, like *`Add`*, *`Subtract`*, *`Multiply`*.
 
- * Comparison operations that compare two numeric tensors and produce boolean tensors, for example Less, Equeal, Greater.
+ * Comparison operations that compare two numeric tensors and produce boolean tensors, like *`Less`*, *`Equeal`*, *`Greater`*.
 
- * Logical operations that are dealing with boolean tensors, like And, Xor, Not.
+ * Logical operations that are dealing with boolean tensors, like *`And`*, *`Xor`*, *`Not`*.
 
- * Data movement operations which are dealing with parts of tensors: Concat, Split, StridedSlice, Select.
+ * Data movement operations which are dealing with parts of tensors, like *`Concat`*, *`Split`*, *`StridedSlice`*, *`Select`*.
 
- * Specialized operations that implement complex algorithms dedicated for models of specific type: DetectionOutput, RegionYolo, PriorBox.
+ * Specialized operations that implement complex algorithms dedicated for models of specific type, like *`DetectionOutput`*, *`RegionYolo`*, *`PriorBox`*.
 
-Refer to the complete description of the supported operation sets in the [Available Operation Sets](../ops/opset.md) document.
+For more information, refer to the complete description of the supported operation sets in the [Available Operation Sets article](../ops/opset.md).
 
 ## IR Versions vs Operation Set Versions
 
-The expressiveness of operations in OpenVINO™ is highly dependent on the supported frameworks and target hardware capabilities.
+The expressiveness of operations in OpenVINO is highly dependent on the supported frameworks and target hardware capabilities.
 As the frameworks and hardware capabilities grow over time, the operation set is constantly evolving to support new models.
 To maintain backward compatibility and growing demands, both IR format and operation set have versioning.
 
 Version of IR specifies the rules which are used to read the XML and binary files that represent a model. It defines an XML schema and compatible operation set that can be used to describe operations.
 
-Historically, there are two major IR version epochs. 
+Historically, there are two major IR version epochs:
 
 1. The older one includes IR versions from version 1 to version 7 without versioning of the operation set. During that epoch, the operation set has been growing evolutionally accumulating more layer types and extending existing layer semantics. Changing of the operation set for those versions meant increasing of IR version. 
 
-2. OpenVINO™ 2020.1 is the starting point of the next epoch. With IR version 10 introduced in OpenVINO™ 2020.1, the versioning of the operation set is tracked separately from the IR versioning. Also, the operation set was significantly reworked as the result of nGraph integration to the OpenVINO.
+2. OpenVINO 2020.1 is the starting point of the next epoch. With IR version 10 introduced in OpenVINO 2020.1, the versioning of the operation set is tracked separately from the IR versioning. Also, the operation set was significantly reworked as the result of nGraph integration to the OpenVINO.
 
-The first supported operation set in the new epoch is `opset1`.
-The number after `opset` is going to be increased each time when new operations are added or old operations deleted at the release cadence.
+The first supported operation set in the new epoch is *`opset1`*.
+The number after *`opset`* is going to be increased each time when new operations are added or old operations deleted at the release cadence.
 
-The operations from the new epoch cover more TensorFlow* and ONNX* operators in a form that is closer to the original operation semantics from the frameworks in comparison to the operation set used in former versions of IR (7 and lower).
+The operations from the new epoch cover more TensorFlow and ONNX operators in a form that is closer to the original operation semantics from the frameworks in comparison to the operation set used in former versions of IR (7 and lower).
 
 The name of the opset is specified for each operation in IR.
 The IR version is specified once per whole IR.
@@ -215,16 +213,16 @@ Here is an example from the IR snippet:
                     ...
 ```
 
-The attributes `type="Parameter"` and `version="opset1"` in the example above mean "use that version of operation `Parameter` that is included into the operation set `opset1`".
+The attributes *`type="Parameter"`* and *`version="opset1"`* in the above example mean "use that version of operation *`Parameter`* that is included into the operation set *`opset1`*".
 
 When a new operation set is introduced, the significant part of the operations remains unchanged and it is just aliased from the previous operation set within a new one.
 The goal of operation set versions evolution is adding new operations, and probably changing of small fraction of existing operations (fixing bugs and extending semantics).
-However such changes affect only new versions of operations from a new operation set, while old operations are used by specifying an appropriate `version`.
-When the old `version` is specified, the behavior is kept unchanged from that specified version to provide the backward compatibility with older IRs.
+However such changes affect only new versions of operations from a new operation set, while old operations are used by specifying an appropriate *`version`*.
+When the old *`version`* is specified, the behavior is kept unchanged from that specified version to provide the backward compatibility with older IRs.
 
-A single `xml` file with IR may contain operations from different opsets.
-An operation that is included into several opsets may be referred to with `version` which points to any opset that includes that operation.
-For example, the same `Convolution` can be used with `version="opset1"` and `version="opset2"` because both opsets have the same operations `Convolution`.
+A single *`xml`* file with IR may contain operations from different opsets.
+An operation that is included into several opsets may be referred to with *`version`* which points to any opset that includes that operation.
+For example, the same *`Convolution`* can be used with *`version="opset1"`* and *`version="opset2"`* because both opsets have the same operations *`Convolution`*.
 
 ## How to Read the Specification
 
@@ -233,13 +231,12 @@ Each opset specification has a list of links to operations descriptions that are
 Two or more opsets may refer to the same operation.
 That means an operation is kept unchanged from one operation set to another.
 
-Each operation description has a field `Versioned name`.
-For example, `ReLU` entry point in [`opset1`](../ops/opset1.md) refers to [`ReLU-1`](../ops/activation/ReLU_1.md) as the versioned name.
-And `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single [description](../ops/activation/ReLU_1.md).
-So `opset1` and `opset2` share the same operation `ReLU`.
+Each operation description has a field *`Versioned name`*.
+For example, *`ReLU`* entry point in [`opset1`](../ops/opset1.md) refers to [`ReLU-1`](../ops/activation/ReLU_1.md) as the versioned name.
+Meanwhile, *`ReLU`* in *`opset2`* refers to the same *`ReLU-1`* and both *`ReLU`* operations are the same operation and it has a single [description](../ops/activation/ReLU_1.md), which means that *`opset1`* and *`opset2`* share the same operation *`ReLU`*.
 
-To differentiate versions of the same operation type, like `ReLU`, the suffix `-N` is used in a versioned name of the operation.
-`N` usually refers to the first `opsetN` where this version of the operation is introduced.
-It is not guaranteed that new operations will be named according to that rule, the naming convention might be changed, but not for old operations which are frozen completely.
+To differentiate versions of the same operation type, like *`ReLU`*, the suffix *`-N`* is used in a versioned name of the operation.
+The *`N`* usually refers to the first *`opsetN`* where this version of the operation is introduced.
+It is not guaranteed that new operations will be named according to that rule. The naming convention might be changed, but not for old operations which are frozen completely.
 
 
