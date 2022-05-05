@@ -2,32 +2,75 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "threading/ie_executor_manager.hpp"
+#include "ie_parallel.hpp"
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    include <tbb/task_scheduler_init.h>
+#endif
 
 #include <memory>
+#include <mutex>
 #include <string>
+#include <threading/ie_cpu_streams_executor.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include <utility>
-
-#include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
 namespace {
 class ExecutorManagerImpl : public ExecutorManager {
 public:
+    ~ExecutorManagerImpl();
     ITaskExecutor::Ptr getExecutor(const std::string& id) override;
     IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
     size_t getExecutorsNumber() const override;
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
+    void setTbbFlag(bool flag) override;
 
 private:
+    bool tbbTerminateFlag = false;
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
     mutable std::mutex taskExecutorMutex;
+    mutable std::mutex tbbMutex;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+    std::shared_ptr<tbb::task_scheduler_init> _tbb = nullptr;
+#endif
 };
 
 }  // namespace
+
+void ExecutorManagerImpl::setTbbFlag(bool flag) {
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    tbbTerminateFlag = flag;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+    if (tbbTerminateFlag) {
+        if (!_tbb) {
+            _tbb = std::make_shared<tbb::task_scheduler_init>();
+        }
+    } else {
+        _tbb = nullptr;
+    }
+#endif
+}
+
+ExecutorManagerImpl::~ExecutorManagerImpl() {
+    clear();
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    if (tbbTerminateFlag) {
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        try {
+            if (_tbb) {
+                _tbb->blocking_terminate();
+            }
+            _tbb = nullptr;
+        } catch (std::exception& e) {
+            _tbb = nullptr;
+            IE_THROW() << e.what();
+        }
+#endif
+    }
+}
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     std::lock_guard<std::mutex> guard(taskExecutorMutex);
@@ -90,9 +133,55 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
-ExecutorManager::Ptr executorManager() {
-    static auto manager = std::make_shared<ExecutorManagerImpl>();
-    return manager;
+namespace {
+
+class ExecutorManagerHolder {
+    std::mutex _mutex;
+    std::shared_ptr<ExecutorManager> _manager = nullptr;
+    int32_t _refCount = 0;
+
+    ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
+    ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
+
+public:
+    ExecutorManagerHolder() = default;
+    ~ExecutorManagerHolder() = default;
+
+    ExecutorManager::Ptr get(bool addRef) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!_manager) {
+            _manager = std::make_shared<ExecutorManagerImpl>();
+            _refCount = 0;
+        }
+        if (addRef) {
+            _refCount++;
+        }
+        return _manager;
+    }
+
+    void unref() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _refCount--;
+        if (_refCount <= 0) {
+            _manager = nullptr;
+            _refCount = 0;
+        }
+    }
+};
+
+ExecutorManagerHolder& executorManagerHolder() {
+    static ExecutorManagerHolder executorManagerHolder;
+    return executorManagerHolder;
+}
+
+}  // namespace
+
+void resetExecutorManager() {
+    executorManagerHolder().unref();
+}
+
+ExecutorManager::Ptr executorManager(bool addRef) {
+    return executorManagerHolder().get(addRef);
 }
 
 ExecutorManager* ExecutorManager::getInstance() {
