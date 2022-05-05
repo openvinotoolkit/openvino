@@ -47,7 +47,7 @@ void ov::op::v9::SoftSign::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this,
                           input_et.is_dynamic() || input_et.is_real(),
-                          "Input element type must be float. Got: ",
+                          "Input element type must be float, instead got: ",
                           input_et);
 
     UnaryElementwiseArithmetic::validate_and_infer_types();
@@ -67,10 +67,10 @@ std::shared_ptr<ov::Node> ov::op::v9::SoftSign::clone_with_new_inputs(const Outp
 bool ov::op::v9::SoftSign::has_evaluate() const {
     NGRAPH_OP_SCOPE(v9_SoftSign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::f64:
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::f64:
         return true;
     default:
         break;
@@ -82,6 +82,14 @@ bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
                                     const ov::TensorVector& inputs,
                                     const ov::EvaluationContext& evaluation_context) const {
     NGRAPH_OP_SCOPE(v9_SoftSign_evaluate);
+
+    OPENVINO_ASSERT(outputs.size() == 1 && inputs.size() == 1,
+                    "SoftSign evaluate needs exactly 1 input and 1 output, instead got:",
+                    inputs.size(),
+                    " input(s) and ",
+                    outputs.size(),
+                    " output(s).");
+
     const auto& in = inputs[0];
     auto& out = outputs[0];
     out.set_shape(in.get_shape());
