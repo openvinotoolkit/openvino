@@ -43,11 +43,6 @@ OutputVector loop(const Node& node) {
 
     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
-    std::map<std::size_t, std::string> loop_carried_dependencies_map;
-    for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++) {
-        loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_tensor().get_any_name();
-    }
-
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
     auto body_outputs = body_graph->get_ng_outputs();
