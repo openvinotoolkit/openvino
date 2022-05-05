@@ -258,7 +258,7 @@ int MKLDNNEdge::getOutputNum() const {
     return child_port;
 }
 
-void MKLDNNEdge::allocate(const void* mem_ptr) {
+void MKLDNNEdge::allocateCommon(const std::function<void(const MKLDNNMemoryPtr&, const MemoryDesc&)>& allocate) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -272,9 +272,28 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
 
     auto parentPtr = getParent();
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
-
-    memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    allocate(memoryPtr, inputDesc);
     status = Status::Allocated;
+}
+
+void MKLDNNEdge::allocate(const void* mem_ptr) {
+    auto allocateFunc = [&](const MKLDNNMemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    };
+
+    allocateCommon(allocateFunc);
+}
+
+void MKLDNNEdge::allocate(DnnlMemoryMngrPtr memMngr) {
+    if (!memMngr) {
+        IE_THROW(Unexpected) << "Memory manager ptr is NULL";
+    }
+
+    auto allocateFunc = [&](const MKLDNNMemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, memMngr);
+    };
+
+    allocateCommon(allocateFunc);
 }
 
 std::string MKLDNNEdge::name() const {
@@ -288,37 +307,11 @@ std::string MKLDNNEdge::name() const {
     return  result.str();
 }
 
-
-
 void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
-    auto isInPlace = [](const MKLDNNNodePtr node, int port) -> bool {
-        const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-
-        const auto& config = selected_pd->getConfig();
-
-        for (const auto& in : config.inConfs) {
-            if (in.inPlace() == port) {
-                return true;
-            }
-        }
-        for (const auto& out : config.outConfs) {
-            if (out.inPlace() == port) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
     if (status != Status::NeedAllocation)
         return;
 
-    bool isTheOnlyChildEdgeAtPort = getParent()->getChildEdgesAtPort(getInputNum()).size() == 1;
-    bool isConcurrentUpdatePossible = isInPlace(getParent(), getInputNum()) || isInPlace(getChild(), getOutputNum()) || !isTheOnlyChildEdgeAtPort;
-
-    if (weightsCache && !isConcurrentUpdatePossible) {
+    if (weightsCache) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
