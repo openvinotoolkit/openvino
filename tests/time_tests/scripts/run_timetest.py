@@ -62,7 +62,9 @@ def prepare_executable_cmd(args: dict):
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
-        "-c" if args["model_cache"] else ""
+        "-c" if args["model_cache"] else "",
+        "-f" if args["config_message"] else "",
+        str(args["config_message"].resolve(strict=True)) if args["config_message"] else ""
     ]
 
 
