@@ -1,11 +1,3 @@
-#resources:
-#  repositories:
-#  - repository: testdata
-#    type: github
-#    endpoint: openvinotoolkit
-#    name: openvinotoolkit/testdata
-#    ref: master
-
 jobs:
 - job: Lin_lohika
   # About 150% of total time
@@ -20,7 +12,6 @@ jobs:
 #    VSTS_HTTP_TIMEOUT: 200
 #    BUILD_TYPE: Release
 #    REPO_DIR: $(Build.Repository.LocalPath)
-#    MODELS_PATH: $(REPO_DIR)/../testdata
 #    WORK_DIR: $(Pipeline.Workspace)/_w
 #    BUILD_DIR: $(WORK_DIR)/build
 
@@ -38,12 +29,6 @@ jobs:
 
   - script: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
     displayName: checkout
-
-    # Should be after 'Install dependencies' because Git lfs is not installed
-#  - checkout: testdata
-#    clean: true
-#    lfs: true
-#    path: testdata
 
   - script: env -C ~/work ./configreleasenolto.sh
     displayName: CMake

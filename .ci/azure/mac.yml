@@ -15,12 +15,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Mac
   # About 250% of total time (perfomace of Mac hosts is unstable, 360 is max)
@@ -36,7 +30,6 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
@@ -75,11 +68,6 @@ jobs:
     lfs: false
     submodules: recursive
     path: openvino_contrib
-
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
 
   - task: UsePythonVersion@0
     inputs:
@@ -199,8 +187,6 @@ jobs:
     enabled: false
 
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
