@@ -42,7 +42,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
             return ov::PartialShape::dynamic(1);
         } else {
-            return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
+            return ov::PartialShape::dynamic();
         }
     }
     std::vector<ov::Dimension> new_dims;
