@@ -66,7 +66,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertie
 #if (defined(__APPLE__) || defined(_WIN32))
 auto default_affinity = [] {
         auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-        if (numaNodes.size() > 1) {
+        auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+        if (coreTypes.size() > 1) {
+                return ov::Affinity::HYBRID_AWARE;
+        } else if (numaNodes.size() > 1) {
                 return ov::Affinity::NUMA;
         } else {
                 return ov::Affinity::NONE;
