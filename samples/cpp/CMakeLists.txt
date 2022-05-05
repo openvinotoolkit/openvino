@@ -113,7 +113,10 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    find_package(gflags QUIET COMPONENTS nothreads_shared)
+    if(NOT APPLE)
+        # on Apple only dynamic libraries are available
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 
     if(gflags_FOUND)
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
@@ -151,8 +154,10 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     find_package(nlohmann_json QUIET)
     if(nlohmann_json_FOUND)
         message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
-        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
+        # suppress shadowing names warning
+        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+        add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
     endif()
 endif()
 
