@@ -30,7 +30,7 @@ wget http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz
 tar xzvf inception_v1_2016_08_28.tar.gz
 ```
 
-Step 3. Export the inference graph --- the protobuf file (*`.pb`*) containing the architecture of the topology. This file *does not* contain the neural network weights and cannot be used for inference.
+**Step 3**. Export the inference graph --- the protobuf file (*`.pb`*) containing the architecture of the topology. This file *does not* contain the neural network weights and cannot be used for inference.
 
 ```sh
 python3 tf_models/research/slim/export_inference_graph.py \
