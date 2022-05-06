@@ -9,8 +9,7 @@
 
 #include <iostream>
 
-
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+int runPipeline(const std::string &model, const std::string &device, const std::string &config, const bool isCacheEnabled,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes);
 
@@ -45,7 +44,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 int _runPipeline(std::map<std::string, ov::PartialShape> dynamicShapes,
                  std::map<std::string, std::vector<size_t>> staticShapes) {
     SCOPED_TIMER(full_run);
-    return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, dynamicShapes, staticShapes);
+    return runPipeline(FLAGS_m, FLAGS_d, FLAGS_f, FLAGS_c, dynamicShapes, staticShapes);
 }
 
 /**

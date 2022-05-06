@@ -7,14 +7,14 @@
 #include "common_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
-
+#include "timetests_helper/parse.h"
 
 /**
  * @brief Function that contain executable pipeline which will be called from
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+int runPipeline(const std::string &model, const std::string &device, const std::string & config, const bool isCacheEnabled,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
@@ -52,13 +52,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                         }
                         {
                             SCOPED_TIMER(load_network);
-                            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                            exeNetwork = ie.LoadNetwork(cnnNetwork, device, parseConfigFile());
                         }
                     }
                 }
                 else {
                     SCOPED_TIMER(load_network_cache);
-                    exeNetwork = ie.LoadNetwork(model, device);
+                    exeNetwork = ie.LoadNetwork(model, device, parseConfigFile());
                 }
             }
             inferRequest = exeNetwork.CreateInferRequest();
