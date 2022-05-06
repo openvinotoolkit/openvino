@@ -105,7 +105,9 @@ bool Edge::enforceReorder() {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
-            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN))
+            if (p_edge_peer->getChild()->getType() != Type::Reorder &&
+                p_edge_peer->getOutputPortDesc()->isCompatible(*p_edge_peer->getInputPortDesc()) &&
+                p_edge_peer->inPlace(LOOK_DOWN))
                 canBeInPlaceConflicts = true;
         }
     }
