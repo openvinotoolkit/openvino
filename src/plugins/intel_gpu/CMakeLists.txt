@@ -39,6 +39,9 @@ target_compile_options(${TARGET_NAME} PRIVATE
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              pugixml::static)
 
+target_link_options(${TARGET_NAME} PRIVATE
+    $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/DELAYLOAD:onednn_gpu.dll,>>)
+
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
