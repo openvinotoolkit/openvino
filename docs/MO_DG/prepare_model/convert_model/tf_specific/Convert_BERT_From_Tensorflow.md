@@ -5,7 +5,7 @@ Pretrained models for BERT (Bidirectional Encoder Representations from Transform
 
 ## <a name="supported_models"></a>Supported Models
 
-The following models from the [pretrained BERT model list](https://github.com/google-research/bert#pre-trained-models) are currently supported:
+The following models from the pretrained [BERT model list](https://github.com/google-research/bert#pre-trained-models) are currently supported:
 
 * *`BERT-Base, Cased`*
 * *`BERT-Base, Uncased`*
