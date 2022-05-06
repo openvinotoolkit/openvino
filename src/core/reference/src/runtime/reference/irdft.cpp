@@ -70,7 +70,7 @@ std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t 
     return result;
 }
 
-// TODO: Check if can be removed
+// Returns all axes except the last one
 std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& v) {
     if (v.empty() || v.size() == 1) {
         return {};
@@ -134,25 +134,6 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     return extended_input_complex;
 }
 
-std::pair<std::vector<float>, Shape> calculate_idft_with_respect_to_given_axis(const std::vector<float>& input_data,
-                                                                               const Shape& input_shape,
-                                                                               const int64_t axis,
-                                                                               const int64_t signal_size) {
-    auto output_shape = input_shape;
-    output_shape[axis] = signal_size;
-    auto result = std::vector<float>(shape_size(output_shape), 0.0f);
-
-    fft(reinterpret_cast<const float*>(input_data.data()),
-        input_shape,
-        std::vector<int64_t>{axis}.data(),
-        Shape{1},
-        result.data(),
-        output_shape,
-        FFTKind::Inverse);
-
-    return std::make_pair(result, output_shape);
-}
-
 }  // namespace
 
 void irdft(const std::vector<float>& input_data,
@@ -160,15 +141,21 @@ void irdft(const std::vector<float>& input_data,
            const std::vector<int64_t>& axes_data,
            float* irdft_result,
            const Shape& fft_output_shape,
-           int64_t last_signal_size) {  // TODO: seems to be not needed
+           int64_t last_signal_size) {
 
-    std::vector<float> float_data = input_data;
     const auto outer_fft_axes = get_outer_fft_axes(axes_data);
     Shape float_data_shape = input_data_shape;
-    for (const auto a : outer_fft_axes) {  // TODO CHECK NEGATIVE AXES
-        std::tie(float_data, float_data_shape) =
-            calculate_idft_with_respect_to_given_axis(float_data, float_data_shape, a, fft_output_shape[a]);
+    for (const auto& a : outer_fft_axes) {
+        float_data_shape[a] = fft_output_shape[a];
     }
+    std::vector<float> float_data = std::vector<float>(shape_size(float_data_shape), 0.0f);
+    fft(reinterpret_cast<const float*>(input_data.data()),
+        input_data_shape,
+        outer_fft_axes.data(),
+        Shape{outer_fft_axes.size()},
+        float_data.data(),
+        float_data_shape,
+        FFTKind::Inverse);
 
     const auto last_axis = axes_data.back();
     auto shape_of_extended_input_data = float_data_shape;
