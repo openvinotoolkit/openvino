@@ -5,7 +5,7 @@ Pretrained models for XLNet (Bidirectional Encoder Representations from Transfor
 
 ## Supported Models
 
-The following models from the [pretrained XLNet model list](https://github.com/zihangdai/xlnet#pre-trained-models) are currently supported:
+The following models from the pretrained [XLNet model list](https://github.com/zihangdai/xlnet#pre-trained-models) are currently supported:
 
 * **[`XLNet-Large, Cased`](https://storage.googleapis.com/xlnet/released_models/cased_L-24_H-1024_A-16.zip)**
 * **[`XLNet-Base, Cased`](https://storage.googleapis.com/xlnet/released_models/cased_L-12_H-768_A-12.zip)**
