@@ -60,8 +60,8 @@
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style_v2.css">
     
    <p id="GSG_introtext">If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Intel® Distribution of OpenVINO™ toolkit</a>
-     <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench (DL Workbench)</a>
+     <a href="openvino_docs_install_guides_overview.html" >Intel® Distribution of <br />OpenVINO™ toolkit</a>
+     <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench <br />(DL Workbench)</a>
    </p>
    
    <p>To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps:<br />
