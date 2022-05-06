@@ -26,7 +26,6 @@ InferenceEngine::CNNNetwork getNetwork() {
 
     auto mem_w1 = std::make_shared<ngraph::op::v3::Assign>(mul2, "r_1-3");
     auto sigm = std::make_shared<ngraph::op::Sigmoid>(mul2);
-
     sigm->set_friendly_name("sigmod_state");
     mem_r1->set_friendly_name("Memory_1");
     mem_w1->add_control_dependency(mem_r1);
@@ -41,7 +40,11 @@ InferenceEngine::CNNNetwork getNetwork() {
 }
 
 std::vector<memoryStateParams> memoryStateTestCases = {
-        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA, {})
+        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_CPU, {}),
+        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_AUTO,
+        {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}),
+        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_HETERO,
+        {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}})
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, InferRequestVariableStateTest,
