@@ -1,4 +1,4 @@
-# Get Started {#get_started}
+# Get Started 
 
 @sphinxdirective
 
@@ -57,17 +57,17 @@
 @sphinxdirective
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style_v2.css">
+   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
     
-   <p id="GSG_introtext">If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Intel® Distribution of OpenVINO™ toolkit</a>
-     <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench (DL Workbench)</a>
+   <p>If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:
+   <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. See more details in this guide.</li>
+   <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface, developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
    </p>
    
-   <p>To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps:<br />
-    <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
-    <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
-    <li><a href="#get-started-tutorials" >Get started with some simple tutorials and samples.</a></li>
+   <p id="GSG_introtext">To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps from left to right:<br />
+     <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
+     <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
+     <a href="#get-started-tutorials" >Try <br/>Get Started Steps</a>
    </p>
    <div style="clear:both;"> </div> 
    
