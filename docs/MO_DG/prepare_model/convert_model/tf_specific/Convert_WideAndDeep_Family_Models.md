@@ -2,7 +2,7 @@
 
 The Wide and Deep models is a combination of wide and deep parts for memorization and generalization of object features respectively.
 These models can contain different types of object features such as numerical, categorical, sparse and sequential features. These feature types are specified
-through Tensorflow tf.feature_column API. Table below presents what feature types are supported by the OpenVINO&trade; toolkit.
+through Tensorflow tf.feature_column API. Table below presents what feature types are supported by the OpenVINO toolkit.
 
 | numeric | (weighted) categorical | categorical with hash | bucketized | sequential | crossed |
 |:-------:|:----------------------:|:---------------------:|:----------:|:----------:|:-------:|
