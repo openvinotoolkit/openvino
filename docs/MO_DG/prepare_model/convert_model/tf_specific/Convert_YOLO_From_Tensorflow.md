@@ -196,7 +196,7 @@ General conversion command is:
 ```sh
 python3 flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --labels <path_to_dataset_labels_file> --savepb
 ```
-For YOLOv1  the argument *`--labels`* can be skipped. If the model was successfully converted, you can find the *`<model_name>.meta`* and *`<model_name>.pb`* files
+For YOLOv1,  the *`--labels`* argument can be skipped. If the model was successfully converted, you can find the *`<model_name>.meta`* and *`<model_name>.pb`* files.
 in *`built_graph`*  subdirectory of the cloned DarkFlow repository.
 
 File *`<model_name>.pb`* is a TensorFlow representation of the YOLO model.
