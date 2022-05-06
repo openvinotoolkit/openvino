@@ -48,21 +48,22 @@ std::vector<T> remove_from_position(const std::vector<T>& vec, const int64_t pos
     return result;
 }
 
-// Returns all axes except the last one
-std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& v) {
-    if (v.empty() || v.size() == 1) {
+// Returns all axes except the last one (or empty vector for the size less than 2)
+std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& vec) {
+    if (vec.size() < 2) {
         return {};
     }
-
-    return std::vector<int64_t>(v.begin(), v.end() - 1);
+    return std::vector<int64_t>(vec.begin(), vec.end() - 1);
 }
 
-std::vector<complex_type> extend_input_data(const std::vector<float>& input_data,
+// RDFT operation (which consumes only real inputs) returns Hermitian-symmetric results.
+// It means that part of values are just the complex conjugates of the values from the corresponding symmetric positions.
+// IRDFT as the inverse operation to RDFT has to put these symmetric values in order to calculate correct results.
+std::vector<complex_type> extend_to_hermitian_symmetric(const std::vector<float>& input_data,
                                             const Shape& input_data_shape,
                                             const Shape& shape_of_extended_input_data,
                                             const std::vector<int64_t>& axes_data,
                                             const int64_t last_signal_size) {
-    std::vector<complex_type> extended_input_complex(shape_size(shape_of_extended_input_data) / 2, complex_type{0, 0});
 
     const complex_type* complex_input_ptr = reinterpret_cast<const complex_type*>(input_data.data());
     const auto reversed_input_data_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
@@ -90,6 +91,7 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     const auto inner_size = reversed_input_data_shape[reversed_last_axis];
     const auto inner_extended_size = reversed_ext_input_data_shape[reversed_last_axis];
 
+    std::vector<complex_type> extended_input_complex(shape_size(shape_of_extended_input_data) / 2, complex_type{0, 0});
     for (int64_t i = 0; i < outer_extended_size; ++i) {
         const auto outer_coords = fft_common::coords_from_index(i, outer_extended_shape_strides);
         const auto outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, outer_strides);
@@ -111,7 +113,7 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     return extended_input_complex;
 }
 
-}  // namespace
+} // namespace
 
 void irdft(const std::vector<float>& input_data,
            const Shape& input_data_shape,
@@ -119,36 +121,42 @@ void irdft(const std::vector<float>& input_data,
            float* irdft_result,
            const Shape& fft_output_shape,
            int64_t last_signal_size) {
-    const auto outer_fft_axes = get_outer_fft_axes(axes_data);
-    Shape float_data_shape = input_data_shape;
-    for (const auto& a : outer_fft_axes) {
-        float_data_shape[a] = fft_output_shape[a];
+
+    // calculate inverse FFT over the outer axes
+    const auto outer_ifft_axes = get_outer_fft_axes(axes_data);
+    auto outer_ifft_shape = input_data_shape;
+    for (const auto& a : outer_ifft_axes) {
+        outer_ifft_shape[a] = fft_output_shape[a];
     }
-    std::vector<float> float_data = std::vector<float>(shape_size(float_data_shape), 0.0f);
+    std::vector<float> outer_fft_result = std::vector<float>(shape_size(outer_ifft_shape), 0.0f);
     fft(reinterpret_cast<const float*>(input_data.data()),
         input_data_shape,
-        outer_fft_axes.data(),
-        Shape{outer_fft_axes.size()},
-        float_data.data(),
-        float_data_shape,
+        outer_ifft_axes.data(),
+        Shape{outer_ifft_axes.size()},
+        outer_fft_result.data(),
+        outer_ifft_shape,
         FFTKind::Inverse);
 
+    // adjust the input to Hermitian-symmetric size
     const auto last_axis = axes_data.back();
-    auto shape_of_extended_input_data = float_data_shape;
-    shape_of_extended_input_data[last_axis] = last_signal_size;
-    std::vector<complex_type> ifft_result(shape_size(fft_output_shape) / 2);
-    std::vector<complex_type> extended_input_complex =
-        extend_input_data(float_data, float_data_shape, shape_of_extended_input_data, axes_data, last_signal_size);
-    fft(reinterpret_cast<const float*>(extended_input_complex.data()),
-        shape_of_extended_input_data,
+    auto extended_data_shape = outer_ifft_shape;
+    extended_data_shape[last_axis] = last_signal_size;
+    std::vector<complex_type> inner_ifft_result(shape_size(fft_output_shape) / 2);
+    std::vector<complex_type> extended_complex_data =
+        extend_to_hermitian_symmetric(outer_fft_result, outer_ifft_shape, extended_data_shape, axes_data, last_signal_size);
+
+    // calculate inverse FFT on adjusted data over the last last axis
+    fft(reinterpret_cast<const float*>(extended_complex_data.data()),
+        extended_data_shape,
         std::vector<int64_t>{last_axis}.data(),
         Shape{1},
-        reinterpret_cast<float*>(ifft_result.data()),
+        reinterpret_cast<float*>(inner_ifft_result.data()),
         fft_output_shape,
         FFTKind::Inverse);
 
-    for (size_t i = 0; i < ifft_result.size(); ++i) {
-        irdft_result[i] = std::real(ifft_result[i]);
+    // cut out the imaginary part of the complex result
+    for (size_t i = 0; i < inner_ifft_result.size(); ++i) {
+        irdft_result[i] = std::real(inner_ifft_result[i]);
     }
 }
 }  // namespace reference
