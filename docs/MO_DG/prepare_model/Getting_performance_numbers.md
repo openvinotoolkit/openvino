@@ -14,7 +14,7 @@ Performance conclusions should be build upon reproducible data. As for the perfo
 
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	For time values that range too much, consider geomean.
--  Be aware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model consider fixing the device frequency for better performance data reproducibility. However, the end-to-end (application) benchmarking should also be performed under real operational conditions.
+-  Be aware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, consider fixing the device frequency for better performance data reproducibility. However, the end-to-end (application) benchmarking should also be performed under real operational conditions.
 
 ## Measuring Reference Performance Numbers with OpenVINO's benchmark_app 
 
