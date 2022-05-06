@@ -503,6 +503,15 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
 /**
+ * @brief Read-write property to set whether force terminate tbb when ov core destruction
+ * value type: boolean
+ *   - True explicitly terminate tbb when ov core destruction
+ *   - False will not involve additional tbb operations when core destruction
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {
