@@ -47,7 +47,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 -	If possible, demand the same accuracy. For example, TensorFlow allows *`FP16`* execution, so when comparing to that, make sure to test the OpenVINO Runtime with the *`FP16`* as well.
 
 ## Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
-Deeper, more detailed insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
+More detailed insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the *`benchmark_app`* support a *`-pc`* command-line parameter that outputs internal execution breakdown.
 
 For example, below is the part of performance counters for quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](../../OV_Runtime_UG/supported_plugins/CPU.md).
