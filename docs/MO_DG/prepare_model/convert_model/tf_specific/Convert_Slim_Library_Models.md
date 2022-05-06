@@ -53,7 +53,7 @@ InceptionV1/Logits/Predictions/Reshape_1
 ```
 The tool finds one input node with name *`input`*, type *`float32`*, fixed image size *`(224,224,3)`* and undefined batch size *`-1`*. The output node name is *`InceptionV1/Logits/Predictions/Reshape_1`*.<br>
 
-Step 4. Convert the model with the Model Optimizer:
+**Step 4**. Convert the model with the Model Optimizer:
 
 ```sh
 mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
