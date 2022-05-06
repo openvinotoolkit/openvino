@@ -22,7 +22,7 @@ Plugins with Low Precision Inference support recognize these sub-graphs and quan
 These without execute all operations, including *`FakeQuantize`*, as is in the FP32 or FP16 precision.   
 
 Accordingly, the presence of *`FakeQuantize`* operations in the IR is a recommendation for a plugin on how to quantize particular operations in the model. 
-If capable, the plugin accepts the recommendation and performs Low Precision Inference, otherwise, plugin ignores the recommendation and executes a model in the floating-point precision. 
+If capable, the plugin accepts the recommendation and performs Low Precision Inference. Otherwise, plugin ignores the recommendation and executes a model in the floating-point precision. 
 
 ## Compressed Low Precision Weights
 
