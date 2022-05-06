@@ -12,7 +12,7 @@ The [Example of an Inception V1 Model Conversion](#example_of_an_inception_v1_mo
 ## Example of an Inception V1 Model Conversion <a name="example_of_an_inception_v1_model_conversion"></a>
 This example demonstrates how to convert the model on Linux OSes, but it could be easily adopted for the Windows OSes.
 
-Step 1. Create a new directory to clone the TensorFlow-Slim git repository to:
+**Step 1**. Create a new directory to clone the TensorFlow-Slim git repository to:
 
 ```sh
 mkdir tf_models
