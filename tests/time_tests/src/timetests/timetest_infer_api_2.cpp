@@ -9,14 +9,14 @@
 #include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
-
+#include "timetests_helper/parse.h"
 
 /**
  * @brief Function that contain executable pipeline which will be called from
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+int runPipeline(const std::string &model, const std::string &device, const std::string & config, const bool isCacheEnabled,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
@@ -33,6 +33,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         if (!reshapeShapes.empty()) {
             reshape = true;
         }
+
+        auto configs = parseConfigFile();
 
          // first_inference_latency = time_to_inference + first_inference
         {
@@ -67,13 +69,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                         }
                         {
                             SCOPED_TIMER(load_network);
-                            exeNetwork = ie.compile_model(cnnNetwork, device);
+                            exeNetwork = ie.compile_model(cnnNetwork, device, {configs.begin(), configs.end()});
                         }
                     }
                 }
                 else {
                     SCOPED_TIMER(load_network_cache);
-                    exeNetwork = ie.compile_model(model, device);
+                    exeNetwork = ie.compile_model(model, device, {configs.begin(), configs.end()});
                 }
             }
             inferRequest = exeNetwork.create_infer_request();
