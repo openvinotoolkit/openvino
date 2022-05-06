@@ -7,27 +7,43 @@
 #include "primitive.hpp"
 
 namespace cldnn {
+/// @addtogroup cpp_api C++ API
+/// @{
+/// @addtogroup cpp_topology Network Topology
+/// @{
+/// @addtogroup cpp_primitives Primitives
+/// @{
 
+/// @brief Kind of DFT operation.
 enum class dft_kind {
     forward,
     inverse,
 };
 
+/// @brief DFT primitive.
 struct dft : public primitive_base<dft> {
     CLDNN_DECLARE_PRIMITIVE(dft)
 
+    /// @brief Constructs DFT primitive.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param axes Axes to perform DFT.
+    /// @param output_shape Tensor with shape of output layout.
+    /// @param kind Kind of DFT operation.
     dft(const primitive_id& id,
-        primitive_id&& data,
+        const primitive_id& input,
         std::vector<int64_t>&& axes,
-        const layout& output_layout,
+        const tensor& output_shape,
         dft_kind kind,
-        const primitive_id& ext_prim_id = {})
-        : primitive_base{id, {move(data)}, ext_prim_id, output_layout.data_padding},
-          axes{move(axes)},
-          output_layout{output_layout},
-          kind{kind} {}
+        const primitive_id& ext_prim_id = {},
+        const padding& output_padding = {})
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
+          axes(std::move(axes)),
+          output_shape(output_shape),
+          kind(kind) {}
+
     std::vector<int64_t> axes;
-    layout output_layout;
+    tensor output_shape;
     dft_kind kind;
 };
 

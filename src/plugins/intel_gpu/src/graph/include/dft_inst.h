@@ -27,7 +27,7 @@ public:
     using typed_primitive_inst_base::typed_primitive_inst_base;
 
     static layout calc_output_layout(const dft_node& node);
-    static std::string to_string(dft_node const& node);
+    static std::string to_string(const dft_node& node);
 };
 
 }  // namespace cldnn

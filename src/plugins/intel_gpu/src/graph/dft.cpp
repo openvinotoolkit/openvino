@@ -15,10 +15,12 @@ primitive_type_id dft::type_id() {
 }
 
 layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node) {
-    return node.get_primitive()->output_layout;
+    auto primitive = node.get_primitive();
+    auto input_layout = node.input().get_output_layout();
+    return {input_layout.data_type, input_layout.format, primitive->output_shape};
 }
 
-std::string typed_primitive_inst<dft>::to_string(dft_node const& node) {
+std::string typed_primitive_inst<dft>::to_string(const dft_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     return lexical_cast(*node_info);

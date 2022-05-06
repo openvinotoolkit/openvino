@@ -26,15 +26,12 @@ void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_k
         auto dataRank = op->get_input_shape(0).size();
         ov::normalize_axes(op.get(), dataRank - 1, axes);
     }
-    auto outTensor = tensor_from_dims(outShape);
-    cldnn::data_types outDataType = DataTypeFromPrecision(op->get_output_element_type(0));
-    cldnn::layout outLayout{outDataType, cldnn::format::bfzyx, outTensor};
-    cldnn::dft prim{layer_type_name_ID(op),
-                    move(p.GetInputPrimitiveIDs(op)[0]),
-                    move(axes),
-                    outLayout,
+    cldnn::dft prim(layer_type_name_ID(op),
+                    p.GetInputPrimitiveIDs(op)[0],
+                    std::move(axes),
+                    tensor_from_dims(outShape),
                     kind,
-                    op->get_friendly_name()};
+                    op->get_friendly_name());
     p.AddPrimitive(prim);
     p.AddPrimitiveToProfiler(op);
 }
