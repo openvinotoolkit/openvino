@@ -96,8 +96,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Log,      {}},
         {Sign,     {}},
         {Abs,      {}},
-        {Clamp,    {{-5, 5}}},
-        {SoftSign, {}}
+        {Clamp,    {{-5, 5}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> preluActivationTypes = {
