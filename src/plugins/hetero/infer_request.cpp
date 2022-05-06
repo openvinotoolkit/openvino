@@ -126,6 +126,18 @@ void HeteroInferRequest::InferImpl() {
     }
 }
 
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> HeteroInferRequest::QueryState() {
+    memoryStates = {};
+    for (auto&& desc : _inferRequests) {
+        auto& r = desc._request;
+        assert(r);
+        for (auto&& state : r->QueryState()) {
+            memoryStates.emplace_back(state);
+        }
+    }
+    return memoryStates;
+}
+
 std::map<std::string, InferenceEngineProfileInfo> HeteroInferRequest::GetPerformanceCounts() const {
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
     for (size_t i = 0; i < _inferRequests.size(); i++) {
