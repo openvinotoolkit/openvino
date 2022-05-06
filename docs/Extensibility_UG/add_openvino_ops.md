@@ -1,4 +1,4 @@
-# Custom OpenVINO™ Operations {#openvino_docs_Extensibility_UG_add_openvino_ops}
+﻿# Custom OpenVINO™ Operations {#openvino_docs_Extensibility_UG_add_openvino_ops}
 
 OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box.
 
@@ -20,14 +20,10 @@ Follow the steps below to add a custom operation:
 
 5. Override the `visit_attributes` method, which enables serialization and deserialization of operation attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing OpenVINO defined types.
 
-6. Override `evaluate`, which is an optional method that enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains `evaluate` method you also need to override the `has_evaluate` method, this method allow to get information about availability of `evaluate` method for the operation.
-
-7. Add the `OPENVINO_FRAMEWORK_MAP` macro if you want to map custom operation to framework operation with the same name. It is an optional macro which can be used for one to one mapping. In order to use this macro please include frontend specific headers:
-   @snippet template_extension/new/identity.hpp op:frontend_include
+6. Override `evaluate`, which is an optional method that enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains `evaluate` method you also need to override the `has_evaluate` method, this method allows to get information about availability of `evaluate` method for the operation.
 
 Based on that, declaration of an operation class can look as follows:
 
-@snippet template_extension/new/identity.hpp op:header
 
 ### Operation Constructors
 
@@ -55,8 +51,9 @@ OpenVINO™ operation contains two constructors:
 
 @snippet template_extension/new/identity.cpp op:visit_attributes
 
-### `evaluate()` and `has_evaluate()`
+### evaluate() and has_evaluate()
 
 `ov::Node::evaluate` method enables you to apply constant folding to an operation.
 
 @snippet template_extension/new/identity.cpp op:evaluate
+

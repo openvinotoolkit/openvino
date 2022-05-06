@@ -155,7 +155,7 @@ CALL :delay 7
 
 :buildSample
 echo.
-echo ###############^|^| Generate VS solution for Inference Engine samples using cmake ^|^|###############
+echo ###############^|^| Generate VS solution for OpenVINO Runtime samples using cmake ^|^|###############
 echo.
 CALL :delay 3
 
@@ -173,7 +173,7 @@ if ERRORLEVEL 1 GOTO errorHandling
 CALL :delay 7
 
 echo.
-echo ###############^|^| Build Inference Engine samples using cmake ^|^|###############
+echo ###############^|^| Build OpenVINO Runtime samples using cmake ^|^|###############
 echo.
 
 CALL :delay 3
@@ -186,7 +186,7 @@ CALL :delay 7
 
 :runSample
 echo.
-echo ###############^|^| Run Inference Engine benchmark app ^|^|###############
+echo ###############^|^| Run OpenVINO Runtime benchmark app ^|^|###############
 echo.
 CALL :delay 3
 copy /Y "%ROOT_DIR%%model_name%.labels" "%ir_dir%"
@@ -198,7 +198,7 @@ benchmark_app.exe -i "%target_image_path%" -m "%ir_dir%\%model_name%.xml" -pc  -
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
-echo ###############^|^| Inference Engine benchmark app completed successfully ^|^|###############
+echo ###############^|^| OpenVINO Runtime benchmark app completed successfully ^|^|###############
 
 CALL :delay 10
 cd /d "%ROOT_DIR%"

@@ -14,6 +14,7 @@ namespace op {
 namespace v0 {
 /// \brief Operator performing Mean Variance Normalization
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset2");
@@ -87,6 +88,7 @@ std::ostream& operator<<(std::ostream& s, const MVNEpsMode& type);
 namespace v6 {
 /// \brief Operator performing Mean Variance Normalization
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset6", op::Op, 6);

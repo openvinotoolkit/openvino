@@ -113,9 +113,12 @@ std::string node_validation_failure_loc_string(const Node* node);
 
 class NodeAccessor;
 
-/// Nodes are the backbone of the graph of Value dataflow. Every node has
-/// zero or more nodes as arguments and one value, which is either a tensor
-/// or a (possibly empty) tuple of values.
+/**
+ * @brief Nodes are the backbone of the graph of Value dataflow. Every node has
+ * zero or more nodes as arguments and one value, which is either a tensor
+ * or a (possibly empty) tuple of values.
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class frontend::FrontEnd;
     std::shared_ptr<void> m_shared_object{};

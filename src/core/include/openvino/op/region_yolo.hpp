@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief RegionYolo operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API RegionYolo : public Op {
 public:
     OPENVINO_OP("RegionYolo", "opset1");

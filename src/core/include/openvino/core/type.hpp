@@ -18,13 +18,16 @@
 
 namespace ov {
 
-/// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
-/// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
-/// Type must have a static type_info member and a virtual get_type_info() member that
-/// returns a reference to its type_info member.
-
-/// Type information for a type system without inheritance; instances have exactly one type not
-/// related to any other type.
+/**
+ * @brief Type information for a type system without inheritance; instances have exactly one type not
+ * related to any other type.
+ *
+ * Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
+ * dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
+ * Type must have a static type_info member and a virtual get_type_info() member that
+ * returns a reference to its type_info member.
+ * @ingroup ov_model_cpp_api
+ */
 struct OPENVINO_API DiscreteTypeInfo {
     const char* name;
     uint64_t version;

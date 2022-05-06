@@ -263,12 +263,13 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned Model ops
 OPENVINO_API
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model,
                                        std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
-// input model is cloned and returned
+/// \brief input model is cloned and returned
+/// \ingroup ov_model_cpp_api
 OPENVINO_API
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func);
+std::shared_ptr<ov::Model> clone_model(const ov::Model& model);
 
 OPENVINO_API
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);

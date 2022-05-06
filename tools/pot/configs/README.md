@@ -30,8 +30,8 @@ This section contains only three parameters:
     }
 ```
 The main parameter is `"type"` which can take two possible options: `"accuracy_checher"` (default) or `"simplified"`. It specifies the engine used for model inference and validation (if supported):
-- **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get a fully quantized model. They do not use the Accuracy Checker tool and annotation. In the case, of this mode the following parameters are applicable:
-  - `"data_source"` Specifies the path to the directory​ where to calibration data is stored.
+- **Simplified mode** engines. These engines can be used only with `DefaultQuantization` algorithm to get a fully quantized model. They do not use the Accuracy Checker tool and annotation. In this case, the following parameters are applicable:
+  - `"data_source"` Specifies the path to the directory​ where the calibration data is stored.
   - `"layout"` - (Optional) Layout of input data. Supported values: [`"NCHW"`, `"NHWC"`, `"CHW"`, `"CWH"`]​.
 - **Accuracy Checker** engine. It relies on the [Deep Learning Accuracy Validation Framework](@ref omz_tools_accuracy_checker) (Accuracy Checker) when inferencing DL models and working with datasets.
 If you have annotations, you can benefit from this mode by measuring accuracy.  When this mode is selected, you can use the accuracy-aware algorithms family.
@@ -44,16 +44,15 @@ There are two options to define engine parameters in this mode:
 
 ## Compression Parameters
 
-This section defines optimization algorithms and their parameters. For more details about parameters of the concrete optimization algorithm, please refer to the corresponding
-[documentation](@ref pot_compression_algorithms_quantization_README).
+For more details about parameters of the concrete optimization algorithm, see descriptions of [Default Quantization](@ref pot_compression_algorithms_quantization_default_README) and [Accuracy-aware Quantizatoin](@ref accuracy_aware_README) methods. 
 
 ## Examples of the Configuration File
 
-For a quick start, many examples of configuration files are provided [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples). There you can find ready-to-use configurations for the models from various domains: Computer Vision (Image
- Classification, Object Detection, Segmentation), Natural Language Processing, Recommendation Systems. We basically
- put configuration files for the models which require non-default configuration settings in order to get accurate results.
+
+For a quick start, many examples of configuration files are provided [here](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples). There you can find ready-to-use configurations for the models from various domains: Computer Vision (Image 
+ Classification, Object Detection, Segmentation), Natural Language Processing, Recommendation Systems. We put configuration files for the models which require non-default configuration settings to get accurate results.
+
 For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the [example](@ref pot_configs_examples_README).
 
 ## See Also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
-* [POT API](@ref pot_compression_api_README)

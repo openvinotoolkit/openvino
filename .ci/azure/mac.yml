@@ -13,11 +13,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2022/1
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2022/1
 
 jobs:
 - job: Mac

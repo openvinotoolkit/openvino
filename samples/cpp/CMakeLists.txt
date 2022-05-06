@@ -233,7 +233,7 @@ macro(ie_add_sample)
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 

@@ -11,6 +11,9 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief BinaryConvolution operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BinaryConvolution : public Op {
 public:
     OPENVINO_OP("BinaryConvolution", "opset1", op::Op, 1);

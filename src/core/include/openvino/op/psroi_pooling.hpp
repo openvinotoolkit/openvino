@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief PSROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PSROIPooling : public Op {
 public:
     OPENVINO_OP("PSROIPooling", "opset1");

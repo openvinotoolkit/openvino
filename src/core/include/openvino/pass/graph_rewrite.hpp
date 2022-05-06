@@ -40,7 +40,7 @@ namespace pass {
 /// or has ov::pass::pattern::op::WrapType. That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
-
+/// \ingroup ov_pass_cpp_api
 class OPENVINO_API MatcherPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::MatcherPass");
@@ -116,7 +116,7 @@ private:
 /// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
-
+/// \ingroup ov_pass_cpp_api
 class OPENVINO_API GraphRewrite : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::GraphRewrite");

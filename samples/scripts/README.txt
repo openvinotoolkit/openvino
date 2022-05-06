@@ -39,12 +39,12 @@ The sample illustrates the general workflow of using the Intel(R) Deep Learning 
   - Downloads a public SqueezeNet model using the Model Downloader (extras\open_model_zoo\tools\downloader\downloader.py)
   - Installs all prerequisites required for running the Model Optimizer using the scripts from the "tools\model_optimizer\install_prerequisites" folder
   - Converts SqueezeNet to an IR using the Model Optimizer (tools\model_optimizer\mo.py) via the Model Converter (extras\open_model_zoo\tools\downloader\converter.py)
-  - Builds the Inference Engine classification_sample (samples\cpp\classification_sample)
+  - Builds the OpenVINO Runtime classification_sample (samples\cpp\classification_sample)
   - Runs the sample with the car.png picture located in the demo folder
 
 The sample application prints top-10 inference results for the picture.
 
-For more information about the Inference Engine classification sample, refer to the documentation available in the sample folder.
+For more information about the OpenVINO Runtime classification sample, refer to the documentation available in the sample folder.
 
 Benchmark Sample Using SqueezeNet
 ===============================
@@ -56,9 +56,9 @@ The sample script does the following:
   - Downloads a public SqueezeNet model using the Model Downloader (extras\open_model_zoo\tools\downloader\downloader.py)
   - Installs all prerequisites required for running the Model Optimizer using the scripts from the "tools\model_optimizer\install_prerequisites" folder
   - Converts SqueezeNet to an IR using the Model Optimizer (tools\model_optimizer\mo.py) via the Model Converter (extras\open_model_zoo\tools\downloader\converter.py)
-  - Builds the Inference Engine benchmark tool (samples\benchmark_app)
+  - Builds the OpenVINO Runtime benchmark tool (samples\benchmark_app)
   - Runs the tool with the car.png picture located in the demo folder
 
 The benchmark app prints performance counters, resulting latency, and throughput values.
 
-For more information about the Inference Engine benchmark app, refer to the documentation available in the sample folder.
+For more information about the OpenVINO Runtime benchmark app, refer to the documentation available in the sample folder.

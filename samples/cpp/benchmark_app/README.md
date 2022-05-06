@@ -10,11 +10,11 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-  **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order.
+  **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order.
   If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
   or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
   For more information about the argument, refer to **When to Reverse Input Channels** section of
-  [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+  [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
@@ -63,77 +63,46 @@ Also if latency of the CPU inference on the multi-socket machines is of concern,
 Running the application with the `-h` option yields the following usage message:
 ```
 ./benchmark_app -h
-InferenceEngine:
-        API version ............ <version>
-        Build .................. <number>
-[ INFO ] Parsing input parameters
 
 benchmark_app [OPTION]
 Options:
 
-    -h, --help                  Print a usage message
-    -m "<path>"                 Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
-    -i "<path>"                 Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-                                In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):
-                                "input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ".
-                                Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
-    -d "<device>"               Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
-                                Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
-                                Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
-                                Use "-d GPU.X" format to specify device id for GPU devices.
-                                The application looks for a suitable plugin for the specified device.
-    -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+    -h, --help                Print a usage message
+    -m "<path>"               Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
+    -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+                              In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
+                              You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
+    -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
+    -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
-    -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
+    -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
-                                 'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
-                                 'latency': device performance mode will be set to LATENCY.
-                                 'none': no device performance mode will be set.
-                                Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
-    -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
-    -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
-    -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
-    -b "<integer>"              Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
-    -stream_output              Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
-    -t                          Optional. Time, in seconds, to execute topology.
-    -progress                   Optional. Show progress bar (can affect performance measurement). Default values is "false".
-    -shape                      Optional. Set shape for network input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
-                                This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?].
-                                For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
-    -data_shape                 Required for networks with dynamic shapes. Set shape for input blobs.
-                                In case of one input size: "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]".
-                                In case of several input sizes provide the same number for
-                                each input (except cases with single shape for any input): "[1,3,128,128][3,3,128,128][1,3,320,320]",
-                                "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]".
-                                If network shapes are all static specifying the option will cause an exception.
-    -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
-    -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
-    -load_from_file             Optional. Loads model from file directly without ReadNetwork.
-    -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
-    -inference_only             Optional. Measure only inference stage. Default option for static models.
-                                Dynamic models are measured in full mode which includes inputs setup stage,
-                                inference only mode available for them with single input data shape only.
-                                To enable full mode for static models pass \"false\" value to this argument: ex. -inference_only=false".
+                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
+                               'latency': device performance mode will be set to LATENCY.
+                               'none': no device performance mode will be set.
+                              Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
+    -api "<sync/async>"       Optional (deprecated). Enable Sync/Async API. Default value is "async".
+    -niter "<integer>"        Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
+    -nireq "<integer>"        Optional. Number of infer requests. Default value is determined automatically for device.
+    -b "<integer>"            Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
+    -stream_output            Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
+    -t                        Optional. Time in seconds to execute topology.
+    -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
+    -shape                    Optional. Set shape for network input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size. This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]. For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
+    -data_shape               Required for networks with dynamic shapes. Set shape for input blobs. In case of one input size: "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]". In case of several input sizes provide the same number for each input (except cases with single shape for any input): "[1,3,128,128][3,3,128,128][1,3,320,320]", "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]". If network shapes are all static specifying the option will cause an exception.
+    -layout                   Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
+    -cache_dir "<path>"       Optional. Enables caching of loaded models to specified directory. List of devices which support caching is shown at the end of this message.
+    -load_from_file           Optional. Loads model from file directly without ReadNetwork. All CNNNetwork options (like re-shape) will be ignored
+    -latency_percentile       Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
-  CPU-specific performance options:
-    -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
-                                (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                                Default value is determined automatically for a device.
-                                Please note that although the automatic selection usually provides a reasonable performance,
-                                it still may be non-optimal for some cases, especially for very small networks.
-                                Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
-                                estimations the number of streams should be set to 1.
-    -nthreads "<integer>"       Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -pin ("YES"|"CORE")/"HYBRID_AWARE"/"NUMA"/("NO"|"NONE")
-                                Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
-                                enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
-                                letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
-                                threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU inference threads pinning.
-    -infer_precision device_name:infer_precision1,device_name:infer_precision2 Optional. Hint to specifies inference precision
-    -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
-    -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
-    -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required.
-                                Overwrites precision from ip and op options for specified layers.
+  Device-specific performance options:
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
+    -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
+    -pin ("YES"|"CORE")/"HYBRID_AWARE"/("NO"|"NONE")/"NUMA"   Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
+                                enabling threads->cores pinning("YES", which is already default for any conventional CPU),
+                                letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
+                                threads->(NUMA)nodes("NUMA") or
+                                completely disable("NO") CPU inference threads pinning
 
   Statistics dumping options:
     -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
@@ -145,6 +114,31 @@ Options:
     -pc                         Optional. Report performance counters.
     -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
     -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
+
+   Statistics dumping options:
+    -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
+    -report_folder            Optional. Path to a folder where statistics report is stored.
+    -json_stats               Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.    -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
+    -pc                       Optional. Report performance counters.
+    -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
+    -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
+    -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+    -infer_precision "<element type>"Optional. Inference precission
+    -ip                          <value>     Optional. Specifies precision for all input layers of the network.
+    -op                          <value>     Optional. Specifies precision for all output layers of the network.
+    -iop                        "<value>"    Optional. Specifies precision for input and output layers by name.
+                                             Example: -iop "input:FP16, output:FP16".
+                                             Notice that quotes are required.
+                                             Overwrites precision from ip and op options for specified layers.
+    -iscale                    Optional. Scale values to be used for the input image per channel.
+Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
+Example: -iscale data[255,255,255],info[255,255,255]
+
+    -imean                     Optional. Mean values to be used for the input image per channel.
+Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,
+Example: -imean data[255,255,255],info[255,255,255]
+
+    -inference_only              Optional. Measure only inference stage. Default option for static models. Dynamic models are measured in full mode which includes inputs setup stage, inference only mode available for them with single input data shape only. To enable full mode for static models pass "false" value to this argument: ex. "-inference_only=false".
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -156,36 +150,42 @@ If a model has mixed input types, input folder should contain all required files
 
 To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO IR (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices.  The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
 
 > **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
-   ```sh
-   cd <INSTAL_DIR>/extras/open_model_zoo/tools/downloader
+1. Install OpenVINO Development Tools to work with Caffe* models:
+
+   ``` sh
+   pip install openvino-dev[caffe]
    ```
+
+2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` script with specifying the model name and directory to download the model to:
+
    ```sh
-   python3 downloader.py --name googlenet-v1 -o <models_dir>
+   omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
+
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+
+4. Run the tool with specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png  -d CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp  -d CPU -api async -progress
    ```
    * On GPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png -d GPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp -d GPU -api async -progress
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
@@ -243,6 +243,6 @@ Below are fragments of sample output static and dynamic networks:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+* [Using OpenVINO Runtime Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

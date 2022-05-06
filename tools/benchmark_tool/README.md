@@ -44,20 +44,17 @@ A number of executions is defined by one of the two values:
 * Explicitly, with the `-niter` command-line argument
 * As _time_ duration specified with the `-t` command-line argument
 * Both of them (execution will continue until both conditions are met)
-* Predefined duration if neither `-niter`nor `-t` are not specified. Predefined duration value depends on the device.
+* Predefined duration if neither `-niter` nor `-t` are not specified. Predefined duration value depends on the device.
 
 ## Run the Tool
 
-Before running the Benchmark tool, install the requirements:
-```sh
-pip install -r  requirements.txt
-```
+Before running the Benchmark tool, install  [OpenVINO™ Development Tools](../../docs/install_guides/installing-model-dev-tools.md).
 
 Notice that the benchmark_app usually produces optimal performance for any device out of the box.
-
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
+
 ```sh
-python3 benchmark_app.py -m <model> -i <input> -d CPU
+benchmark_app -m <model> -i <input> -d CPU
 ```
 
 But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../docs/optimization_guide/dldt_optimization_guide.md).
@@ -65,153 +62,104 @@ But it is still may be sub-optimal for some cases, especially for very small net
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
 ```
-usage: benchmark_app.py [-h] [-i PATH_TO_INPUT] -m PATH_TO_MODEL
-                        [-d TARGET_DEVICE]
-                        [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG]
-                        [-hint {throughput, latency}]
-                        [-api {sync,async}] [-niter NUMBER_ITERATIONS]
-                        [-b BATCH_SIZE]
-                        [-stream_output [STREAM_OUTPUT]] [-t TIME]
-                        [-progress [PROGRESS]] [-nstreams NUMBER_STREAMS]
-                        [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                        [--exec_graph_path EXEC_GRAPH_PATH]
-                        [-pc [PERF_COUNTS]]
+usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL 
+                     [-d TARGET_DEVICE] 
+                     [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] 
+                     [-api {sync,async}]
+                     [-niter NUMBER_ITERATIONS]
+                     [-nireq NUMBER_INFER_REQUESTS]
+                     [-b BATCH_SIZE]
+                     [-stream_output [STREAM_OUTPUT]]
+                     [-t TIME]
+                     [-progress [PROGRESS]]
+                     [-shape SHAPE]
+                     [-layout LAYOUT]
+                     [-nstreams NUMBER_STREAMS]
+                     [-enforcebf16 [{True,False}]]
+                     [-nthreads NUMBER_THREADS]
+                     [-pin {YES,NO,NUMA,HYBRID_AWARE}]
+                     [-exec_graph_path EXEC_GRAPH_PATH]
+                     [-pc [PERF_COUNTS]]
+                     [-report_type {no_counters,average_counters,detailed_counters}]
+                     [-report_folder REPORT_FOLDER]
+                     [-dump_config DUMP_CONFIG]
+                     [-load_config LOAD_CONFIG]
+                     [-qb {8,16}]
+                     [-ip {U8,FP16,FP32}]
+                     [-op {U8,FP16,FP32}]
+                     [-iop INPUT_OUTPUT_PRECISION]
+                     [-cdir CACHE_DIR]
+                     [-lfile [LOAD_FROM_FILE]]
 
 Options:
-  -h, --help            Show this help message and exit.
-  -i PATH_TO_INPUT, --path_to_input PATH_TO_INPUT
-                        Optional. Path to a folder with images and/or binaries
-                        or to specific image or binary file. To map input files
-                        to the specific input use next syntax:
-                        "input1:image_path1/folder_path1,input2:image_path2/folder_path2"
+  -h [HELP], --help [HELP]
+                        Show this help message and exit.
+  -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
+                        Optional. Path to a folder with images and/or binaries or to specific image or binary file.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
-                        Required. Path to an .xml/.onnx/.prototxt file with a
-                        trained model or to a .blob file with a trained
-                        compiled model.
+                        Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                        Optional. Specify a target device to infer on: CPU,
-                        GPU, HDDL or MYRIAD.
-                        Use "-d HETERO:<comma separated devices list>" format to specify HETERO plugin.
-                        Use "-d MULTI:<comma separated devices list>" format to specify MULTI plugin.
-                        The application looks for a suitable plugin for the specified device.
+                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to specify
+                        HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
   -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
-                        Optional. Required for CPU custom layers. Absolute
-                        path to a shared library with the kernels
-                        implementations.
+                        Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
-                        Optional. Required for GPU custom kernels. Absolute
-                        path to an .xml file with the kernels description.
-  -hint {throughput, latency, none}, --perf_hint {throughput, latency, none}
-                        Optional. Performance hint (latency or throughput or
-                        none). Performance hint allows the OpenVINO device to
-                        select the right network-specific settings.
-                        'throughput': device performance mode will be set to
-                        THROUGHPUT, default value for -api sync.
-                        'latency': device performance mode will be
-                        set to LATENCY, default value for -api async.
-                        'none': no device performance mode
-                        will be set. Using explicit 'nstreams' or other
-                        device-specific options, please set hint to 'none'
+                        Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
   -api {sync,async}, --api_type {sync,async}
-                        Optional. Enable using sync/async API. Default value
-                        is async.
+                        Optional. Enable using sync/async API. Default value is async.
   -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
-                        Optional. Number of iterations. If not specified, the
-                        number of iterations is calculated depending on a
-                        device.
+                        Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
+  -nireq NUMBER_INFER_REQUESTS, --number_infer_requests NUMBER_INFER_REQUESTS
+                        Optional. Number of infer requests. Default value is determined automatically for device.
   -b BATCH_SIZE, --batch_size BATCH_SIZE
-                        Optional. Batch size value. If not specified, the
-                        batch size value is determined from IR
+                        Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
   -stream_output [STREAM_OUTPUT]
-                        Optional. Print progress as a plain text. When
-                        specified, an interactive progress bar is replaced
-                        with a multiline output.
+                        Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multi-line output.
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
-  -progress [PROGRESS]  Optional. Show progress bar (can affect performance
-                        measurement). Default values is "False".
-  -shape SHAPE          Optional. Set shape for input. For example,
-                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]"
-                        in case of one input size.
-  -data_shape DATA_SHAPE
-                        Optional. Define shape of data to infer dynamic
-                        model. To process images with original shapes
-                        this parameter can be ommited, but it's required
-                        in other cases to benchmark dynamic model.
-                        For example "[shape1],[shape2], ..." can be
-                        used to set several data shapes in case one input
-                        or to set shape1 to input1, shape2 to input2
-                        and so on in case several inputs. Input mapping
-                        is also supported: "input1[shape1,shape2],input2[shape3,shape4]".
-  -layout LAYOUT        Optional. Prompts how network layouts should be
-                        treated by application. For example,
-                        "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
-                        input size. Also can be defined partially -
-                        "input1[N...],input2[N...C]"
+  -progress [PROGRESS]  Optional. Show progress bar (can affect performance measurement). Default values is 'False'.
+  -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+  -layout LAYOUT        Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYX in throughput mode
-                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                        Default value is determined automatically for a device.
-                        Please note that although the automatic selection usually provides a reasonable performance,
-                        it still may be non-optimal for some cases, especially for very small networks.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
+                        Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for
+                        some cases, especially for very small networks. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be
+                        set to 1. See samples README for more details.
+  -enforcebf16 [{True,False}], --enforce_bfloat16 [{True,False}]
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'true' - enable bfloat16 regardless of platform support. 'false' -
+                        disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
-                        Number of threads to use for inference on the CPU
-                        (including HETERO  and MULTI cases).
-  --latency_percentile LATENCY_PERCENTILE
-                        Optional. Defines the percentile to be reported in latency metric.
-                        The valid range is [1, 100]. The default value is 50 (median).
-  -enforcebf16 ENFORCEBF16, --enforce_bfloat16 ENFORCEBF16
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
-                           True  - enable  bfloat16 regardless of platform support.
-                           False - disable bfloat16 regardless of platform support.
+                        Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
-                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs),
-                        threads->(NUMA)nodes ('NUMA'),
-                        threads->appropriate core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs)
-                        or completely disable ('NO')
-                        CPU threads pinning for CPU-involved inference.
-  --exec_graph_path EXEC_GRAPH_PATH
-                        Optional. Path to a file where to store executable
-                        graph information serialized.
+                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'), threads->appropriate core types ('HYBRID_AWARE', which
+                        is OpenVINO runtime's default for Hybrid CPUs)or completely disable ('NO')CPU threads pinning for CPU-involved inference.
+  -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
+                        Optional. Path to a file where to store executable graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
-  -pcseq PCSEQ --pcseq PCSEQ
-                        Optional. Report latencies for each shape in -data_shape sequence.
-  -inference_only INFERENCE_ONLY, --inference_only INFERENCE_ONLY
-                        Optional. If true inputs filling only once before measurements.
-                           True - fill inputs once before the measurements loop, default value for static models
-                           False - fill inputs each time before inference, default value for dynamic models
-  -report_type REPORT_TYPE, --report_type REPORT_TYPE
-                        Optional. Enable collecting statistics report.
-                           "--report_type no_counters" report contains configuration options specified, resulting FPS and latency.
-                           "--report_type average_counters"
-                           "report extends \"no_counters\" report and additionally includes average PM "
-                           "counters values for each layer from the network. \"detailed_counters\" report "
-                           "extends \"average_counters\" report and additionally includes per-layer PM "
-                           "counters and latency for each executed infer request.
+  -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
+                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters"
+                        report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-
+                        layer PM counters and latency for each executed infer request.
+  -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
+                        Optional. Path to a folder where statistics report is stored.
   -dump_config DUMP_CONFIG
-                        Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
+                        Optional. Path to JSON file to dump IE parameters, which were set by application.
   -load_config LOAD_CONFIG
-                        Optional. Path to JSON file to load custom OpenVINO parameters.
-                           Please note, command line parameters have higher priority then parameters from configuration file.
-  -cdir CACHE_DIR -cache_dir
-                        Optional. Enable model caching to specified directory.
-  -lfile LOAD_FROM_FILE --load_from_file LOAD_FROM_FILE
+                        Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+  -qb {8,16}, --quantization_bits {8,16}
+                        Optional. Weight bits for quantization: 8 (I8) or 16 (I16)
+  -ip {U8,FP16,FP32}, --input_precision {U8,FP16,FP32}
+                        Optional. Specifies precision for all input layers of the network.
+  -op {U8,FP16,FP32}, --output_precision {U8,FP16,FP32}
+                        Optional. Specifies precision for all output layers of the network.
+  -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
+                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options
+                        for specified layers.
+  -cdir CACHE_DIR, --cache_dir CACHE_DIR
+                        Optional. Enable model caching to specified directory
+  -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_network.
-  -qb QUANTIZATION_BITS --quantization_bits QUANTIZATION_BITS
-                        Optional. Weight bits for quantization:  8 (I8) or 16 (I16)
-  -iscale INPUT_SCALE --input_scale INPUT_SCALE
-                        Optional. Scale values to be used for the input image per channel.
-                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -iscale data[255,255,255],info[255,255,255]
-  -imean INPUT_MEAN --input_mean INPUT_MEAN
-                        Optional. Mean values to be used for the input image per channel.
-                        Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -imean data[255,255,255],info[255,255,255]
-  -ip "u8"/"f16"/"f32"  Optional. Specifies precision for all input layers of the network.
-  -op "u8"/"f16"/"f32"  Optional. Specifies precision for all output layers of the network.
-  -iop                  Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
 ```
-
 Running the application with the empty list of options yields the usage message given above and an error message.
 
 Application supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
@@ -225,30 +173,34 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
 
 > **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the Model Downloader directory and run the `downloader.py` script with the model name and directory to download the model to:
-   ```sh
-   cd <INSTALL_DIR>/extras/open_model_zoo/tools/downloader
+1. Install OpenVINO Development Tools to work with Caffe* models:
+
+   ``` sh
+   pip install openvino-dev[caffe]
    ```
+
+2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` tool with the model name and directory to download the model to:
+
    ```sh
-   python3 downloader.py --name googlenet-v1 -o <models_dir>
+   omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the OpenVINO IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
+3. Convert the model to the OpenVINO IR format. Run Model Optimizer with the path to the model, model format and output directory to generate the IR files:
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+4. Run the tool with specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-    python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/samples/scripts/car.png --progress true -b 1
+    benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i dog.bmp -progress -b 1
    ```
    * On GPU:
    ```sh
-   python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d GPU -api async -i <INSTALL_DIR>/samples/scripts/car.png --progress true -b 1
+   benchmark_app -m <ir_dir>/googlenet-v1.xml -d GPU -api async -i dog.bmp -progress -b 1
    ```
 
 The application outputs number of executed iterations, total duration of execution, latency and throughput.
