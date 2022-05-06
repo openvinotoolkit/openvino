@@ -10,7 +10,7 @@
 #include "conv.h"
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
@@ -32,11 +32,11 @@
 #endif
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
@@ -49,7 +49,7 @@ template <cpu_isa_t isa>
 struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
-    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
+    explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const dnnl_primitive_attr &attr) :
             jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr), jit_generator()  {}
 
     void create_ker() override {
@@ -213,7 +213,7 @@ private:
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
 
-    void cvt2ps(mkldnn::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
+    void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand &op, bool scalar_load) {
         Xmm xmm_in = Xmm(vmm_in.getIdx());
 
         switch (type_in) {
@@ -898,7 +898,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
 }
 
 BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op,
-                                                         const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+                                                         const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -1124,8 +1124,8 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
     }
 }
 
-void BinaryConvolution::setPostOps(mkldnn::primitive_attr &attr) {
-    mkldnn::post_ops ops;
+void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
@@ -1297,7 +1297,7 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
     });
 }
 
-void BinaryConvolution::execute(mkldnn::stream strm) {
+void BinaryConvolution::execute(dnnl::stream strm) {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();

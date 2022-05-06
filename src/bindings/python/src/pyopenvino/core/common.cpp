@@ -27,6 +27,8 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u64, py::dtype("uint64")},
         {ov::element::boolean, py::dtype("bool")},
         {ov::element::u1, py::dtype("uint8")},
+        {ov::element::u4, py::dtype("uint8")},
+        {ov::element::i4, py::dtype("int8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -49,12 +51,12 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape) {
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
 
     if (is_contiguous) {
-        return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
+        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
     } else {
         throw ov::Exception("Tensor with shared memory must be C contiguous!");
     }

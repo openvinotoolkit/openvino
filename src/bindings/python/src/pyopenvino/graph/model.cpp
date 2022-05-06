@@ -684,12 +684,9 @@ void regclass_graph_Model(py::module m) {
             :rtype: bool
         )");
 
-    model.def(
-        "clone",
-        [](ov::Model& self) {
-            return ov::clone_model(self);
-        },
-        R"(
+    model.def("clone",
+              &ov::Model::clone,
+              R"(
             Return a copy of self.
             :return: A copy of self.
             :rtype: openvino.runtime.Model

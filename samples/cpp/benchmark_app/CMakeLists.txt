@@ -10,7 +10,7 @@ file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES nlohmann_json format_reader ie_samples_utils)
+              DEPENDENCIES nlohmann_json::nlohmann_json format_reader ie_samples_utils)
 
 # Optional OpenCL dependnency
 
@@ -63,7 +63,6 @@ endif()
 find_package(OpenCV COMPONENTS core QUIET)
 if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
-    target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json_schema_validator)
 else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
