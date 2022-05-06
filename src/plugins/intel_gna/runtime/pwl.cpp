@@ -65,6 +65,7 @@ void PwlDesignOpt(const DnnActivation& activation_type,
                          scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActSign:
+        case kActSoftSign:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
             break;
         case kActAbs:
