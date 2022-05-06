@@ -22,7 +22,7 @@ def dict_to_ordered_dict(d: dict, func=lambda t: t):
 
 class Node:
     def __init__(self, graph, node: str):
-        assert node in graph, "Attempt to access node {} that not in graph".format(node)
+        assert node in graph, "Attempt to access node {} that is not in graph".format(node)
 
         super(Node, self).__setattr__('graph', graph)
         super(Node, self).__setattr__('node', node)  # obsolete
@@ -713,6 +713,13 @@ class Graph(nx.MultiDiGraph):
     def get_op_nodes(self, **attrs):
         nodes = self.get_nodes_with_attributes(**dict(kind='op', **attrs))
         return [Node(self, node) for node in nodes]
+
+    def create_graph_copy(self):
+        #node_names = [dict(node)['name'] for node in self.get_op_nodes()]
+        print(f"Number of nodes found: {len(self.get_op_nodes())}")
+        node_names = [node.name for node in self.get_op_nodes()]
+        print(node_names)
+        return self.create_sub_graph_copy(node_names)
 
     def get_data_nodes(self, has_value=None):
         """
