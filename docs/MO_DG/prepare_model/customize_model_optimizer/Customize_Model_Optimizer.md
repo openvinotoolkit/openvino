@@ -1191,7 +1191,7 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
             op_params.update(replacement_descriptions)
             region_layer = RegionYoloOp(graph, op_params)
             region_layer_node = region_layer.create_node([last_node])
-            # Here you remove 'axis' from 'dim_attrs' to avoid permutation from axis = 1 to axis = 2.
+            # In here, 'axis' from 'dim_attrs' can be removed to avoid permutation from axis = 1 to axis = 2.
             region_layer_node.dim_attrs.remove('axis')
             Result(graph).create_node([region_layer_node])
             graph.remove_node(op_output)
