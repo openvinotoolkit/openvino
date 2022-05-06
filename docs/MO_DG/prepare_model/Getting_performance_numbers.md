@@ -2,7 +2,7 @@
 
 When evaluating performance of a model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the tips below: 
 
-- Avoid including one-time costs like model loading.
+- Avoid including one-time costs, like model loading.
 
 - Track separately operations which occurred outside of the OpenVINO Runtime (like video decoding). 
 
