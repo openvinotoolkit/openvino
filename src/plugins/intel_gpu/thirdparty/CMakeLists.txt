@@ -52,7 +52,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_TESTS=OFF"
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
-                "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
                 "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
