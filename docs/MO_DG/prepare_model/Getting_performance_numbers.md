@@ -39,7 +39,7 @@ While these settings provide really low-level control and allow to leverage the 
 
 When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (for examples, refer to the [Benchmark App](../../../samples/cpp/benchmark_app/README.md)).
+-	Wrap the inference execution exactly (for examples, refer to the [Benchmark App](../../../samples/cpp/benchmark_app/README.md)).
 -	Do not include model loading time.
 -	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
 -	In situations when any user-side pre-processing should be tracked separately, consider [Image Pre-processing and Conversion](../../OV_Runtime_UG/preprocessing_overview.md).
