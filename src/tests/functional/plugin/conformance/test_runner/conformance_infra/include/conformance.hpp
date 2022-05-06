@@ -48,10 +48,10 @@ inline std::vector<std::string> getModelPaths(const std::vector<std::string>& co
     std::vector<std::string> result;
     for (const auto& conformance_ir_path : conformance_ir_paths) {
         std::vector<std::string> tmp_buf;
-        if (CommonTestUtils::fileExists(conformance_ir_path)) {
-            tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
-        } else if (CommonTestUtils::directoryExists(conformance_ir_path)) {
+        if (CommonTestUtils::directoryExists(conformance_ir_path)) {
             tmp_buf = CommonTestUtils::getFileListByPatternRecursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
+        } else if (CommonTestUtils::fileExists(conformance_ir_path)) {
+            tmp_buf = CommonTestUtils::readListFiles({conformance_ir_path});
         } else {
             continue;
         }
