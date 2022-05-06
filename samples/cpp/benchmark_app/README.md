@@ -72,8 +72,9 @@ Options:
     -extensions "<absolute_path>" Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
+    -hint "performance hint (latency or throughput or cumulative_throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
                                'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
+                               'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                'latency': device performance mode will be set to LATENCY.
                                'none': no device performance mode will be set.
                               Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
