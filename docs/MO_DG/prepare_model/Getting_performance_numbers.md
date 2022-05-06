@@ -1,6 +1,6 @@
 # Getting Performance Numbers {#openvino_docs_MO_DG_Getting_Performance_Numbers}
 
-When evaluating performance of model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the tips below: 
+When evaluating performance of a model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the tips below: 
 
 - Avoid including one-time costs like model loading.
 
