@@ -515,12 +515,19 @@ void Convolution::getSupportedDescriptors() {
 void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
     dnnl::post_ops ops;
 
+    //auto getBinPostOpShape = [&](){
+    //    const auto outShape = getOutputShapeAtPort(0).getStaticDims();
+    //    const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+    //    const auto chIdx = getFusingAxis();
+    //    std::vector<size_t> binaryShape(outShapeRank, 1);
+    //    binaryShape[chIdx] = outShape[chIdx];
+    //    return binaryShape;
+    //};
     auto getBinPostOpShape = [&](){
-        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
-        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto outShapeRank = dims.size();
         const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = outShape[chIdx];
+        binaryShape[chIdx] = dims[chIdx];
         return binaryShape;
     };
 

@@ -1782,87 +1782,89 @@ TEST(model, set_batch_size_validation_throw) {
 
 TEST(model, incompatible_layout) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}}, {"NCHW"});
-    using callback = std::function<void()>;
-    auto verify_ex = [&](const callback& cb, const std::string& msg) {
-        try {
-            cb();
-            FAIL() << "set_layout shall throw";
-        } catch (const ov::Exception& err) {
-            // Verify error message contains conflicting layouts
-            EXPECT_TRUE(std::string(err.what()).find(msg) != std::string::npos) << err.what();
-        } catch (...) {
-            FAIL() << "Expected ov::Exception";
-        }
-    };
-    auto verify_ex_set_layout = [&](const ov::Layout& layout) {
-        auto msg = layout.to_string();
-        verify_ex(
-            [&]() {
-                ov::layout::set_layout(f->input(), layout);
-            },
-            msg);
-    };
-    verify_ex_set_layout("HWC");
-    verify_ex_set_layout("NDCHW");
-    verify_ex_set_layout("ND...CHW");
+    // TODO lc: due to commit '[WA] remove layout compatibility chheck that leads to the fase-positive exceptions'
+    // temporary disable these cases
+    // using callback = std::function<void()>;
+    // auto verify_ex = [&](const callback& cb, const std::string& msg) {
+    //     try {
+    //         cb();
+    //         FAIL() << "set_layout shall throw";
+    //     } catch (const ov::Exception& err) {
+    //         // Verify error message contains conflicting layouts
+    //         EXPECT_TRUE(std::string(err.what()).find(msg) != std::string::npos) << err.what();
+    //     } catch (...) {
+    //         FAIL() << "Expected ov::Exception";
+    //     }
+    // };
+    // auto verify_ex_set_layout = [&](const ov::Layout& layout) {
+    //     auto msg = layout.to_string();
+    //     verify_ex(
+    //         [&]() {
+    //             ov::layout::set_layout(f->input(), layout);
+    //         },
+    //         msg);
+    // };
+    // verify_ex_set_layout("HWC");
+    // verify_ex_set_layout("NDCHW");
+    // verify_ex_set_layout("ND...CHW");
     EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "H...WC"));
     EXPECT_NO_THROW(ov::layout::set_layout(f->input(), "...NCHW"));
     EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW..."));
     EXPECT_NO_THROW(f->get_parameters()[0]->set_layout("NCHW"));
 
-    auto verify_ex_set_layout_param = [&](const ov::Layout& layout) {
-        auto msg = layout.to_string();
-        verify_ex(
-            [&]() {
-                f->get_parameters()[0]->set_layout(layout);
-            },
-            msg);
-    };
-    verify_ex_set_layout_param("HWC");
-    verify_ex_set_layout_param("NDCHW");
-    verify_ex_set_layout_param("ND...CHW");
+    // auto verify_ex_set_layout_param = [&](const ov::Layout& layout) {
+    //     auto msg = layout.to_string();
+    //     verify_ex(
+    //         [&]() {
+    //             f->get_parameters()[0]->set_layout(layout);
+    //         },
+    //         msg);
+    // };
+    // verify_ex_set_layout_param("HWC");
+    // verify_ex_set_layout_param("NDCHW");
+    // verify_ex_set_layout_param("ND...CHW");
 
-    auto verify_ex_set_partial_shape = [&](const ov::PartialShape& shape) {
-        std::stringstream msgStr;
-        msgStr << shape;
-        auto msg = msgStr.str();
-        verify_ex(
-            [&]() {
-                f->get_parameters()[0]->set_partial_shape(shape);
-            },
-            msg);
-    };
-    verify_ex_set_partial_shape({1, 2, 3, 4, 5});
-    verify_ex_set_partial_shape({1, 2, 3});
+    // auto verify_ex_set_partial_shape = [&](const ov::PartialShape& shape) {
+    //     std::stringstream msgStr;
+    //     msgStr << shape;
+    //     auto msg = msgStr.str();
+    //     verify_ex(
+    //         [&]() {
+    //             f->get_parameters()[0]->set_partial_shape(shape);
+    //         },
+    //         msg);
+    // };
+    // verify_ex_set_partial_shape({1, 2, 3, 4, 5});
+    // verify_ex_set_partial_shape({1, 2, 3});
     EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape::dynamic()));
     EXPECT_NO_THROW(f->get_parameters()[0]->set_partial_shape(ov::PartialShape{1, 3, 224, 224}));
 
-    auto verify_ex_set_layout_result = [&](const ov::Layout& layout) {
-        auto msg = layout.to_string();
-        verify_ex(
-            [&]() {
-                ov::layout::set_layout(f->output(), layout);
-            },
-            msg);
-    };
-    verify_ex_set_layout_result("HWC");
-    verify_ex_set_layout_result("NDCHW");
-    verify_ex_set_layout_result("ND...CHW");
+    // auto verify_ex_set_layout_result = [&](const ov::Layout& layout) {
+    //     auto msg = layout.to_string();
+    //     verify_ex(
+    //         [&]() {
+    //             ov::layout::set_layout(f->output(), layout);
+    //         },
+    //         msg);
+    // };
+    // verify_ex_set_layout_result("HWC");
+    // verify_ex_set_layout_result("NDCHW");
+    // verify_ex_set_layout_result("ND...CHW");
 
-    auto verify_ex_set_layout_result_validate = [&](const ov::PartialShape& param_shape, const ov::Layout& layout) {
-        auto msg = layout.to_string();
-        f = bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic()}, {"..."});
-        verify_ex(
-            [&]() {
-                f->get_parameters()[0]->set_partial_shape(param_shape);
-                ov::layout::set_layout(f->output(), layout);
-                f->validate_nodes_and_infer_types();
-            },
-            msg);
-    };
-    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "HWC");
-    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "NDHWC");
-    verify_ex_set_layout_result_validate({1, 2, 3, 4}, "ND...HWC");
+    // auto verify_ex_set_layout_result_validate = [&](const ov::PartialShape& param_shape, const ov::Layout& layout) {
+    //     auto msg = layout.to_string();
+    //     f = bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic()}, {"..."});
+    //     verify_ex(
+    //         [&]() {
+    //             f->get_parameters()[0]->set_partial_shape(param_shape);
+    //             ov::layout::set_layout(f->output(), layout);
+    //             f->validate_nodes_and_infer_types();
+    //         },
+    //         msg);
+    // };
+    // verify_ex_set_layout_result_validate({1, 2, 3, 4}, "HWC");
+    // verify_ex_set_layout_result_validate({1, 2, 3, 4}, "NDHWC");
+    // verify_ex_set_layout_result_validate({1, 2, 3, 4}, "ND...HWC");
 }
 
 TEST(model, clone_model_function) {
