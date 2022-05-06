@@ -714,13 +714,6 @@ class Graph(nx.MultiDiGraph):
         nodes = self.get_nodes_with_attributes(**dict(kind='op', **attrs))
         return [Node(self, node) for node in nodes]
 
-    def create_graph_copy(self):
-        #node_names = [dict(node)['name'] for node in self.get_op_nodes()]
-        print(f"Number of nodes found: {len(self.get_op_nodes())}")
-        node_names = [node.name for node in self.get_op_nodes()]
-        print(node_names)
-        return self.create_sub_graph_copy(node_names)
-
     def get_data_nodes(self, has_value=None):
         """
         Returns list of data nodes.
