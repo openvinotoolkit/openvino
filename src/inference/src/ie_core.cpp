@@ -431,9 +431,7 @@ public:
         opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() {
-        resetExecutorManager();
-    }
+    ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
@@ -1352,6 +1350,11 @@ private:
     }
 };
 
+void Cleanup::cleanup() {
+    ov::frontend::release_frontend_manager();
+    resetExecutorManager();
+}
+
 }  // namespace ov
 
 namespace InferenceEngine {
@@ -1441,6 +1444,11 @@ class Core::Impl : public ov::CoreImpl {
 public:
     Impl() : ov::CoreImpl(false) {}
 };
+
+void Cleanup::cleanup() {
+    ov::frontend::release_frontend_manager();
+    resetExecutorManager();
+}
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
