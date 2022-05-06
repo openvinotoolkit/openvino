@@ -37,7 +37,7 @@ To get pb-file from the archive contents, you need to do the following.
 
 2. Save and run the following Python script in *`~/XLNet-Base/xlnet`*:
 
-> **Note**: The original model repository has been tested with TensorFlow 1.13.1 under Python2.
+> **NOTE**: The original model repository has been tested with TensorFlow 1.13.1 under Python2.
 
 ```python
 from collections import namedtuple
