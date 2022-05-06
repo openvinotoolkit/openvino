@@ -157,10 +157,8 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         # filter nodes to keep only ones with edges connected
         filtered_nodes = {}
         for item in edges:
-            if len(item) == 2:  # TODO: is there any better way in python to do that?
-                node1, node2 = item
-            else:
-                node1, node2, _ = item
+            node1, node2, *_ = item
+
             filtered_nodes[node1] = nodes_attrs[node1]
             filtered_nodes[node2] = nodes_attrs[node2]
         nodes_attrs = filtered_nodes
@@ -172,11 +170,8 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
 
     # connect nodes with edges
     for item in edges:
-        if len(item) == 2:  # TODO: is there any better way in python to do that?
-            node_1, node_2 = item
-            edge_attrs = {}
-        else:
-            node_1, node_2, edge_attrs = item
+        node_1, node_2, *edge_attrs_list = item
+        edge_attrs = dict(edge_attrs_list[0])
 
         common_attrs = {'in': len(graph.in_edges(node_2)),
                         'out': len(graph.out_edges(node_1)),
