@@ -3,15 +3,17 @@
 //
 
 #include "dft_kernel_selector.h"
+
 #include "dft_kernel_ref.h"
 
 namespace kernel_selector {
 namespace {
 
-class dft_kernel_selector: public kernel_selector_base {
-    KernelsData GetBestKernels(const Params &params, const optional_params &options) const override {
+class dft_kernel_selector : public kernel_selector_base {
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override {
         return GetNaiveBestKernel(params, options, KernelType::DFT);
     }
+
 public:
     dft_kernel_selector() {
         Attach<DFTKernelRef>();
