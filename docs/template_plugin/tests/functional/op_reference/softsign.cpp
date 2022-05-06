@@ -64,7 +64,7 @@ std::vector<SoftSignParams> generateSoftSignFloatParams() {
     std::vector<SoftSignParams> ParamsVector {
         SoftSignParams(ov::PartialShape {4},
                     IN_ET,
-                    std::vector<T>{-1.0, 0.0, 1.0, 20.0},
+                    std::vector<T>{-1.0, 0.0, 1.0, 15.0},
                     std::vector<T>{-0.5, 0.0, 0.5, 0.9375})
     };
     return ParamsVector;
@@ -72,7 +72,6 @@ std::vector<SoftSignParams> generateSoftSignFloatParams() {
 
 std::vector<SoftSignParams> generateSoftSignCombinedParams() {
     const std::vector<std::vector<SoftSignParams>> SoftSignTypeParams {
-        generateSoftSignFloatParams<element::Type_t::f64>(),
         generateSoftSignFloatParams<element::Type_t::f32>(),
         generateSoftSignFloatParams<element::Type_t::f16>(),
         generateSoftSignFloatParams<element::Type_t::bf16>()
