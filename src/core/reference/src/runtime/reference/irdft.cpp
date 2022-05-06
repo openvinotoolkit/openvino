@@ -47,15 +47,6 @@ std::vector<T> remove_from_position(const std::vector<T>& vec, const int64_t pos
     return result;
 }
 
-// When we reverted shape, we need to revert FFT axes.
-std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank) {
-    auto result = axes;
-    for (int64_t& axis : result) {
-        axis = complex_data_rank - 1 - axis;
-    }
-    return result;
-}
-
 // Returns all axes except the last one
 std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& v) {
     if (v.empty() || v.size() == 1) {
@@ -86,7 +77,7 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     const auto outer_extended_size = outer_extended_shape_strides.back();
 
     const auto complex_data_rank = static_cast<int64_t>(reversed_ext_input_data_shape.size());
-    const auto reversed_axes = reverse_fft_axes(axes_data, complex_data_rank);
+    const auto reversed_axes = fft_common::reverse_fft_axes(axes_data, complex_data_rank);
     const auto reversed_last_axis = reversed_axes.back();
     const auto outer_strides = remove_from_position(input_data_strides, reversed_last_axis);
 

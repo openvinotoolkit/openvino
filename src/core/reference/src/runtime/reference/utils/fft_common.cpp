@@ -58,6 +58,14 @@ int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const
     }
     return offset;
 }
+
+std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank) {
+    auto result = axes;
+    for (int64_t& axis : result) {
+        axis = complex_data_rank - 1 - axis;
+    }
+    return result;
+}
 }  // namespace fft_common
 }  // namespace reference
 }  // namespace runtime
