@@ -707,14 +707,22 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                 scoreIndexPairs.push_back(score_index_per_prior);
             } else {
                 for (int prior = 0; prior < num_of_priors; ++prior) {
-                    for (int cls = 0; cls < num_classes; ++cls) {
+                    int idx_start = (background_label_id == 0 ? 1 : 0);
+                    float max_score = 0;
+                    int max_cls = 0;
+                    for (int cls = idx_start; cls < num_classes; ++cls) {
                         float score = static_cast<float>(confidence_data[idx]);
                         if (score > confidence_threshold) {
                             label_to_scores[cls].emplace_back(score, prior);
+                            if ((cls == idx_start) || score > max_score) {
+                                max_score = score; max_cls = cls;
+                            }
                         }
                         idx += stride;
                     }
+                    score_index_per_prior.emplace_back(std::make_pair(max_score, std::make_pair(max_cls, prior)));
                 }
+                scoreIndexPairs.push_back(score_index_per_prior);
             }
         }
     }
