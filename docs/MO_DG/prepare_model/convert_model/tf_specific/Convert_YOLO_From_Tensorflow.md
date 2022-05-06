@@ -2,7 +2,7 @@
 
 This document explains how to convert real-time object detection YOLOv1, YOLOv2, YOLOv3 and YOLOv4 public models to the Intermediate Representation (IR). All YOLO models are originally implemented in the DarkNet framework and consist of two files:
 * The *`.cfg`* file with model configurations
-* *`.weights`* file with model weights
+* The *`.weights`* file with model weights
 
 Depending on a YOLO model version, the Model Optimizer converts it differently:
 
