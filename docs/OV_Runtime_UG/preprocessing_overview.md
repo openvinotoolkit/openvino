@@ -14,7 +14,7 @@
 
 ## Introduction
 
-When your input data don't perfectly fit to Neural Network model input tensor - this means that additional operations/steps are needed to transform your data to format expected by model. These operations are known as "preprocessing".
+When your input data does not perfectly fit to Neural Network model input tensor - this means that additional operations/steps are needed to transform your data to format expected by model. These operations are known as "preprocessing".
 
 ### Example
 Consider the following standard example: deep learning model expects input with shape `{1, 3, 224, 224}`, `FP32` precision, `RGB` color channels order, and requires data normalization (subtract mean and divide by scale factor). But you have just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means that we need some operations which will:
