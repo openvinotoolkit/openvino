@@ -619,7 +619,7 @@ class ConstExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):  # The entry point of the extractor.
-        # The node.pb attribute stores the TensorFlow representation of the operation, which is a Protobuf message of the
+        # The *`node.pb`* attribute stores the TensorFlow representation of the operation, which is a Protobuf message of the
         # specific format. In particular, the message contains the attribute called "value" containing the description of
         # the constant. The string "pb.attr["value"].tensor" is just a Python binding for Protobuf message parsing.
         pb_tensor = node.pb.attr["value"].tensor
