@@ -39,25 +39,11 @@ namespace reference {
 namespace {
 using complex_type = std::complex<float>;
 
-// TODO: Can be moved to common?
-// TODO: Can be unified with strides_for_outer_axes?
-Shape shape_for_outer_axes(const Shape& shape, int64_t inner_axis) {
-    Shape result;
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (i != static_cast<size_t>(inner_axis)) {
-            result.push_back(shape[i]);
-        }
-    }
-    return result;
-}
-
-std::vector<int64_t> strides_for_outer_axes(const std::vector<int64_t>& strides, int64_t inner_axis) {
-    std::vector<int64_t> result;
-    for (size_t i = 0; i < strides.size(); ++i) {
-        if (i != static_cast<size_t>(inner_axis)) {
-            result.push_back(strides[i]);
-        }
-    }
+// Remove element (dimension from shape or value from stride) on the given position
+template<typename T>
+std::vector<T> remove_from_position(const std::vector<T>& vec, const int64_t pos) {
+    auto result = vec;
+    result.erase(std::begin(result)+pos);
     return result;
 }
 
@@ -82,7 +68,7 @@ std::vector<int64_t> get_outer_fft_axes(const std::vector<int64_t>& v) {
 std::vector<complex_type> extend_input_data(const std::vector<float>& input_data,
                                             const Shape& input_data_shape,
                                             const Shape& shape_of_extended_input_data,
-                                            const std::vector<int64_t>& axes_data,  // really needed?
+                                            const std::vector<int64_t>& axes_data,
                                             const int64_t last_signal_size) {
     std::vector<complex_type> extended_input_complex(shape_size(shape_of_extended_input_data) / 2, complex_type{0, 0});
 
@@ -93,8 +79,7 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     const auto reversed_ext_input_data_shape =
         fft_common::reverse_shape_of_emulated_complex_tensor(shape_of_extended_input_data);
     const auto reversed_ext_input_strides = fft_common::compute_strides(reversed_ext_input_data_shape);
-    const auto last_axis = axes_data.back();
-    const auto outer_extended_shape = shape_for_outer_axes(shape_of_extended_input_data, last_axis);
+    const auto outer_extended_shape = remove_from_position(shape_of_extended_input_data, axes_data.back());
     const auto reversed_outer_extended_shape =
         fft_common::reverse_shape_of_emulated_complex_tensor(outer_extended_shape);
     const auto outer_extended_shape_strides = fft_common::compute_strides(reversed_outer_extended_shape);
@@ -103,9 +88,9 @@ std::vector<complex_type> extend_input_data(const std::vector<float>& input_data
     const auto complex_data_rank = static_cast<int64_t>(reversed_ext_input_data_shape.size());
     const auto reversed_axes = reverse_fft_axes(axes_data, complex_data_rank);
     const auto reversed_last_axis = reversed_axes.back();
-    const auto outer_strides = strides_for_outer_axes(input_data_strides, reversed_last_axis);
+    const auto outer_strides = remove_from_position(input_data_strides, reversed_last_axis);
 
-    const auto outer_extended_strides = strides_for_outer_axes(reversed_ext_input_strides, reversed_last_axis);
+    const auto outer_extended_strides = remove_from_position(reversed_ext_input_strides, reversed_last_axis);
     const auto inner_stride = input_data_strides[reversed_last_axis];
     const auto inner_extended_stride = reversed_ext_input_strides[reversed_last_axis];
 
@@ -142,7 +127,6 @@ void irdft(const std::vector<float>& input_data,
            float* irdft_result,
            const Shape& fft_output_shape,
            int64_t last_signal_size) {
-
     const auto outer_fft_axes = get_outer_fft_axes(axes_data);
     Shape float_data_shape = input_data_shape;
     for (const auto& a : outer_fft_axes) {
