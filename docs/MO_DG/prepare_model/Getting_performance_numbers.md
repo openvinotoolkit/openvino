@@ -51,7 +51,7 @@ More detailed insights into inference performance breakdown can be achieved with
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the *`benchmark_app`* support a *`-pc`* command-line parameter that outputs internal execution breakdown.
 
 For example, below is the part of performance counters for quantized [TensorFlow implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](../../OV_Runtime_UG/supported_plugins/CPU.md).
-Keep in mind that since the device is CPU, the layers wall clock *`realTime`* and the *`cpu`* time are the same. Information about layer precision is also stored in the performance counters. 
+Keep in mind that since the device is CPU, the *`realTime`* wall clock and the *`cpu`* time layers are the same. Information about layer precision is also stored in the performance counters. 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
 | --------------------------------------------------------- | ---------- | ------------ | -------------------- | ------------- | ------------ |
