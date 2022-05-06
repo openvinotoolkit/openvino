@@ -76,6 +76,7 @@
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/softsign.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
@@ -3690,6 +3691,36 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
                                                           op->get_attrs());
         break;
     default:;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        runtime::reference::softsign<double>(inputs[0]->get_data_ptr<double>(),
+                                             outputs[0]->get_data_ptr<double>(),
+                                             shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f32:
+        runtime::reference::softsign<float>(inputs[0]->get_data_ptr<float>(),
+                                            outputs[0]->get_data_ptr<float>(),
+                                            shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f16:
+        runtime::reference::softsign<float16>(inputs[0]->get_data_ptr<float16>(),
+                                              outputs[0]->get_data_ptr<float16>(),
+                                              shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::bf16:
+        runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                               outputs[0]->get_data_ptr<bfloat16>(),
+                                               shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
     }
     return true;
 }
