@@ -105,7 +105,7 @@ After unzipping the archive, the directory *`cased_L-12_H-1024_A-16`* is created
 * sentence piece model (*`spiece.model`*) used for (de)tokenization
 * config file (*`xlnet_config.json`*) which specifies the hyperparameters of the model
 
-To get pb-file from the archive contents, you need to do the following.
+To get *`pb-file`* from the archive contents, follow the instructions below:
 
 1. Run commands
 
