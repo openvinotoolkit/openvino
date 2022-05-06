@@ -42,7 +42,7 @@ mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] 
 
 ## <a name="yolov3-to-ir"></a>Converting YOLOv3 Model to the IR
 
-On GitHub*, you can find several public versions of TensorFlow YOLOv3 model implementation. This section explains how to convert YOLOv3 model from
+There are several public versions of TensorFlow YOLOv3 model implementation available on GitHub. This section explains how to convert YOLOv3 model from
 the [https://github.com/mystic123/tensorflow-yolo-v3](https://github.com/mystic123/tensorflow-yolo-v3) repository (commit ed60b90) to an IR , but the process is similar for other versions of TensorFlow YOLOv3 model.
 
 ### <a name="yolov3-overview"></a>Overview of YOLOv3 Model Architecture
