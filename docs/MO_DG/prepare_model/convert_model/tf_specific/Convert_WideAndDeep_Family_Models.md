@@ -8,7 +8,7 @@ through Tensorflow tf.feature_column API. Table below presents what feature type
 |:-------:|:----------------------:|:---------------------:|:----------:|:----------:|:-------:|
 | yes     | yes                    | no                    | yes        | yes        | no      |
 
-> **NOTE**: The categorical with hash and crossed features are currently unsupported since the OpenVINO&trade; toolkit does not support tensors of *`string`* type and operations with them.
+> **NOTE**: The categorical with hash and crossed features are currently unsupported since the OpenVINO toolkit does not support tensors of *`string`* type and operations with them.
 
 ## Preparing an Example of Wide and Deep Model
 
