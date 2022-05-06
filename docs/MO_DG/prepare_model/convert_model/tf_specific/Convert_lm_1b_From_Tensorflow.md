@@ -2,7 +2,7 @@
 
 ## Downloading the Pretrained Language Model on One Billion Word Benchmark
 
-TensorFlow provides [a pretrained Language Model on One Billion Word Benchmark](https://github.com/tensorflow/models/tree/r2.3.0/research/lm_1b).
+TensorFlow provides a pretrained [Language Model on One Billion Word Benchmark](https://github.com/tensorflow/models/tree/r2.3.0/research/lm_1b).
 
 To download the model for IR conversion, follow the instructions:
 1. Create new directory to store the model:
