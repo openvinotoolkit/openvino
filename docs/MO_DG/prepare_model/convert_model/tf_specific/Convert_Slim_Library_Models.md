@@ -61,7 +61,7 @@ mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inceptio
 
 The *`-b`* command line parameter is required because the Model Optimizer cannot convert a model with undefined input size.
 
-For the information why *`--mean_values`* and *`--scale`* command line parameters are used, refer to the [Mean and Scale Values for TensorFlow-Slim Models](#tf_slim_mean_scale_values).
+For the information on why *`--mean_values`* and *`--scale`* command-line parameters are used, refer to the [Mean and Scale Values for TensorFlow-Slim Models](#tf_slim_mean_scale_values).
 
 ## Mean and Scale Values for TensorFlow-Slim Models <a name="tf_slim_mean_scale_values"></a>
 The TensorFlow-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image preprocessing except resizing to the input layer size. It is necessary to pass mean and scale values to the Model Optimizer so they are embedded into the generated IR in order to get correct classification results.

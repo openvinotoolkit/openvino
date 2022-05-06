@@ -3,7 +3,7 @@
 This tutorial explains how to convert a RetinaNet model to the Intermediate Representation (IR).
 
 [Public RetinaNet model](https://github.com/fizyr/keras-retinanet) does not contain pretrained TensorFlow weights.
-To convert this model to the TensorFlow format, you can use [Reproduce Keras to TensorFlow Conversion tutorial](@ref omz_models_model_retinanet_tf).
+To convert this model to the TensorFlow format, follow the [Reproduce Keras to TensorFlow Conversion tutorial](@ref omz_models_model_retinanet_tf).
 
 After converting the model to TensorFlow format, run the Model Optimizer command below:
 ```sh
