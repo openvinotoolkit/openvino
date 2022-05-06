@@ -37,6 +37,8 @@ static int mult(T arr) {
     });
 }
 
+std::ostream& operator<<(std::ostream& os, FLOAT16 x){return os<<float(x);}
+
 #define PAD_MODES \
     border_type::constant, border_type::edge, border_type::mirror, border_type::mirror_101  //,border_type::zero
 #define FORMATS                                                                                                   \
@@ -99,8 +101,8 @@ public:
         base_network.set_input_data("input", input);
         auto base_output = base_network.execute().at("border").get_memory();
         cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
-        
-        EXPECT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out) ));
+
+        EXPECT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
     }
 };
 using border_test_i8 = border_test<char, data_types::i8>;
@@ -128,7 +130,7 @@ TEST_P(border_test_i32, border_test_i32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i32,
                          border_test_i32,
                          testing::Combine(testing::Values(PAD_MODES),
-                                          testing::Values(999),
+                                          testing::Values(11),
                                           testing::Values(FORMATS),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
@@ -153,6 +155,86 @@ INSTANTIATE_TEST_SUITE_P(border_test_f32,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+
+TEST(border_gpu, bsv16fsv16_without_reorder){
+    using T=int;
+    data_types T_dt=data_types::i32;
+    border_type pad_mode=border_type::constant;
+    T pad_value=0;
+    // format::type fmt=format::type::bs_fs_yx_bsv16_fsv16;
+    std::array<int, 4> sh_in={16,16,2,3}, cd_lt={0,0,1,1}, cd_rb={0,0,1,1}, sh_out;
+    sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
+                sh_in[1] + cd_lt[1] + cd_rb[1],
+                sh_in[2] + cd_lt[2] + cd_rb[2],
+                sh_in[3] + cd_lt[3] + cd_rb[3]};
+    auto& engine = get_test_engine();
+    auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
+    auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
+    set_values(input, input_data);
+
+    auto input_data_b16f16=input_data;
+    for(int b=0;b<sh_in[0];b++)
+    for(int f=0;f<sh_in[1];f++)
+    for(int y=0;y<sh_in[2];y++)
+    for(int x=0;x<sh_in[3];x++){
+        int b0=b/16,b1=b%16,f0=f/16,f1=f%16;
+        input_data_b16f16[
+            b0*sh_in[1]/16*sh_in[2]*sh_in[3]*16*16+
+            f0*sh_in[2]*sh_in[3]*16*16+
+            y*sh_in[3]*16*16+
+            x*16*16+
+            b1*16+
+            f1]
+        =input_data[b*sh_in[1]*sh_in[2]*sh_in[3]+f*sh_in[2]*sh_in[3]+y*sh_in[3]+x];
+    }
+    auto input_b16f16 = engine.allocate_memory({T_dt, format::bs_fs_yx_bsv16_fsv16, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
+    set_values(input_b16f16, input_data_b16f16);
+
+    topology target_topology;
+    target_topology.add(input_layout("input", input_b16f16->get_layout()));
+    target_topology.add(
+                    border("border",
+                        "input",
+                        {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
+                        {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                        pad_mode,
+                        pad_value)
+                    );
+    cldnn::network target_network(engine, target_topology);
+    target_network.set_input_data("input", input_b16f16);
+    auto target_output = target_network.execute().at("border").get_memory();
+    cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+    
+    topology base_topology;
+    base_topology.add(input_layout("input", input->get_layout()));
+    base_topology.add(border("border",
+                        "input",
+                        {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
+                        {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                        pad_mode,
+                        pad_value));
+    cldnn::network base_network(engine, base_topology);
+    base_network.set_input_data("input", input);
+    auto base_output = base_network.execute().at("border").get_memory();
+    cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+
+    std::vector<T> b16f16_to_bfyx(mult(sh_out));
+    for(int b=0;b<sh_out[0];b++)
+    for(int f=0;f<sh_out[1];f++)
+    for(int y=0;y<sh_out[2];y++)
+    for(int x=0;x<sh_out[3];x++){
+        int b0=b/16,b1=b%16,f0=f/16,f1=f%16;
+        b16f16_to_bfyx[b*sh_out[1]*sh_out[2]*sh_out[3]+f*sh_out[2]*sh_out[3]+y*sh_out[3]+x]
+        =target_output_ptr.data()[b0*sh_out[1]/16*sh_out[2]*sh_out[3]*16*16+
+            f0*sh_out[2]*sh_out[3]*16*16+
+            y*sh_out[3]*16*16+
+            x*16*16+
+            b1*16+
+            f1];
+    }
+
+    EXPECT_TRUE(!memcmp(b16f16_to_bfyx.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
+}
 
 TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     //  Input (XY) : 4x3
