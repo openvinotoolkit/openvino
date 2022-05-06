@@ -74,7 +74,7 @@ Keep in mind that since the device is CPU, the *`realTime`* wall clock and the *
    * Suffix *`FP32`* - layers computed in 32-bit precision.
 
    All *`Convolution`* layers are executed in *`int8`* precision. Rest layers are fused into Convolutions using post operations optimization technique (for more details, see the [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md)).
-   This contains layers name (as seen in IR), layers type and execution statistics.
+   This contains name (as seen in IR) and type of the layer and execution statistics.
 
 Both *`benchmark_app`* versions also support *`exec_graph_path`* command-line option. It orders the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
 
