@@ -42,6 +42,7 @@ using complex_type = std::complex<float>;
 // Remove element (dimension from shape or value from stride) on the given position
 template<typename T>
 std::vector<T> remove_from_position(const std::vector<T>& vec, const int64_t pos) {
+    assert(vec.size() > pos);
     auto result = vec;
     result.erase(std::begin(result)+pos);
     return result;
