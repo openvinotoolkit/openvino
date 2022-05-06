@@ -12,7 +12,7 @@ The [Example of an Inception V1 Model Conversion](#example_of_an_inception_v1_mo
 ## Example of an Inception V1 Model Conversion <a name="example_of_an_inception_v1_model_conversion"></a>
 This example demonstrates how to convert the model on Linux OSes, but it could be easily adopted for the Windows OSes.
 
-Step 1. Create a new directory to clone the TensorFlow-Slim git repository to:
+**Step 1**. Create a new directory to clone the TensorFlow-Slim git repository to:
 
 ```sh
 mkdir tf_models
@@ -21,7 +21,7 @@ mkdir tf_models
 git clone https://github.com/tensorflow/models.git tf_models
 ```
 
-Step 2. Download and unpack the [Inception V1 model checkpoint file](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz):
+**Step 2**. Download and unpack the [Inception V1 model checkpoint file](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz):
 
 ```sh
 wget http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz
@@ -30,7 +30,7 @@ wget http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz
 tar xzvf inception_v1_2016_08_28.tar.gz
 ```
 
-Step 3. Export the inference graph --- the protobuf file (*`.pb`*) containing the architecture of the topology. This file *does not* contain the neural network weights and cannot be used for inference.
+**Step 3**. Export the inference graph --- the protobuf file (*`.pb`*) containing the architecture of the topology. This file *does not* contain the neural network weights and cannot be used for inference.
 
 ```sh
 python3 tf_models/research/slim/export_inference_graph.py \
@@ -53,7 +53,7 @@ InceptionV1/Logits/Predictions/Reshape_1
 ```
 The tool finds one input node with name *`input`*, type *`float32`*, fixed image size *`(224,224,3)`* and undefined batch size *`-1`*. The output node name is *`InceptionV1/Logits/Predictions/Reshape_1`*.<br>
 
-Step 4. Convert the model with the Model Optimizer:
+**Step 4**. Convert the model with the Model Optimizer:
 
 ```sh
 mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
