@@ -17,7 +17,7 @@ namespace runtime {
 namespace reference {
 namespace fft_common {
 std::vector<int64_t> reverse_shape_of_emulated_complex_tensor(const ngraph::Shape& shape) {
-    assert(shape.size() >= 2);
+    // assert(shape.size() >= 2);
     std::vector<int64_t> reversed_shape(shape.begin(), shape.end() - 1);
     std::reverse(reversed_shape.begin(), reversed_shape.end());
     return reversed_shape;
@@ -50,7 +50,7 @@ std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>
 }
 
 int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides) {
-    assert(coords.size() < strides.size());
+    // assert(coords.size() < strides.size());
     int64_t offset = 0;
     int64_t num_of_axes = coords.size();
     for (int64_t i = 0; i < num_of_axes; ++i) {
