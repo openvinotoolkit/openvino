@@ -52,7 +52,7 @@ Modfiy it with the following code:<br>
 decoder = symbol.decoder_symbol_with_vgg(vgg_symbol)
 ```
 
-5. To join the pre-trained weights with the decoder weights, make the following changes:
+5. To join the pretrained weights with the decoder weights, make the following changes:
    After the code lines for loading the decoder weights:<br>
    ```py
    args = mx.nd.load('%s_decoder_args.nd'%model_prefix)
