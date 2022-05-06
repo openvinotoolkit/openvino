@@ -5,7 +5,7 @@ This tutorial explains how to convert EfficientDet public object detection model
 ## <a name="efficientdet-to-ir"></a>Converting EfficientDet Model to the IR
 
 You will find on Github several public versions of EfficientDet model implementation. This tutorial explains how to
-convert models from the [https://github.com/google/automl/tree/master/efficientdet](https://github.com/google/automl/tree/master/efficientdet)
+convert models from the [repository](https://github.com/google/automl/tree/master/efficientdet)
 repository (commit 96e1fee) to the IR.
 
 ### Getting a Frozen TensorFlow Model
