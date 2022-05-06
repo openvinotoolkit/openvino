@@ -21,6 +21,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
+#include "ie_system_conf.h"
 
 #include "itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
@@ -190,6 +191,37 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     if (isCumulative) {
         std::list<DeviceInformation> validDevices =
             _multiPlugin->GetValidDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+
+        const auto num_cores = getNumberOfCPUCores();
+        // CPU cores are less than 6
+        if (num_cores <= 6) {
+            if (validDevices.size() > 1) {
+                std::list<DeviceInformation>::iterator itCPUDevice;
+                int iGPUNums = 0, dGPUNums = 0, CPUNums = 0;
+                for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
+                    auto& gpuUniqueName = it->uniqueName;
+                    if (gpuUniqueName.find("iGPU") != std::string::npos) {
+                        iGPUNums++;
+                    } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+                        dGPUNums++;
+                    }
+
+                    if (it->deviceName.find("CPU") == 0) {
+                        CPUNums++;
+                        itCPUDevice = it;
+                    }
+                }
+
+                // Available devices include one dGPU, one iGPU and CPU
+                // remove CPU from default candidate list for Cumulative Throughput mode
+                if (iGPUNums == 1 && dGPUNums == 1 && CPUNums > 0) {
+                    validDevices.erase(itCPUDevice);
+                    LOG_INFO("[AUTOPLUGIN]:coresNums:%d, 1iGPU, 1dGPU and CPU, remove CPU from default candidate list "
+                             "for CUMULATIVE_THROUGHPUT",
+                             num_cores);
+                }
+            }
+        }
 
         std::string deviceName = "MULTI:";
         for (auto& device : validDevices) {
