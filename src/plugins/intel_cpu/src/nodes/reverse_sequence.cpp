@@ -17,10 +17,6 @@ namespace node {
 
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
@@ -48,41 +44,42 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    src_dims = op->get_input_shape(REVERSESEQUENCE_DATA);
+    seq_axis = revSeq->get_sequence_axis();
+    batch_axis = revSeq->get_batch_axis();
 
-    SizeVector seq_lengths_dims = op->get_input_shape(REVERSESEQUENCE_LENGTHS);
-    if (seq_lengths_dims.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect 2nd input rank: " << seq_lengths_dims.size();
+    auto src_partial_shape = op->get_input_partial_shape(REVERSESEQUENCE_DATA);
+    auto seq_lengths_partial_shape = op->get_input_partial_shape(REVERSESEQUENCE_LENGTHS);
+    if (seq_lengths_partial_shape.size() != 1)
+        IE_THROW() << errorPrefix << " has incorrect 2nd input rank: " << seq_lengths_partial_shape.size();
 
-    SizeVector dst_dims = op->get_output_shape(0);
-    if (src_dims.size() != dst_dims.size())
+    auto dst_dims = op->get_output_partial_shape(0);
+
+    if (src_partial_shape.size() != dst_dims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output sizes!";
 
     for (size_t i = 0; i < dst_dims.size(); i++) {
-        if (src_dims[i] != dst_dims[i])
+        if (src_partial_shape[i] != dst_dims[i])
             IE_THROW() << errorPrefix << " has incorrect number of input/output dimension!";
     }
 
-    seq_axis = revSeq->get_sequence_axis();
-
-    if (seq_axis < 0 || seq_axis >= static_cast<int>(src_dims.size()))
+    if (seq_axis < 0 || seq_axis >= static_cast<int>(src_partial_shape.size()))
         IE_THROW() << errorPrefix << " has incorrect 'seq_axis' parameters dimensions and axis number!";
 
-    batch_axis = revSeq->get_batch_axis();
-
-    if (batch_axis < 0 || batch_axis >= static_cast<int>(src_dims.size()))
+    if (batch_axis < 0 || batch_axis >= static_cast<int>(src_partial_shape.size()))
         IE_THROW() << errorPrefix << " has incorrect 'batch_axis' parameters dimensions and axis number!";
 
-    if (seq_lengths_dims[0] != dst_dims[batch_axis])
+    if (seq_lengths_partial_shape[0] != dst_dims[batch_axis])
         IE_THROW() << errorPrefix << " has incorrect 'seq_lengths_dims' parameters dimension!";
 
-    srcStrides.resize(src_dims.size());
-    srcStrides[srcStrides.size() - 1] = 1;
-    for (int i = srcStrides.size() - 2; i >= 0; i--) {
-        srcStrides[i] = srcStrides[i + 1] * src_dims[i + 1];
+    if (!isDynamicNode()) {
+        src_dims = op->get_input_shape(REVERSESEQUENCE_DATA);
+        srcStrides.resize(src_dims.size());
+        srcStrides[srcStrides.size() - 1] = 1;
+        for (int i = srcStrides.size() - 2; i >= 0; i--) {
+            srcStrides[i] = srcStrides[i + 1] * src_dims[i + 1];
+        }
+        work_amount_dst = srcStrides[0] * src_dims[0];
     }
-
-    work_amount_dst = srcStrides[0] * src_dims[0];
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {
@@ -181,6 +178,44 @@ void ReverseSequence::execute(dnnl::stream strm) {
             IE_THROW() << "ReverseSequence layer does not support "
                         << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
     }
+}
+
+bool ReverseSequence::needShapeInfer() const {
+    if (inputShapesModified()) {
+        return true;
+    }
+
+    if (src_dims.empty()) {
+        return true;
+    } else {
+        auto new_src_dims = getParentEdgesAtPort(REVERSESEQUENCE_DATA)[0]->getMemory().getStaticDims();
+        if (src_dims.size() != new_src_dims.size())
+            return true;
+        for (int i = 0; i < src_dims.size(); i++) {
+            if (src_dims[i] != new_src_dims[i])
+                return true;
+        }
+    }
+    return false;
+}
+
+void ReverseSequence::prepareParams() {
+    src_dims = getParentEdgesAtPort(REVERSESEQUENCE_DATA)[0]->getMemory().getStaticDims();
+    srcStrides.resize(src_dims.size());
+    srcStrides[srcStrides.size() - 1] = 1;
+    for (int i = srcStrides.size() - 2; i >= 0; i--) {
+        srcStrides[i] = srcStrides[i + 1] * src_dims[i + 1];
+    }
+
+    work_amount_dst = srcStrides[0] * src_dims[0];
+}
+
+std::vector<VectorDims> ReverseSequence::shapeInfer() const {
+    return std::vector<VectorDims>{getParentEdgesAtPort(REVERSESEQUENCE_DATA)[0]->getMemory().getStaticDims()};
+}
+
+void ReverseSequence::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
 }
 
 bool ReverseSequence::created() const {
