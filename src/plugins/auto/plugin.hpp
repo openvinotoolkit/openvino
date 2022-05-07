@@ -45,9 +45,11 @@ public:
     MOCKTESTMACRO std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                                        const std::map<std::string, std::string> & config) const;
 
-    std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+    MOCKTESTMACRO std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+
     std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
                                                    const std::string& networkPrecision = METRIC_VALUE(FP32));
+
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
                                                  const std::string& networkPrecision = METRIC_VALUE(FP32),
                                                  unsigned int priority = 0);
