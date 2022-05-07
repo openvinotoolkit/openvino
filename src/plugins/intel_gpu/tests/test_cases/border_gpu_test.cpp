@@ -46,6 +46,7 @@ std::ostream& operator<<(std::ostream& os, FLOAT16 x){return os<<float(x);}
         format::type::b_fs_yx_fsv32, format::type::bs_fs_yx_bsv4_fsv2, format::type::bs_fs_yx_bsv16_fsv16,        \
         format::type::bs_fs_yx_bsv32_fsv16, format::type::bs_fs_yx_bsv32_fsv32, format::type::bs_fs_yx_bsv4_fsv4, \
         format::type::bs_fs_yx_bsv8_fsv2, format::type::bs_fs_yx_bsv8_fsv4
+
 template <class T>
 using border_test_param = std::tuple<border_type,          // pad mode
                                      T,                    // pad value
@@ -109,9 +110,9 @@ using border_test_i8 = border_test<char, data_types::i8>;
 TEST_P(border_test_i8, border_test_i8) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i8,
                          border_test_i8,
-                         testing::Combine(testing::Values(PAD_MODES),
+                         testing::Combine(testing::Values(border_type::constant),
                                           testing::Values(99),
-                                          testing::Values(FORMATS),
+                                          testing::Values(format::type::bfyx),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -119,9 +120,9 @@ using border_test_u8 = border_test<char, data_types::u8>;
 TEST_P(border_test_u8, border_test_u8) {}
 INSTANTIATE_TEST_SUITE_P(border_test_u8,
                          border_test_u8,
-                         testing::Combine(testing::Values(PAD_MODES),
+                         testing::Combine(testing::Values(border_type::edge),
                                           testing::Values(99),
-                                          testing::Values(FORMATS),
+                                          testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -129,9 +130,9 @@ using border_test_i32 = border_test<int, data_types::i32>;
 TEST_P(border_test_i32, border_test_i32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i32,
                          border_test_i32,
-                         testing::Combine(testing::Values(PAD_MODES),
+                         testing::Combine(testing::Values(border_type::mirror),
                                           testing::Values(11),
-                                          testing::Values(FORMATS),
+                                          testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -139,9 +140,9 @@ using border_test_f16 = border_test<FLOAT16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
                          border_test_f16,
-                         testing::Combine(testing::Values(PAD_MODES),
+                         testing::Combine(testing::Values(border_type::mirror_101),
                                           testing::Values(FLOAT16(123)),
-                                          testing::Values(FORMATS),
+                                          testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -149,9 +150,9 @@ using border_test_f32 = border_test<float, data_types::f32>;
 TEST_P(border_test_f32, border_test_f32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f32,
                          border_test_f32,
-                         testing::Combine(testing::Values(PAD_MODES),
+                         testing::Combine(testing::Values(border_type::edge),
                                           testing::Values(12.34),
-                                          testing::Values(FORMATS),
+                                          testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -161,13 +162,13 @@ TEST(border_gpu, bsv16fsv16_without_reorder){
     data_types T_dt=data_types::i32;
     border_type pad_mode=border_type::constant;
     T pad_value=0;
-    // format::type fmt=format::type::bs_fs_yx_bsv16_fsv16;
     std::array<int, 4> sh_in={16,16,2,3}, cd_lt={0,0,1,1}, cd_rb={0,0,1,1}, sh_out;
     sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
                 sh_in[1] + cd_lt[1] + cd_rb[1],
                 sh_in[2] + cd_lt[2] + cd_rb[2],
                 sh_in[3] + cd_lt[3] + cd_rb[3]};
     auto& engine = get_test_engine();
+
     auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
     auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
     set_values(input, input_data);
