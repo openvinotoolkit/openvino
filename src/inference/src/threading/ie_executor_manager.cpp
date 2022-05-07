@@ -25,6 +25,7 @@ public:
     size_t getIdleCPUStreamsExecutorsNumber() const override;
     void clear(const std::string& id = {}) override;
     void setTbbFlag(bool flag) override;
+    bool getTbbFlag() override;
 
 private:
     bool tbbTerminateFlag = false;
@@ -52,6 +53,11 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
         _tbb = nullptr;
     }
 #endif
+}
+
+bool ExecutorManagerImpl::getTbbFlag() {
+    std::lock_guard<std::mutex> guard(tbbMutex);
+    return tbbTerminateFlag;
 }
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {

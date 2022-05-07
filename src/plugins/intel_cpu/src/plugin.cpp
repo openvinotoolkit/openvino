@@ -779,9 +779,6 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
-    } else if (name == ov::force_tbb_terminate.name()) {
-        const auto force = engConfig.streamExecutorConfig.GetConfig(name);
-        return decltype(ov::force_tbb_terminate)::value_type(force);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
