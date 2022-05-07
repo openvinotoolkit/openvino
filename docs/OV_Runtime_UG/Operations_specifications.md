@@ -76,6 +76,7 @@
    GatherND-8 <openvino_docs_ops_movement_GatherND_8>
    GELU-2 <openvino_docs_ops_activation_GELU_2>
    GELU-7 <openvino_docs_ops_activation_GELU_7>
+   GenerateProposals-9 <openvino_docs_ops_detection_GenerateProposals_9>
    GreaterEqual-1 <openvino_docs_ops_comparison_GreaterEqual_1>
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
@@ -113,6 +114,7 @@
    Mish-4 <openvino_docs_ops_activation_Mish_4>
    Mod-1 <openvino_docs_ops_arithmetic_Mod_1>
    MulticlassNonMaxSuppression-8 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_8>
+   MulticlassNonMaxSuppression-9 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_9>
    Multiply-1 <openvino_docs_ops_arithmetic_Multiply_1>
    Negative-1 <openvino_docs_ops_arithmetic_Negative_1>
    NonMaxSuppression-1 <openvino_docs_ops_sort_NonMaxSuppression_1>
@@ -160,6 +162,7 @@
    RNNCell-3 <openvino_docs_ops_sequence_RNNCell_3>
    RNNSequence-5 <openvino_docs_ops_sequence_RNNSequence_5>
    ROIAlign-3 <openvino_docs_ops_detection_ROIAlign_3>
+   ROIAlign-9 <openvino_docs_ops_detection_ROIAlign_9>
    ROIPooling-1 <openvino_docs_ops_detection_ROIPooling_1>
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>

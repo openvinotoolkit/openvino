@@ -1699,3 +1699,12 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_m
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
+
+NGRAPH_TEST(onnx_editor, onnx_shape_infer_exception) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/onnx_shape_infer_exception.onnx")};
+
+    const auto input_edge = editor.find_input_edge(EditorNode(EditorOutput("input_ReduceMin")), EditorInput(0));
+
+    EXPECT_NO_THROW(editor.extract_subgraph({{input_edge}}, {}));
+}
