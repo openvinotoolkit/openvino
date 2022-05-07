@@ -65,9 +65,11 @@
    </p>
    
    <p>To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps:<br />
+    <ol>
     <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
     <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
     <li><a href="#get-started-tutorials" >Get started with some simple tutorials and samples.</a></li>
+    </ol>
    </p>
    <div style="clear:both;"> </div> 
    
