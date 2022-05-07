@@ -192,34 +192,30 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         std::list<DeviceInformation> validDevices =
             _multiPlugin->GetValidDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
 
-        const auto num_cores = getNumberOfCPUCores();
-        // CPU cores are less than 6
-        if (num_cores <= 6) {
-            if (validDevices.size() > 1) {
-                std::list<DeviceInformation>::iterator itCPUDevice;
-                int iGPUNums = 0, dGPUNums = 0, CPUNums = 0;
-                for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
-                    auto& gpuUniqueName = it->uniqueName;
-                    if (gpuUniqueName.find("iGPU") != std::string::npos) {
-                        iGPUNums++;
-                    } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
-                        dGPUNums++;
-                    }
-
-                    if (it->deviceName.find("CPU") == 0) {
-                        CPUNums++;
-                        itCPUDevice = it;
-                    }
+        // for the case of -d "AUTO"
+        if (context.noDevicePriority) {
+            std::list<DeviceInformation>::iterator itCPUDevice;
+            int GPUNums = 0, CPUNums = 0;
+            for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
+                auto& gpuUniqueName = it->uniqueName;
+                if (gpuUniqueName.find("iGPU") != std::string::npos) {
+                    GPUNums++;
+                } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+                    GPUNums++;
                 }
 
-                // Available devices include one dGPU, one iGPU and CPU
-                // remove CPU from default candidate list for Cumulative Throughput mode
-                if (iGPUNums == 1 && dGPUNums == 1 && CPUNums > 0) {
-                    validDevices.erase(itCPUDevice);
-                    LOG_INFO("[AUTOPLUGIN]:coresNums:%d, 1iGPU, 1dGPU and CPU, remove CPU from default candidate list "
-                             "for CUMULATIVE_THROUGHPUT",
-                             num_cores);
+                if (it->deviceName.find("CPU") == 0) {
+                    CPUNums++;
+                    itCPUDevice = it;
                 }
+            }
+
+            // remove CPU from default candidate list for Cumulative Throughput mode
+            if (GPUNums >= 2 && CPUNums > 0) {
+                validDevices.erase(itCPUDevice);
+                LOG_INFO("[AUTOPLUGIN]:for -d AUTO, GPUNums:%d, remove CPU from default candidate list for "
+                         "CUMULATIVE_THROUGHPUT",
+                         GPUNums);
             }
         }
 

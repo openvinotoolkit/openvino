@@ -311,6 +311,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         AutoContext context;
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
+
+        //for the case of -d "AUTO"
+        if (priorities == fullConfig.end()) {
+            context.noDevicePriority = true;
+        }
+
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
