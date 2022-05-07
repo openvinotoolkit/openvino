@@ -90,7 +90,7 @@ class OPENVINO_API ROIAlign : public Op {
 public:
     OPENVINO_OP("ROIAlign", "opset9");
     enum class PoolingMode { AVG, MAX };
-    enum class AlignedMode { ASYMMETRIC, TF_HALF_PIXEL_FOR_NN, HALF_PIXEL };
+    enum class AlignedMode { ASYMMETRIC, HALF_PIXEL_FOR_NN, HALF_PIXEL };
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign operation.
@@ -105,7 +105,7 @@ public:
     ///                        an output element
     /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     /// \param mode            Method of pooling - 'avg' or 'max'
-    /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'tf_half_pixel_for_nn' or 'half_pixel'
+    /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'half_pixel_for_nn' or 'half_pixel'
     ROIAlign(const Output<Node>& input,
              const Output<Node>& rois,
              const Output<Node>& batch_indices,

@@ -647,7 +647,7 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
         }
 
         const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
-        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::TF_HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
+        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
             errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
             return false;
         }
@@ -677,8 +677,8 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& 
         const ngAlignedMode mAligned = roiAlign->get_aligned_mode();
         if (mAligned == ngAlignedMode::ASYMMETRIC) {
             alignedMode = ROIAlignedMode::ra_asymmetric;
-        } else if (mAligned == ngAlignedMode::TF_HALF_PIXEL_FOR_NN) {
-            alignedMode = ROIAlignedMode::ra_tf_half_pixel_for_nn;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL_FOR_NN) {
+            alignedMode = ROIAlignedMode::ra_half_pixel_for_nn;
         } else if (mAligned == ngAlignedMode::HALF_PIXEL) {
             alignedMode = ROIAlignedMode::ra_half_pixel;
         }
@@ -905,7 +905,7 @@ void ROIAlign::executeSpecified() {
     float offset_dst = 0;
 
     switch (alignedMode) {
-    case ROIAlignedMode::ra_tf_half_pixel_for_nn: {
+    case ROIAlignedMode::ra_half_pixel_for_nn: {
         aligned = true;
         offset_dst = -0.5;
         break;

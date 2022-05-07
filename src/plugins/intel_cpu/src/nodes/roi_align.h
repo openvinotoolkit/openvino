@@ -23,7 +23,7 @@ enum ROIAlignLayoutType {
 
 enum ROIAlignedMode {
     ra_asymmetric,
-    ra_tf_half_pixel_for_nn,
+    ra_half_pixel_for_nn,
     ra_half_pixel
 };
 

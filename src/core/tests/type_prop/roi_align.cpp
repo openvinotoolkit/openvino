@@ -64,7 +64,7 @@ TEST(type_prop_layers, roi_align_9_basic_shape_inference) {
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{7, 4});
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{7});
     const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
-    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
     const auto op = make_shared<op::v9::ROIAlign>(data, rois, batch_indices, 2, 2, 1, 1.0f, pooling_mode, aligned_mode);
     ASSERT_EQ(op->get_shape(), (Shape{7, 3, 2, 2}));
 }
@@ -74,7 +74,7 @@ TEST(type_prop_layers, roi_align_9_dynamic_channels_dim) {
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{7, 4});
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{7});
     const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
-    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
     const auto op = make_shared<op::v9::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, pooling_mode, aligned_mode);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{7, Dimension(), 3, 4}));
 }

@@ -92,7 +92,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3_aligned_mode) {
         const auto rois = std::make_shared<opset9::Parameter>(element::f32, rois_shape);
         const auto batch_indices = std::make_shared<opset9::Parameter>(element::i32, Shape{num_rois});
         const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum("avg");
-        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
+        const auto aligned_mode = EnumNames<opset9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
 
         auto roi_align = std::make_shared<opset9::ROIAlign>(data,
                                                             rois,

@@ -214,7 +214,7 @@ const std::vector<std::string> modeVector = {
 
 const std::vector<std::string> alignedModeVector = {
         "asymmetric",
-        "tf_half_pixel_for_nn",
+        "half_pixel_for_nn",
         "half_pixel"
 };
 
