@@ -23,6 +23,7 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
@@ -39,7 +40,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -328,6 +328,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_op_domain) {
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<float>({0.f, 2.f, 4.f, 6.f});
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_custom_op_in_supported_operators) {
+    onnx_import::register_operator("CustomAdd", 1, "custom.op", [](const onnx_import::Node& node) -> OutputVector {
+        OutputVector ng_inputs{node.get_ng_inputs()};
+        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
+    });
+
+    const auto& supported_ops = onnx_import::get_supported_operators(1, "custom.op");
+    EXPECT_NE(std::find(std::begin(supported_ops), std::end(supported_ops), "CustomAdd"), std::end(supported_ops));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unknown_domain) {

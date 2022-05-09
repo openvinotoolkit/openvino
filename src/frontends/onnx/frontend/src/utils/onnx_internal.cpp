@@ -90,7 +90,7 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
                                             const std::string& model_path,
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, extensions};
+    Graph graph{model_proto, std::move(extensions)};
     return graph.convert();
 }
 

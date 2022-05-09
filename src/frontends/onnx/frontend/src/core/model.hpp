@@ -21,10 +21,15 @@ std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto);
 
 std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, const std::string& domain);
 
+class OperatorsBridge;
+
 class Model {
 public:
-    Model() = delete;
-    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+    // a container with OperatorSets covering all domains used in a given model
+    // built based on the opset imports in the ModelProto object
+    using ModelOpSet = std::unordered_map<std::string, OperatorSet>;
+
+    explicit Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, ModelOpSet&& model_opset);
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -41,7 +46,10 @@ public:
     std::int64_t get_model_version() const {
         return m_model_proto->model_version();
     }
-    const OpsetImports& get_opset_imports() const;
+    const OpsetImports& get_opset_imports() const {
+        return m_model_proto->opset_import();
+    }
+
     const std::string& get_producer_version() const {
         return m_model_proto->producer_version();
     }
@@ -69,11 +77,11 @@ public:
     ///
     /// \param[in]  domain  The domain name.
     ///
-    void enable_opset_domain(const std::string& domain);
+    void enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge);
 
 private:
     const std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
-    std::unordered_map<std::string, OperatorSet> m_opset;
+    ModelOpSet m_opset;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Model& model) {

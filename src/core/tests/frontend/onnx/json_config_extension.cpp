@@ -17,7 +17,8 @@ static JsonConfigFEParam getTestData() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(ONNXJsonConfigTest,
-                         FrontEndJsonConfigTest,
-                         ::testing::Values(getTestData()),
-                         FrontEndJsonConfigTest::getTestCaseName);
+// TODO: 83471
+// INSTANTIATE_TEST_SUITE_P(ONNXJsonConfigTest,
+//                          FrontEndJsonConfigTest,
+//                          ::testing::Values(getTestData()),
+//                          FrontEndJsonConfigTest::getTestCaseName);

@@ -150,9 +150,6 @@ def check_if(if_model, cond_val, exp_results):
     check_results(results, exp_results)
 
 
-# After deleting evalute method for if, constant folding stopped working.
-# As result bug with id 67255 began to appear
-@pytest.mark.xfail(reason="bug 67255")
 def test_if_with_two_outputs():
     check_if(create_simple_if_with_two_outputs, True,
              [np.array([10], dtype=np.float32), np.array([-20], dtype=np.float32)])
@@ -160,7 +157,6 @@ def test_if_with_two_outputs():
              [np.array([17], dtype=np.float32), np.array([16], dtype=np.float32)])
 
 
-@pytest.mark.xfail(reason="bug 67255")
 def test_diff_if_with_two_outputs():
     check_if(create_diff_if_with_two_outputs, True,
              [np.array([10], dtype=np.float32), np.array([6, 4], dtype=np.float32)])

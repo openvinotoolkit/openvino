@@ -25,7 +25,8 @@ static LoadFromFEParam getTestData() {
     return res;
 }
 
-TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
+// TODO: 83471
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStreamAndPassPath) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     const auto path = file_util::path_join(TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx");
     NGRAPH_SUPPRESS_DEPRECATED_END
