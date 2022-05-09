@@ -450,48 +450,6 @@ static const std::vector<float> expected_rdft3d_results_2 = {
     0.49906203,   0.53449270,   0.22820431,   0.19888670,   0.56200754,   0.55242130,   0.36939947,
     0.01671917,   0.60996081};
 
-template<class T>
-static std::vector<T> convert(const std::vector<float>& v) {
-    if (v.empty()) {
-        return std::vector<T>();
-    }
-
-    size_t num_of_elems = v.size();
-    std::vector<T> converted(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i) {
-        converted[i] = static_cast<T>(v[i]);
-    }
-    return converted;
-}
-
-template <class T>
-static std::vector<T> convert(const std::vector<float16>& v) {
-    if (v.empty()) {
-        return std::vector<T>();
-    }
-
-    size_t num_of_elems = v.size();
-    std::vector<T> converted(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i) {
-        converted[i] = static_cast<T>(v[i]);
-    }
-    return converted;
-}
-
-template <class T>
-static std::vector<T> convert(const std::vector<bfloat16>& v) {
-    if (v.empty()) {
-        return std::vector<T>();
-    }
-
-    size_t num_of_elems = v.size();
-    std::vector<T> converted(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i) {
-        converted[i] = static_cast<T>(v[i]);
-    }
-    return converted;
-}
-
 template <element::Type_t ET>
 std::vector<IRDFTParams> generateParamsForIRDFT() {
     std::vector<IRDFTParams> params{
