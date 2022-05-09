@@ -38,7 +38,7 @@ The XML file describes a network topology using a *`<layer>`* tag for an operati
 Each operation has a fixed number of attributes that define operation flavor used for a node.
 For example, *`Convolution`* operation has such attributes as *`dilation`*, *`stride`*, *`pads_begin`* and *`pads_end`*.
 
-The XML file doesn't have big constant values, like convolution weights.
+The XML file does not have big constant values, like convolution weights.
 Instead, it refers to a part of the accompanying binary file that stores such values in a binary format.
 
 Here is an example of a small IR XML file that corresponds to a graph from the previous section:
