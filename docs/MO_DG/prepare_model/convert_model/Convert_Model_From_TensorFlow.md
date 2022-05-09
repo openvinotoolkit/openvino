@@ -1,4 +1,7 @@
-# Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
+# Converting a TensorFlow Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
+This page provides general instructions on how to convert a model from a TensorFlow format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
+
+To use Model Optimizer, install OpenVINO Development Tools by following the [installation instructions](../../../install_guides/installing-model-dev-tools.md).
 
 ## Convert TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
 
@@ -146,9 +149,13 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 In this document, you learned:
 
 * Basic information about how the Model Optimizer works with TensorFlow models
-* Which TensorFlow models are supported
-* How to freeze a TensorFlow model
+* Which TensorFlow model formats are supported
+* How to freeze a TensorFlow 1 model
 * How to convert a trained TensorFlow model using the Model Optimizer with both framework-agnostic and TensorFlow-specific command-line options
 
-## See Also
-[Model Conversion Tutorials](Convert_Model_Tutorials.md)
+## Additional Resources
+For step-by-step instructions on how to convert specific TensorFlow models, see the [Model Conversion Tutorials](Convert_Model_Tutorials.md) page. Here are some examples:
+* [Convert TensorFlow EfficientDet Models](tf_specific/Convert_EfficientDet_Models.md)
+* [Convert TensorFlow FaceNet Models](tf_specific/Convert_FaceNet_From_Tensorflow.md)
+* [Convert TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md)
+
