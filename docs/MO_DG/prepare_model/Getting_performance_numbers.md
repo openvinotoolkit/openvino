@@ -16,7 +16,7 @@ Performance conclusions should be build upon reproducible data. As for the perfo
 -	For time values that range too much, consider geomean.
 -  Be aware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, consider fixing the device frequency for better performance data reproducibility. However, the end-to-end (application) benchmarking should also be performed under real operational conditions.
 
-## Measuring Reference Performance Numbers with OpenVINO's benchmark_app 
+## Measuring Reference Performance Numbers with OpenVINO benchmark_app 
 
 To get performance numbers, use the dedicated [Benchmark App](../../../samples/cpp/benchmark_app/README.md) sample as it is the best solution to produce the performance reference.
 It includes a lot of device-specific knobs, but the primary usage is as simple as: 
