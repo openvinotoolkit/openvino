@@ -369,7 +369,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Bidirectional |  |
 | Concatenate |  |
 | Conv1D |  |
-| Conv1DTranspose | Not supported if dilation is not equal to 1. |
+| Conv1DTranspose | Not supported if *`dilation`* is not equal to 1. |
 | Conv2D |  |
 | Conv2DTranspose |  |
 | Conv3D |  |
