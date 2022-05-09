@@ -80,7 +80,7 @@ self.deco_executor._symbol.save('{}-symbol.json'.format('nst_vgg19'))
 8. Save and close the *`make_image.py`* file.
 
 **Step 5**: Follow the instructions from the *`README.md`* file in the *`fast_mrf_cnn`* directory of the cloned repository and run the sample with a decoder model.
-For example, use the following code to run the sample with the pre-trained decoder weights from the *`models`* folder and output shape:<br>
+For example, use the following code to run the sample with the pretrained decoder weights from the *`models`* folder and output shape:<br>
 ```py
 import make_image
 maker = make_image.Maker('models/13', (1024, 768))
