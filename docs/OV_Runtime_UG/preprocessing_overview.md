@@ -90,7 +90,7 @@ Below is all the specified information on user's input:
 @anchor declare_model_s_layout
 ### Declare model's layout
 
-Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input's data [layout](./layout_overview.md)
+Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data [layout](./layout_overview.md)
 
 @sphinxtabset
 
