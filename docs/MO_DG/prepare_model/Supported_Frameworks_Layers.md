@@ -323,7 +323,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Square |  |
 | SquaredDifference |  |
 | Square|  |
-| Squeeze | Cases in which squeeze axis is not specified are not supported. |
+| Squeeze | Cases in which *`squeeze`* axis is not specified are not supported. |
 | StatelessWhile |  |
 | StopGradient | Not needed for shape inference. |
 | StridedSlice | Supported only for constant-foldable *`begin`*, *`end`*, and *`strides`* inputs. |
