@@ -149,14 +149,6 @@ class InferRequest(InferRequestBase):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-<<<<<<< HEAD
-        return super().infer(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
-        )
-
-    def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None,
-=======
         # If inputs are empty, pass empty dictionary.
         if inputs is None:
             return super().infer({})
@@ -187,7 +179,6 @@ class InferRequest(InferRequestBase):
         self,
         inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
         userdata: Any = None,
->>>>>>> 860a074fa92c18f17d810cc1f4e3f39d28261a30
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
