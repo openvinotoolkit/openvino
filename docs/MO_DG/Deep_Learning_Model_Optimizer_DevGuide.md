@@ -114,7 +114,7 @@ For more information, refer to the [Converting an MXNet Model guide](prepare_mod
 ```sh
 mo --input_model alexnet.caffemodel --reverse_input_channels
 ```
-For more information, refer to the [Converting a Caffe Model guide](prepare_model/convert_model/Convert_Model_From_Caffe.md).
+For more information, refer to the [Converting a Caffe Model](prepare_model/convert_model/Convert_Model_From_Caffe.md) guide.
 
 6. Launch Model Optimizer for a Kaldi LibriSpeech nnet2 model:
 ```sh
