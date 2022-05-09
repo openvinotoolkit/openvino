@@ -120,7 +120,7 @@ For more information, refer to the [Converting a Caffe Model guide](prepare_mode
 ```sh
 mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
 ```
-For more information, refer to the [Converting a Kaldi Model guide](prepare_model/convert_model/Convert_Model_From_Kaldi.md).
+For more information, refer to the [Converting a Kaldi Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md) guide.
 
 To get conversion recipes for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models,
 refer to the [Model Conversion Tutorials](prepare_model/convert_model/Convert_Model_Tutorials.md).
