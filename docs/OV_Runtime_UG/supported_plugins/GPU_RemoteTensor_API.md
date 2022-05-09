@@ -14,8 +14,8 @@ handles and used to create the OpenVINO™ `ov::CompiledModel` or `ov::Tensor` o
 * The OpenCL context or buffer handles can be obtained from existing GPU plugin objects, and used in OpenCL processing on the application side.
 
 Class and function declarations for the API are defined in the following files:
-* Windows: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
-* Linux: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/va.hpp`
+* Windows: *`openvino/runtime/intel_gpu/ocl/ocl.hpp`* and *`openvino/runtime/intel_gpu/ocl/dx.hpp`*
+* Linux: *`openvino/runtime/intel_gpu/ocl/ocl.hpp`* and *`openvino/runtime/intel_gpu/ocl/va.hpp`*
 
 The most common way to enable the interaction of your application with the Remote Tensor API is to use user-side utility classes
 and functions that consume or produce native handles directly.
@@ -121,7 +121,7 @@ To request the current default context of the plugin, use one of the following m
 The classes that implement the `ov::RemoteTensor` interface are the wrappers for native API
 memory handles (which can be obtained from them at any time).
 
-To create a shared tensor from a native memory handle, use dedicated `create_tensor`or `create_tensor_nv12` methods
+To create a shared tensor from a native memory handle, use dedicated *`create_tensor`*or *`create_tensor_nv12`* methods
 of the `ov::RemoteContext` sub-classes.
 The `ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with the `ov::RemoteTensor`
 object or request plugin to allocate specific device memory. For more details, see the code snippets below.
@@ -200,7 +200,7 @@ to allow creation of `ov::RemoteTensor` objects from `ID3D11Buffer`, `ID3D11Text
 ## Direct NV12 Video Surface Input
 
 To support the direct consumption of a hardware video decoder output, the plugin accepts two-plane video
-surfaces as arguments for the `create_tensor_nv12()` function, which creates a pair of `ov::RemoteTensor`
+surfaces as arguments for the *`create_tensor_nv12()`* function, which creates a pair of `ov::RemoteTensor`
 objects which represent the Y and UV planes.
 
 To ensure that the plugin generates the correct execution graph for the NV12 dual-plane input, static preprocessing
@@ -232,7 +232,7 @@ I420 color format can be processed in a similar way
 
 ## Context & Queue Sharing
 
-The GPU plugin supports creation of shared context from the `cl_command_queue` handle. In that case,
+The GPU plugin supports creation of shared context from the *`cl_command_queue`* handle. In that case,
 opencl context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
 the plugin for further execution of inference primitives. Sharing the queue changes the behavior of the `ov::InferRequest::start_async()`
 method to guarantee that submission of inference primitives into the given queue is finished before

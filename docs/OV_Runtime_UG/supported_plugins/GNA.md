@@ -39,7 +39,7 @@ Choose a compile target with regard to the priority: cross-platform execution, p
 
 Use the following properties to check interoperability in your application: `ov::intel_gna::execution_target` and `ov::intel_gna::compile_target`.
 
-[Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README) can be used for experiments (see the `-exec_target` and `-compile_target` command line options).
+[Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README) can be used for experiments (see the *`-exec_target`* and *`-compile_target`* command line options).
 
 ## Software Emulation Mode
 
@@ -87,13 +87,13 @@ can cause the user's request to be executed on CPU, unnecessarily increasing CPU
 
 ## Supported Inference Data Types
 
-Intel® GNA essentially operates in the low-precision mode which represents a mix of 8-bit (`i8`), 16-bit (`i16`), and 32-bit (`i32`) integer computations.
+Intel® GNA essentially operates in the low-precision mode which represents a mix of 8-bit (*`i8`*), 16-bit (*`i16`*), and 32-bit (*`i32`*) integer computations.
 
 GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_introduction) to get a model with quantization hints based on statistics for the provided dataset.
 
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time. Thus, a model can be run without calibration. However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics, the efficiency of which depends on the model and dynamic range of input data. This mode is going to be deprecated soon.
 
-GNA plugin supports the *i16* and *i8* quantized data types as inference precision of internal primitives.
+GNA plugin supports the *`i16`* and *`i8`* quantized data types as inference precision of internal primitives.
 
 [Hello Query Device C++ Sample](@ref openvino_inference_engine_samples_hello_query_device_README) can be used to print out supported data types for all detected devices.
 
@@ -157,7 +157,7 @@ GNA plugin natively supports stateful models.
 
 For more details on such models, refer to the [Stateful models] (@ref openvino_docs_OV_UG_network_state_intro).
 
-> **NOTE**: Typically, GNA is used in streaming scenarios, when minimizing the latency is important. Taking into account that POT does not support the `TensorIterator` operation, the recommendation is to use the `--transform` option of the Model Optimizer to apply `LowLatency2` transformation when converting an original model.
+> **NOTE**: Typically, GNA is used in streaming scenarios, when minimizing the latency is important. Taking into account that POT does not support the *`TensorIterator`* operation, the recommendation is to use the *`--transform`* option of the Model Optimizer to apply *`LowLatency2`* transformation when converting an original model.
 
 ### Profiling
 The GNA plugin allows turning on profiling, using the `ov::enable_profiling` property.
@@ -271,7 +271,7 @@ The following tables provide a more explicit representation of the Intel(R) GNA 
 
 For POT to successfully work with the models including GNA3.0 2D convolutions, the following requirements must be met:
 * All convolution parameters are natively supported by HW (see tables above).
-* The runtime precision is explicitly set by the `ov::hint::inference_precision` property as `i8` for the models produced by the `performance mode` of POT, and as `i16` for the models produced by the `accuracy mode` of POT.
+* The runtime precision is explicitly set by the `ov::hint::inference_precision` property as *`i8`* for the models produced by the *`performance mode`* of POT, and as *`i16`* for the models produced by the *`accuracy mode`* of POT.
 
 ### Batch Size Limitation
 
@@ -319,9 +319,9 @@ then set batch size:
 @endsphinxtabset
 
 
-Increasing batch size only improves efficiency of `MatMul` layers.
+Increasing batch size only improves efficiency of *`MatMul`* layers.
 
-> **NOTE**: For models with `Convolution`, `LSTMCell`, or `ReadValue`/`Assign` operations, the only supported batch size is 1.
+> **NOTE**: For models with *`Convolution`*, *`LSTMCell`*, or *`ReadValue`*/*`Assign`* operations, the only supported batch size is 1.
 
 ### Compatibility with Heterogeneous mode
 

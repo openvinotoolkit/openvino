@@ -19,18 +19,18 @@ To see the list of supported networks for the HDDL plugin, refer to the list on 
 ## Supported Configuration Parameters
 
 See VPU common configuration parameters for [VPU Plugins](VPU.md).
-When specifying key values as raw strings (when using the Python API), omit the `KEY_` prefix.
+When specifying key values as raw strings (when using the Python API), omit the *`KEY_`* prefix.
 
 In addition to common parameters for both VPU plugins, the HDDL plugin accepts the following options:
 
 | Parameter Name                        | Parameter Values | Default      | Description                                                                     |
 | :---                                  | :---             | :---         | :---                                                                            |
-| KEY_PERF_COUNT                        | YES/NO           | NO           | Enables performance counter option.                                              |
-| KEY_VPU_HDDL_GRAPH_TAG                | string           | empty string | Allows executing network on specified count of devices.                         |
-| KEY_VPU_HDDL_STREAM_ID                | string           | empty string | Allows executing inference on a specified device.                               |
-| KEY_VPU_HDDL_DEVICE_TAG               | string           | empty string | Allows allocating/deallocating networks on specified devices.                   |
-| KEY_VPU_HDDL_BIND_DEVICE              | YES/NO           | NO           | Enables the network to be bound to a device. Refer to the 'vpu_plugin_config.hpp' file.    |
-| KEY_VPU_HDDL_RUNTIME_PRIORITY         | signed int       | 0            | Specifies the runtime priority of a device among all devices running the same network. Refer to the 'vpu_plugin_config.hpp' file. |
+| *`KEY_PERF_COUNT`*                       | *`YES`*/*`NO`*           | *`NO`*           | Enables performance counter option.                                              |
+| *`KEY_VPU_HDDL_GRAPH_TAG`*                | string           | empty string | Allows executing network on specified count of devices.                         |
+| *`KEY_VPU_HDDL_STREAM_ID`*                | string           | empty string | Allows executing inference on a specified device.                               |
+| *`KEY_VPU_HDDL_DEVICE_TAG`*              | string           | empty string | Allows allocating/deallocating networks on specified devices.                   |
+| *`KEY_VPU_HDDL_BIND_DEVICE`*              | *`YES`*/*`NO`*           | *`NO`*           | Enables the network to be bound to a device. Refer to the 'vpu_plugin_config.hpp' file.    |
+| *`KEY_VPU_HDDL_RUNTIME_PRIORITY`*         | signed int       | 0            | Specifies the runtime priority of a device among all devices running the same network. Refer to the *`vpu_plugin_config.hpp`* file. |
 
 ## See Also
 
