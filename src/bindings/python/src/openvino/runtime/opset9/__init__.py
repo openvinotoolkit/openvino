@@ -50,6 +50,7 @@ from openvino.runtime.opset3.ops import extract_image_patches
 from openvino.runtime.opset1.ops import equal
 from openvino.runtime.opset1.ops import erf
 from openvino.runtime.opset1.ops import exp
+from openvino.runtime.opset9.ops import eye
 from openvino.runtime.opset1.ops import fake_quantize
 from openvino.runtime.opset1.ops import floor
 from openvino.runtime.opset1.ops import floor_mod

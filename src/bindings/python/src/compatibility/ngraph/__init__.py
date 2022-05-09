@@ -66,6 +66,7 @@ from ngraph.opset9 import extract_image_patches
 from ngraph.opset9 import equal
 from ngraph.opset9 import erf
 from ngraph.opset9 import exp
+from ngraph.opset9 import eye
 from ngraph.opset9 import fake_quantize
 from ngraph.opset9 import floor
 from ngraph.opset9 import floor_mod
