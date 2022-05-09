@@ -61,7 +61,7 @@ For more information about these parameters, refer to the [Setting Input Shapes]
 
 To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
 use the *`--input`* and *`--output`* parameters to define new inputs and outputs of the converted model.
-For a more detailed description, refer to the [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md).
+For a more detailed description, refer to the [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md) guide.
 
 Additional input pre-processing sub-graphs can also be inserted into the converted model by using
 the *`--mean_values`*, *`scales_values`*, *`--layout`*, and other parameters described
