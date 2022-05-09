@@ -259,10 +259,10 @@ You can also specify additional build options (e.g. to build CMake project on Wi
 
 Congratulations, you have made your first application with OpenVINO™ toolkit, now you may run it.
 
-This page showed how to implement a typical inference pipeline with OpenVINO. See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 
-## See also
+## Additional Resources
 
+ - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
  - [OpenVINO Samples](Samples_Overview.md)
