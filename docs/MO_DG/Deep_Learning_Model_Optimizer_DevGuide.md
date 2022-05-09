@@ -108,7 +108,7 @@ For more information, refer to the [Converting a PaddlePaddle Model guide](prepa
 ```sh
 mo --input_model ssd_inception_v3-0000.params --layout NCHW
 ```
-For more information, refer to the [Converting an MXNet Model guide](prepare_model/convert_model/Convert_Model_From_MxNet.md).
+For more information, refer to the [Converting an MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md) guide.
 
 5. Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format, which needs to be reversed:
 ```sh
