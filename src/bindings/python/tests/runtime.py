@@ -126,16 +126,6 @@ class Computation(object):
 
         executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
 
-        for parameter, input_val in zip(self.parameters, input_values):
-            parameter_shape = parameter.get_output_partial_shape(0)
-            input_shape = PartialShape([]) if isinstance(input_val, (int, float)) else PartialShape(input_val.shape)
-            if not parameter_shape.compatible(input_shape):
-                raise UserInputError(
-                    "Provided tensor's shape: %s does not match the expected: %s.",
-                    input_shape,
-                    parameter_shape,
-                )
-
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         if is_bfloat16:
             input_values = self.convert_to_tensors(input_values)

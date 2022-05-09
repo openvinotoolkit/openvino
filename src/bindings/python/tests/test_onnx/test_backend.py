@@ -9,7 +9,6 @@ from tests import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_issue_33488,
-    xfail_issue_33538,
     xfail_issue_33581,
     xfail_issue_33589,
     xfail_issue_33595,
@@ -199,11 +198,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-    ),
-    (
-        xfail_issue_33538,
-        "OnnxBackendNodeModelTest.test_scan_sum_cpu",
-        "OnnxBackendNodeModelTest.test_scan9_sum_cpu",
     ),
     (
         xfail_issue_33581,

@@ -283,9 +283,9 @@ def test_infer_new_request_wrong_port_name(device):
     img = read_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
-    with pytest.raises(KeyError) as e:
+    with pytest.raises(RuntimeError) as e:
         exec_net.infer_new_request({"_data_": tensor})
-    assert "Port for tensor _data_ was not found!" in str(e.value)
+    assert "Check" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
@@ -297,7 +297,7 @@ def test_infer_tensor_wrong_input_data(device):
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
-    assert "Incompatible key type for tensor: 0." in str(e.value)
+    assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
 def test_infer_numpy_model_from_buffer(device):

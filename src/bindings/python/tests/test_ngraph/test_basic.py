@@ -243,7 +243,7 @@ def test_bad_data_shape():
 
     value_a = np.array([[1, 2]], dtype=np.float32)
     value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-    with pytest.raises(UserInputError):
+    with pytest.raises(RuntimeError):
         computation(value_a, value_b)
 
 

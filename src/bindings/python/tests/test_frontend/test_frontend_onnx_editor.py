@@ -8,7 +8,7 @@ import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import numpy as np
 from openvino.runtime import Dimension, PartialShape
-from openvino.frontend import FrontEndManager
+from openvino.frontend import FrontEndManager, GeneralFailure
 
 
 # ------Test input model 1------
@@ -1367,7 +1367,6 @@ def test_set_tensor_value():
 
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
-    from openvino.frontend import GeneralFailure
 
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
@@ -1697,3 +1696,75 @@ def test_add_name_for_tensor_and_rename_it():
     assert "renamed_input" in input_tensor_names
     assert "extra_name" in input_tensor_names
     assert "in2" not in input_tensor_names
+
+
+def test_invalidate_input_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    split_op = model.get_place_by_operation_name(operation_name="split1")
+    place_to_cut = split_op.get_input_port(input_port_index=0)
+    model.extract_subgraph(inputs=[split_op], outputs=[])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_source_tensor()
+    assert "The place InputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_invalidate_output_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    split_op = model.get_place_by_operation_name(operation_name="split1")
+    out1 = model.get_place_by_tensor_name(tensor_name="out1")
+    out2 = model.get_place_by_tensor_name(tensor_name="out2")
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="out3").get_producing_port()
+    model.extract_subgraph(inputs=[split_op], outputs=[out1, out2])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_target_tensor()
+    assert "The place OutputEdge{2, 0} is outdated" in str(e.value)
+
+
+def test_invalidate_op_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_out_tensor = model.get_place_by_tensor_name(tensor_name="add_out")
+    place_to_cut = model.get_place_by_operation_name(operation_name="split1")
+    model.override_all_outputs(outputs=[add_out_tensor])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_input_port(input_port_index=0)
+    assert "The place split1 is outdated" in str(e.value)
+
+
+def test_override_cut_inputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    split = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_operation()
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="add_out").get_consuming_ports()[0]
+    model.override_all_inputs(inputs=[split])
+
+    with pytest.raises(GeneralFailure) as e:
+        model.override_all_inputs(inputs=[place_to_cut])
+    assert "The place InputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_override_cut_outputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    add_out = model.get_place_by_tensor_name(tensor_name="add_out")
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_port()
+    model.override_all_outputs(outputs=[add_out])
+
+    with pytest.raises(GeneralFailure) as e:
+        model.override_all_outputs(outputs=[place_to_cut])
+    assert "The place OutputEdge{1, 0} is outdated" in str(e.value)
