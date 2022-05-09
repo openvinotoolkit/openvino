@@ -133,6 +133,7 @@
 #include "op/rnn.hpp"
 #include "op/roi_align.hpp"
 #include "op/round.hpp"
+#include "op/scan.hpp"
 #include "op/scatter_elements.hpp"
 #include "op/scatter_nd.hpp"
 #include "op/selu.hpp"
@@ -420,6 +421,8 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("RNN", 1, rnn);
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
+    REGISTER_OPERATOR("Scan", 1, scan);
+    REGISTER_OPERATOR("Scan", 9, scan);
     REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
