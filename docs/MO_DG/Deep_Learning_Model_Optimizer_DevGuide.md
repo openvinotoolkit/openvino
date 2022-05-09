@@ -54,7 +54,7 @@ Convert the model to IR by running the Model Optimizer:
 mo --input_model INPUT_MODEL
 ```
 
-If out-of-the-box conversion (only the *`--input_model`* parameter is specified) have not succeed, use mentioned below parameters for overriding input shapes and cutting the model.
+If out-of-the-box conversion (only the *`--input_model`* parameter is specified) is not successful, use the parameters mentioned below for overriding input shapes and cutting the model.
 
 Model Optimizer provides two parameters to override original input shapes for model conversion: *`--input`* and *`--input_shape`*.
 For more information about these parameters, refer to the [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md).
