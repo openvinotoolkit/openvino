@@ -222,7 +222,7 @@ When the old *`version`* is specified, the behavior is kept unchanged from that 
 
 A single *`xml`* file with IR may contain operations from different opsets.
 An operation that is included into several opsets may be referred to with *`version`*, which points to any opset that includes that operation.
-For example, the same *`Convolution`* can be used with *`version="opset1"`* and *`version="opset2"`* because both opsets have the same operations *`Convolution`*.
+For example, the same *`Convolution`* can be used with *`version="opset1"`* and *`version="opset2"`* because both opsets have the same *`Convolution`* operations.
 
 ## How to Read the Specification
 
