@@ -16,10 +16,10 @@ The following Git repositories are required to build a Yocto image:
 
 Clone these Git repositories to your host machine: 
 ```sh
-git clone https://git.yoctoproject.org/git/poky --branch honister
-git clone https://git.yoctoproject.org/git/meta-intel --branch honister
-git clone https://git.openembedded.org/meta-openembedded --branch honister
-git clone https://github.com/kraj/meta-clang.git --branch honister
+git clone https://git.yoctoproject.org/git/poky --branch kirkstone
+git clone https://git.yoctoproject.org/git/meta-intel --branch kirkstone
+git clone https://git.openembedded.org/meta-openembedded --branch kirkstone
+git clone https://github.com/kraj/meta-clang.git --branch kirkstone-clang12
 ```
 
 ### Set up BitBake Layers
@@ -43,26 +43,26 @@ MACHINE = "intel-skylake-64"
 # Enable clDNN GPU plugin when needed.
 # This requires meta-clang and meta-oe layers to be included in bblayers.conf
 # and is not enabled by default.
-PACKAGECONFIG_append_pn-openvino-inference-engine = " opencl"
+PACKAGECONFIG:append:pn-openvino-inference-engine = " opencl"
 
 # Enable building OpenVINO Python API.
 # This requires meta-python layer to be included in bblayers.conf.
-PACKAGECONFIG_append_pn-openvino-inference-engine = " python3"
+PACKAGECONFIG:append:pn-openvino-inference-engine = " python3"
 
 # This adds OpenVINO related libraries in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine"
 
 # This adds OpenVINO samples in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-samples"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-samples"
 
 # Include OpenVINO Python API package in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-python3"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
 
 # Enable MYRIAD plugin
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
 
 # Include Model Optimizer in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
 ```
 
 ## Step 2: Build a Yocto Image with OpenVINO Packages
@@ -88,7 +88,6 @@ openvino-inference-engine-dev
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src
-openvino-inference-engine-staticdev
 openvino-inference-engine-vpu-firmware
 openvino-model-optimizer
 openvino-model-optimizer-dbg
