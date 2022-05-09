@@ -327,14 +327,18 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
 
-        //for the case of -d "AUTO"
-        if (priorities == fullConfig.end()) {
-            context.noDevicePriority = true;
-        }
-
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
+
+        //check if device priority is enabled
+        for (auto& meatDev : metaDevices) {
+            if (meatDev.devicePriority > 0) {
+                context.enableDevicePriority = true;
+                break;
+            }
+        }
+
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "There is no device support the configure";

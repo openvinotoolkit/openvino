@@ -21,7 +21,6 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
-#include "ie_system_conf.h"
 
 #include "itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
@@ -192,15 +191,12 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         std::list<DeviceInformation> validDevices =
             _multiPlugin->GetValidDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
 
-        // for the case of -d "AUTO"
-        if (context.noDevicePriority) {
+        // for the case of -d "AUTO" or "AUTO: -xxx"
+        if (!context.enableDevicePriority) {
             std::list<DeviceInformation>::iterator itCPUDevice;
             int GPUNums = 0, CPUNums = 0;
             for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
-                auto& gpuUniqueName = it->uniqueName;
-                if (gpuUniqueName.find("iGPU") != std::string::npos) {
-                    GPUNums++;
-                } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+                if (it->uniqueName.find("GPU") != std::string::npos) {
                     GPUNums++;
                 }
 
