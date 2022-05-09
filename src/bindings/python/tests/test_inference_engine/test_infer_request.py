@@ -45,6 +45,44 @@ def create_simple_request_and_inputs(device):
     return request, arr_1, arr_2
 
 
+def concat_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [5]
+
+    params = []
+    params += [ops.parameter(input_shape, ov_type)]
+    if ov_type == Type.bf16:
+        params += [ops.parameter(input_shape, ov_type)]
+    else:
+        params += [ops.parameter(input_shape, numpy_dtype)]
+
+    model = Model(ops.concat(params, 0), params)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
+    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
+
+    return request, tensor1, array1
+
+
+def abs_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [1, 4]
+    param = ops.parameter(input_shape, ov_type)
+    model = Model(ops.abs(param), [param])
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    request = compiled_model.create_infer_request()
+
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, -7, -8, 9])
+
+    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
+
+    return request, tensor1, array1
+
+
 def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
@@ -322,6 +360,99 @@ def test_infer_mixed_keys(device):
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
     assert np.argmax(res[model.output()]) == 2
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.bf16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, np.bool),
+])
+def test_infer_mixed_values(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+
+    request.infer([tensor1, array1])
+
+    print(request.outputs[0].data)
+    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.bf16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, np.bool),
+])
+def test_async_mixed_values(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async([tensor1, array1])
+    request.wait()
+
+    print(request.outputs[0].data)
+    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+])
+def test_infer_single_input(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+
+    request.infer(array1)
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.infer(tensor1)
+    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+])
+def test_async_single_input(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async(array1)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.start_async(tensor1)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
 def test_infer_queue(device):
@@ -646,14 +777,26 @@ def test_inputs_list_not_replaced(device):
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-def test_invalid_inputs_container(device):
+def test_inputs_tuple_not_replaced(device):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = (arr_1, arr_2)
+    inputs_copy = deepcopy(inputs)
+
+    res = request.infer(inputs)
+
+    assert np.array_equal(inputs, inputs_copy)
+    assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
+
+
+def test_invalid_inputs(device):
+    request, _, _ = create_simple_request_and_inputs(device)
+
+    inputs = "some_input"
 
     with pytest.raises(TypeError) as e:
         request.infer(inputs)
-    assert "Inputs should be either list or dict! Current type:" in str(e.value)
+    assert "Incompatible inputs of type:" in str(e.value)
 
 
 def test_infer_dynamic_model(device):
@@ -671,3 +814,7 @@ def test_infer_dynamic_model(device):
     shape2 = [1, 32]
     request.infer([np.random.normal(size=shape2)])
     assert request.get_input_tensor().shape == Shape(shape2)
+
+    shape3 = [1, 40]
+    request.infer(np.random.normal(size=shape3))
+    assert request.get_input_tensor().shape == Shape(shape3)

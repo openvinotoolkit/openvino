@@ -64,7 +64,9 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
         const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
-        return std::make_shared<PlaceOp>(onnx_editor::EditorNode{node_index}, m_editor);
+        onnx_editor::EditorNode node{node_index};
+        node.m_node_name = operation_name;
+        return std::make_shared<PlaceOp>(node, m_editor);
     }
     return nullptr;
 }
@@ -391,6 +393,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdge>(input)) {
+            input_port->check_if_valid();
             onnx_inputs.push_back(input_port->get_input_edge());
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input)) {
             const auto name = tensor->get_names().at(0);
@@ -402,6 +405,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
                                return edge;
                            });
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(input)) {
+            op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_inputs = m_editor->get_input_ports(editor_node);
             int node_idx = m_editor->get_node_index(editor_node);
@@ -424,6 +428,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
         if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdge>(output)) {
+            output_port->check_if_valid();
             onnx_outputs.push_back(output_port->get_output_edge());
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output)) {
             const auto output_port = tensor->get_producing_port();
@@ -431,6 +436,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
             NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(output)) {
+            op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_outputs = m_editor->get_output_ports(editor_node);
             int node_idx = m_editor->get_node_index(editor_node);
