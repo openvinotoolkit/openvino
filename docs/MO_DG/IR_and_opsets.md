@@ -171,7 +171,7 @@ It consists of several groups of operations:
 
  * Specialized operations that implement complex algorithms dedicated for models of specific type, like *`DetectionOutput`*, *`RegionYolo`*, *`PriorBox`*.
 
-For more information, refer to the complete description of the supported operation sets in the [Available Operation Sets article](../ops/opset.md).
+For more information, refer to the complete description of the supported operation sets in the [Available Operation Sets](../ops/opset.md) article.
 
 ## IR Versions vs Operation Set Versions
 
