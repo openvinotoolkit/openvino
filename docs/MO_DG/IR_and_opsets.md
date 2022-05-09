@@ -188,7 +188,7 @@ Historically, there are two major IR version epochs:
 2. OpenVINO 2020.1 is the starting point of the next epoch. With IR version 10 introduced in OpenVINO 2020.1, the versioning of the operation set is tracked separately from the IR versioning. Also, the operation set was significantly reworked as the result of nGraph integration to the OpenVINO.
 
 The first supported operation set in the new epoch is *`opset1`*.
-The number after *`opset`* is going to be increased each time when new operations are added or old operations deleted at the release cadence.
+The number after *`opset`* is going to be increased each time new operations are added or old operations deleted at the release cadence.
 
 The operations from the new epoch cover more TensorFlow and ONNX operators in a form that is closer to the original operation semantics from the frameworks in comparison to the operation set used in former versions of IR (7 and lower).
 
