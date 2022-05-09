@@ -26,7 +26,7 @@ If data nodes are not used, the produced data is associated with an output port 
 
 A set of various operations used in a network is usually fixed for each deep learning framework.
 It determines expressiveness and level of representation available in that framework.
-It may happen that a network that can be represented in one framework is hard or impossible to be represented in another one or should use significantly different graph because operation sets used in those two frameworks do not match.
+A network that can be represented in one framework is sometimes hard or impossible to be represented in another one or should use significantly different graph because operation sets used in those two frameworks do not match.
 
 ## Intermediate Representation Used in OpenVINO
 
