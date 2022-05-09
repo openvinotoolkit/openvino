@@ -28,22 +28,22 @@ Consider the following standard example: deep learning model expects input with 
 ![](img/preprocess_not_fit.png)
 
 
-Even though all these steps can be relatively easy implemented manually in application's code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
- - Preprocessing API is easy to use
+Even though all these steps can be relatively easy implemented manually in the application code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
+ - Preprocessing API is easy to use.
  - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
 ## Preprocessing API
 
 Intuitively, Preprocessing API consists of the following parts:
- 1. 	**Tensor:** Declare user's data format, like shape, [layout](./layout_overview.md), precision, color format of actual user's data
- 2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data
- 3. 	**Model:** Specify Model's data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified
+ 1. 	**Tensor:** Declare user's data format, like shape, [layout](./layout_overview.md), precision, color format of actual user's data.
+ 2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data.
+ 3. 	**Model:** Specify Model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
 
-> **Note:** All model's graph modification shall be performed after model is read from disk and **before** it is being loaded on actual device.
+> **Note:** All graph modification of a model shall be performed after a model is read from a disk and **before** it is being loaded on actual device.
 
-### PrePostProcessor object
+### PrePostProcessor Object
 
-`ov::preprocess::PrePostProcessor` class allows specifying preprocessing and postprocessing steps for model read from disk.
+The `ov::preprocess::PrePostProcessor` class allows specifying preprocessing and postprocessing steps for a model read from disk.
 
 @sphinxtabset
 
@@ -61,9 +61,9 @@ Intuitively, Preprocessing API consists of the following parts:
 
 @endsphinxtabset
 
-### Declare user's data format
+### Declare User's Data Format
 
-To address particular input of model/preprocessor, use `ov::preprocess::PrePostProcessor::input(input_name)` method
+To address particular input of a model/preprocessor, use `ov::preprocess::PrePostProcessor::input(input_name)` method.
 
 @sphinxtabset
 
@@ -82,13 +82,13 @@ To address particular input of model/preprocessor, use `ov::preprocess::PrePostP
 @endsphinxtabset
 
 Below is all the specified information on user's input:
- - Precision is U8 (unsigned 8-bit integer)
- - Data represents tensor with {1,480,640,3} shape
- - [Layout](./layout_overview.md) is "NHWC". It means that 'height=480, width=640, channels=3'
- - Color format is *`BGR`*
+ - Precision is U8 (unsigned 8-bit integer).
+ - Data represents tensor with {1,480,640,3} shape.
+ - [Layout](./layout_overview.md) is "NHWC". It means that 'height=480, width=640, channels=3'.
+ - Color format is *`BGR`*.
 
 @anchor declare_model_s_layout
-### Declare model's layout
+### Declaring Model Layout
 
 Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data [layout](./layout_overview.md)
 
@@ -111,7 +111,7 @@ Model input already has information about precision and shape. Preprocessing API
 
 Now, if model input has *`{1,3,224,224}`* shape, preprocessing will be able to identify the *`height=224`*, *`width=224`*, and *`channels=3`* of that model. Height/width information is necessary for 'resize', and *`channels`* is needed for mean/scale normalization.
 
-### Preprocessing steps
+### Preprocessing Steps
 
 Now, define sequence of preprocessing steps:
 
@@ -140,7 +140,7 @@ Perform as follows:
    5. Divide each pixel data to appropriate scale value. In this example, each *`Red`* component will be divided by 50, *`Green`* by 51, *`Blue`* by 52 respectively.
    6. **Note**: The last *`convert_layout`* step is commented out as it is not necessary to specify the last layout conversion. PrePostProcessor will do such conversion automatically
 
-### Integrate steps into model
+### Integrating Steps into a Model
 
 Build it when the preprocessing has been finished. It is possible to print *`PrePostProcessor`* configuration on screen for debugging purposes:
 
@@ -161,7 +161,7 @@ Build it when the preprocessing has been finished. It is possible to print *`Pre
 @endsphinxtabset
 
 
-After this, a *`model`* will accept *`U8`* input with *`{1, 480, 640, 3}`* shape, with *`BGR`* channels order. All conversion steps will be integrated into execution graph. Now, load the model on device and pass the image to the model as is, without any data manipulation from the perspective of application.
+After this, a *`model`* will accept *`U8`* input with *`{1, 480, 640, 3}`* shape, with *`BGR`* channels order. All conversion steps will be integrated into execution graph. Now, load the model on device and pass the image to the model as is, without any data manipulation in the application.
 
 
 ## See Also
