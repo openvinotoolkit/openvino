@@ -100,7 +100,7 @@ Any style can be selected from [collection of pretrained weights](https://pan.ba
 ```sh
 mkdir nst_model
 ```
-2. Copy the initial and generated model files to the created directory. For example, to copy the pre-trained decoder weights from the *`models`* folder to the *`nst_model`* directory, run the following commands:<br>
+2. Copy the initial and generated model files to the created directory. For example, to copy the pretrained decoder weights from the *`models`* folder to the *`nst_model`* directory, run the following commands:<br>
 ```sh
 cp nst_vgg19-symbol.json nst_model
 cp vgg19-symbol.json nst_model
