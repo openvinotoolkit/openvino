@@ -88,7 +88,7 @@ where the batch size and the sequence length equal 2 and 30 respectively:
 ```sh
 mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 ```
-For more information, refer to the [Converting a TensorFlow Model guide](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
+For more information, refer to the [Converting a TensorFlow Model](prepare_model/convert_model/Convert_Model_From_TensorFlow.md) guide.
 
 2. Launch Model Optimizer for an ONNX OCR model and specify new output explicitly:
 ```sh
