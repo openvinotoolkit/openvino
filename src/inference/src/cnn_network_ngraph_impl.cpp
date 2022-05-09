@@ -33,6 +33,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
@@ -142,6 +144,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     {
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::FixRtInfo>();
+        m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork

@@ -4,8 +4,6 @@
 
 #include <memory>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
@@ -32,8 +30,6 @@ bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Func
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.register_pass<ngraph::pass::TransposeMatMul>();
     static_manager.register_pass<ngraph::pass::BroadcastConstRangeReplacement>();
-    static_manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-    static_manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;
