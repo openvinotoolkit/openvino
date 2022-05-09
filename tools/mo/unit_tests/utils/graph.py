@@ -172,7 +172,6 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     for item in edges:
         node_1, node_2, *edge_attrs_list = item
         edge_attrs = dict(edge_attrs_list[0]) if edge_attrs_list else {}
-        #edge_attrs = dict(edge_attrs_list[0])
 
         common_attrs = {'in': len(graph.in_edges(node_2)),
                         'out': len(graph.out_edges(node_1)),
