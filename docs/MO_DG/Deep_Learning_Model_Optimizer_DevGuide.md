@@ -94,7 +94,7 @@ For more information, refer to the [Converting a TensorFlow Model guide](prepare
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
-For more information, refer to the [Converting an ONNX Model guide](prepare_model/convert_model/Convert_Model_From_ONNX.md).
+For more information, refer to the [Converting an ONNX Model (prepare_model/convert_model/Convert_Model_From_ONNX.md) guide.
 
 > **NOTE**: PyTorch models must be exported to the ONNX format before conversion into IR. More information on this subject is provided in the [Converting a PyTorch Model](prepare_model/convert_model/Convert_Model_From_PyTorch.md) guide.
 
