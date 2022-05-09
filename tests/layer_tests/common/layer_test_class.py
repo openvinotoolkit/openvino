@@ -31,7 +31,7 @@ class CommonLayerTest:
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
               use_new_frontend=False, infer_timeout=60, enabled_transforms='',
-              disabled_transforms='', **kwargs):
+              disabled_transforms='', inputs_range=(-255, 255), **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -88,10 +88,13 @@ class CommonLayerTest:
 
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
+            # TODO: _prepare_input() takes only two arguments
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
-                                              kwargs['kwargs_to_prepare_input'])
+                                              kwargs['kwargs_to_prepare_input'],
+                                              inputs_range)
         else:
-            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
+            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
+                                              inputs_range)
 
         # IE infer:
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
@@ -149,9 +152,9 @@ class CommonLayerTest:
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
-    def _prepare_input(self, inputs_dict):
+    def _prepare_input(self, inputs_dict, inputs_range):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(*inputs_range, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict,
