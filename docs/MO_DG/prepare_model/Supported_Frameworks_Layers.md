@@ -173,7 +173,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | AssignSub | Not needed for inference. |
 | Atanh |  |
 | AvgPool |  |
-| AvgPoolV2 | Supported only for constant-foldable kernel_size and strides inputs. |
+| AvgPoolV2 | Supported only for constant-foldable *`kernel_size`* and strides inputs. |
 | AvgPool3D |  |
 | BatchMatMul |  |
 | BatchMatMulV2 |  |
