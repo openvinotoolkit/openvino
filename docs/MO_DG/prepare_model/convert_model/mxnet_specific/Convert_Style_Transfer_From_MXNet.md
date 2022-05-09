@@ -20,7 +20,7 @@ pip3 install --user matplotlib
 pip3 install --user scikit-image
 ```
 
-**Step 3**: Download the pre-trained [VGG19 model](https://github.com/dmlc/web-data/raw/master/mxnet/neural-style/model/vgg19.params) and save it to the root directory of the cloned repository. The sample expects the model *`vgg19.params`* file to be in that directory.<br>
+**Step 3**: Download the pretrained [VGG19 model](https://github.com/dmlc/web-data/raw/master/mxnet/neural-style/model/vgg19.params) and save it to the root directory of the cloned repository. The sample expects the model *`vgg19.params`* file to be in that directory.<br>
 
 **Step 4**: Modify source code files of style transfer sample from cloned repository:<br>
 
