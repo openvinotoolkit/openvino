@@ -1,30 +1,14 @@
-//*****************************************************************************
-// Copyright 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/runtime/reference/irdft.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <complex>
-#include <cstring>
 #include <functional>
-#include <iostream>
 #include <ngraph/runtime/reference/utils/fft_common.hpp>
-#include <utility>
 #include <vector>
 
 #include "ngraph/runtime/reference/fft.hpp"
@@ -120,14 +104,15 @@ void irdft(const std::vector<float>& input_data,
            const std::vector<int64_t>& axes_data,
            float* irdft_result,
            const Shape& fft_output_shape,
-           int64_t last_signal_size) {
+           const Shape& irdft_output_shape) {
     // calculate inverse FFT over the outer axes
+    const int64_t last_signal_size = irdft_output_shape.back();
     const auto outer_ifft_axes = get_outer_fft_axes(axes_data);
     auto outer_ifft_shape = input_data_shape;
     for (const auto& a : outer_ifft_axes) {
         outer_ifft_shape[a] = fft_output_shape[a];
     }
-    std::vector<float> outer_fft_result = std::vector<float>(shape_size(outer_ifft_shape), 0.0f);
+    std::vector<float> outer_fft_result(shape_size(outer_ifft_shape), 0.0f);
     fft(reinterpret_cast<const float*>(input_data.data()),
         input_data_shape,
         outer_ifft_axes.data(),
@@ -140,7 +125,8 @@ void irdft(const std::vector<float>& input_data,
     const auto last_axis = axes_data.back();
     auto extended_data_shape = outer_ifft_shape;
     extended_data_shape[last_axis] = last_signal_size;
-    std::vector<complex_type> inner_ifft_result(shape_size(fft_output_shape) / 2);
+    const auto complex_ifft_result_size = shape_size(irdft_output_shape);
+    std::vector<complex_type> complex_ifft_result(complex_ifft_result_size);
     std::vector<complex_type> extended_complex_data = extend_to_hermitian_symmetric(outer_fft_result,
                                                                                     outer_ifft_shape,
                                                                                     extended_data_shape,
@@ -152,13 +138,13 @@ void irdft(const std::vector<float>& input_data,
         extended_data_shape,
         std::vector<int64_t>{last_axis}.data(),
         Shape{1},
-        reinterpret_cast<float*>(inner_ifft_result.data()),
+        reinterpret_cast<float*>(complex_ifft_result.data()),
         fft_output_shape,
         FFTKind::Inverse);
 
     // cut out the imaginary part of the complex result
-    for (size_t i = 0; i < inner_ifft_result.size(); ++i) {
-        irdft_result[i] = std::real(inner_ifft_result[i]);
+    for (size_t i = 0; i < complex_ifft_result_size; ++i) {
+        irdft_result[i] = std::real(complex_ifft_result[i]);
     }
 }
 }  // namespace reference
