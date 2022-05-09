@@ -83,7 +83,7 @@ Below is a list of separate examples for different frameworks and Model Optimize
 ```sh
 mo --input_model MobileNet.pb
 ```
-Launch Model Optimizer for a TensorFlow BERT model in the SavedModel format, with three inputs. Explicitly specify input shapes
+Launch Model Optimizer for a TensorFlow BERT model in the SavedModel format with three inputs. Specify input shapes explicitly
 where the batch size and the sequence length equal 2 and 30 respectively:
 ```sh
 mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
