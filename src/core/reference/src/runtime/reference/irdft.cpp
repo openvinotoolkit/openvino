@@ -136,7 +136,7 @@ void irdft(const std::vector<float>& input_data,
     // calculate inverse FFT on adjusted data over the last last axis
     fft(reinterpret_cast<const float*>(extended_complex_data.data()),
         extended_data_shape,
-        std::vector<int64_t>{last_axis}.data(),
+        &last_axis,
         Shape{1},
         reinterpret_cast<float*>(complex_ifft_result.data()),
         fft_output_shape,
