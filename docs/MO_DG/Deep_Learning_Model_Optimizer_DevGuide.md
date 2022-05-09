@@ -90,7 +90,7 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 ```
 For more information, refer to the [Converting a TensorFlow Model guide](prepare_model/convert_model/Convert_Model_From_TensorFlow.md).
 
-2. Launch Model Optimizer for an ONNX OCR model and explicitly specify new output:
+2. Launch Model Optimizer for an ONNX OCR model and specify new output explicitly:
 ```sh
 mo --input_model ocr.onnx --output probabilities
 ```
