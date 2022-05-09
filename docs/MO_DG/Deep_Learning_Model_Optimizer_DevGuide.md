@@ -102,7 +102,7 @@ For more information, refer to the [Converting an ONNX Model guide](prepare_mode
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
-For more information, refer to the [Converting a PaddlePaddle Model guide](prepare_model/convert_model/Convert_Model_From_Paddle.md).
+For more information, refer to the [Converting a PaddlePaddle Model](prepare_model/convert_model/Convert_Model_From_Paddle.md) guide.
 
 4. Launch Model Optimizer for an MXNet SSD Inception V3 model and specify first-channel layout for the input:
 ```sh
