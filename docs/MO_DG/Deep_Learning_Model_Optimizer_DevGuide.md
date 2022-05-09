@@ -67,7 +67,7 @@ Additional input pre-processing sub-graphs can also be inserted into the convert
 the *`--mean_values`*, *`scales_values`*, *`--layout`*, and other parameters described
 in the [Embedding Preprocessing Computation article](prepare_model/Additional_Optimizations.md).
 
-Model Optimizer's compression parameter *`--data_type`* allows to generate IR of the *`FP16`* data type. For more details, refer to the [Compression of a Model to FP16 guide](prepare_model/FP16_Compression.md).
+The *`--data_type`* compression parameter in Model Optimizer allows generating IR of the *`FP16`* data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
 
 A full list of conversion parameters is available in Model Optimizer. It can be accessed by running the command below:
 
