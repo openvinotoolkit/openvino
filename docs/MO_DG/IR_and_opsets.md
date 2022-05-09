@@ -237,6 +237,6 @@ Meanwhile, *`ReLU`* in *`opset2`* refers to the same *`ReLU-1`* and both *`ReLU`
 
 To differentiate versions of the same operation type, like *`ReLU`*, the suffix *`-N`* is used in a versioned name of the operation.
 The *`N`* usually refers to the first *`opsetN`* where this version of the operation is introduced.
-It is not guaranteed that new operations will be named according to that rule. The naming convention might be changed, but not for old operations which are frozen completely.
+There is no guarantee that new operations will be named according to that rule. The naming convention might be changed, but not for old operations which are frozen completely.
 
 
