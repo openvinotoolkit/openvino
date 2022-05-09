@@ -18,7 +18,7 @@ For example, element-wise addition operation has two input ports which accept te
 Some operations do not have any input ports, for example *`Const`* operation, which knows the data to be produced without any input.
 An edge between operations represent data flow or data dependency implied from one operation node to another operation node.
 
-Each operation produces data on one or multiple output ports. For example, convolution produces output tensor with activations at a single output port. Split operation usually has multiple output ports each producing part of an input tensor.
+Each operation produces data on one or multiple output ports. For example, convolution produces output tensor with activations at a single output port. Split operation usually has multiple output ports, each producing part of an input tensor.
 
 Depending on a deep learning framework, the graph can also contain extra nodes that explicitly represent tensors between operations.
 In such representations, operation nodes are not connected directly to each other, rather using data nodes as intermediate stops for data flow.
