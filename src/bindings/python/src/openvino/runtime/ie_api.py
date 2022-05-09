@@ -274,15 +274,9 @@ class CompiledModel(CompiledModelBase):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-<<<<<<< HEAD
-        return super().infer_new_request(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
-        )
-=======
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
         return self.create_infer_request().infer(inputs)
->>>>>>> 860a074fa92c18f17d810cc1f4e3f39d28261a30
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
         """Callable infer wrapper for CompiledModel.
@@ -301,13 +295,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
     """
 
     def start_async(
-<<<<<<< HEAD
-        self, inputs: Union[dict, list] = None, userdata: Any = None,
-=======
         self,
         inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
         userdata: Any = None,
->>>>>>> 860a074fa92c18f17d810cc1f4e3f39d28261a30
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
