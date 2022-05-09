@@ -87,7 +87,7 @@ maker = make_image.Maker('models/13', (1024, 768))
 maker.generate('output.jpg', '../images/tubingen.jpg')
 ```
 The *`models/13`* string in the code above is composed of the following substrings:
-* *`models/`* -- path to the folder that contains *`.nd`* files with pre-trained styles weights.
+* *`models/`* -- path to the folder that contains *`.nd`* files with pretrained styles weights.
 * *`13`* -- prefix pointing to the default decoder for the repository, *`13_decoder`*.
 
 > **NOTE**: If an error prompts with "No module named *`cPickle`*", try running the script from Step 5 in Python 2. After that return to Python 3 for the remaining steps.
