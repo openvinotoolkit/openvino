@@ -46,7 +46,7 @@ The IR is a pair of files describing the model:
 > **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
 > It is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
-## Run Model Optimizer
+## Running Model Optimizer
 
 Convert the model to IR by running the Model Optimizer:
 
