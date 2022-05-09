@@ -252,7 +252,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | MatMul |  |
 | Max |  |
 | MaxPool |  |
-| MaxPoolV2 | Supported only for constant-foldable kernel_size and strides inputs. |
+| MaxPoolV2 | Supported only for constant-foldable *`kernel_size`* and strides inputs. |
 | MaxPool3D |  |
 | Maximum |  |
 | Mean |  |
