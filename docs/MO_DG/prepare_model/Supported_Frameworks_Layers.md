@@ -1,7 +1,7 @@
 # Supported Framework Layers {#openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers}
 
 
-In this article You can find lists of supported framework layers, divided by frameworks.
+In this article, you can find lists of supported framework layers, divided by frameworks.
 
 ## Caffe Supported Layers
 
