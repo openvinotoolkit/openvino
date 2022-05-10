@@ -6,8 +6,8 @@
 #include "utils/general_utils.h"
 #include <vector>
 
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl;
 using namespace Xbyak;
 
 namespace ov {
