@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/border.hpp>
 
 #include <cstddef>
+#include <array>
 
 using namespace cldnn;
 using namespace ::tests;
