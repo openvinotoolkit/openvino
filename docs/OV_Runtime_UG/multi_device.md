@@ -73,7 +73,7 @@ Notice that MULTI allows you to **change device priorities on the fly**. You can
 
 
 
-One more thing you can define is the **number of requests to allocate for each device**. You can do it simply by adding the number to each device in parentheses, like so: `"MULTI:CPU(2),GPU(2)"`. Although, this method is not recommended as it is not performance-portable. The suggested approach is to configure individual devices and query the resulting number of requests to be used at the application level, as described below, in [Configuring Individual Devices and Creating MULTI On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top).
+One more thing you can define is the **number of requests to allocate for each device**. You can do it simply by adding the number to each device in parentheses, like this: `"MULTI:CPU(2),GPU(2)"`. However, this method is not recommended as it is not performance-portable. The suggested approach is to configure individual devices and query the resulting number of requests to be used at the application level, as described in [Configuring Individual Devices and Creating MULTI On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top).
 
 To check what devices are present in the system, you can use the Device API. For information on how to do it, check [Query device properties and configuration](supported_plugins/config_properties.md)
 
