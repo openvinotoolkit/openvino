@@ -235,7 +235,7 @@ NGRAPH_API EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>& EnumNames<ngraph::o
     static auto enum_names = EnumNames<ngraph::op::v9::ROIAlign::AlignedMode>(
         "op::v9::ROIAlign::AlignedMode",
         {{"asymmetric", ngraph::op::v9::ROIAlign::AlignedMode::ASYMMETRIC},
-         {"tf_half_pixel_for_nn", ngraph::op::v9::ROIAlign::AlignedMode::TF_HALF_PIXEL_FOR_NN},
+         {"half_pixel_for_nn", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN},
          {"half_pixel", ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL}});
     return enum_names;
 }

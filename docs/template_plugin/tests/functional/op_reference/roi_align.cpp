@@ -299,7 +299,7 @@ std::vector<ROIAlignV9Params> generateParamsV9() {
                            reference_tests::Tensor(ET, {2, 1, 2, 2}, std::vector<T>{3.14, 2.16, 2.86, 5.03, 1.83, 5.84, 2.77, 3.44}),
                            reference_tests::Tensor(ET, {2, 4}, std::vector<T>{2, 2, 4, 4, 2, 2, 4, 4}),
                            reference_tests::Tensor(ET_IND, {2}, std::vector<T_IND>{0, 1}),
-                           2, 2, 1, 2, "avg", "tf_half_pixel_for_nn", "roi_align_v9_avg_tf_half_pixel_for_nn"),
+                           2, 2, 1, 2, "avg", "half_pixel_for_nn", "roi_align_v9_avg_half_pixel_for_nn"),
 
             ROIAlignV9Params(PartialShape{2, 1, 8, 8}, ET,
                            std::vector<T>{0,  1, 8, 5, 5,  2, 0,  7,  7,  10, 4,  5, 9,  0, 0,  5,

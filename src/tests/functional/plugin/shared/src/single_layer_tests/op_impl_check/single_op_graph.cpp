@@ -842,7 +842,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::ROIAlign>&
     const auto coords = ngraph::builder::makeConstant<float16>(ov::element::f16, {2, 4}, {2, 2, 8, 8, 2, 2, 8, 8});
     const auto roisIdx = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {2}, {0, 1});
     const auto pooling_mode = EnumNames<op::v9::ROIAlign::PoolingMode>::as_enum("avg");
-    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("tf_half_pixel_for_nn");
+    const auto aligned_mode = EnumNames<op::v9::ROIAlign::AlignedMode>::as_enum("half_pixel_for_nn");
     auto Node =
         std::make_shared<ov::op::v9::ROIAlign>(params.at(0), coords, roisIdx, 2, 2, 2, 1, pooling_mode, aligned_mode);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};

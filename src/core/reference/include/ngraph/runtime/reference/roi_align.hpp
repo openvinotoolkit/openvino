@@ -43,7 +43,7 @@ void roi_align(const T* feature_maps,
     T offset_src = static_cast<T>(0);
     T offset_dst = static_cast<T>(0);
     switch (aligned_mode) {
-    case AlignedMode::TF_HALF_PIXEL_FOR_NN: {
+    case AlignedMode::HALF_PIXEL_FOR_NN: {
         aligned = true;
         offset_dst = static_cast<T>(-0.5);
         break;
