@@ -69,7 +69,7 @@ in the [Embedding Preprocessing Computation](prepare_model/Additional_Optimizati
 
 The *`--data_type`* compression parameter in Model Optimizer allows generating IR of the *`FP16`* data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
 
-A full list of conversion parameters is available in Model Optimizer. It can be accessed by running the command below:
+To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
 ```sh
 mo --help
