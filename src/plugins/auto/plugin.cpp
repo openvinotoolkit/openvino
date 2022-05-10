@@ -332,12 +332,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
 
         //check if device priority is enabled
-        for (auto& meatDev : metaDevices) {
-            if (meatDev.devicePriority > 0) {
-                context.enableDevicePriority = true;
-                break;
-            }
-        }
+        context.enableDevicePriority =
+            std::find_if(std::begin(metaDevices), std::end(metaDevices), [](DeviceInformation& di) {
+                return di.devicePriority > 0;
+            }) != std::end(metaDevices);
 
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
