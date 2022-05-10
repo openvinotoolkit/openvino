@@ -10,7 +10,7 @@ The potential gains from using Multi-Device execution are:
 
 Importantly, the Multi-Device mode does not change the application logic, so it does not require you to explicitly compile the model on every device or create and balance inference requests. It appears to use a typical device but internally handles the actual hardware.
 
-Note that performance increase in this mode comes from utilizing multiple devices at once. This means that you need to provide the devices with enough inference requests to keep them busy or you will not benefit much from using MULTI.
+Note that the performance increase in this mode comes from utilizing multiple devices at once. This means that you need to provide the devices with enough inference requests to keep them busy, otherwise you will not benefit much from using MULTI.
 
 
 ## Using the Multi-Device Mode 
