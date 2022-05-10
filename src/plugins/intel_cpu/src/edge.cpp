@@ -66,16 +66,11 @@ void Edge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
-/**
- * Collect all nodes that really read the memory. Nodes with inPlace inputs are skipped since they do not read the memory.
- *
- * @param vector of all consumer nodes
- */
-void MKLDNNEdge::collectConsumers(std::vector<MKLDNNNodePtr>& result) const {
+void Edge::collectConsumers(std::vector<NodePtr>& result) const {
     if (this->inPlace(LOOK_DOWN)) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
-            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace;
+            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
             auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
@@ -86,11 +81,7 @@ void MKLDNNEdge::collectConsumers(std::vector<MKLDNNNodePtr>& result) const {
     }
 }
 
-bool MKLDNNEdge::needReorder() {
-    if (!getInputDesc().isCompatible(getOutputDesc())) {
-        return true;
-    }
-
+bool Edge::enforceReorder() {
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
@@ -99,20 +90,20 @@ bool MKLDNNEdge::needReorder() {
     if (!parentSPD || !childSPD)
         IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
 
-    auto childCanChangeMem = [](const MKLDNNEdge& edge) {
+    auto childCanChangeMem = [](const Edge& edge) {
         bool result = false;
         int outNumber = edge.getOutputNum();
         if (auto childSPD = edge.getChild()->getSelectedPrimitiveDescriptor()) {
             result = childSPD->getConfig().outConfs.empty();
             for (const auto& conf : childSPD->getConfig().outConfs) {
-                if (conf.inPlace == outNumber && outNumber >= 0)
+                if (conf.inPlace() == outNumber && outNumber >= 0)
                     result = true;
             }
         }
         return result;
     };
 
-    const auto& detectInPlaceChildrenNum = [&childCanChangeMem](const std::vector<MKLDNNEdgePtr>& edges) -> size_t {
+    const auto& detectInPlaceChildrenNum = [&childCanChangeMem](const std::vector<EdgePtr>& edges) -> size_t {
         size_t count = 0;
         for (const auto& edge : edges) {
             if (childCanChangeMem(*edge)) {
@@ -122,16 +113,17 @@ bool MKLDNNEdge::needReorder() {
         return count;
     };
 
-    bool isInPlace = inPlace();
+    bool in_place = inPlace();
     int inNumber = getInputNum();
+
     const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
     if (childCanChangeMem(*this) && portChildEdges.size() > 1) {
-        if (childNode->getType() == Convolution) {
+        if (childNode->getType() == Type::Convolution) {
             auto execIndex = childNode->getExecIndex();
             for (auto pEdgePeer : portChildEdges) {
                 if (pEdgePeer.get() == this)
                     continue;
-                std::vector<MKLDNNNodePtr> vecConsumers;
+                std::vector<NodePtr> vecConsumers;
                 pEdgePeer->collectConsumers(vecConsumers);
 
                 for (auto node : vecConsumers) {
@@ -142,12 +134,12 @@ bool MKLDNNEdge::needReorder() {
                 }
                 if (canBeInPlaceConflicts) break;
             }
-        } else if (isInPlace && detectInPlaceChildrenNum(portChildEdges) > 1) {
+        } else if (in_place && detectInPlaceChildrenNum(portChildEdges) > 1) {
             canBeInPlaceConflicts = true;
         }
     }
 
-    if (!canBeInPlaceConflicts && isInPlace && !parentNode->getChildEdges().empty()) {
+    if (!canBeInPlaceConflicts && in_place && !parentNode->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
@@ -159,10 +151,11 @@ bool MKLDNNEdge::needReorder() {
         }
     }
 
-    if (isInPlace) {
+    if (in_place) {
         int outNumber = getOutputNum();
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
-            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
+        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
+            parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
+            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
             canBeInPlaceConflicts = true;
     }
 
@@ -629,7 +622,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     return edges_for_same_port[0];
 }
 
-bool MKLDNNEdge::inPlace(LOOK look) const {
+bool Edge::inPlace(LOOK look) const {
     auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)

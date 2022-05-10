@@ -101,6 +101,8 @@ private:
     const MemoryDesc& getDesc() const;
     bool enforceReorder();
 
+    void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
+
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
