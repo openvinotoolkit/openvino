@@ -9,9 +9,9 @@
 #include <nodes/eltwise.h>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -39,7 +39,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -76,7 +76,7 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -138,7 +138,7 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -176,7 +176,7 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -214,7 +214,7 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -281,7 +281,7 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
@@ -312,7 +312,7 @@ void jit_ceiling_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
@@ -342,7 +342,7 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -394,7 +394,7 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -446,7 +446,7 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -496,7 +496,7 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -547,7 +547,7 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -588,7 +588,7 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -701,7 +701,7 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -762,7 +762,7 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_not_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -823,7 +823,7 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_greater_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -884,7 +884,7 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -945,7 +945,7 @@ void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1006,7 +1006,7 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1068,7 +1068,7 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_and_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1150,7 +1150,7 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1231,7 +1231,7 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_xor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1312,7 +1312,7 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1384,7 +1384,7 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs,
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1560,7 +1560,7 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_prelu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1617,7 +1617,7 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1646,7 +1646,7 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);

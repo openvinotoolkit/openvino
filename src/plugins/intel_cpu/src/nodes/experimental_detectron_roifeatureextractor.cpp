@@ -325,7 +325,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
 }
 
 ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                 WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -357,7 +357,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(mkldnn::stream strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
