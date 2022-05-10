@@ -9,7 +9,7 @@
 #include <map>
 
 #include "auto_schedule.hpp"
-#include "base_executable_network.hpp"
+#include "executable_network.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -19,7 +19,7 @@
 #endif
 
 namespace MultiDevicePlugin {
-class AutoExecutableNetwork : public BaseExecutableNetwork {
+class AutoExecutableNetwork : public ExecutableNetwork {
     friend IInferPtr AutoSchedule::CreateInferRequest();
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;

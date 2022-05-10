@@ -5,16 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
-#include <vector>
-#include <utility>
-#include <memory>
-#include <string>
-
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
+#include "base_schedule.hpp"
 #include "infer_request.hpp"
-#include "executable_network.hpp"
-#include "utils/log_util.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -24,25 +16,21 @@
 #endif
 
 namespace MultiDevicePlugin {
-
-class MultiDeviceAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest : public IE::AsyncInferRequestThreadSafeDefault {
 public:
-    using Ptr = std::shared_ptr<MultiDeviceAsyncInferRequest>;
-
-    explicit MultiDeviceAsyncInferRequest(const MultiDeviceInferRequest::Ptr&           inferRequest,
-                                          const bool                                    needPerfCounters,
-                                          const MultiDeviceExecutableNetwork::Ptr&      multiDeviceExecutableNetwork,
-                                          const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
+    using Ptr = std::shared_ptr<AsyncInferRequest>;
+    explicit AsyncInferRequest(const Schedule::Ptr& schedule,
+        const IInferPtr&         inferRequest,
+        const IE::ITaskExecutor::Ptr&  callbackExecutor);
     void Infer_ThreadUnsafe() override;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    ~MultiDeviceAsyncInferRequest();
+    std::map<std::string, IE::InferenceEngineProfileInfo> GetPerformanceCounts()
+    const override;
+    ~AsyncInferRequest();
 
 protected:
-    MultiDeviceExecutableNetwork::Ptr                                   _multiDeviceExecutableNetwork;
-    MultiDeviceInferRequest::Ptr                                        _inferRequest;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
-    bool                                                                _needPerfCounters = false;
-    MultiDeviceExecutableNetwork::WorkerInferRequest*                   _workerInferRequest = nullptr;
+    Schedule::Ptr _schedule;
+    WorkerInferRequest* _workerInferRequest = nullptr;
+    IInferPtr _inferRequest;
 };
 
 }  // namespace MultiDevicePlugin

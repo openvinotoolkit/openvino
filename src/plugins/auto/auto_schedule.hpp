@@ -43,12 +43,9 @@ public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     void init(const ScheduleContext::Ptr& sContext) override;
     IInferPtr CreateInferRequest() override;
-    IInferPtr CreateInferRequestImpl(
-        IE::InputsDataMap networkInputs,
-        IE::OutputsDataMap networkOutputs) override;
-    IInferPtr CreateInferRequestImpl(
-        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+    IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
+    IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     void WaitActualNetworkReady() const;
     virtual ~AutoSchedule();
 
@@ -56,16 +53,14 @@ public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
 
 protected:
-    void GenerateWorkers(const std::string& device, const SoExecNetwork&
-        executableNetwork) override;
-    void ScheduleToWorkerInferRequest(IE::Task,
-        DeviceName preferred_device = "") override;
+    void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
+    void ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
+    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 
 private:
     void WaitFirstNetworkReady();
-    void TryToLoadNetWork(AutoLoadContext& context,
-        const std::string& modelPath,
-        const IE::CNNNetwork& network);
+    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;

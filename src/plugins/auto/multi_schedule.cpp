@@ -3,7 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "base_async_infer_request.hpp"
+#include "async_infer_request.hpp"
 #include "plugin.hpp"
 #include "multi_schedule.hpp"
 #include "multi_executable_network.hpp"
@@ -126,19 +126,18 @@ void MultiSchedule::GenerateWorkers(const std::string& device,
         workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         auto* workerRequestPtr = &workerRequest;
         workerRequestPtr->_index = num++;
-        IE_ASSERT(idleWorkerRequests.try_push(std::make_pair(workerRequestPtr->_index,
-                    workerRequestPtr)) == true);
+        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device,
                           idleWorkerRequestsPtr](std::exception_ptr exceptionPtr) mutable {
-            IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+            IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
             workerRequestPtr->_exceptionPtr = exceptionPtr;
             {
                 auto capturedTask = std::move(workerRequestPtr->_task);
                 capturedTask();
             }
             // try to return the request to the idle list (fails if the overall object destruction has began)
-            if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
+            if (idleGuard.Release()->try_push(workerRequestPtr)) {
                 // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                 // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                 IE::Task t;
@@ -181,10 +180,8 @@ bool MultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     NotBusyWorkerRequests& idleWorkerRequests,
     const DeviceName& preferred_device) {
     WorkerInferRequest* workerRequestPtr = nullptr;
-    std::pair<int, WorkerInferRequest*> worker;
-    if (idleWorkerRequests.try_pop(worker)) {
-        workerRequestPtr = worker.second;
-        IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+    if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
         _thisWorkerInferRequest = workerRequestPtr;
         {
             auto capturedTask = std::move(inferPipelineTask);
@@ -276,7 +273,7 @@ IInferPtr MultiSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs,
                 execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
-    return std::make_shared<BaseAsyncInferRequest>(shared_from_this(),
+    return std::make_shared<AsyncInferRequest>(shared_from_this(),
             syncRequestImpl,
             execNetwork->_callbackExecutor);
 }

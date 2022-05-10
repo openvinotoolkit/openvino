@@ -8,12 +8,10 @@
 // ------------------------------AutoExecutableNetwork----------------------------
 //
 namespace MultiDevicePlugin {
-AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context,
-    const AutoSchedule::Ptr& schedule):
-    BaseExecutableNetwork(schedule, context) {
-    _schedule->init(_sContext);
-    _autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(_sContext);
-    _autoSchedule = std::dynamic_pointer_cast<AutoSchedule>(_schedule);
+AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, const AutoSchedule::Ptr& schedule)
+    :ExecutableNetwork(schedule, context),
+     _autoSContext(context),
+     _autoSchedule(schedule) {
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {

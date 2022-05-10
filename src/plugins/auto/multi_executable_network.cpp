@@ -7,12 +7,9 @@
 #include "plugin.hpp"
 // ------------------------------MultiExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
-MultiExecutableNetwork::MultiExecutableNetwork(MultiScheduleContext::Ptr&
-    context,
-    const MultiSchedule::Ptr& schedule):
-    BaseExecutableNetwork(schedule, context) {
-    _schedule->init(_sContext);
-    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
+MultiExecutableNetwork::MultiExecutableNetwork(MultiScheduleContext::Ptr& context, const MultiSchedule::Ptr& schedule)
+    : ExecutableNetwork(schedule, context),
+      _multiSContext(context) {
 }
 
 MultiExecutableNetwork::~MultiExecutableNetwork() {}

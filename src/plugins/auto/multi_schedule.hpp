@@ -27,19 +27,13 @@ struct ThisRequestExecutor : public IE::ITaskExecutor {
 class MultiSchedule : public Schedule, public IE::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiSchedule>;
-    using NotBusyWorkerRequests =
-        IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
     IInferPtr CreateInferRequest() override;
-    IInferPtr CreateInferRequestImpl(
-        IE::InputsDataMap networkInputs,
-        IE::OutputsDataMap networkOutputs) override;
-    IE::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+    IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
+    IE::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     void run(IE::Task inferTask) override;
     void init(const ScheduleContext::Ptr& sContext) override;
-    Pipeline GetPipeline(const IInferPtr& syncRequestImpl,
-        WorkerInferRequest** WorkerInferRequest) override;
+    Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     virtual ~MultiSchedule();
 
 public:
@@ -50,13 +44,9 @@ public:
     static thread_local const char* _thisPreferredDeviceName;
 
 protected:
-    virtual void GenerateWorkers(const std::string& device,
-        const IE::SoExecutableNetworkInternal& executableNetwork);
-    static bool RunPipelineTask(IE::Task& inferPipelineTask,
-        NotBusyWorkerRequests& idleWorkerRequests,
-        const DeviceName& preferred_device);
-    virtual void ScheduleToWorkerInferRequest(IE::Task,
-        DeviceName preferred_device = "");
+    virtual void GenerateWorkers(const std::string& device, const IE::SoExecutableNetworkInternal& executableNetwork);
+    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    virtual void ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "");
 
 protected:
     IE::ThreadSafeQueue<IE::Task>  _inferPipelineTasks;
@@ -69,25 +59,4 @@ protected:
     MultiScheduleContext::Ptr _multiSContext;
 };
 
-struct IdleGuard {
-    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr,
-        MultiSchedule::NotBusyWorkerRequests& notBusyWorkerRequests) :
-        _workerInferRequestPtr{workerInferRequestPtr},
-        _notBusyWorkerRequests{&notBusyWorkerRequests} {
-    }
-    ~IdleGuard() {
-        if (nullptr != _notBusyWorkerRequests) {
-            _notBusyWorkerRequests->
-            try_push(std::make_pair(_workerInferRequestPtr->_index,
-                    _workerInferRequestPtr));
-        }
-    }
-    MultiSchedule::NotBusyWorkerRequests* Release() {
-        auto notBusyWorkerRequests = _notBusyWorkerRequests;
-        _notBusyWorkerRequests = nullptr;
-        return notBusyWorkerRequests;
-    }
-    WorkerInferRequest* _workerInferRequestPtr = nullptr;
-    MultiSchedule::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
-};
 }  // namespace MultiDevicePlugin

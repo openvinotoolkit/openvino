@@ -38,6 +38,7 @@ using IInferPtr = IE::IInferRequestInternal::Ptr;
 using IExecNetwork = IE::IExecutableNetworkInternal;
 using SoInfer = IE::SoIInferRequestInternal;
 using SoExecNetwork = IE::SoExecutableNetworkInternal;
+using Time = std::chrono::time_point<std::chrono::steady_clock>;
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 struct DeviceInformation {
@@ -49,10 +50,49 @@ struct DeviceInformation {
     unsigned int devicePriority;
 };
 
+struct WorkerInferRequest {
+    SoInfer            _inferRequest;
+    IE::Task           _task;
+    std::exception_ptr _exceptionPtr = nullptr;
+    unsigned int       _inferCount = 0;
+    std::list<Time>    _startTimes;
+    std::list<Time>    _endTimes;
+    int                _index = 0;
+};
+
+using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
+using NotBusyWorkerRequests = IE::ThreadSafeBoundedQueue<WorkerInferRequest*>;
+template<typename T>
+struct IdleGuard {
+    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr, T& notBusyWorkerRequests) :
+        _workerInferRequestPtr{workerInferRequestPtr},
+        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+    }
+    ~IdleGuard() {
+        if (nullptr != _notBusyWorkerRequests) {
+            if (std::is_same<T, NotBusyWorkerRequests>::value) {
+                auto temp = std::static_pointer_cast<NotBusyWorkerRequests>(_notBusyWorkerRequests);
+                temp->try_push(_workerInferRequestPtr);
+            }
+            if (std::is_same<T, NotBusyPriorityWorkerRequests>::value) {
+                auto temp = std::static_pointer_cast<NotBusyPriorityWorkerRequests>(_notBusyWorkerRequests);
+                temp->try_push(std::make_pair(_workerInferRequestPtr->_index, _workerInferRequestPtr));
+            }
+        }
+    }
+    T* Release() {
+        auto notBusyWorkerRequests = _notBusyWorkerRequests;
+        _notBusyWorkerRequests = nullptr;
+        return notBusyWorkerRequests;
+    }
+    WorkerInferRequest* _workerInferRequestPtr = nullptr;
+    T*  _notBusyWorkerRequests = nullptr;
+};
+
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext> {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
-    std::shared_ptr<IE::ICore> _core;
+    std::shared_ptr<IE::ICore>  _core;
     std::weak_ptr<IExecNetwork> _executableNetwork;
     virtual ~ScheduleContext() = default;
 };
@@ -60,12 +100,12 @@ public:
 class MultiScheduleContext : public ScheduleContext {
 public:
     using Ptr = std::shared_ptr<MultiScheduleContext>;
-    std::vector<DeviceInformation>  _devicePriorities;
-    std::vector<DeviceInformation>  _devicePrioritiesInitial;
+    std::vector<DeviceInformation>                 _devicePriorities;
+    std::vector<DeviceInformation>                 _devicePrioritiesInitial;
     std::unordered_map<std::string, IE::Parameter> _config;
-    DeviceMap<SoExecNetwork> _networksPerDevice;
-    std::mutex _mutex;
-    bool _needPerfCounters;
+    DeviceMap<SoExecNetwork>                       _networksPerDevice;
+    std::mutex                                     _mutex;
+    bool                                           _needPerfCounters;
     virtual ~MultiScheduleContext() = default;
 };
 
@@ -73,21 +113,15 @@ class MultiDeviceInferencePlugin;
 class AutoScheduleContext : public MultiScheduleContext {
 public:
     using Ptr = std::shared_ptr<AutoScheduleContext>;
-    std::string _modelPath;
-    IE::CNNNetwork _network;
-    std::string _strDevices;
-    unsigned int _modelPriority = 0;
-    bool _batchingDisabled = {false};
-    std::mutex _confMutex;
+    std::string                 _modelPath;
+    IE::CNNNetwork              _network;
+    std::string                 _strDevices;
+    unsigned int                _modelPriority = 0;
+    bool                        _batchingDisabled = {false};
+    std::string                 _performanceHint;
+    std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;
     virtual ~AutoScheduleContext() = default;
 };
 
-struct WorkerInferRequest {
-    SoInfer _inferRequest;
-    IE::Task _task;
-    std::exception_ptr _exceptionPtr = nullptr;
-    unsigned int _inferCount = 0;
-    int _index = 0;
-};
 }  // namespace MultiDevicePlugin

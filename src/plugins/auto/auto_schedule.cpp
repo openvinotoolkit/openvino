@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "auto_schedule.hpp"
-#include "base_async_infer_request.hpp"
+#include "async_infer_request.hpp"
 #include "auto_executable_network.hpp"
 #include "plugin.hpp"
 
@@ -84,7 +84,7 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device,
                           idleWorkerRequestsPtr](std::exception_ptr exceptionPtr) mutable {
-            IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+            IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
             workerRequestPtr->_exceptionPtr = exceptionPtr;
             {
                 auto capturedTask = std::move(workerRequestPtr->_task);
@@ -445,6 +445,24 @@ void AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask,
     }
 }
 
+bool AutoSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
+    NotBusyPriorityWorkerRequests& idleWorkerRequests,
+    const DeviceName& preferred_device) {
+    WorkerInferRequest* workerRequestPtr = nullptr;
+    std::pair<int, WorkerInferRequest*> worker;
+    if (idleWorkerRequests.try_pop(worker)) {
+        workerRequestPtr = worker.second;
+        IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+        _thisWorkerInferRequest = workerRequestPtr;
+        {
+            auto capturedTask = std::move(inferPipelineTask);
+            capturedTask();
+        }
+        idleGuard.Release();
+        return true;
+    }
+    return false;
+}
 
 AutoSchedule::~AutoSchedule() {
     // this is necessary to guarantee member destroyed after getting future
@@ -532,7 +550,7 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs,
                 execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
-    return std::make_shared<BaseAsyncInferRequest>(shared_from_this(),
+    return std::make_shared<AsyncInferRequest>(shared_from_this(),
             syncRequestImpl,
             execNetwork->_callbackExecutor);
 }

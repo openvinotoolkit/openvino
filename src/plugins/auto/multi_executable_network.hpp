@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "base_executable_network.hpp"
+#include "executable_network.hpp"
 #include "multi_schedule.hpp"
 
 #ifdef  MULTIUNITTEST
@@ -15,13 +15,12 @@
 #endif
 
 namespace MultiDevicePlugin {
-class MultiExecutableNetwork : public BaseExecutableNetwork {
+class MultiExecutableNetwork : public ExecutableNetwork {
     friend IInferPtr MultiSchedule::CreateInferRequest();
 public:
     using Ptr = std::shared_ptr<MultiExecutableNetwork>;
 
-    explicit MultiExecutableNetwork(MultiScheduleContext::Ptr& context,
-        const MultiSchedule::Ptr& schedule);
+    explicit MultiExecutableNetwork(MultiScheduleContext::Ptr& context, const MultiSchedule::Ptr& schedule);
 
     void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
     IE::Parameter GetConfig(const std::string& name) const override;
