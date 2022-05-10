@@ -10,12 +10,12 @@ using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<std::vector<size_t>> inShapes = {
-        {1000},
-        {4, 1000},
-        {2, 4, 1000},
-        {2, 4, 4, 1000},
-        {2, 4, 4, 2, 1000},
+    std::vector<ov::test::InputShape> inShapes = {
+        {{}, {{1000}}},
+        {{}, {{4, 1000}}},
+        {{}, {{2, 4, 1000}}},
+        {{}, {{2, 4, 4, 1000}}},
+        {{}, {{2, 4, 4, 2, 1000}}},
     };
 
     const std::vector<InferenceEngine::Precision> inputPrecisions = {
