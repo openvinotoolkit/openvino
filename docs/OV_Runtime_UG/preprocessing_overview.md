@@ -14,21 +14,21 @@
 
 ## Introduction
 
-When the input data does not fit to Neural Network model input tensor perfectly, this means that additional operations/steps are needed to transform your data to format expected by a model. These operations are known as "preprocessing".
+When the input data does not fit to Neural Network model input tensor perfectly, this means that additional operations/steps are needed to transform the data to format expected by a model. These operations are known as "preprocessing".
 
 ### Example
 Consider the following standard example: deep learning model expects input with the *`{1, 3, 224, 224}`* shape, *`FP32`* precision, *`RGB`* color channels order, and it requires data normalization (subtract mean and divide by scale factor). However, there is just a *`640x480`* *`BGR`* image (data is *`{480, 640, 3}`*). This means some operations to be performed:
- - Convert U8 buffer to FP32
- - Transform to *`planar`* format: from *`{1, 480, 640, 3}`* to *`{1, 3, 480, 640}`*
- - Resize image from 640x480 to 224x224
- - Make *`BGR->RGB`* conversion as model expects *`RGB`*
- - For each pixel, subtract mean values and divide by scale factor
+ - Convert *`U8`* buffer to *`FP32`*.
+ - Transform to *`planar`* format: from *`{1, 480, 640, 3}`* to *`{1, 3, 480, 640}`*.
+ - Resize image from 640x480 to 224x224.
+ - Make *`BGR->RGB`* conversion as model expects *`RGB`*.
+ - For each pixel, subtract mean values and divide by scale factor.
 
 
 ![](img/preprocess_not_fit.png)
 
 
-Even though all these steps can be relatively easy implemented manually in the application code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
+Even though all these steps can be relatively easy to implement manually in the application code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
  - Preprocessing API is easy to use.
  - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
@@ -39,7 +39,7 @@ Intuitively, Preprocessing API consists of the following parts:
  2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data.
  3. 	**Model:** Specify Model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
 
-> **Note:** All graph modification of a model shall be performed after a model is read from a disk and **before** it is being loaded on actual device.
+> **Note:** Graph modification of a model shall be performed after a model is read from a disk and **before** it is loaded on actual device.
 
 ### PrePostProcessor Object
 
@@ -81,10 +81,10 @@ To address particular input of a model/preprocessor, use `ov::preprocess::PrePos
 
 @endsphinxtabset
 
-Below is all the specified information on user's input:
- - Precision is U8 (unsigned 8-bit integer).
- - Data represents tensor with {1,480,640,3} shape.
- - [Layout](./layout_overview.md) is "NHWC". It means that 'height=480, width=640, channels=3'.
+Below is all the specified input information:
+ - Precision is *`U8`* (unsigned 8-bit integer).
+ - Data represents tensor with the *`{1,480,640,3}`* shape.
+ - [Layout](./layout_overview.md) is "NHWC". It means: *`height=480`*, *`width=640`*, *`channels=3`*'.
  - Color format is *`BGR`*.
 
 @anchor declare_model_s_layout
@@ -109,7 +109,7 @@ Model input already has information about precision and shape. Preprocessing API
 @endsphinxtabset
 
 
-Now, if model input has *`{1,3,224,224}`* shape, preprocessing will be able to identify the *`height=224`*, *`width=224`*, and *`channels=3`* of that model. Height/width information is necessary for 'resize', and *`channels`* is needed for mean/scale normalization.
+Now, if model input has the *`{1,3,224,224}`* shape, preprocessing will be able to identify the *`height=224`*, *`width=224`*, and *`channels=3`* of that model. Height/width information is necessary for 'resize', and *`channels`* is needed for mean/scale normalization.
 
 ### Preprocessing Steps
 
@@ -133,12 +133,13 @@ Now, define sequence of preprocessing steps:
 
 Perform as follows:
 
-   1. Convert U8 to FP32 precision.
-   2. Convert current color format (BGR) to RGB.
-   3. Resize to height/width of a model. Note that if a model accepts dynamic size, e.g. {?, 3, ?, ?}, *`resize`* will not know how to resize the picture. Therefore, in this case you should specify target height/width. See also `ov::preprocess::PreProcessSteps::resize()`.
+   1. Convert *`U8`* to *`FP32`* precision.
+   2. Convert current color format (*`BGR`*) to *`RGB`*.
+   3. Resize to height/width of a model. Be aware that if a model accepts dynamic size, e.g. 
+   *`{?, 3, ?, ?}`*, *`resize`* will not know how to resize the picture. Therefore, in this case, target height/width should be specified. See also `ov::preprocess::PreProcessSteps::resize()`.
    4. Subtract mean from each channel. In this step, color format is RGB already, so *`100.5`* will be subtracted from each *`Red`* component, and *`101.5`* will be subtracted from *`Blue`* one.
    5. Divide each pixel data to appropriate scale value. In this example, each *`Red`* component will be divided by 50, *`Green`* by 51, *`Blue`* by 52 respectively.
-   6. **Note**: The last *`convert_layout`* step is commented out as it is not necessary to specify the last layout conversion. PrePostProcessor will do such conversion automatically
+   6. Note that the last *`convert_layout`* step is commented out as it is not necessary to specify the last layout conversion. PrePostProcessor will do such conversion automatically.
 
 ### Integrating Steps into a Model
 
@@ -161,7 +162,7 @@ Build it when the preprocessing has been finished. It is possible to print *`Pre
 @endsphinxtabset
 
 
-After this, a *`model`* will accept *`U8`* input with *`{1, 480, 640, 3}`* shape, with *`BGR`* channels order. All conversion steps will be integrated into execution graph. Now, load the model on device and pass the image to the model as is, without any data manipulation in the application.
+After this, a *`model`* will accept *`U8`* input with *`{1, 480, 640, 3}`* shape, with *`BGR`* channels order. All conversion steps will be integrated into execution graph. Now, load the model on the device and pass the image to the model as is, without any data manipulation in the application.
 
 
 ## See Also
