@@ -326,16 +326,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         AutoContext context;
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
-
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-
-        //check if device priority is enabled
-        context.enableDevicePriority =
-            std::find_if(std::begin(metaDevices), std::end(metaDevices), [](DeviceInformation& di) {
-                return di.devicePriority > 0;
-            }) != std::end(metaDevices);
 
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {

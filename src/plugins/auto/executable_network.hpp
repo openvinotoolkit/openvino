@@ -49,7 +49,6 @@ struct AutoContext {
     unsigned int   modelPriority = 0;
     bool           batchingDisabled = {false};
     std::string    performanceHint;
-    bool           enableDevicePriority = {false};
 };
 
 struct AutoLoadContext {
