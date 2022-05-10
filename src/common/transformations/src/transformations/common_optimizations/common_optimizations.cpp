@@ -84,6 +84,8 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
+#include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
@@ -197,6 +199,8 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    manager.register_pass<ngraph::pass::ConvertROIAlign3To9, false>();
+    manager.register_pass<ngraph::pass::ConvertROIAlign9To3>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
