@@ -59,7 +59,7 @@ OutputVector roi_align(const Node& node) {
 
     const auto coordinate_transformation_mode =
         node.get_attribute_value<std::string>("coordinate_transformation_mode", "");
-    auto aligned_mode = opset9::ROIAlign::AlignedMode::TF_HALF_PIXEL_FOR_NN;  // Match ONNX ROIAlign-16 default
+    auto aligned_mode = opset9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN;  // Match ONNX ROIAlign-16 default
 
     if (coordinate_transformation_mode == "output_half_pixel") {
         aligned_mode = opset9::ROIAlign::AlignedMode::ASYMMETRIC;
