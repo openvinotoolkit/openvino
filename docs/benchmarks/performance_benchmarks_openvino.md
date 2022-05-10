@@ -12,18 +12,34 @@
 
 @endsphinxdirective
 
-This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside.
+Features and benefits of Intel® technologies depend on system configuration and may require enabled hardware, software or service activation. You can learn more on this subject from the original equipment manufacturer (OEM), official [Intel® web page](https://www.intel.com) or retailer.
 
-The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md).
+## Platform Configurations
 
-Measuring inference performance involves many variables and is extremely use-case and application dependent. We use the below four parameters for measurements, which are key elements to consider for a successful deep learning inference application:
+A full list of used for testing HW platforms (along with their configuration) can be find here(PDF TBC). 
 
-- **Throughput** - Measures the number of inferences delivered within a latency threshold. (for example, number of Frames Per Second - FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
+For more detailed configuration descriptions, see the [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html) document.
+
+## Benchmark Setup Information
+
+This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside. The presented performance benchmark numbers are based on realease 2022.1 of Intel® Distribution of OpenVINO™ toolkit.
+
+The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). It measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second - FPS). For additional information on the benchmark application, refer to the entry 5 in the [FAQ section](performance_benchmarks_faq.md).
+
+Measuring inference performance involves many variables and is extremely use case and application dependent. Below four parameters for measurements our used for measurrment. They are key elements to consider for a successful deep learning inference application:
+
+- **Throughput** - Measures the number of inferences delivered within a latency threshold (for example, number of FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
 - **Value** - While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value.
 - **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
-- **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
+- **Latency** - This parameter measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (i.e., preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example of that kind of scenario would be real-time or near real-time applications, i.e., an industrial robot's response to its environment or obstacle avoidance for autonomous vehicles.
 
-## bert-base-cased [124]
+## Benchmark Performance Results
+
+Below benchmark performance results are based on testing as of March 17, 2022. They may not reflect all publicly available updates at the time of testing.
+<!-- See configuration disclosure for details. No product can be absolutely secure. -->
+Performance varies by use, configuration and other factors about which you can learn more [here](https://www.intel.com/PerformanceIndex). Used Intel optimizations (for Intel® compilers or other products) may not optimize to the same degree for non-Intel products.
+
+### bert-base-cased [124]
 
 @sphinxdirective
 .. raw:: html
@@ -33,7 +49,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 @endsphinxdirective
 
 
-## bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
+### bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
 
 @sphinxdirective
 .. raw:: html
@@ -42,7 +58,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## deeplabv3-TF [513x513]
+### deeplabv3-TF [513x513]
 
 @sphinxdirective
 .. raw:: html
@@ -51,7 +67,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## densenet-121-TF [224x224]
+### densenet-121-TF [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -60,7 +76,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## efficientdet-d0 [512x512]
+### efficientdet-d0 [512x512]
 
 @sphinxdirective
 .. raw:: html
@@ -69,7 +85,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## faster-rcnn-resnet50-coco-TF [600x1024]
+### faster-rcnn-resnet50-coco-TF [600x1024]
 
 @sphinxdirective
 .. raw:: html
@@ -78,7 +94,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## inception-v4-TF [299x299]
+### inception-v4-TF [299x299]
 
 @sphinxdirective
 .. raw:: html
@@ -87,7 +103,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## mobilenet-ssd-CF [300x300]
+### mobilenet-ssd-CF [300x300]
 
 @sphinxdirective
 .. raw:: html
@@ -96,7 +112,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## mobilenet-v2-pytorch [224x224]
+### mobilenet-v2-pytorch [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -105,7 +121,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## resnet-18-pytorch [224x224]
+### resnet-18-pytorch [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -115,7 +131,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 @endsphinxdirective
 
 
-## resnet_50_TF [224x224]
+### resnet_50_TF [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -124,7 +140,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## ssd-resnet34-1200-onnx [1200x1200]
+### ssd-resnet34-1200-onnx [1200x1200]
 
 @sphinxdirective
 .. raw:: html
@@ -133,7 +149,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## unet-camvid-onnx-0001 [368x480]
+### unet-camvid-onnx-0001 [368x480]
 
 @sphinxdirective
 .. raw:: html
@@ -142,7 +158,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## yolo-v3-tiny-tf [416x416]
+### yolo-v3-tiny-tf [416x416]
 
 @sphinxdirective
 .. raw:: html
@@ -151,7 +167,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 @endsphinxdirective
 
-## yolo_v4-tf [608x608]
+### yolo_v4-tf [608x608]
 
 @sphinxdirective
 .. raw:: html
@@ -162,19 +178,10 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 ## Platform Configurations
 
-Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2022.1.
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of March 17, 2022 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure.
 
-Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex).
 
-Your costs and results may vary.
 
-© Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others.
-
-Intel optimizations, for Intel compilers or other products, may not optimize to the same degree for non-Intel products.
-
-Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines**
 
@@ -355,4 +362,4 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
 | Test Date                               | March 17, 2022                        | March 17, 2022                        |
 
-For more detailed configuration descriptions, see [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html).
+© Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others.
