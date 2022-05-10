@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gather.hpp>
-#include "ngraph/runtime/reference/gather.hpp"
 
 #include <cstddef>
 #include <array>
@@ -80,37 +79,46 @@ public:
         set_values(input0, dat);
         set_values(input1, ind);
 
-        topology topology;
-        topology.add(input_layout("input0", input0->get_layout()));
-        topology.add(input_layout("input1", input1->get_layout()));
-        topology.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
-        topology.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
-        topology.add(gather("gather",
+        topology reorder_topo;
+        reorder_topo.add(input_layout("input0", input0->get_layout()));
+        reorder_topo.add(input_layout("input1", input1->get_layout()));
+        reorder_topo.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
+        reorder_topo.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
+        reorder_topo.add(gather("gather",
                             "reorder0",
                             "reorder1",
                             axis,
                             ov::Shape(shape[2].begin(), shape[2].end()),
                             batch_dim,
                             true));
-        topology.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
+        reorder_topo.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
 
-        network network(engine, topology);
-        network.set_input_data("input0", input0);
-        network.set_input_data("input1", input1);
+        network reorder_network(engine, reorder_topo);
+        reorder_network.set_input_data("input0", input0);
+        reorder_network.set_input_data("input1", input1);
 
-        auto output = network.execute().at("reorder2").get_memory();
-        cldnn::mem_lock<T_dat> output_ptr(output, get_test_stream());
+        auto reorder_output = reorder_network.execute().at("reorder2").get_memory();
+        cldnn::mem_lock<T_dat> reorder_output_ptr(reorder_output, get_test_stream());
 
-        auto ans = std::vector<T_dat>(mult(shape[2]));
-        ngraph::runtime::reference::gather<T_dat, T_ind>(dat.data(),
-                                                         ind.data(),
-                                                         ans.data(),
-                                                         ov::Shape(shape[0].begin(), shape[0].end()),
-                                                         ov::Shape(shape[1].begin(), shape[1].end()),
-                                                         ov::Shape(shape[2].begin(), shape[2].end()),
-                                                         axis,
-                                                         batch_dim);
-        EXPECT_TRUE(!memcmp(ans.data(), output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
+        topology planar_topo;
+        planar_topo.add(input_layout("input0", input0->get_layout()));
+        planar_topo.add(input_layout("input1", input1->get_layout()));
+        planar_topo.add(gather("gather",
+                            "input0",
+                            "input1",
+                            axis,
+                            ov::Shape(shape[2].begin(), shape[2].end()),
+                            batch_dim,
+                            true));
+
+        network planar_network(engine, planar_topo);
+        planar_network.set_input_data("input0", input0);
+        planar_network.set_input_data("input1", input1);
+
+        auto planar_output = planar_network.execute().at("gather").get_memory();
+        cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
+
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
     }
 };
 
@@ -164,37 +172,46 @@ public:
         set_values(input0, dat);
         set_values(input1, ind);
 
-        topology topology;
-        topology.add(input_layout("input0", input0->get_layout()));
-        topology.add(input_layout("input1", input1->get_layout()));
-        topology.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
-        topology.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
-        topology.add(gather("gather",
+        topology reorder_topo;
+        reorder_topo.add(input_layout("input0", input0->get_layout()));
+        reorder_topo.add(input_layout("input1", input1->get_layout()));
+        reorder_topo.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
+        reorder_topo.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
+        reorder_topo.add(gather("gather",
                             "reorder0",
                             "reorder1",
                             axis,
                             ov::Shape(shape[2].begin(), shape[2].end()),
                             batch_dim,
                             true));
-        topology.add(reorder("reorder2", "gather", format::type::bfzyx, T_dat_dt));
+        reorder_topo.add(reorder("reorder2", "gather", format::type::bfzyx, T_dat_dt));
 
-        network network(engine, topology);
-        network.set_input_data("input0", input0);
-        network.set_input_data("input1", input1);
+        network reorder_network(engine, reorder_topo);
+        reorder_network.set_input_data("input0", input0);
+        reorder_network.set_input_data("input1", input1);
 
-        auto output = network.execute().at("reorder2").get_memory();
-        cldnn::mem_lock<T_dat> output_ptr(output, get_test_stream());
+        auto reorder_output = reorder_network.execute().at("reorder2").get_memory();
+        cldnn::mem_lock<T_dat> reorder_output_ptr(reorder_output, get_test_stream());
 
-        auto ans = std::vector<T_dat>(mult(shape[2]));
-        ngraph::runtime::reference::gather<T_dat, T_ind>(dat.data(),
-                                                         ind.data(),
-                                                         ans.data(),
-                                                         ov::Shape(shape[0].begin(), shape[0].end()),
-                                                         ov::Shape(shape[1].begin(), shape[1].end()),
-                                                         ov::Shape(shape[2].begin(), shape[2].end()),
-                                                         axis,
-                                                         batch_dim);
-        EXPECT_TRUE(!memcmp(ans.data(), output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
+        topology planar_topo;
+        planar_topo.add(input_layout("input0", input0->get_layout()));
+        planar_topo.add(input_layout("input1", input1->get_layout()));
+        planar_topo.add(gather("gather",
+                            "input0",
+                            "input1",
+                            axis,
+                            ov::Shape(shape[2].begin(), shape[2].end()),
+                            batch_dim,
+                            true));
+
+        network planar_network(engine, planar_topo);
+        planar_network.set_input_data("input0", input0);
+        planar_network.set_input_data("input1", input1);
+
+        auto planar_output = planar_network.execute().at("gather").get_memory();
+        cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
+
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
     }
 };
 
@@ -247,7 +264,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
                                           testing::Values(2),  //[batch_dim,dim(dict))
-                                          testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
+                                          testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
                                           testing::Values(std::array<int, 4>{4, 1, 1, 1})));
