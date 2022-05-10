@@ -53,7 +53,7 @@ The table below demonstrates support of key features by OpenVINO device plugins.
 | [Stateful models](../network_state_intro.md) | Yes | No | Yes | No |
 | [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | No | No |
 
-For more details on plugin specific feature limitation, see corresponding plugin pages.
+For more details on plugin-specific feature limitations, see the corresponding plugin pages.
 
 
 
