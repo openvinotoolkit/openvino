@@ -33,6 +33,10 @@ namespace frontend {
 class FrontEnd;
 }
 
+namespace frontend {
+class FrontEndManager;
+}
+
 class ModelAccessor;
 
 /**
@@ -105,6 +109,7 @@ public:
     Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
     virtual ~Model() = default;
+
     /// Return the number of outputs for this Model.
     size_t get_output_size() const;
 
@@ -113,6 +118,8 @@ public:
 
     /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
+
+    std::shared_ptr<frontend::FrontEndManager> m_femrg;
 
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();

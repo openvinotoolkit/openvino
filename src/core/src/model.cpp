@@ -20,6 +20,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
@@ -192,6 +193,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::prerequirements");
 
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
+    m_femrg = ov::frontend::get_frontend_manager();
 
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
