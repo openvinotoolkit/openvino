@@ -48,7 +48,7 @@ The IR is a pair of files describing the model:
 
 ## Running Model Optimizer
 
-Convert the model to IR by running the Model Optimizer:
+To convert the model to IR, run Model Optimizer:
 
 ```sh
 mo --input_model INPUT_MODEL
