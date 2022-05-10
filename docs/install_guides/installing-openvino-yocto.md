@@ -16,10 +16,10 @@ The following Git repositories are required to build a Yocto image:
 
 Clone these Git repositories to your host machine: 
 ```sh
-git clone https://git.yoctoproject.org/git/poky --branch honister
-git clone https://git.yoctoproject.org/git/meta-intel --branch honister
-git clone https://git.openembedded.org/meta-openembedded --branch honister
-git clone https://github.com/kraj/meta-clang.git --branch honister
+git clone https://git.yoctoproject.org/git/poky --branch kirkstone
+git clone https://git.yoctoproject.org/git/meta-intel --branch kirkstone
+git clone https://git.openembedded.org/meta-openembedded --branch kirkstone
+git clone https://github.com/kraj/meta-clang.git --branch kirkstone-clang12
 ```
 
 ### Set up BitBake Layers
@@ -88,7 +88,6 @@ openvino-inference-engine-dev
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src
-openvino-inference-engine-staticdev
 openvino-inference-engine-vpu-firmware
 openvino-model-optimizer
 openvino-model-optimizer-dbg
