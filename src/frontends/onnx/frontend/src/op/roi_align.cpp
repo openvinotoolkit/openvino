@@ -27,7 +27,7 @@ OutputVector roi_align(const Node& node) {
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
     const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum(mode);
-    auto aligned_mode = opset9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
+    const auto aligned_mode = opset9::ROIAlign::AlignedMode::ASYMMETRIC;  // Compatible up to ONNX-opset16
 
     return {std::make_shared<opset9::ROIAlign>(data,
                                                rois,
@@ -65,15 +65,15 @@ OutputVector roi_align(const Node& node) {
         aligned_mode = opset9::ROIAlign::AlignedMode::ASYMMETRIC;
     }
 
-    return {std::make_shared<ngraph::opset9::ROIAlign>(data,
-                                                       rois,
-                                                       num_rois,
-                                                       pooled_h,
-                                                       pooled_w,
-                                                       sampling_ratio,
-                                                       spatial_scale,
-                                                       pooling_mode,
-                                                       aligned_mode)};
+    return {std::make_shared<opset9::ROIAlign>(data,
+                                               rois,
+                                               num_rois,
+                                               pooled_h,
+                                               pooled_w,
+                                               sampling_ratio,
+                                               spatial_scale,
+                                               pooling_mode,
+                                               aligned_mode)};
 }
 }  // namespace set_16
 
