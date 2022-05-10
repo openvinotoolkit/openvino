@@ -134,9 +134,6 @@ def test_transpose():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(
-    reason="Tile operation has a form that is not supported. Tile_2 should be converted to TileIE operation.",
-)
 def test_tile():
     input_tensor = np.arange(6, dtype=np.int32).reshape((2, 1, 3))
     repeats = np.array([2, 1], dtype=np.int32)
