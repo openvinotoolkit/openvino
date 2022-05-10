@@ -116,7 +116,7 @@ void Eye::executeSpecified() {
                 size_t start = 0, end = 0;
                 splitter(onesPerBatchNum, nthr, ithr, start, end);
                 for (size_t j = start; j < end; j++) {
-                    dst[dataShift + j * (colNum + 1) + bShift] = 1;
+                    dst[dataShift + j * (colNum + 1) + bShift] = static_cast<T>(1);
                 }
             });
         }
@@ -127,7 +127,7 @@ void Eye::executeSpecified() {
             memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
             for (size_t spShift = start * spatialCount; spShift < end * spatialCount; spShift += spatialCount) {
                 for (size_t j = 0; j < onesPerBatchNum; j++) {
-                    dst[dataShift + j * (colNum + 1) + spShift] = 1;
+                    dst[dataShift + j * (colNum + 1) + spShift] = static_cast<T>(1);
                 }
             }
         });
