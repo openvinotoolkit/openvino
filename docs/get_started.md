@@ -64,11 +64,11 @@
      <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench <br />(DL Workbench)</a>
    </p>
    
-   <p>To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps:<br />
+   <p>This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of <br />OpenVINO™ toolkit only. Check the following steps:<br />
     <ol>
     <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
     <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
-    <li><a href="#get-started-tutorials" >Get started with some simple tutorials and samples.</a></li>
+    <li><a href="#get-started-tutorials" >Try out simple tutorials and samples.</a></li>
     </ol>
    </p>
    <div style="clear:both;"> </div> 
