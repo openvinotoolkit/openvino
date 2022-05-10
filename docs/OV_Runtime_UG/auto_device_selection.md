@@ -69,7 +69,7 @@ benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
    The longer the process runs, the closer realtime performance will be to that of the best-suited device.
 @endsphinxdirective
 
-## Using the Auto-Device Plugin 
+## Using the Auto-Device Mode 
 
 
 Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
