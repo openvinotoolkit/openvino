@@ -9,6 +9,7 @@
 #include "ngraph/runtime/reference/gather.hpp"
 
 #include <cstddef>
+#include <array>
 
 using namespace cldnn;
 using namespace ::tests;
