@@ -84,7 +84,7 @@ A simple programmatic way to enumerate the devices and use with the multi-device
 
 @endsphinxdirective
 
-Beyond the trivial "CPU", "GPU", "HDDL" and so on, when multiple instances of a device are available the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
+Beyond the typical "CPU", "GPU", "HDDL", and so on, when multiple instances of a device are available, the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
 ```
 ...
     Device: MYRIAD.1.2-ma2480
