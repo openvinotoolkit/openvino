@@ -58,7 +58,8 @@
 	url = https://github.com/oneapi-src/oneDNN.git
 [submodule "tools/pot/thirdparty/open_model_zoo"]
 	path = thirdparty/open_model_zoo
-	url = https://github.com/openvinotoolkit/open_model_zoo.git
+	url = https://github.com/mateusztabaka/open_model_zoo.git
+	branch = pipconflicts
 [submodule "thirdparty/json/nlohmann_json"]
 	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git
