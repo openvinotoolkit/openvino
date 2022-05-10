@@ -300,22 +300,27 @@ typedef struct {
 } ov_available_devices_t;
 
 typedef enum {
-    SUPPORTED_PROPERTIES = 0,
-    AVAILABLE_DEVICES,
-    RANGE_FOR_ASYNC_INFER_REQUESTS,
-    RANGE_FOR_STREAMS,
-    FULL_DEVICE_NAME,
-    OPTIMIZATION_CAPABILITIES,
-    MODEL_CACHE,
-    NUM_STREAMS,
-    AFFINITY,
-    INFERENCE_NUM_THREADS,
-    PERFORMANCE_HINT,
-    NETWORK_NAME,
-    INFERENCE_PRECISION_HINT,
-    OPTIMAL_BATCH_SIZE,
-    MAX_BATCH_SIZE,
-    PERFORMANCE_HINT_NUM_REQUESTS,
+    SUPPORTED_PROPERTIES = 0,           //  Read-only property to get a string list of supported read-only properties.
+    AVAILABLE_DEVICES,                  //  Read-only property to get a list of available device IDs
+    OPTIMAL_NUMBER_OF_INFER_REQUESTS,   //  Read-only property to get an unsigned integer value of optimal number of compiled model infer requests.
+    RANGE_FOR_ASYNC_INFER_REQUESTS,     //  Read-only property to provide a hint for a range for number of async infer requests. If device supports streams, the metric provides range for number of IRs per stream.
+    RANGE_FOR_STREAMS,                  //  Read-only property to provide information about a range for streams on platforms where streams are supported
+    FULL_DEVICE_NAME,                   //  Read-only property to get a string value representing a full device name.
+    OPTIMIZATION_CAPABILITIES,          //  Read-only property to get a string list of capabilities options per device.
+    MODEL_CACHE,                        //  Read-write property to set/get the directory which will be used to store any data cached by plugins.
+    NUM_STREAMS,                        //  Read-write property to set/get the number of executor logical partitions
+    AFFINITY,                           //  Read-write property to set/get the name for setting CPU affinity per thread option.
+    INFERENCE_NUM_THREADS,              //  Read-write property to set/get the maximum number of threads that can be used for inference tasks
+    PERFORMANCE_HINT,                   //  Read-write property, it is high-level OpenVINO Performance Hints unlike low-level properties that are individual (per-device),
+                                        //  the hints are something that every device accepts and turns into device-specific settings
+                                        //  detail see ov_performance_mode_e to get its hint's key name
+    NETWORK_NAME,                       //  Read-only property to get a name of name of a model
+    INFERENCE_PRECISION_HINT,           //  Read-write property to set the hint for device to use specified precision for inference
+    OPTIMAL_BATCH_SIZE,                 //  Read-only property to query information optimal batch size for the given device and the network
+    MAX_BATCH_SIZE,                     //  Read-only property to get maximum batch size which does not cause performance degradation due to memory swap impact.
+    PERFORMANCE_HINT_NUM_REQUESTS,      //  (Optional) property that backs the Performance Hints
+                                        //  by giving additional information on how many inference requests the application will be keeping in flight
+                                        //  usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
 } ov_property_key_e;
 
 typedef union {
