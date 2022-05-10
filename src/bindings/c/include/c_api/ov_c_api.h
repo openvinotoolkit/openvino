@@ -299,6 +299,37 @@ typedef struct {
     size_t num_devices;
 } ov_available_devices_t;
 
+typedef enum {
+    SUPPORTED_PROPERTIES = 0,
+    AVAILABLE_DEVICES,
+    RANGE_FOR_ASYNC_INFER_REQUESTS,
+    RANGE_FOR_STREAMS,
+    FULL_DEVICE_NAME,
+    OPTIMIZATION_CAPABILITIES,
+    MODEL_CACHE,
+    NUM_STREAMS,
+    AFFINITY,
+    INFERENCE_NUM_THREADS,
+    PERFORMANCE_HINT,
+    NETWORK_NAME,
+    INFERENCE_PRECISION_HINT,
+    OPTIMAL_BATCH_SIZE,
+    MAX_BATCH_SIZE,
+    PERFORMANCE_HINT_NUM_REQUESTS,
+} ov_property_key_e;
+
+typedef union {
+    uint32_t value_u;
+    char value_s[256];
+    ov_performance_mode_e value_performance_mode;
+}ov_property_value;
+
+typedef struct ov_property{
+    ov_property_key_e key;
+    ov_property_value value;
+    ov_property* next;
+}ov_property_t;
+
 /**
  * @brief Get version of OpenVINO.
  * @param ov_version_t a pointer to the version
@@ -369,26 +400,7 @@ OPENVINO_C_API(void) ov_model_free(ov_model_t *model);
  * @brief Release the memory allocated by ov_compiled_model_t.
  * @param compiled_model A pointer to the ov_compiled_model_t to free memory.
  */
-OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t **compiled_model);
-
-typedef enum {
-    SUPPORTED_PROPERTIES = 0,
-    NUM_STREAMS = 1,
-    PERFORMANCE_HINT = 2,
-    PERFORMANCE_HINT_NUM_REQUESTS = 3,
-} ov_property_key_e;
-
-typedef union {
-    uint32_t value_u;
-    char value_s[256];
-    ov_performance_mode_e value_performance_mode;
-}ov_property_value;
-
-typedef struct ov_property{
-    ov_property_key_e key;
-    ov_property_value value;
-    ov_property* next;
-}ov_property_t;
+OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t *compiled_model);
 
 /**
  * @brief Creates a compiled model from a source model object.
@@ -450,9 +462,6 @@ OPENVINO_C_API(ov_status_e) ov_core_get_property(const ov_core_t* core, const ch
                                         const ov_property_key_e property_name,
                                         ov_property_value* property_value);
 
-
-OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
-
 /**
  * @brief Registers an extension to a Core object.
  * @param core A pointer to the ie_core_t instance.
@@ -488,7 +497,7 @@ OPENVINO_C_API(void) ov_available_devices_free(ov_available_devices_t* devices);
  */
 OPENVINO_C_API(ov_status_e) ov_core_import_model(
                                         const ov_core_t* core,
-                                        const uint8_t *content,
+                                        const char *content,
                                         const size_t content_size,
                                         const char* device_name,
                                         ov_compiled_model_t **compiled_model);
@@ -522,7 +531,7 @@ OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t *versions);
 OPENVINO_C_API(ov_status_e) ov_model_get_outputs(const ov_model_t* model, ov_output_node_list_t *output_nodes);
 
 /**
- * @brief Get the outputs of ov_model_t. // Todo
+ * @brief Get the outputs of ov_model_t.
  * @param model A pointer to the ov_model_t.
  * @param input_nodes A pointer to the ov_input_nodes.
  * @return Status code of the operation: OK(0) for success.
@@ -735,7 +744,7 @@ OPENVINO_C_API(void) ov_preprocess_input_model_info_free(ov_preprocess_input_mod
  * @param preprocess_input_model_info A pointer to the ov_preprocess_input_model_info_t
  * @param layout A point to ov_layout_t
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_model_info_set_layout(ov_preprocess_input_model_info_t* preprocess_input_model_info,
+OPENVINO_C_API(ov_status_e) ov_preprocess_input_model_set_layout(ov_preprocess_input_model_info_t* preprocess_input_model_info,
                                                         const ov_layout_t layout);
 
 /**
