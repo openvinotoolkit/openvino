@@ -26,7 +26,7 @@
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
-When using Model Optimizer, the tool assumes that you already have a deep learning model trained using one of the supported frameworks: TensorFlow, PyTorch, PaddlePaddle, MXNet, Caffe, Kaldi, or represented in ONNX format. Model Optimizer produces an Intermediate Representation (IR) of the model, which can be inferred with [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
+When using Model Optimizer, you are assumed to already have a deep learning model that is trained using one of the supported frameworks: TensorFlow, PyTorch, PaddlePaddle, MXNet, Caffe, Kaldi, or represented in ONNX format. Model Optimizer produces an Intermediate Representation (IR) of the model, which can be inferred with [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md).
 
 > **NOTE**: Model Optimizer does not infer models. It is an offline tool that converts a model into IR and optimizes it before the inference takes place.
 
