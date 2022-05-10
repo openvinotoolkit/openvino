@@ -46,8 +46,7 @@ void NonZeroLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramNode}, "non_zero");
 }
 
-void NonZeroLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes)
-{
+void NonZeroLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
