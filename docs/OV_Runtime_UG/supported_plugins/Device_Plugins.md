@@ -92,7 +92,7 @@ Beyond the trivial "CPU", "GPU", "HDDL" and so on, when multiple instances of a 
     Device: MYRIAD.1.4-ma2480
 ```
 
-So the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480". Accordingly, the code that loops over all available devices of "MYRIAD" type only is below:
+So, the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480". Accordingly, the code that loops over all available devices of the "MYRIAD" type only is as follows:
 
 @sphinxdirective
 
