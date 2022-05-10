@@ -5,13 +5,13 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install & Configure OpenVINO
+   :caption: Installation & Configuration
    
    Overview <openvino_docs_install_guides_overview>
-   Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
-   Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
+   Installing OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
+   Installing OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Creating a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
@@ -64,7 +64,7 @@
      <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench <br />(DL Workbench)</a>
    </p>
    
-   <p>This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of <br />OpenVINO™ toolkit only. Check the following steps:<br />
+   <p>This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit only. Check the following steps:<br />
     <ol>
     <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
     <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
