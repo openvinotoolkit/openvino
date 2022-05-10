@@ -121,3 +121,34 @@ std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map 
                  {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
                  {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
                  {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
+
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) catch (const InferenceEngine::ExceptionType&) {return ov_status_e::StatusCode;}
+
+#define CATCH_OV_EXCEPTIONS                                         \
+        CATCH_OV_EXCEPTION(GENERAL_ERROR, GeneralError)             \
+        CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)         \
+        CATCH_OV_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
+        CATCH_OV_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch)   \
+        CATCH_OV_EXCEPTION(NOT_FOUND, NotFound)                     \
+        CATCH_OV_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)              \
+        CATCH_OV_EXCEPTION(UNEXPECTED, Unexpected)                  \
+        CATCH_OV_EXCEPTION(REQUEST_BUSY, RequestBusy)               \
+        CATCH_OV_EXCEPTION(RESULT_NOT_READY, ResultNotReady)        \
+        CATCH_OV_EXCEPTION(NOT_ALLOCATED, NotAllocated)             \
+        CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)      \
+        CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)        \
+        CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)         \
+        catch (...) {return ov_status_e::UNEXPECTED;}
+
+ov_status_e ov_core_create(const char *xml_config_file, ov_core_t **core) {
+    if (!core || !xml_config_file) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        *core = new ov_core_t;
+        (*core)->object = std::make_shared<ov::Core>(xml_config_file);
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
