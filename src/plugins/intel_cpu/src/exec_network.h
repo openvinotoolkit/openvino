@@ -35,7 +35,7 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     ExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                const ExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing,
+                const ExtensionManager::Ptr &extMgr,
                 const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
     void setProperty(const std::map<std::string, std::string> &properties);
@@ -67,7 +67,7 @@ protected:
 
     // WARNING: Do not use _graphs directly.
     mutable std::deque<GraphGuard>              _graphs;
-    NumaNodesWeights&                           _numaNodesWeights;
+    mutable NumaNodesWeights                           _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
