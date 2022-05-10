@@ -53,7 +53,7 @@ The following commands are accepted by the API:
 
 @endsphinxdirective
 
-Notice that MULTI allows you to **change device priorities on the fly**. You can alter the order, exclude a device, and bring an excluded device back. Still, it does not allow to add new devices.
+Notice that MULTI allows you to **change device priorities on the fly**. You can alter the order, exclude a device, and bring an excluded device back. Still, it does not allow adding new devices.
 
 @sphinxdirective
 
