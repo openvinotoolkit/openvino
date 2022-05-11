@@ -152,3 +152,134 @@ ov_status_e ov_core_create(const char *xml_config_file, ov_core_t **core) {
 
     return ov_status_e::OK;
 }
+
+std::unordered_map <ov_element_type_e, ov::element::Type_t> g_element_type_map = {
+        {ov_element_type_e::UNDEFINED, ov::element::Type_t::undefined},
+        {ov_element_type_e::DYNAMIC,   ov::element::Type_t::dynamic},
+        {ov_element_type_e::BOOLEAN,   ov::element::Type_t::boolean},
+        {ov_element_type_e::BF16,      ov::element::Type_t::bf16},
+        {ov_element_type_e::F16,       ov::element::Type_t::f16},
+        {ov_element_type_e::F32,       ov::element::Type_t::f32},
+        {ov_element_type_e::F64,       ov::element::Type_t::f64},
+        {ov_element_type_e::I4,        ov::element::Type_t::i4},
+        {ov_element_type_e::I8,        ov::element::Type_t::i8},
+        {ov_element_type_e::I16,       ov::element::Type_t::i16},
+        {ov_element_type_e::I32,       ov::element::Type_t::i32},
+        {ov_element_type_e::I64,       ov::element::Type_t::i64},
+        {ov_element_type_e::U1,        ov::element::Type_t::u1},
+        {ov_element_type_e::U4,        ov::element::Type_t::u4},
+        {ov_element_type_e::U8,        ov::element::Type_t::u8},
+        {ov_element_type_e::U16,       ov::element::Type_t::u16},
+        {ov_element_type_e::U32,       ov::element::Type_t::u32},
+        {ov_element_type_e::U64,       ov::element::Type_t::u64}
+};
+
+ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
+    if (!tensor || !shape || g_element_type_map.find(type) == g_element_type_map.end()) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor = new ov_tensor_t;
+        auto tmp_type = g_element_type_map[type];
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0; });
+        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const ov_shape_t shape, void *host_ptr,
+                                      ov_tensor_t **tensor) {
+    if (!tensor || !host_ptr || !shape || g_element_type_map.find(type) == g_element_type_map.end()) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor = new ov_tensor_t;
+        auto tmp_type = g_element_type_map[type];
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0; });
+        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
+    if (!tensor || !shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0;});
+        tensor->object->set_shape(tmp_shape);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
+    if (!tensor || !shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        auto tmp_shape = tensor->object->get_shape();
+        std::copy_if(tmp_shape.begin(), tmp_shape.end(),
+                     *shape,
+                     [](size_t x) { return x != 0;});
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type) {
+    if (!tensor || !type) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        auto tmp_type = tensor->object->get_element_type();
+        for (auto it : g_element_type_map) {
+            if (it.second == tmp_type) {
+                *type = it.first;
+                break;
+            }
+        }
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size) {
+    if (!tensor || !elements_size) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *elements_size = tensor->object->get_size();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size) {
+    if (!tensor || !byte_size) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *byte_size = tensor->object->get_byte_size();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_data(const ov_tensor_t* tensor, void** data) {
+    if (!tensor || !data) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *data = tensor->object->data();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+void ov_tensor_free(const ov_tensor_t* tensor) {
+    delete tensor;
+}
