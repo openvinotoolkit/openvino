@@ -21,7 +21,7 @@ An edge between operations represents data flow or data dependency implied from 
 Each operation produces data on one or multiple output ports. For example, convolution produces output tensor with activations at a single output port. Split operation usually has multiple output ports, each producing part of an input tensor.
 
 Depending on a deep learning framework, the graph can also contain extra nodes that explicitly represent tensors between operations.
-In such representations, operation nodes are not connected directly to each other, rather using data nodes as intermediate stops for data flow.
+In such representations, operation nodes are not connected to each other directly. They are rather using data nodes as intermediate stops for data flow.
 If data nodes are not used, the produced data is associated with an output port of a corresponding operation node that produces the data.
 
 A set of various operations used in a network is usually fixed for each deep learning framework.
