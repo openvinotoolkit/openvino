@@ -23,7 +23,6 @@
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
 #include "region_yolo_inst.h"
-#include "crop_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>

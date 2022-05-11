@@ -353,7 +353,7 @@ void prepare_buffer_fusing::run(program& p) {
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
                     auto usr_layout = usr->get_output_layout();
-                    if (!usr->is_type<quantize>() && usr_layout.format == format::b_fs_yx_fsv16 &&
+                    if (usr_layout.format == format::b_fs_yx_fsv16 &&
                         (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
                         return;
                     if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
