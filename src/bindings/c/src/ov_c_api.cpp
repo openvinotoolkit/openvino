@@ -152,3 +152,51 @@ ov_status_e ov_core_create(const char *xml_config_file, ov_core_t **core) {
 
     return ov_status_e::OK;
 }
+
+// InferRequest
+OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(ov_infer_request_t *infer_request,
+                                const char* tensor_name, const ov_tensor_t *tensor) {
+    if (infer_request == nullptr || tensor_name == nullptr || tensor == nullptr) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object.get()->set_tensor(tensor_name, *tensor->object.get());
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
+                                const char* tensor_name, ov_tensor_t **tensor) {
+    if (infer_request == nullptr || tensor_name == nullptr || tensor == nullptr) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        *tensor = new ov_tensor_t;
+        ov::Tensor tensor_get = infer_request->object.get()->get_tensor(tensor_name);
+        (*tensor)->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_request) {
+    if (infer_request == nullptr) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object.get()->infer();
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t *infer_request) {
+    if (infer_request) {
+        delete infer_request;
+        infer_request = NULL;
+    }
+}

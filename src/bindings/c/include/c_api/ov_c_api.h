@@ -847,7 +847,7 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(const ov_infer_request_t
  * @brief Infers specified input(s) in synchronous mode.
  * @param infer_request A pointer to the ov_infer_request_t.
  */
-OPENVINO_C_API(void) ov_infer_request_infer(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_request);
 
 /**
  * @brief Starts inference of specified input(s) in asynchronous mode.
