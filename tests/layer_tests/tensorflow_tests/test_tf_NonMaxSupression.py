@@ -29,7 +29,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
             score_threshold = tf.constant(test_params["score_threshold"])
 
             # inputs to be generated
-            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], 'Input')
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Boxes")
 
             # randomize boxes' confidence scores
             np.random.seed(42)
@@ -55,7 +55,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
             soft_nms_sigma = tf.constant(test_params["soft_nms_sigma"])
 
             # inputs to be generated
-            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], 'Input')
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Boxes")
 
             # randomize boxes' confidence scores
             np.random.seed(42)
