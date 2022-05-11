@@ -155,12 +155,12 @@ ov_status_e ov_core_create(const char *xml_config_file, ov_core_t **core) {
 
 // CompiledModel
 OPENVINO_C_API(ov_status_e) ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
-                                                        ov_infer_request_t **infer_request){
-    if(compiled_model == nullptr || infer_request == nullptr){
+                                                        ov_infer_request_t **infer_request) {
+    if (compiled_model == nullptr || infer_request == nullptr) {
         return ov_status_e::GENERAL_ERROR;
     }
 
-    try{
+    try {
         *infer_request = new ov_infer_request_t;
         ov::InferRequest inferReq = compiled_model->object.get()->create_infer_request();
         (*infer_request)->object = std::make_shared<ov::InferRequest>(std::move(inferReq));
@@ -169,8 +169,8 @@ OPENVINO_C_API(ov_status_e) ov_compiled_model_create_infer_request(const ov_comp
     return ov_status_e::OK;
 }
 
-OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t *compiled_model){
-    if(compiled_model){
+OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t *compiled_model) {
+    if (compiled_model) {
         delete compiled_model;
         compiled_model = NULL;
     }
