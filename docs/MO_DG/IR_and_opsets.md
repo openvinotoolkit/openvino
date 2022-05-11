@@ -16,7 +16,7 @@ Layer and operation terms are used interchangeably along the OpenVINO documentat
 An operation node in a graph may consume data at one or multiple input ports.
 For example, element-wise addition operation has two input ports, which accepts tensors that are added together.
 Some operations do not have any input ports, for example the *`Const`* operation, which knows the data to be produced without any input.
-An edge between operations represent data flow or data dependency implied from one operation node to another operation node.
+An edge between operations represents data flow or data dependency implied from one operation node to another.
 
 Each operation produces data on one or multiple output ports. For example, convolution produces output tensor with activations at a single output port. Split operation usually has multiple output ports, each producing part of an input tensor.
 
