@@ -126,6 +126,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
+    void* onednn_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
@@ -150,11 +151,15 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
             return original;
         }();
         SetDllDirectoryW(dirname.c_str());
+        onednn_object = LoadLibraryW(L"C:/Users/shingyuk/work/openvino/build/src/plugins/intel_gpu/thirdparty/onednn_gpu_install/bin/onednn_gpu.dll");
         shared_object = LoadLibraryW(path);
 
         SetDllDirectoryW(&lpBuffer.front());
     }
 #    endif
+    if (!onednn_object)
+        onednn_object = LoadLibraryW(L"C:/Users/shingyuk/work/openvino/build/src/plugins/intel_gpu/thirdparty/onednn_gpu_install/bin/onednn_gpu.dll");
+
     if (!shared_object) {
         shared_object = LoadLibraryW(path);
     }
