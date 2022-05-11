@@ -26,7 +26,9 @@ using gather8_test_5d_param = std::tuple<int,                  // batch_dim
                                          std::array<int, 5>,   // bfzyx0
                                          std::array<int, 5>>;  // bfzyx1
 
-std::ostream& operator<<(std::ostream& os, FLOAT16 x){return os<<float(x);}
+std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
+    return os << float(x);
+}
 
 // index 0 is input0
 // index 1 is input1
@@ -39,8 +41,6 @@ public:
     std::array<std::array<int, 4>, 3> shape;
 
     void SetUp() override {
-        ::testing::TestWithParam<gather8_test_4d_param>::SetUp();
-
         auto dim = [](const std::array<int, 4>& a) {
             int ret = 4;
             while (ret - 1 >= 0 && a[ret - 1] == 1)
@@ -54,7 +54,7 @@ public:
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
         fmt[2] = fmt[0];
 
-        //refer: src/core/shape_inference/include/gather_shape_inference.hpp
+        // refer: src/core/shape_inference/include/gather_shape_inference.hpp
         shape[2] = {1, 1, 1, 1};
         for (int i = 0; i < batch_dim; i++)  // batch_dim
             shape[2][i] = shape[0][i];
@@ -85,12 +85,12 @@ public:
         reorder_topo.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
         reorder_topo.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
         reorder_topo.add(gather("gather",
-                            "reorder0",
-                            "reorder1",
-                            axis,
-                            ov::Shape(shape[2].begin(), shape[2].end()),
-                            batch_dim,
-                            true));
+                                "reorder0",
+                                "reorder1",
+                                axis,
+                                ov::Shape(shape[2].begin(), shape[2].end()),
+                                batch_dim,
+                                true));
         reorder_topo.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
 
         network reorder_network(engine, reorder_topo);
@@ -103,13 +103,8 @@ public:
         topology planar_topo;
         planar_topo.add(input_layout("input0", input0->get_layout()));
         planar_topo.add(input_layout("input1", input1->get_layout()));
-        planar_topo.add(gather("gather",
-                            "input0",
-                            "input1",
-                            axis,
-                            ov::Shape(shape[2].begin(), shape[2].end()),
-                            batch_dim,
-                            true));
+        planar_topo.add(
+            gather("gather", "input0", "input1", axis, ov::Shape(shape[2].begin(), shape[2].end()), batch_dim, true));
 
         network planar_network(engine, planar_topo);
         planar_network.set_input_data("input0", input0);
@@ -133,8 +128,6 @@ public:
     std::array<std::array<int, 5>, 3> shape;
 
     void SetUp() override {
-        ::testing::TestWithParam<gather8_test_5d_param>::SetUp();
-
         auto dim = [](const std::array<int, 5>& a) {
             int ret = 5;
             while (ret - 1 >= 0 && a[ret - 1] == 1)
@@ -142,7 +135,7 @@ public:
             return ret;
         };
         auto mult = [](const std::array<int, 5>& a) {
-            return a[0] * a[1] * a[2] * a[3]* a[4];
+            return a[0] * a[1] * a[2] * a[3] * a[4];
         };
 
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
@@ -162,8 +155,10 @@ public:
         auto& engine = get_test_engine();
 
         auto dat = generate_random_1d<T_dat>(mult(shape[0]), -99, 99);
-        auto input0 = engine.allocate_memory(
-            {T_dat_dt, format::bfzyx, {shape[0][0], shape[0][1], shape[0][4], shape[0][3], shape[0][2]}});  // Dictionary
+        auto input0 =
+            engine.allocate_memory({T_dat_dt,
+                                    format::bfzyx,
+                                    {shape[0][0], shape[0][1], shape[0][4], shape[0][3], shape[0][2]}});  // Dictionary
 
         auto ind = generate_random_1d<T_ind>(mult(shape[1]), -shape[0][axis], shape[0][axis] - 1, 1);
         auto input1 = engine.allocate_memory(
@@ -178,12 +173,12 @@ public:
         reorder_topo.add(reorder("reorder0", "input0", fmt[0], T_dat_dt));
         reorder_topo.add(reorder("reorder1", "input1", fmt[1], T_ind_dt));
         reorder_topo.add(gather("gather",
-                            "reorder0",
-                            "reorder1",
-                            axis,
-                            ov::Shape(shape[2].begin(), shape[2].end()),
-                            batch_dim,
-                            true));
+                                "reorder0",
+                                "reorder1",
+                                axis,
+                                ov::Shape(shape[2].begin(), shape[2].end()),
+                                batch_dim,
+                                true));
         reorder_topo.add(reorder("reorder2", "gather", format::type::bfzyx, T_dat_dt));
 
         network reorder_network(engine, reorder_topo);
@@ -196,13 +191,8 @@ public:
         topology planar_topo;
         planar_topo.add(input_layout("input0", input0->get_layout()));
         planar_topo.add(input_layout("input1", input1->get_layout()));
-        planar_topo.add(gather("gather",
-                            "input0",
-                            "input1",
-                            axis,
-                            ov::Shape(shape[2].begin(), shape[2].end()),
-                            batch_dim,
-                            true));
+        planar_topo.add(
+            gather("gather", "input0", "input1", axis, ov::Shape(shape[2].begin(), shape[2].end()), batch_dim, true));
 
         network planar_network(engine, planar_topo);
         planar_network.set_input_data("input0", input0);
