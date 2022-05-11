@@ -156,8 +156,8 @@ public:
         for (int i = batch_dim; i < dim(shape[1]); i++)  // axis = shape[1]
             shape[2][axis + (i - batch_dim)] = shape[1][i];
         for (int i = axis + 1; i < dim(shape[0]); i++)  // after axis = shape[0][..]
-            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] =
-                shape[0][i];  // batch_dim counted twice -> -batch_dim
+            // batch_dim counted twice -> -batch_dim
+            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] = shape[0][i];
 
         auto& engine = get_test_engine();
 
