@@ -103,7 +103,7 @@ def test_irdft_2d_signal_size():
 
 def test_rdft_4d():
     runtime = get_runtime()
-    shape = [1, 192, 33, 64]
+    shape = [1, 192, 36, 64]
     data = np.random.uniform(0, 1, shape).astype(np.float32)
     param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
     axes = [-2, -1]
@@ -118,7 +118,7 @@ def test_rdft_4d():
 
 def test_irdft_4d():
     runtime = get_runtime()
-    shape = [1, 192, 33, 33, 2]
+    shape = [1, 192, 36, 33, 2]
     signal_size = [33, 64]
     data = np.random.uniform(0, 1, shape).astype(np.float32)
     param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
@@ -128,6 +128,5 @@ def test_irdft_4d():
     node = ov.irdft(param, input_axes, signal_size_node)
     computation = runtime.computation(node, param)
     actual = computation(data)
-    np_results = np.fft.rfftn(data, axes=axes)
     expected_results = np.fft.irfftn(data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1], signal_size, axes=axes)
     np.testing.assert_allclose(expected_results, actual[0], atol=0.0001)
