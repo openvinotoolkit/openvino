@@ -158,6 +158,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/space_to_depth.hpp"
 #include "openvino/op/split.hpp"

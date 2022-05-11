@@ -147,7 +147,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Mish,        {{}}},
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
-        {GeluTanh,    {{}}}
+        {GeluTanh,    {{}}},
+        {SoftSign,    {{}}}
 };
 
 std::vector<Precision> netPrc = {

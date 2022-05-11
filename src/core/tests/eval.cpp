@@ -50,6 +50,7 @@
 #include "ngraph/op/sin.hpp"
 #include "ngraph/op/sinh.hpp"
 #include "ngraph/op/softmax.hpp"
+#include "ngraph/op/softsign.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/tan.hpp"
@@ -1794,4 +1795,22 @@ TEST(eval, evaluate_softmax_8) {
     auto val = read_vector<float>(result_tensor);
     vector<float> out{0.5, 0.5};
     ASSERT_EQ(val, out);
+}
+
+TEST(eval, evaluate_softsign_9) {
+    auto arg = std::make_shared<ngraph::op::Parameter>(element::f32, PartialShape::dynamic());
+    auto softsign = std::make_shared<ngraph::op::v9::SoftSign>(arg);
+    auto fun = std::make_shared<Function>(OutputVector{softsign}, ParameterVector{arg});
+    ov::TensorVector result_tensor(1);
+    float input_vector[] = {1, -1, 2.5, -3.5};
+    ov::Tensor input{ov::element::f32, ov::Shape{4}, input_vector};
+
+    ASSERT_TRUE(fun->evaluate(result_tensor, ov::TensorVector{input}));
+    EXPECT_EQ(result_tensor[0].get_element_type(), ov::element::f32);
+    EXPECT_EQ(result_tensor[0].get_shape(), ov::Shape{4});
+
+    vector<float> out{0.5, -0.5, 0.714285, -0.777777};
+    auto result_data = result_tensor[0].data<float>();
+    for (size_t i = 0; i < result_tensor[0].get_size(); ++i)
+        EXPECT_NEAR(result_data[i], out[i], 1e-6F);
 }

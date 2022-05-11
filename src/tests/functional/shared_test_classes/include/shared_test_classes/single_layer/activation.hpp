@@ -75,6 +75,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero, "RoundHalfAwayFromZero"},
         {ngraph::helpers::ActivationTypes::GeluErf,               "GeluErf"},
         {ngraph::helpers::ActivationTypes::GeluTanh,              "GeluTanh"},
+        {ngraph::helpers::ActivationTypes::SoftSign,              "SoftSign"},
 };
 
 typedef std::tuple<
