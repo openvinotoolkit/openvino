@@ -32,7 +32,7 @@ Below are several examples of dimensions that can be naturally dynamic:
 There are various methods to address input dynamic dimensions through combining multiple pre-reshaped models and input data padding.
 The methods are sensitive to model internals, do not always give optimal performance and are cumbersome.
 For a short overview of the methods, refer to the [When Dynamic Shapes API is Not Applicable](ov_without_dynamic_shapes.md) page.
-Apply those methods only if native dynamic shape API described in the following sections does not work for you or does not perform as expected.
+Apply those methods only if native dynamic shape API described in the following sections does not work or does not perform as expected.
 
 The decision about using dynamic shapes should be based on proper benchmarking of a real application with real data.
 Unlike statically shaped models, dynamically shaped ones require different inference time, depending on input data shape or input tensor content.
@@ -87,7 +87,7 @@ To get information about setting input shapes using Model Optimizer, refer to [S
 
 ### Dimension Bounds
 
-Apart from just marking a dimension as dynamic, you may also specify lower and/or upper bounds that define a range of allowed values for the dimension.
+Apart from a dynamic dimension, the lower and/or upper bounds can also be specified. They define a range of allowed values for the dimension.
 The bounds are coded as arguments for the `ov::Dimension`:
 
 @sphinxtabset
