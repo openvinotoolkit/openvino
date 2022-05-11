@@ -47,6 +47,7 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 template <typename T>
 bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
@@ -288,6 +289,7 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
 
     static type_to_fuse_map type_to_extend{
         {opset4::Select::get_type_info_static(), extend_select_type},
+        {opset1::Reverse::get_type_info_static(), extend_reverse_type},
     };
 
     bool is_changed = false;
@@ -554,6 +556,20 @@ bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::eleme
                                                                             element::TypeVector{element::boolean},
                                                                             element::TypeVector{});
         replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
+}
+
+bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (const auto casted = std::dynamic_pointer_cast<opset1::Reverse>(node)) {
+        if (casted->get_mode() == ov::op::v1::Reverse::Mode::MASK) {
+            auto relaxed_op = std::make_shared<op::TypeRelaxed<opset1::Reverse>>(
+                *casted,
+                element::TypeVector{casted->get_input_element_type(0), ov::element::boolean},
+                ngraph::element::TypeVector{casted->get_output_element_type(0)});
+            replace_node(node, relaxed_op);
+        }
         return true;
     }
     return false;
