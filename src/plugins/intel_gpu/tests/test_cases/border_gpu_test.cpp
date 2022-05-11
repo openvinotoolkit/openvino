@@ -176,14 +176,14 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
     set_values(input, input_data);
 
-    auto index_bfyx=[=](int b,int f,int y,int x){
-        return b * sh_in[1] * sh_in[2] * sh_in[3] + f * sh_in[2] * sh_in[3] + y * sh_in[3] + x;
+    auto index_bfyx = [=](std::array<int, 4> s, int b, int f, int y, int x) {
+        return b * s[1] * s[2] * s[3] + f * s[2] * s[3] + y * s[3] + x;
     };
-    auto index_bsv16fsv16=[=](int b,int f,int y,int x){
+    auto index_bsv16fsv16 = [=](std::array<int, 4> s, int b, int f, int y, int x) {
         int b0 = b / 16, b1 = b % 16, f0 = f / 16, f1 = f % 16;
-        return b0 * sh_in[1] / 16 * sh_in[2] * sh_in[3] * 16 * 16 +
-               f0 * sh_in[2] * sh_in[3] * 16 * 16 +
-               y * sh_in[3] * 16 * 16 +
+        return b0 * s[1] / 16 * s[2] * s[3] * 16 * 16 +
+               f0 * s[2] * s[3] * 16 * 16 +
+               y * s[3] * 16 * 16 +
                x * 16 * 16 +
                b1 * 16 +
                f1;
@@ -194,7 +194,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
         for (int f = 0; f < sh_in[1]; f++)
             for (int y = 0; y < sh_in[2]; y++)
                 for (int x = 0; x < sh_in[3]; x++)
-                    input_data_b16f16[index_bsv16fsv16(b, f, y, x)] = input_data[index_bfyx(b, f, y, x)];
+                    input_data_b16f16[index_bsv16fsv16(sh_in, b, f, y, x)] = input_data[index_bfyx(sh_in, b, f, y, x)];
+
     auto input_b16f16 = engine.allocate_memory({T_dt, format::bs_fs_yx_bsv16_fsv16, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
     set_values(input_b16f16, input_data_b16f16);
 
@@ -229,7 +230,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
         for (int f = 0; f < sh_out[1]; f++)
             for (int y = 0; y < sh_out[2]; y++)
                 for (int x = 0; x < sh_out[3]; x++)
-                    b16f16_to_bfyx[index_bfyx(b, f, y, x)] = target_output_ptr.data()[index_bsv16fsv16(b, f, y, x)];
+                    b16f16_to_bfyx[index_bfyx(sh_out, b, f, y, x)] =
+                        target_output_ptr.data()[index_bsv16fsv16(sh_out, b, f, y, x)];
 
     EXPECT_TRUE(!memcmp(b16f16_to_bfyx.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
 }
