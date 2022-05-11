@@ -14,6 +14,7 @@ struct dft_params : public base_params {
         forward,
         inverse,
     } kind = forward;
+    uint8_t original_rank = 0;
     dft_params() : base_params{KernelType::DFT} {}
 };
 

@@ -5,7 +5,11 @@
 #include <dft_inst.h>
 #include <primitive_type_base.h>
 
+#include <intel_gpu/plugin/common_utils.hpp>
+
 #include "lexical_cast.hpp"
+
+using namespace ov::runtime::intel_gpu;
 
 namespace cldnn {
 
@@ -17,7 +21,7 @@ primitive_type_id dft::type_id() {
 layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node) {
     auto primitive = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
-    return {input_layout.data_type, input_layout.format, primitive->output_shape};
+    return {input_layout.data_type, input_layout.format, tensor_from_dims(primitive->output_shape)};
 }
 
 std::string typed_primitive_inst<dft>::to_string(const dft_node& node) {

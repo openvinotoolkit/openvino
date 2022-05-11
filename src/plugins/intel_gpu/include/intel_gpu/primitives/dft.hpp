@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <openvino/core/shape.hpp>
+
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -28,12 +30,12 @@ struct dft : public primitive_base<dft> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param axes Axes to perform DFT.
-    /// @param output_shape Tensor with shape of output layout.
+    /// @param output_shape Output shape.
     /// @param kind Kind of DFT operation.
     dft(const primitive_id& id,
         const primitive_id& input,
         std::vector<int64_t>&& axes,
-        const tensor& output_shape,
+        const ov::Shape& output_shape,
         dft_kind kind,
         const primitive_id& ext_prim_id = {},
         const padding& output_padding = {})
@@ -43,7 +45,7 @@ struct dft : public primitive_base<dft> {
           kind(kind) {}
 
     std::vector<int64_t> axes;
-    tensor output_shape;
+    ov::Shape output_shape;
     dft_kind kind;
 };
 

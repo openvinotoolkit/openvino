@@ -52,9 +52,15 @@ ParamsKey DFTKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableBatching();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
     return k;
 }
 
@@ -91,6 +97,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         }
         jit_constants.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
     }
+    jit_constants.AddConstant(MakeJitConstant("ORIGINAL_OUTPUT_DIMS", params.original_rank));
     return jit_constants;
 }
 

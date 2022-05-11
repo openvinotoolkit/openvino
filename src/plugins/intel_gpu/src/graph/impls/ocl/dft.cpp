@@ -29,6 +29,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         if (primitive->kind == dft_kind::inverse) {
             params.kind = kernel_selector::dft_params::inverse;
         }
+        params.original_rank = primitive->output_shape.size();
         auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::dft_instance();
@@ -49,8 +50,12 @@ attach_dft_impl::attach_dft_impl() {
     implementation_map<dft>::add(impl_types::ocl,
                                  dft_impl::create,
                                  {
+                                     std::make_tuple(data_types::f16, format::bfyx),
                                      std::make_tuple(data_types::f16, format::bfzyx),
+                                     std::make_tuple(data_types::f16, format::bfwzyx),
+                                     std::make_tuple(data_types::f32, format::bfyx),
                                      std::make_tuple(data_types::f32, format::bfzyx),
+                                     std::make_tuple(data_types::f32, format::bfwzyx),
                                  });
 }
 
