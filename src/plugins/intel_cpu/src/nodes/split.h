@@ -35,7 +35,7 @@ public:
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                           const Dim origBatch, const Dim perInferBatch) = 0;
         virtual ~SplitExecutor() = default;
     };
@@ -44,7 +44,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                       const Dim origBatch, const Dim perInferBatch) override;
 
         private:
@@ -55,11 +55,12 @@ private:
     };
 
     void optimizedNspc2Ncsp(size_t MB);
+    std::vector<uint8_t*> getRawDstMemPtrs() const;
 
     bool canUseOptimizedNspc2Ncsp = false;
 
     size_t axis = 1;
-    std::vector<std::pair<size_t, uint8_t*>> dstMemPtrs;
+    std::vector<std::pair<size_t, MKLDNNMemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
 };

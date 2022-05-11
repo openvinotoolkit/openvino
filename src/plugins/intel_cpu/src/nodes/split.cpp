@@ -263,11 +263,7 @@ void MKLDNNSplitNode::prepareParams() {
             continue;
         }
 
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outMemPtr->GetPtr())) {
-            dstMemPtrs.emplace_back(port, dstData);
-        } else {
-            THROW_ERROR << "can't get child edge indx " << port << "data.";
-        }
+        dstMemPtrs.emplace_back(port, outMemPtr);
 
         if (!canUseOptimizedNspc2Ncsp) {
             outDescs.push_back(outMemPtr->GetDescWithType<BlockedMemoryDesc>());
@@ -303,7 +299,7 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, dstMemPtrs, batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
 }
 
 bool MKLDNNSplitNode::created() const {
@@ -503,7 +499,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = dstMemPtrs[i].second;
+        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
 
         size_t innerSize = 1;
         auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
@@ -528,6 +524,17 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
 
         sIdx += innerSize;
     }
+}
+
+std::vector<uint8_t*> MKLDNNSplitNode::getRawDstMemPtrs() const {
+    std::vector<uint8_t*> result(dstMemPtrs.size());
+    for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
+        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
+        if (!result[i]) {
+            THROW_ERROR << "can't get child edge indx " << dstMemPtrs[i].first << " data.";
+        }
+    }
+    return result;
 }
 
 MKLDNNSplitNode::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs,
@@ -573,14 +580,14 @@ MKLDNNSplitNode::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDes
     }
 }
 
-void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                                                    const Dim origBatch, const Dim perInferBatch) {
     size_t execCountStrides = countStrides;
     if (origBatch != perInferBatch)
         execCountStrides = execCountStrides / origBatch * perInferBatch;
 
-    parallel_for2d(dstMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = dstMemPtrs[i].second;
+    parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = dstRawMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]],
                    &srcData[srcDataOffsets[i] + j * srcDataStride],
