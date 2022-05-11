@@ -11,6 +11,7 @@
 #include <memory>
 #include <set>
 #include <stdexcept>
+#include <sys/stat.h>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -54,7 +55,12 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+    std::string onednn_path = "/home/shingyuk/work/ref/openvino-eddykim/build/src/plugins/intel_gpu/thirdparty/onednn_gpu_install/lib/Debug/libonednn_gpu.so.2";
+    struct stat hoho;
+    if (stat(onednn_path.c_str(), &hoho) == 0) {
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+        std::cout << "_onednn_engine is initialized!!!" << std::endl;
+    }
 #endif
     _program_stream.reset(new ocl_stream(*this));
 }

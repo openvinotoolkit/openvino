@@ -9,10 +9,18 @@
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include <sys/stat.h>
 
 namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
+    std::string onednn_path = "/home/shingyuk/work/ref/openvino-eddykim/build/src/plugins/intel_gpu/thirdparty/onednn_gpu_install/lib/Debug/libonednn_gpu.so.2";
+    struct stat hoho;
+    if (stat(onednn_path.c_str(), &hoho) == 0) {
+        dlopen(onednn_path.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
+        std::cout << "libonednn_gpu.so.2 is loaded!!!!" << std::endl;
+    }
+
     auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
                                                    if (shared_object != nullptr) {
                                                        if (0 != dlclose(shared_object)) {
