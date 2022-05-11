@@ -14,7 +14,7 @@ Here is an illustration of a small graph representing a model that consists of a
 Vertices in the graph represent layers or operation instances, like convolution, pooling or element-wise operations with tensors.
 Layer and operation terms are used interchangeably along the OpenVINO documentation and define how input data is processed to produce output data for a node in a graph.
 An operation node in a graph may consume data at one or multiple input ports.
-For example, element-wise addition operation has two input ports which accept tensors that are added together.
+For example, element-wise addition operation has two input ports, which accepts tensors that are added together.
 Some operations do not have any input ports, for example *`Const`* operation, which knows the data to be produced without any input.
 An edge between operations represent data flow or data dependency implied from one operation node to another operation node.
 
