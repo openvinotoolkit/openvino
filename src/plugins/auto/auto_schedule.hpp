@@ -54,7 +54,7 @@ public:
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
-    void ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
+    bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 

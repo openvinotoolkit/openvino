@@ -24,8 +24,7 @@ class AutoExecutableNetwork : public ExecutableNetwork {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(AutoScheduleContext::Ptr& context,
-        const AutoSchedule::Ptr& schedule);
+    explicit AutoExecutableNetwork(AutoScheduleContext::Ptr& context, const AutoSchedule::Ptr& schedule);
 
     void SetConfig(const std::map<std::string, IE::Parameter>& config) override;
     IE::Parameter GetConfig(const std::string& name) const override;

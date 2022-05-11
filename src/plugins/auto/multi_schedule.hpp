@@ -46,17 +46,16 @@ public:
 protected:
     virtual void GenerateWorkers(const std::string& device, const IE::SoExecutableNetworkInternal& executableNetwork);
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
-    virtual void ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "");
+    virtual bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "");
 
 protected:
-    IE::ThreadSafeQueue<IE::Task>  _inferPipelineTasks;
-    DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>>
-    _inferPipelineTasksDeviceSpecific;
-    DeviceMap<NotBusyWorkerRequests> _idleWorkerRequests;
-    DeviceMap<std::vector<WorkerInferRequest>> _workerRequests;
-    mutable std::mutex _mutex;
-    std::atomic_size_t  _numRequestsCreated = {0};
-    MultiScheduleContext::Ptr _multiSContext;
+    IE::ThreadSafeQueue<IE::Task>                             _inferPipelineTasks;
+    DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>> _inferPipelineTasksDeviceSpecific;
+    DeviceMap<NotBusyWorkerRequests>                          _idleWorkerRequests;
+    DeviceMap<std::vector<WorkerInferRequest>>                _workerRequests;
+    mutable std::mutex                                        _mutex;
+    std::atomic_size_t                                        _numRequestsCreated = {0};
+    MultiScheduleContext::Ptr                                 _multiSContext;
 };
 
 }  // namespace MultiDevicePlugin

@@ -19,18 +19,16 @@ namespace MultiDevicePlugin {
 class AsyncInferRequest : public IE::AsyncInferRequestThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<AsyncInferRequest>;
-    explicit AsyncInferRequest(const Schedule::Ptr& schedule,
-        const IInferPtr&         inferRequest,
-        const IE::ITaskExecutor::Ptr&  callbackExecutor);
+    explicit AsyncInferRequest(const Schedule::Ptr& schedule, const IInferPtr& inferRequest,
+                               const IE::ITaskExecutor::Ptr&  callbackExecutor);
     void Infer_ThreadUnsafe() override;
-    std::map<std::string, IE::InferenceEngineProfileInfo> GetPerformanceCounts()
-    const override;
+    std::map<std::string, IE::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     ~AsyncInferRequest();
 
 protected:
-    Schedule::Ptr _schedule;
+    Schedule::Ptr       _schedule;
     WorkerInferRequest* _workerInferRequest = nullptr;
-    IInferPtr _inferRequest;
+    IInferPtr           _inferRequest;
 };
 
 }  // namespace MultiDevicePlugin

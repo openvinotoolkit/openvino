@@ -21,19 +21,17 @@ class Schedule : public std::enable_shared_from_this<Schedule>  {
 public:
     using Ptr = std::shared_ptr<Schedule>;
     virtual IInferPtr CreateInferRequest();
-    virtual IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs,
-        IE::OutputsDataMap networkOutputs);
-    virtual IInferPtr CreateInferRequestImpl(
-        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
+    virtual IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs);
+    virtual IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                             const std::vector<std::shared_ptr<const ov::Node>>& outputs);
     virtual void release();
     virtual void init(const ScheduleContext::Ptr& context);
-    virtual Pipeline GetPipeline(const IInferPtr& syncRequestImpl,
-        WorkerInferRequest** WorkerInferRequest);
+    virtual Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest);
     virtual ~Schedule() = default;
 
 protected:
     ScheduleContext::Ptr _sContext;
+    SoExecNetwork        _passthroughExeNet;
 };
 
 }  // namespace MultiDevicePlugin
