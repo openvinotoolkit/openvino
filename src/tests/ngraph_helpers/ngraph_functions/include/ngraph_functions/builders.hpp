@@ -588,6 +588,11 @@ std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);
 
+std::shared_ptr<ngraph::Node> makeRDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
+
 std::shared_ptr<ngraph::Node> makeEinsum(const OutputVector& inputs,
                                          const std::string& equation);
 }  // namespace builder
