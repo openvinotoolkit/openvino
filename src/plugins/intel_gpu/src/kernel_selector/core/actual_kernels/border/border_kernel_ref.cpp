@@ -35,6 +35,7 @@ ParamsKey BorderKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
 
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
@@ -51,6 +52,7 @@ ParamsKey BorderKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();

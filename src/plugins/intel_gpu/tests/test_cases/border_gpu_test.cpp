@@ -236,6 +236,53 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     EXPECT_TRUE(!memcmp(b16f16_to_bfyx.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
 }
 
+TEST(border_gpu, zyx_bsv16fsv16) {
+    using T = int;
+    data_types T_dt = data_types::i32;
+    border_type pad_mode = border_type::mirror_101;
+    T pad_value = 0;
+    std::array<int, 5> sh_in = {16, 16, 4, 5, 6}, cd_lt = {0, 0, 1, 1, 1}, cd_rb = {0, 0, 2, 3, 4}, sh_out;
+    sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
+              sh_in[1] + cd_lt[1] + cd_rb[1],
+              sh_in[2] + cd_lt[2] + cd_rb[2],
+              sh_in[3] + cd_lt[3] + cd_rb[3],
+              sh_in[4] + cd_lt[4] + cd_rb[4]};
+    auto& engine = get_test_engine();
+    auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
+    auto input = engine.allocate_memory({T_dt, format::bfzyx, {sh_in[0], sh_in[1], sh_in[4], sh_in[3], sh_in[2]}});
+    set_values(input, input_data);
+
+    topology target_topology;
+    target_topology.add(input_layout("input", input->get_layout()));
+    target_topology.add(reorder("border_input", "input", format::bs_fs_zyx_bsv16_fsv16, T_dt),
+                        border("border",
+                               "border_input",
+                               tensor(format::bfzyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
+                               tensor(format::bfzyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                               pad_mode,
+                               pad_value),
+                        reorder("output", "border", cldnn::format::bfzyx, T_dt));
+    cldnn::network target_network(engine, target_topology);
+    target_network.set_input_data("input", input);
+    auto target_output = target_network.execute().at("output").get_memory();
+    cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
+
+    topology base_topology;
+    base_topology.add(input_layout("input", input->get_layout()));
+    base_topology.add(border("border",
+                             "input",
+                             tensor(format::bfzyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
+                             tensor(format::bfzyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                             pad_mode,
+                             pad_value));
+    cldnn::network base_network(engine, base_topology);
+    base_network.set_input_data("input", input);
+    auto base_output = base_network.execute().at("border").get_memory();
+    cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
+
+    EXPECT_TRUE(!memcmp(target_output_ptr.data(), base_output_ptr.data(), sizeof(T) * mult(sh_out)));
+}
+
 TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     //  Input (XY) : 4x3
     //  Output (XY): 10x7
