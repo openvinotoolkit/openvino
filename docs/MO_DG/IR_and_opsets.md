@@ -1,4 +1,4 @@
-# Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO {#openvino_docs_MO_DG_IR_and_opsets}
+# Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™ {#openvino_docs_MO_DG_IR_and_opsets}
 
 This article provides essential information on the format used for representation of deep learning models in OpenVINO toolkit and supported operation sets.  
 
