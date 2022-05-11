@@ -71,6 +71,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_NonMaxSupression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, api_2):
         self._test(*self.create_nms_net(test_params), ie_device, precision,
