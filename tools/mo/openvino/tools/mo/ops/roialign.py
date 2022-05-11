@@ -66,8 +66,8 @@ class ROIAlign(Op):
         assert node.mode in ['avg', 'max'], \
             '"mode" attribute range of values is ["avg", "max"], got {} for node "{}"'.format(node.mode, node_name)
         if node.get_opset() == 'opset9':
-            assert node.aligned_mode in ['asymmetric', 'tf_half_pixel_for_nn', 'half_pixel'], \
-                '"aligned_mode" attribute range of values is ["asymmetric", "tf_half_pixel_for_nn", "half_pixel"]'
+            assert node.aligned_mode in ['asymmetric', 'half_pixel_for_nn', 'half_pixel'], \
+                '"aligned_mode" attribute range of values is ["asymmetric", "half_pixel_for_nn", "half_pixel"]'
         input_shape = node.in_port(0).data.get_shape()
         rois_shape = node.in_port(1).data.get_shape()
         indices_shape = node.in_port(2).data.get_shape()
