@@ -26,19 +26,6 @@ layout border_inst::calc_output_layout(border_node const& node) {
     new_size += desc->left_top_sizes.sub(tensor(0));
     new_size += desc->right_bottom_sizes.sub(tensor(0));
 
-    //Set value to 1 at redundant axises
-    for (auto& i : new_size.group)
-        i = 1;
-    switch (input_layout.get_rank()) {
-    case 4:
-        new_size.spatial[2] = 1;
-    case 5:
-        new_size.spatial[3] = 1;
-    case 6:
-        break;
-    default:
-        throw "Unknown layout rank.";
-    }
     return layout{ input_layout.data_type, input_layout.format, new_size };
 }
 

@@ -82,8 +82,8 @@ public:
         target_topology.add(reorder("border_input", "input", fmt, T_dt),
                             border("border",
                                    "border_input",
-                                   {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
-                                   {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                                   tensor(format::bfyx,std::vector<tensor::value_type>(cd_lt.begin(),cd_lt.end()),0),
+                                   tensor(format::bfyx,std::vector<tensor::value_type>(cd_rb.begin(),cd_rb.end()),0),
                                    pad_mode,
                                    pad_value),
                             reorder("output", "border", cldnn::format::bfyx, T_dt));
@@ -96,8 +96,8 @@ public:
         base_topology.add(input_layout("input", input->get_layout()));
         base_topology.add(border("border",
                                  "input",
-                                 {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
-                                 {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                                 tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
+                                 tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
                                  pad_mode,
                                  pad_value));
 
@@ -113,9 +113,9 @@ using border_test_i8 = border_test<char, data_types::i8>;
 TEST_P(border_test_i8, border_test_i8) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i8,
                          border_test_i8,
-                         testing::Combine(testing::Values(border_type::constant),
+                         testing::Combine(testing::Values(PAD_MODES),
                                           testing::Values(99),
-                                          testing::Values(format::type::bfyx),
+                                          testing::Values(FORMATS),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -156,6 +156,15 @@ INSTANTIATE_TEST_SUITE_P(border_test_f32,
                          testing::Combine(testing::Values(border_type::edge),
                                           testing::Values(12.34),
                                           testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
+                                          testing::Values(std::array<int, 4>{2, 3, 4, 5}),
+                                          testing::Values(std::array<int, 4>{1, 2, 3, 4}),
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+
+INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
+                         border_test_i32,
+                         testing::Combine(testing::Values(border_type::mirror),
+                                          testing::Values(99),
+                                          testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1})));
@@ -203,8 +212,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     target_topology.add(input_layout("input", input_b16f16->get_layout()));
     target_topology.add(border("border",
                                "input",
-                               {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
-                               {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                               tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
+                               tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
                                pad_mode,
                                pad_value));
     cldnn::network target_network(engine, target_topology);
@@ -216,8 +225,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     base_topology.add(input_layout("input", input->get_layout()));
     base_topology.add(border("border",
                              "input",
-                             {cd_lt[0], cd_lt[1], cd_lt[3], cd_lt[2]},
-                             {cd_rb[0], cd_rb[1], cd_rb[3], cd_rb[2]},
+                             tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
+                             tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
                              pad_mode,
                              pad_value));
     cldnn::network base_network(engine, base_topology);
@@ -311,15 +320,13 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::constant, 0.0f)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        0.0f));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,
@@ -387,17 +394,15 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        reorder("border_input", "input", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
-        border("border", "border_input",
-               {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::constant, 0.0f),
-        reorder("output", "border", cldnn::format::yxfb, cldnn::data_types::f32)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reorder("border_input", "input", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
+                 border("border",
+                        "border_input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        0.0f),
+                 reorder("output", "border", cldnn::format::yxfb, cldnn::data_types::f32));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,
@@ -467,15 +472,13 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            { blt_size_b, blt_size_f, blt_size_x, blt_size_y, blt_size_z },
-            { brb_size_b, brb_size_f, brb_size_x, brb_size_y, brb_size_z },
-            border_type::constant, 0.0f)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        0.0f));
 
     std::vector<float> input_data = {
         1, -2,
@@ -576,15 +579,13 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            tensor{ batch(blt_size_b), feature(blt_size_f), spatial(blt_size_x, blt_size_y, blt_size_z, blt_size_w) },
-            tensor{ batch(brb_size_b), feature(brb_size_f), spatial(brb_size_x, brb_size_y, brb_size_z, brb_size_w) },
-            border_type::constant, 0.0f)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        0.0f));
 
     std::vector<float> input_data = {
         1, -2,
@@ -680,15 +681,13 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::constant, 1.0f)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        1.0f));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,
@@ -756,15 +755,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               {blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               {brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::mirror)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,
@@ -834,15 +830,12 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            { blt_size_b, blt_size_f, blt_size_x, blt_size_y, blt_size_z },
-            { brb_size_b, brb_size_f, brb_size_x, brb_size_y, brb_size_z },
-            border_type::mirror)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
@@ -914,15 +907,13 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            tensor{ batch(blt_size_b), feature(blt_size_f), spatial(blt_size_x, blt_size_y, blt_size_z, blt_size_w) },
-            tensor{ batch(brb_size_b), feature(brb_size_f), spatial(brb_size_x, brb_size_y, brb_size_z, brb_size_w) },
-            border_type::mirror)
-    );
+        border("output",
+               "input",
+               tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
+               tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
+               border_type::mirror));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
@@ -991,15 +982,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::mirror_101)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror_101));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,  4,
@@ -1070,15 +1058,12 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, tensor{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            tensor{ blt_size_b, blt_size_f, blt_size_x, blt_size_y, blt_size_z },
-            tensor{ brb_size_b, brb_size_f, brb_size_x, brb_size_y, brb_size_z },
-            border_type::mirror_101)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror_101));
 
     std::vector<float> input_data = {
         1, -2,  3,  -4,  4,
@@ -1156,15 +1141,13 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-            tensor{ batch(blt_size_b), feature(blt_size_f), spatial(blt_size_x, blt_size_y, blt_size_z, blt_size_w) },
-            tensor{ batch(brb_size_b), feature(brb_size_f), spatial(brb_size_x, brb_size_y, brb_size_z, brb_size_w) },
-            border_type::mirror_101)
-    );
+        border("output",
+               "input",
+               tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
+               tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
+               border_type::mirror_101));
 
     std::vector<float> input_data = {
         1, -2,  3,  -4,
@@ -1248,15 +1231,12 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     auto input = engine.allocate_memory({data_types::f32, format::yxfb, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::edge)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::edge));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,  4,
@@ -1323,16 +1303,13 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::constant,
-               0.0f)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::constant,
+                        0.0f));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x)};
@@ -1395,15 +1372,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::mirror)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
@@ -1462,15 +1436,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::mirror_101)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::mirror_101));
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
@@ -1528,15 +1499,12 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        border("output", "input",
-               tensor{blt_size_b, blt_size_f, blt_size_x, blt_size_y},
-               tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
-               border_type::edge)
-    );
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(border("output",
+                        "input",
+                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
+                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
+                        border_type::edge));
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
