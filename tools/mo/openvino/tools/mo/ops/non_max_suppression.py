@@ -53,7 +53,6 @@ class NonMaxSuppression(Op):
         else:
             raise Error('Unsupported operation opset version "{}"'.format(version))
 
-
     @staticmethod
     def infer(node: Node):
         num_of_inputs = len(node.in_ports())
