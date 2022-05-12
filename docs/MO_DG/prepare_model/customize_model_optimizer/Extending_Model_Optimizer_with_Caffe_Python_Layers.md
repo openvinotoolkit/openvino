@@ -20,7 +20,7 @@ layer {
 }
 ```
 
-This article describes only a procedure on how to extract operator attributes in the Model Optimizer. The rest of the
+This article describes only a procedure on how to extract operator attributes in Model Optimizer. The rest of the
 operation enabling pipeline and information on how to support other Caffe operations (written in C++) is described in
 the [Customize_Model_Optimizer](Customize_Model_Optimizer.md) guide.
 
