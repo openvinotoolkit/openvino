@@ -213,7 +213,7 @@ Here is an example from the IR snippet:
                     ...
 ```
 
-The *`type="Parameter"`* and *`version="opset1"`* attributes, in the example above, mean "use that version of *`Parameter`* operation that is included into the *`opset1`* operation set.
+The *`type="Parameter"`* and *`version="opset1"`* attributes, in the example above, mean "use that version of the *`Parameter`* operation that is included in the *`opset1`* operation set.
 
 When a new operation set is introduced, most of the operations remain unchanged and are just aliased from the previous operation set within a new one.
 The goal of operation set versions evolution is adding new operations, and probably changing of small fraction of existing operations (fixing bugs and extending semantics).
