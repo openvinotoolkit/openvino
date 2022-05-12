@@ -89,19 +89,23 @@ def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
     assert np.allclose(result, expected)
 
 
-def test_non_max_suppression():
-
-    boxes_shape = [1, 1000, 4]
-    scores_shape = [1, 1, 1000]
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
+    [
+        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expected_shape):
     boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(1000, np.int64))
-
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64))
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_output_size() == 3
-    assert node.get_output_partial_shape(0) == PartialShape([Dimension(0, 1000), Dimension(3)])
-    assert node.get_output_partial_shape(1) == PartialShape([Dimension(0, 1000), Dimension(3)])
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
     assert list(node.get_output_shape(2)) == [1]
 
 
