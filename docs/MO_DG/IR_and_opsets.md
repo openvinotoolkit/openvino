@@ -169,7 +169,7 @@ It consists of several groups of operations:
 
  * Data movement operations which are dealing with parts of tensors, for example, *`Concat`*, *`Split`*, *`StridedSlice`*, *`Select`*.
 
- * Specialized operations that implement complex algorithms dedicated for models of specific type, like *`DetectionOutput`*, *`RegionYolo`*, *`PriorBox`*.
+ * Specialized operations that implement complex algorithms dedicated for models of specific type, for example, *`DetectionOutput`*, *`RegionYolo`*, *`PriorBox`*.
 
 For more information, refer to the complete description of the supported operation sets in the [Available Operation Sets](../ops/opset.md) article.
 
