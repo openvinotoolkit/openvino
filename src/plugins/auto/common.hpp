@@ -55,7 +55,6 @@ struct WorkerInferRequest {
     SoInfer            _inferRequest;
     IE::Task           _task;
     std::exception_ptr _exceptionPtr = nullptr;
-    unsigned int       _inferCount = 0;
     std::list<Time>    _startTimes;
     std::list<Time>    _endTimes;
     int                _index = 0;

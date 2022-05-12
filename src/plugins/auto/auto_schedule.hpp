@@ -69,7 +69,7 @@ private:
     std::future<void>                        _firstLoadFuture;
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
-    int                                      _cpuHelpInferCount = 0;
+    unsigned int                             _cpuHelpInferCount = 0;
     std::atomic_size_t                       _numRequestsCreated = {0};
     AutoScheduleContext::Ptr                 _autoSContext;
 };

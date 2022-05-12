@@ -32,6 +32,9 @@ public:
 protected:
     ScheduleContext::Ptr _sContext;
     SoExecNetwork        _passthroughExeNet;
+    Time                 _cpuHelpReleaseTime;
+    unsigned int         _cpuHelpInferCount = 0;
+    double               _cpuHelpFps = 0.0;
 };
 
 }  // namespace MultiDevicePlugin

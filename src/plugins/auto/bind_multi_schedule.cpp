@@ -67,10 +67,11 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
         Stage {
             /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
                 *workerInferRequest = _thisWorkerInferRequest;
-                auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
-                (syncInferRequest);
-                multiSyncInferRequest->SetBlobsToAnotherRequest(
-                    _thisWorkerInferRequest->_inferRequest);
+                auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
+                multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
+                INFO_RUN([workerInferRequest]() {
+                    (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                });
             }},
         // final task in the pipeline:
         Stage {
@@ -84,7 +85,9 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                     multiSyncInferRequest->_perfMap =
                         (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
                 }
-                (*workerInferRequest)->_inferCount++;
+                INFO_RUN([workerInferRequest]() {
+                   (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                });
             }}
     };
     return pipeline;

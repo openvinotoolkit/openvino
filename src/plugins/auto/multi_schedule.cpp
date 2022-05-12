@@ -16,6 +16,7 @@ thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     Schedule::init(sContext);
+    _cpuHelpReleaseTime = std::chrono::steady_clock::now();
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
@@ -65,10 +66,11 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
         Stage {
             /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
                 *workerInferRequest = _thisWorkerInferRequest;
-                auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
-                (syncInferRequest);
-                multiSyncInferRequest->SetBlobsToAnotherRequest(
-                    _thisWorkerInferRequest->_inferRequest);
+                auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
+                multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
+                INFO_RUN([workerInferRequest]() {
+                    (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
+               });
             }},
         // final task in the pipeline:
         Stage {
@@ -82,7 +84,9 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     multiSyncInferRequest->_perfMap =
                         (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
                 }
-                (*workerInferRequest)->_inferCount++;
+                INFO_RUN([workerInferRequest]() {
+                   (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+              });
             }}
     };
     return pipeline;
@@ -198,13 +202,49 @@ MultiSchedule::~MultiSchedule() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
-    for (auto&& _workerRequest : _workerRequests) {
-        unsigned int count = 0;
-        for (auto& request : _workerRequest.second) {
-            count += request._inferCount;
+    INFO_RUN([this] {
+        for (auto&& _workerRequest : _workerRequests) {
+            std::list<Time> reqAllStartTimes;
+            std::list<Time> reqAllEndTimes;
+            for (auto& request : _workerRequest.second) {
+                reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
+                reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
+            }
+            unsigned int count = reqAllStartTimes.size();
+            IE_ASSERT(count == reqAllEndTimes.size());
+            reqAllStartTimes.sort(std::less<Time>());
+            reqAllEndTimes.sort(std::less<Time>());
+            if (_workerRequest.first == "CPU_HELP") {
+                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+                if (_cpuHelpFps > 0.0) {
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
+                } else if (count >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - reqAllStartTimes.front();
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                }
+            } else {
+                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+                auto n = reqAllStartTimes.size();
+                Time time;
+                while (!reqAllStartTimes.empty()) {
+                    time = reqAllStartTimes.front();
+                    if (time < _cpuHelpReleaseTime) {
+                        reqAllStartTimes.pop_front();
+                        n--;
+                    } else {
+                        break;
+                    }
+                }
+                if (n >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - time;
+                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
+                        n * 1000 / durtation.count());
+                }
+            }
         }
-        LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
-    }
+    });
     _workerRequests.clear();
 }
 

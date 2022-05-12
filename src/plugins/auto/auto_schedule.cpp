@@ -100,6 +100,8 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
 
 void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
+    // initialize cpuHelpReleasetime
+    _cpuHelpReleaseTime = std::chrono::steady_clock::now();
     Schedule::init(sContext);
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
     _autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(_sContext);
@@ -241,12 +243,35 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
                 std::pair<int, WorkerInferRequest*> worker;
+                std::list<Time> cpuHelpAllStartTimes;
+                std::list<Time> cpuHelpAllEndTimes;
                 while (_idleWorkerRequests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
-                    _cpuHelpInferCount += worker.second->_inferCount;
+                    INFO_RUN([&cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &worker]() {
+                        cpuHelpAllStartTimes.splice(cpuHelpAllStartTimes.end(), worker.second->_startTimes);
+                        cpuHelpAllEndTimes.splice(cpuHelpAllEndTimes.end(), worker.second->_endTimes);
+                    });
                 }
+                INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes]() {
+                    cpuHelpAllStartTimes.sort(std::less<Time>());
+                    cpuHelpAllEndTimes.sort(std::less<Time>());
+                    _cpuHelpInferCount = cpuHelpAllStartTimes.size();
+                    IE_ASSERT(_cpuHelpInferCount == cpuHelpAllEndTimes.size());
+                });
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+                    INFO_RUN([this, &cpuHelpAllStartTimes, &cpuHelpAllEndTimes, &destroynum]() {
+                        _cpuHelpReleaseTime = std::chrono::steady_clock::now();
+                        if (cpuHelpAllStartTimes.size() >= destroynum + 1) {
+                            //remove last worksize num requests, so the fps will be more accuracy
+                            cpuHelpAllStartTimes.resize(_cpuHelpInferCount - destroynum);
+                            cpuHelpAllEndTimes.resize(_cpuHelpInferCount - destroynum);
+                            std::chrono::duration<double, std::milli> durtation =
+                                cpuHelpAllEndTimes.back() - cpuHelpAllStartTimes.front();
+                            _cpuHelpFps = cpuHelpAllStartTimes.size() * 1000 / durtation.count();
+                        }
+                    });
+                    LOG_INFO("[AUTOPLUGIN] release all work requests of CPU_HELP");
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
@@ -473,15 +498,49 @@ AutoSchedule::~AutoSchedule() {
     }
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority,
         _loadContext[ACTUALDEVICE].deviceInfo.uniqueName);
-    for (auto&& _workerRequest : _workerRequests) {
-        unsigned int count = 0;
-        for (auto& request : _workerRequest.second) {
-            count += request._inferCount;
+    INFO_RUN([this] {
+        for (auto&& _workerRequest : _workerRequests) {
+            std::list<Time> reqAllStartTimes;
+            std::list<Time> reqAllEndTimes;
+            for (auto& request : _workerRequest.second) {
+                reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
+                reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
+            }
+            unsigned int count = reqAllStartTimes.size();
+            IE_ASSERT(count == reqAllEndTimes.size());
+            reqAllStartTimes.sort(std::less<Time>());
+            reqAllEndTimes.sort(std::less<Time>());
+            if (_workerRequest.first == "CPU_HELP") {
+                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+                if (_cpuHelpFps > 0.0) {
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
+                } else if (count >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - reqAllStartTimes.front();
+                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                }
+            } else {
+                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+                auto n = reqAllStartTimes.size();
+                Time time;
+                while (!reqAllStartTimes.empty()) {
+                    time = reqAllStartTimes.front();
+                    if (time < _cpuHelpReleaseTime) {
+                        reqAllStartTimes.pop_front();
+                        n--;
+                    } else {
+                        break;
+                    }
+                }
+                if (n >= 1) {
+                    std::chrono::duration<double, std::milli> durtation =
+                        reqAllEndTimes.back() - time;
+                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
+                        n * 1000 / durtation.count());
+                }
+            }
         }
-        if (_workerRequest.first == "CPU_HELP") {
-            LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
-        }
-    }
+    });
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
