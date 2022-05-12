@@ -147,6 +147,18 @@ std::map<ov_element_type_e, ov::element::Type> element_type_map = {
                 {ov_element_type_e::U32, ov::element::u32},
                 {ov_element_type_e::U64, ov::element::u64}};
 
+ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
+    for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
+        if (iter->second == type) {
+            return iter->first;
+        }
+    }
+    return ov_element_type_e::UNDEFINED;
+}
+
+#define GET_OV_ELEMENT_TYPE(a) element_type_map[a]
+#define GET_CAPI_ELEMENT_TYPE(a) find_ov_element_type_e(a)
+
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) catch (const InferenceEngine::ExceptionType&) {return ov_status_e::StatusCode;}
 
 #define CATCH_OV_EXCEPTIONS                                         \
@@ -292,7 +304,7 @@ ov_status_e ov_preprocess_input_tensor_info_set_element_type(ov_preprocess_input
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        preprocess_input_tensor_info->object->set_element_type(element_type_map[element_type]);
+        preprocess_input_tensor_info->object->set_element_type(GET_OV_ELEMENT_TYPE(element_type));
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
@@ -390,7 +402,7 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_in
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        preprocess_output_tensor_info->object->set_element_type(element_type_map[element_type]);
+        preprocess_output_tensor_info->object->set_element_type(GET_OV_ELEMENT_TYPE(element_type));
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
