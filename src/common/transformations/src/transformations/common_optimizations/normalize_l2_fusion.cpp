@@ -62,12 +62,12 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
         const auto exp2_input =
             pattern_to_output.count(exp2)
-            ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
-            : nullptr;
+                ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp2).get_node_shared_ptr())
+                : nullptr;
         const auto exp3_input =
             pattern_to_output.count(exp3)
-            ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
-            : nullptr;
+                ? std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp3).get_node_shared_ptr())
+                : nullptr;
 
         if (!exp_input || !axes_input || !eps_attr) {
             return false;
@@ -107,9 +107,7 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             return false;
 
         normalize_l2->set_friendly_name(m.get_match_root()->get_friendly_name());
-        OutputVector outputs_to_replace{pattern_to_output.at(pow),
-                                        pattern_to_output.at(reduce_sum),
-                                        eps_node};
+        OutputVector outputs_to_replace{pattern_to_output.at(pow), pattern_to_output.at(reduce_sum), eps_node};
 
         if (pattern_to_output.count(un_sqrt)) {
             outputs_to_replace.emplace_back(pattern_to_output.at(un_sqrt));
