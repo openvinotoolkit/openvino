@@ -230,6 +230,7 @@ set(SRC
     type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
+    type_prop/softsign.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
@@ -395,6 +396,7 @@ set(SRC
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
+    visitors/op/softsign.cpp
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
