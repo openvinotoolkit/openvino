@@ -14,6 +14,7 @@
 #include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "itt.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -162,6 +163,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    decomp->add_matcher<ngraph::pass::SoftSignDecomposition>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
