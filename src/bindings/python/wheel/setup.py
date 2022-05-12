@@ -175,8 +175,8 @@ class CustomBuild(build):
             self.announce(f'Configuring cmake project: {openvino_root_dir}', level=3)
             self.spawn(['cmake', '-H' + str(openvino_root_dir), '-B' + self.build_temp,
                         '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
-                        '-DENABLE_PYTHON=ON',
-                        '-DENABLE_OV_ONNX_FRONTEND=ON'])
+                        '-DENABLE_PYTHON=OFF',
+                        '-DENABLE_OV_ONNX_FRONTEND=OFF'])
 
             self.announce('Building binaries', level=3)
             self.spawn(['cmake', '--build', self.build_temp,
