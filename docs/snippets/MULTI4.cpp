@@ -1,7 +1,7 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-ov::AnyMap hddl_config, gpu_config;
+ov::AnyMap myriad_config, gpu_config;
 //! [part4]
 ov::Core core;
 
@@ -16,7 +16,7 @@ ov::CompiledModel compiled_model = core.compile_model(model, "MULTI",
     ov::device::properties("HDDL", myriad_config));
 
 // Optionally, query the optimal number of requests:
-uint32_t nireq = compileModel.get_property(ov::optimal_number_of_infer_requests);
+uint32_t nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
 //! [part4]
 return 0;
 }
