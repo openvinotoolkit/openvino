@@ -88,7 +88,6 @@ openvino-inference-engine-dev
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src
-openvino-inference-engine-staticdev
 openvino-inference-engine-vpu-firmware
 openvino-model-optimizer
 openvino-model-optimizer-dbg
