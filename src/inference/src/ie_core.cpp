@@ -136,7 +136,7 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
 
 void stripDeviceName(std::string& device, const std::string& substr) {
     auto pos = device.find(substr);
-    if (pos != std::string::npos) {
+    if (pos == 0) {
         device.erase(pos, substr.length());
     }
 }
