@@ -12,6 +12,53 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+struct jit_args_dft {
+    const float* src;
+    float* dst;
+    const float* twiddles;
+
+    size_t work_amount;
+    size_t index;
+};
+
+struct jit_args_fft {
+    const float* src;
+    float* dst;
+    const float* twiddles;
+
+    size_t num_blocks;
+    size_t work_amount;
+    size_t n_complex;
+};
+
+struct jit_uni_dft_kernel {
+    void (*ker_)(const jit_args_dft*);
+
+    void operator()(const jit_args_dft* args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    jit_uni_dft_kernel() : ker_(nullptr) {}
+    virtual ~jit_uni_dft_kernel() {}
+
+    virtual void create_ker() = 0;
+};
+
+struct jit_uni_fft_kernel {
+    void (*ker_)(const jit_args_fft*);
+
+    void operator()(const jit_args_fft* args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    jit_uni_fft_kernel() : ker_(nullptr) {}
+    virtual ~jit_uni_fft_kernel() {}
+
+    virtual void create_ker() = 0;
+};
+
 class DFT : public Node {
 public:
     DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
@@ -23,18 +70,63 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    struct DFTAttrs {
+        bool inverse;
+    };
+
 private:
-    void dftNd(float* output, const std::vector<size_t>& outputStrides) const;
-    void fft(float* data, int64_t dataLength, bool parallelize = false) const;
-    void naiveDFT(float* data, size_t dataLength) const;
+    DFTAttrs interpAttrs;
 
-    std::vector<std::pair<float, float>> generateTwiddles(size_t n_complex) const;
+    class DFTExecutor {
+    public:
+        DFTExecutor(const DFTAttrs&) {}
 
-    std::unordered_map<size_t, std::vector<std::pair<float, float>>> twiddlesMap;
-    std::vector<int32_t> axes;
-    std::vector<size_t> outputShape;
+        virtual void exec(const float* src, float* dst, size_t inputRank, std::vector<int32_t> axes, VectorDims inputShape,
+            VectorDims outputShape, VectorDims inputStrides, VectorDims outputStrides, bool inverse);
+
+        virtual ~DFTExecutor() = default;
+
+    private:
+        void dftNd(float* output, const VectorDims& outputShape, const VectorDims& outputStrides, std::vector<int32_t> axes, bool inverse) const;
+
+        virtual void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const = 0;
+        virtual void naiveDFT(float* data, size_t dataLength, bool inverse) const = 0;
+
+        std::vector<float> generateTwiddlesDFT(size_t n_complex) const;
+        void generateTwiddlesFFT(size_t n_complex);
+
+    protected:
+        std::vector<float> twiddlesFFT;
+        std::unordered_map<size_t, std::vector<float>> twiddlesMapDFT;
+    };
+    std::shared_ptr<DFTExecutor> execPtr = nullptr;
+
+    class DFTJitExecutor : public DFTExecutor {
+    public:
+        DFTJitExecutor(const DFTAttrs& interpAttrs);
+
+        void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const override;
+        void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
+
+    private:
+        std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;
+        std::unique_ptr<jit_uni_fft_kernel> fftKernel = nullptr;
+    };
+
+    class DFTRefExecutor : public DFTExecutor {
+    public:
+        DFTRefExecutor(const DFTAttrs& interpAttrs)
+            : DFTExecutor(interpAttrs) {}
+
+        void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const override;
+        void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
+    };
+
     std::vector<size_t> inputShape;
     std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;
