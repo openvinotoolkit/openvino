@@ -163,7 +163,7 @@ It consists of several groups of operations:
 
  * Generic element-wise arithmetic tensor operations such as *`Add`*, *`Subtract`*, and *`Multiply`*.
 
- * Comparison operations that compare two numeric tensors and produce boolean tensors, like *`Less`*, *`Equeal`*, *`Greater`*.
+ * Comparison operations that compare two numeric tensors and produce boolean tensors, for example, *`Less`*, *`Equeal`*, *`Greater`*.
 
  * Logical operations that are dealing with boolean tensors, like *`And`*, *`Xor`*, *`Not`*.
 
