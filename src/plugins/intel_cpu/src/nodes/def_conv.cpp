@@ -118,7 +118,7 @@ private:
     Xbyak::Label l_table;
 
     inline void checkZeroWei(const Xbyak::Xmm &x1, Label &nullifyLabel) {
-        uni_vtestps(x1, x1);
+        ptest(x1, x1);
         jz(nullifyLabel);
     }
 
