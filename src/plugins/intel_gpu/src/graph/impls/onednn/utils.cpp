@@ -398,6 +398,10 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                       return strides[ind_l] > strides[ind_r];
                   });
 
+        auto compare_strides = [](std::vector<size_t> &a, std::vector<size_t> b) -> bool {
+            return std::equal(a.begin(), a.end(), b.begin());
+        };
+
         if (is_grouped) {
             if (desc.data.ndims == 5 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
@@ -411,23 +415,23 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             if (desc.data.ndims == 4 && blk.inner_nblks == 4
                 && blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4
                 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1
-                && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3) {
+                && compare_strides(order, {1, 0, 2, 3})) {
                 return cldnn::format::is_os_yx_osa4_isa8_osv8_isv4;
             } else if (desc.data.ndims == 4 && blk.inner_nblks == 4
                 && blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1 && blk.inner_idxs[3] == 0
-                && order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3) {
+                && compare_strides(order, {1, 0, 2, 3})) {
                 return cldnn::format::is_os_yx_isa2_osa8_isv8_osv2;
             } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
                 && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1
-                && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
+                && compare_strides(order, {0, 1, 2, 3})) {
                 return cldnn::format::os_is_yx_osv16_isv4;
             } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
+                if (compare_strides(order, {0, 1, 2, 3})) {
                     return cldnn::format::os_is_yx_isa8_osv8_isv2;
-                } else if (order[0] == 1 && order[1] == 0 && order[2] == 2 && order[3] == 3) {
+                } else if (compare_strides(order, {1, 0, 2, 3})) {
                     return cldnn::format::is_os_yx_isa8_osv8_isv2;
                 } else {
                     throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));

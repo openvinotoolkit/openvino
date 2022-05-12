@@ -945,7 +945,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
         bool fp16_output = output_layout.data_type == data_types::f16;
 
-        // oneDNNv.26 needs acdb format for shallow group conv
+        // oneDNNv2.6 needs acdb format for shallow group conv
         if (!non_grouped && is_2d &&
             ((is_dw && ((i8_u8_input && input_layout.feature() < 16) || (fp16_output && input_layout.feature() < 8))) ||
             (!is_dw && ((i8_u8_input && ofm_per_group % 32 != 0) || (fp16_output && ofm_per_group % 16 != 0))))) {
