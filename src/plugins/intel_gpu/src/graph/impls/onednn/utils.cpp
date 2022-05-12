@@ -406,7 +406,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             if (desc.data.ndims == 5 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
-                && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
+                && compare_strides(order, {0, 1, 2, 3, 4})) {
                 return cldnn::format::g_os_is_yx_isa8_osv8_isv2;
             } else {
                 throw std::runtime_error(std::string("Unsupported grouped onednn dnnl::memory::desc find_format"));
