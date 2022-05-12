@@ -272,7 +272,7 @@ def test_softsign_with_parameters(data_type):
     ],
 )
 def test_softsign_with_array(data_type):
-    data = np.random.rand(32, 5).astype(np.float32)
+    data = np.random.rand(32, 5).astype(data_type)
     expected = np.divide(data, np.abs(data) + 1)
 
     runtime = get_runtime()

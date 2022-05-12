@@ -2028,3 +2028,14 @@ def test_nv12_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_softsign():
+    input_shape = [2, 4, 8, 16]
+
+    param = ng.parameter(input_shape, name="input")
+    node = ng.softsign(param, input_shape)
+
+    assert node.get_type_name() == "SoftSign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == input_shape
