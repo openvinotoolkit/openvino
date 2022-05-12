@@ -167,7 +167,7 @@ It consists of several groups of operations:
 
  * Logical operations that are dealing with boolean tensors, for example, *`And`*, *`Xor`*, *`Not`*.
 
- * Data movement operations which are dealing with parts of tensors, like *`Concat`*, *`Split`*, *`StridedSlice`*, *`Select`*.
+ * Data movement operations which are dealing with parts of tensors, for example, *`Concat`*, *`Split`*, *`StridedSlice`*, *`Select`*.
 
  * Specialized operations that implement complex algorithms dedicated for models of specific type, like *`DetectionOutput`*, *`RegionYolo`*, *`PriorBox`*.
 
