@@ -158,7 +158,7 @@ TEST(opset, opset9_dump) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(171, opset.get_types_info().size());
+    ASSERT_EQ(172, opset.get_types_info().size());
 }
 
 class MyOpOld : public ov::op::Op {
