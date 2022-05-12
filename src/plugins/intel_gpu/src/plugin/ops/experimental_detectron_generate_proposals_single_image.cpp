@@ -29,10 +29,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     const auto op_friendly_name = op->get_friendly_name();
 
     const auto layer_type_name = layer_type_name_ID(op);
-    const auto layer_name_refine_anchors = layer_type_name + "_refine_anchors";
     const auto layer_name = layer_type_name + ".0";
-
-
 
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);

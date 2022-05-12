@@ -2,6 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if INPUT0_TYPE_SIZE == 2 //f16
+#define HALF_ONE 0.5h
+#define ZERO 0.0h
+#else
+#define HALF_ONE 0.5f
+#define ZERO 0.0f
+#endif
+
 #ifdef EDGPSI_STAGE_0
 
 #    define COORDINATES_OFFSET 1
@@ -9,65 +17,65 @@
 // 0. Refine anchors
 KERNEL(edgpsi_ref_stage_0)
 (const __global INPUT0_TYPE* im_info,
- const __global INPUT1_TYPE* anchors,
- const __global INPUT2_TYPE* deltas,
- const __global INPUT3_TYPE* scores,
+ const __global INPUT0_TYPE* anchors,
+ const __global INPUT0_TYPE* deltas,
+ const __global INPUT0_TYPE* scores,
  __global INPUT0_TYPE* proposals) {
     const INPUT0_TYPE img_H = im_info[0];
     const INPUT0_TYPE img_W = im_info[1];
 
-    const size_t h = get_global_id(0);
-    const size_t w = get_global_id(1);
-    const size_t anchor = get_global_id(2);
+    const uint h = get_global_id(0);
+    const uint w = get_global_id(1);
+    const uint anchor = get_global_id(2);
 
-    const size_t offset = h * BOTTOM_W + w;
-    const size_t anchor_idx = (offset * ANCHORS_NUM + anchor) * 4;
-    const size_t proposal_idx = (offset * ANCHORS_NUM + anchor) * 5;
-    const size_t score_idx = offset + BOTTOM_AREA * anchor;
-    const size_t delta_idx = offset + BOTTOM_AREA * anchor * 4;
+    const uint offset = h * BOTTOM_W + w;
+    const uint anchor_idx = (offset * ANCHORS_NUM + anchor) * 4;
+    const uint proposal_idx = (offset * ANCHORS_NUM + anchor) * 5;
+    const uint score_idx = offset + BOTTOM_AREA * anchor;
+    const uint delta_idx = offset + BOTTOM_AREA * anchor * 4;
 
-    float x0 = anchors[anchor_idx + 0];
-    float y0 = anchors[anchor_idx + 1];
-    float x1 = anchors[anchor_idx + 2];
-    float y1 = anchors[anchor_idx + 3];
+    INPUT0_TYPE x0 = anchors[anchor_idx + 0];
+    INPUT0_TYPE y0 = anchors[anchor_idx + 1];
+    INPUT0_TYPE x1 = anchors[anchor_idx + 2];
+    INPUT0_TYPE y1 = anchors[anchor_idx + 3];
 
-    const float dx = deltas[delta_idx + 0 * BOTTOM_AREA];
-    const float dy = deltas[delta_idx + 1 * BOTTOM_AREA];
-    const float d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
-    const float d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
+    const INPUT0_TYPE dx = deltas[delta_idx + 0 * BOTTOM_AREA];
+    const INPUT0_TYPE dy = deltas[delta_idx + 1 * BOTTOM_AREA];
+    const INPUT0_TYPE d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
+    const INPUT0_TYPE d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
 
-    const float score = scores[score_idx];
+    const INPUT0_TYPE score = scores[score_idx];
 
     // width & height of box
-    const float ww = x1 - x0 + COORDINATES_OFFSET;
-    const float hh = y1 - y0 + COORDINATES_OFFSET;
+    const INPUT0_TYPE ww = x1 - x0 + COORDINATES_OFFSET;
+    const INPUT0_TYPE hh = y1 - y0 + COORDINATES_OFFSET;
     // center location of box
-    const float ctr_x = x0 + 0.5f * ww;
-    const float ctr_y = y0 + 0.5f * hh;
+    const INPUT0_TYPE ctr_x = x0 + HALF_ONE * ww;
+    const INPUT0_TYPE ctr_y = y0 + HALF_ONE * hh;
 
     // new center location according to deltas (dx, dy)
-    const float pred_ctr_x = dx * ww + ctr_x;
-    const float pred_ctr_y = dy * hh + ctr_y;
+    const INPUT0_TYPE pred_ctr_x = dx * ww + ctr_x;
+    const INPUT0_TYPE pred_ctr_y = dy * hh + ctr_y;
     // new width & height according to deltas d(log w), d(log h)
-    const float pred_w = exp(min(d_log_w, MAX_DELTA_LOG_WH)) * ww;
-    const float pred_h = exp(min(d_log_h, MAX_DELTA_LOG_WH)) * hh;
+    const INPUT0_TYPE pred_w = exp(min(d_log_w, TO_INPUT0_TYPE(MAX_DELTA_LOG_WH))) * ww;
+    const INPUT0_TYPE pred_h = exp(min(d_log_h, TO_INPUT0_TYPE(MAX_DELTA_LOG_WH))) * hh;
 
     // update upper-left corner location
-    x0 = pred_ctr_x - 0.5f * pred_w;
-    y0 = pred_ctr_y - 0.5f * pred_h;
+    x0 = pred_ctr_x - HALF_ONE * pred_w;
+    y0 = pred_ctr_y - HALF_ONE * pred_h;
     // update lower-right corner location
-    x1 = pred_ctr_x + 0.5f * pred_w - COORDINATES_OFFSET;
-    y1 = pred_ctr_y + 0.5f * pred_h - COORDINATES_OFFSET;
+    x1 = pred_ctr_x + HALF_ONE * pred_w - COORDINATES_OFFSET;
+    y1 = pred_ctr_y + HALF_ONE * pred_h - COORDINATES_OFFSET;
 
     // adjust new corner locations to be within the image region
-    x0 = max(0.0f, min(x0, img_W - COORDINATES_OFFSET));
-    y0 = max(0.0f, min(y0, img_H - COORDINATES_OFFSET));
-    x1 = max(0.0f, min(x1, img_W - COORDINATES_OFFSET));
-    y1 = max(0.0f, min(y1, img_H - COORDINATES_OFFSET));
+    x0 = max(ZERO, min(x0, img_W - COORDINATES_OFFSET));
+    y0 = max(ZERO, min(y0, img_H - COORDINATES_OFFSET));
+    x1 = max(ZERO, min(x1, img_W - COORDINATES_OFFSET));
+    y1 = max(ZERO, min(y1, img_H - COORDINATES_OFFSET));
 
     // recompute new width & height
-    const float box_w = x1 - x0 + COORDINATES_OFFSET;
-    const float box_h = y1 - y0 + COORDINATES_OFFSET;
+    const INPUT0_TYPE box_w = x1 - x0 + COORDINATES_OFFSET;
+    const INPUT0_TYPE box_h = y1 - y0 + COORDINATES_OFFSET;
 
     proposals[proposal_idx + 0] = x0;
     proposals[proposal_idx + 1] = y0;
@@ -83,11 +91,11 @@ KERNEL(edgpsi_ref_stage_0)
 #ifdef EDGPSI_STAGE_1
 
 typedef struct __attribute__((__packed__)) {
-    float x0;
-    float y0;
-    float x1;
-    float y1;
-    float score;
+    INPUT0_TYPE x0;
+    INPUT0_TYPE y0;
+    INPUT0_TYPE x1;
+    INPUT0_TYPE y1;
+    INPUT0_TYPE score;
 } Box;
 
 inline void FUNC(swap_box)(__global Box* a, __global Box* b) {
@@ -183,11 +191,11 @@ KERNEL(edgpsi_ref_stage_1)(__global INPUT0_TYPE* proposals) {
 // 2. NMS
 KERNEL(edgpsi_ref_stage_2)
 (const __global INPUT0_TYPE* boxes, __global size_t* out_indices, __global size_t* num_outputs) {
-    size_t count = 0;
-    size_t index_out[POST_NMS_COUNT] = {0};
+    uint count = 0;
+    uint index_out[POST_NMS_COUNT] = {0};
 
-    size_t is_dead[PRE_NMS_TOPN] = {0};
-    for (size_t box = 0; box < PRE_NMS_TOPN; ++box) {
+    uint is_dead[PRE_NMS_TOPN] = {0};
+    for (uint box = 0; box < PRE_NMS_TOPN; ++box) {
         if (is_dead[box])
             continue;
 
@@ -195,37 +203,37 @@ KERNEL(edgpsi_ref_stage_2)
         if (count == POST_NMS_COUNT)
             break;
 
-        const size_t box_offset = box * 5;
-        const float x0i = boxes[box_offset + 0];
-        const float y0i = boxes[box_offset + 1];
-        const float x1i = boxes[box_offset + 2];
-        const float y1i = boxes[box_offset + 3];
+        const uint box_offset = box * 5;
+        const INPUT0_TYPE x0i = boxes[box_offset + 0];
+        const INPUT0_TYPE y0i = boxes[box_offset + 1];
+        const INPUT0_TYPE x1i = boxes[box_offset + 2];
+        const INPUT0_TYPE y1i = boxes[box_offset + 3];
 
-        const float a_width = x1i - x0i;
-        const float a_height = y1i - y0i;
-        const float a_area = a_width * a_height;
+        const INPUT0_TYPE a_width = x1i - x0i;
+        const INPUT0_TYPE a_height = y1i - y0i;
+        const INPUT0_TYPE a_area = a_width * a_height;
 
-        for (size_t tail = box + 1; tail < PRE_NMS_TOPN; ++tail) {
-            const size_t tail_offset = tail * 5;
-            const float x0j = boxes[tail_offset + 0];
-            const float y0j = boxes[tail_offset + 1];
-            const float x1j = boxes[tail_offset + 2];
-            const float y1j = boxes[tail_offset + 3];
+        for (uint tail = box + 1; tail < PRE_NMS_TOPN; ++tail) {
+            const uint tail_offset = tail * 5;
+            const INPUT0_TYPE x0j = boxes[tail_offset + 0];
+            const INPUT0_TYPE y0j = boxes[tail_offset + 1];
+            const INPUT0_TYPE x1j = boxes[tail_offset + 2];
+            const INPUT0_TYPE y1j = boxes[tail_offset + 3];
 
-            const float x0 = max(x0i, x0j);
-            const float y0 = max(y0i, y0j);
-            const float x1 = min(x1i, x1j);
-            const float y1 = min(y1i, y1j);
+            const INPUT0_TYPE x0 = max(x0i, x0j);
+            const INPUT0_TYPE y0 = max(y0i, y0j);
+            const INPUT0_TYPE x1 = min(x1i, x1j);
+            const INPUT0_TYPE y1 = min(y1i, y1j);
 
-            const float width = x1 - x0;
-            const float height = y1 - y0;
-            const float area = max(0.0f, width) * max(0.0f, height);
+            const INPUT0_TYPE width = x1 - x0;
+            const INPUT0_TYPE height = y1 - y0;
+            const INPUT0_TYPE area = max(ZERO, width) * max(ZERO, height);
 
-            const float b_width = x1j - x0j;
-            const float b_height = y1j - y0j;
-            const float b_area = b_width * b_height;
+            const INPUT0_TYPE b_width = x1j - x0j;
+            const INPUT0_TYPE b_height = y1j - y0j;
+            const INPUT0_TYPE b_area = b_width * b_height;
 
-            const float intersection_area = area / (a_area + b_area - area);
+            const INPUT0_TYPE intersection_area = area / (a_area + b_area - area);
 
             is_dead[tail] =
                 (NMS_THRESHOLD < intersection_area) && (x0i <= x1j) && (y0i <= y1j) && (x0j <= x1i) && (y0j <= y1i);
@@ -233,7 +241,7 @@ KERNEL(edgpsi_ref_stage_2)
     }
 
     *num_outputs = count;
-    for (size_t i = 0; i < count; ++i) {
+    for (uint i = 0; i < count; ++i) {
         out_indices[i] = index_out[i];
     }
 }
@@ -248,10 +256,10 @@ KERNEL(edgpsi_ref_stage_3)
  const __global size_t* num_outputs,
  __global OUTPUT_TYPE* rois,
  __global OUTPUT_TYPE* roi_scores) {
-    const size_t i = get_global_id(0);
-    const size_t index = out_indices[i];
-    const size_t box_offset = index * 5;
-    const size_t rois_offset = i * 4;
+    const uint i = get_global_id(0);
+    const uint index = out_indices[i];
+    const uint box_offset = index * 5;
+    const uint rois_offset = i * 4;
 
     if (i < *num_outputs) {
         rois[rois_offset + 0] = boxes[box_offset + 0];
@@ -268,3 +276,5 @@ KERNEL(edgpsi_ref_stage_3)
     }
 }
 #endif /* EDGPSI_STAGE_3 */
+
+#undef HALF_ONE
