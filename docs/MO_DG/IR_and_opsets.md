@@ -159,7 +159,7 @@ It consists of several groups of operations:
 
  * Conventional deep learning layers such as *`Convolution`*, *`MaxPool`*, and *`MatMul`* (also known as *`FullyConnected`*).
 
- * Various activation functions, like *`ReLU`*, *`Tanh`*, *`PReLU`*.
+ * Various activation functions such as *`ReLU`*, *`Tanh`*, and *`PReLU`*.
 
  * Generic element-wise arithmetic tensor operations, like *`Add`*, *`Subtract`*, *`Multiply`*.
 
