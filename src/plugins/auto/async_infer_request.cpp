@@ -25,8 +25,7 @@ void AsyncInferRequest::Infer_ThreadUnsafe() {
 std::map<std::string, IE::InferenceEngineProfileInfo>
 AsyncInferRequest::GetPerformanceCounts() const {
     CheckState();
-    auto multiDeviceInfer = std::dynamic_pointer_cast<MultiDeviceInferRequest>
-        (_inferRequest);
+    auto multiDeviceInfer = std::dynamic_pointer_cast<MultiDeviceInferRequest>(_inferRequest);
     return multiDeviceInfer->GetPerformanceCounts();
 }
 

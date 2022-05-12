@@ -102,9 +102,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork start");
     // initialize cpuHelpReleasetime
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
-    Schedule::init(sContext);
-    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
-    _autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(_sContext);
+    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);
+    _autoSContext = std::dynamic_pointer_cast<AutoScheduleContext>(sContext);
     if (_autoSContext->_core == nullptr) {
         IE_THROW() << "Please, work with Auto device via InferencEngine::Core object";
     }
@@ -498,49 +497,7 @@ AutoSchedule::~AutoSchedule() {
     }
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority,
         _loadContext[ACTUALDEVICE].deviceInfo.uniqueName);
-    INFO_RUN([this] {
-        for (auto&& _workerRequest : _workerRequests) {
-            std::list<Time> reqAllStartTimes;
-            std::list<Time> reqAllEndTimes;
-            for (auto& request : _workerRequest.second) {
-                reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
-                reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
-            }
-            unsigned int count = reqAllStartTimes.size();
-            IE_ASSERT(count == reqAllEndTimes.size());
-            reqAllStartTimes.sort(std::less<Time>());
-            reqAllEndTimes.sort(std::less<Time>());
-            if (_workerRequest.first == "CPU_HELP") {
-                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
-                if (_cpuHelpFps > 0.0) {
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
-                } else if (count >= 1) {
-                    std::chrono::duration<double, std::milli> durtation =
-                        reqAllEndTimes.back() - reqAllStartTimes.front();
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
-                }
-            } else {
-                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
-                auto n = reqAllStartTimes.size();
-                Time time;
-                while (!reqAllStartTimes.empty()) {
-                    time = reqAllStartTimes.front();
-                    if (time < _cpuHelpReleaseTime) {
-                        reqAllStartTimes.pop_front();
-                        n--;
-                    } else {
-                        break;
-                    }
-                }
-                if (n >= 1) {
-                    std::chrono::duration<double, std::milli> durtation =
-                        reqAllEndTimes.back() - time;
-                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
-                        n * 1000 / durtation.count());
-                }
-            }
-        }
-    });
+
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 

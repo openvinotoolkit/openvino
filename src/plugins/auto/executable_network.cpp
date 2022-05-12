@@ -16,7 +16,6 @@ ExecutableNetwork::ExecutableNetwork(const Schedule::Ptr& schedule,
 }
 
 ExecutableNetwork::~ExecutableNetwork() {
-    _schedule->release();
 }
 
 IInferPtr ExecutableNetwork::CreateInferRequestImpl(

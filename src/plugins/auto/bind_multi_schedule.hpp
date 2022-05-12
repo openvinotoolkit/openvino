@@ -27,22 +27,10 @@ public:
     Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     virtual ~BinderMultiSchedule();
 
-public:
-    static thread_local WorkerInferRequest*                         _thisWorkerInferRequest;
-    static thread_local SoInfer                                     _sharedRequest;
-
 protected:
-    void GenerateWorkers(const std::string& device, const IE::SoExecutableNetworkInternal& executableNetwork) override;
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
-    bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
 
 protected:
-    IE::ThreadSafeQueue<IE::Task>                             _inferPipelineTasks;
-    DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>> _inferPipelineTasksDeviceSpecific;
-    DeviceMap<NotBusyWorkerRequests>                          _idleWorkerRequests;
-    DeviceMap<std::vector<WorkerInferRequest>>                _workerRequests;
-    mutable std::mutex                                        _mutex;
-    std::atomic_size_t                                        _numRequestsCreated = {0};
-    MultiScheduleContext::Ptr                                 _bindMultiSContext;
+    static thread_local SoInfer                               _sharedRequest;
 };
 }  // namespace MultiDevicePlugin

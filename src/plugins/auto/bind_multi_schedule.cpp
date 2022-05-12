@@ -10,20 +10,10 @@
 // ------------------------------MultiSchedule----------------------------
 namespace MultiDevicePlugin {
 
-thread_local WorkerInferRequest* BinderMultiSchedule::_thisWorkerInferRequest = nullptr;
 thread_local SoInfer BinderMultiSchedule::_sharedRequest = {};
 
 void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
-    Schedule::init(sContext);
-    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
-    _bindMultiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
-    for (auto&& networkValue : _multiSContext->_networksPerDevice) {
-        auto& device  = networkValue.first;
-        auto& network = networkValue.second;
-        GenerateWorkers(device, network);
-    }
-    if (_multiSContext->_networksPerDevice.size() == 1)
-        _passthroughExeNet = _multiSContext->_networksPerDevice.begin()->second;
+     MultiSchedule::init(sContext);
 }
 
 Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
@@ -91,83 +81,6 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
             }}
     };
     return pipeline;
-}
-
-void BinderMultiSchedule::GenerateWorkers(const std::string& device,
-    const SoExecNetwork& executableNetwork) {
-    auto itNumRequests = std::find_if(_multiSContext->_devicePriorities.cbegin(), _multiSContext->_devicePriorities.cend(),
-                            [&device](const DeviceInformation & d) {
-                                return d.deviceName == device;
-                            });
-    unsigned int optimalNum = 0;
-    try {
-        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-    } catch (const IE::Exception& iie) {
-        IE_THROW()
-                << "Every device used with the Multi-Device should "
-                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                    << "Failed to query the metric for the " << device << " with error:" <<
-                    iie.what();
-    }
-    const auto numRequests = (_multiSContext->_devicePriorities.end() == itNumRequests ||
-                              itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
-    auto& workerRequests = _workerRequests[device];
-    auto& idleWorkerRequests = _idleWorkerRequests[device];
-    workerRequests.resize(numRequests);
-    _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>(new IE::ThreadSafeQueue<IE::Task>);
-    auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
-    idleWorkerRequests.set_capacity(numRequests);
-    int num = 0;
-    for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
-        auto* workerRequestPtr = &workerRequest;
-        workerRequestPtr->_index = num++;
-        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
-        workerRequest._inferRequest->SetCallback(
-            [workerRequestPtr, this, device, idleWorkerRequestsPtr](std::exception_ptr exceptionPtr) mutable {
-                IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                workerRequestPtr->_exceptionPtr = exceptionPtr;
-                {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
-                }
-                // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(workerRequestPtr)) {
-                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
-                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                    IE::Task t;
-                    if (_inferPipelineTasks.try_pop(t)) {
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    } else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t)) {
-                        ScheduleToWorkerInferRequest(std::move(t), device);
-                    }
-                }
-            });
-    }
-}
-
-bool BinderMultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
-    std::vector<DeviceInformation> devices;
-    devices = [&] {
-        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
-        return _multiSContext->_devicePriorities;
-    }();
-    for (auto&& device : devices) {
-        if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
-            continue;
-        }
-        if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
-            return true;
-        }
-    }
-    // no vacant requests this time, storing the task to the respective queue
-    if (!preferred_device.empty()) {
-        _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(
-                inferPipelineTask));
-    } else {
-        _inferPipelineTasks.push(std::move(inferPipelineTask));
-    }
-    return false;
 }
 
 bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,

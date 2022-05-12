@@ -15,9 +15,8 @@ thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullpt
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
-    Schedule::init(sContext);
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
-    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
+    _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
         auto& network = networkValue.second;
@@ -86,7 +85,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                 }
                 INFO_RUN([workerInferRequest]() {
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
-              });
+                });
             }}
     };
     return pipeline;
