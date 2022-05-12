@@ -2039,3 +2039,4 @@ def test_softsign():
     assert node.get_type_name() == "SoftSign"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.f32

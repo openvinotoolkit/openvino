@@ -52,7 +52,7 @@ def eye(
 def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply SoftSign operation on the input node element-wise.
 
-    :param note: One of: input node, array or scalar.
+    :param node: One of: input node, array or scalar.
     :param name: The optional name for the output node.
     :return: New node with SoftSign operation applied on each element of it.
     """
