@@ -19,10 +19,6 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
     pixel_offset = attr["pixel_offset"]
 
     import paddle
-    import importlib
-    import os
-    spec = importlib.util.find_spec("ppdet")
-    sys.path.insert(0, os.path.join(os.path.dirname(spec.origin),'modeling'))
     from ops import generate_proposals as generate_proposals
 
     paddle.enable_static()
