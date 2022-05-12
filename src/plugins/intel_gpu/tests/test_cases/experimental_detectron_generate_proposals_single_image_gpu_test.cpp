@@ -57,47 +57,69 @@ const std::vector<float> scores{
         0.22870538, 0.9237487, 0.20986171, 0.5067282, 0.29709867, 0.53138554, 0.189101, 0.4786443, 0.88421875};
 };  // namespace
 
+template <typename T>
 struct ExperimentalDetectronGenerateProposalsSingleImageParams {
     float min_size;
     float nms_threshold;
     int64_t pre_nms_count;
     int64_t post_nms_count;
-    std::vector<float> expected_rois;
-    std::vector<float> expected_roi_scores;
+    std::vector<T> expected_rois;
+    std::vector<T> expected_roi_scores;
 };
 
+template <typename T>
+std::vector<T> getValues(const std::vector<float>& values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template <typename T> float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<half_t>() {
+    return 0.2;
+}
+
+
+template <typename T>
 struct experimental_detectron_generate_proposals_single_image_test
-        : public ::testing::TestWithParam<ExperimentalDetectronGenerateProposalsSingleImageParams> {
+        : public ::testing::TestWithParam<ExperimentalDetectronGenerateProposalsSingleImageParams<T> > {
 public:
     void test() {
-        const ExperimentalDetectronGenerateProposalsSingleImageParams param
-                = testing::TestWithParam<ExperimentalDetectronGenerateProposalsSingleImageParams>::GetParam();
+        const ExperimentalDetectronGenerateProposalsSingleImageParams<T> param
+                = testing::TestWithParam<ExperimentalDetectronGenerateProposalsSingleImageParams<T> >::GetParam();
+        auto data_type = type_to_data_type<T>::value;
 
         auto &engine = get_test_engine();
 
         const primitive_id input_im_info_id = "InputImInfo";
-        const auto input_im_info = engine.allocate_memory({data_types::f32, format::bfyx, tensor{batch(3)}});
-        set_values(input_im_info, im_info);
+        const auto input_im_info = engine.allocate_memory({data_type, format::bfyx, tensor{batch(3)}});
+        set_values(input_im_info, getValues<T>(im_info));
 
         const primitive_id input_anchors_id = "InputAnchors";
         auto input_anchors = engine.allocate_memory(
-                {data_types::f32, format::bfyx, tensor{batch(height * width * number_of_channels), feature(4)}});
-        set_values(input_anchors, anchors);
+                {data_type, format::bfyx, tensor{batch(height * width * number_of_channels), feature(4)}});
+        set_values(input_anchors, getValues<T>(anchors));
 
         const primitive_id input_deltas_id = "InputDeltas";
         auto input_deltas = engine.allocate_memory(
-                {data_types::f32, format::bfyx,
+                {data_type, format::bfyx,
                  tensor{batch(number_of_channels * 4), feature(height), spatial(1, width)}});
-        set_values(input_deltas, deltas);
+        set_values(input_deltas, getValues<T>(deltas));
 
         const primitive_id input_scores_id = "InputScores";
         auto input_scores = engine.allocate_memory(
-                {data_types::f32, format::bfyx, tensor{batch(number_of_channels), feature(height), spatial(1, width)}});
-        set_values(input_scores, scores);
+                {data_type, format::bfyx, tensor{batch(number_of_channels), feature(height), spatial(1, width)}});
+        set_values(input_scores, getValues<T>(scores));
 
         const primitive_id output_roi_scores_id = "OutputRoiScores";
         auto output_roi_scores =
-                engine.allocate_memory({data_types::f32, format::bfyx, tensor{batch(param.post_nms_count)}});
+                engine.allocate_memory({data_type, format::bfyx, tensor{batch(param.post_nms_count)}});
 
         topology topology;
 
@@ -131,10 +153,10 @@ public:
 
         const auto rois = outputs.at(edgpsi_id).get_memory();
 
-        const cldnn::mem_lock<float> rois_ptr(rois, get_test_stream());
+        const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
         ASSERT_EQ(rois_ptr.size(), param.post_nms_count * 4);
 
-        const cldnn::mem_lock<float> roi_scores_ptr(output_roi_scores, get_test_stream());
+        const cldnn::mem_lock<T> roi_scores_ptr(output_roi_scores, get_test_stream());
         ASSERT_EQ(roi_scores_ptr.size(), param.post_nms_count);
 
         const auto &expected_roi_scores = param.expected_roi_scores;
@@ -144,68 +166,87 @@ public:
 
             // order of proposals with zero scores is not guaranteed (to be precise,
             // it is not guaranteed for any equal score values)
-            if (expected_roi_scores[i] != 0.0f) {
+            if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], 0.001) << "i=" << i << ", coord=" << coord;
+                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
                 }
             }
         }
     }
 };
 
-TEST_P(experimental_detectron_generate_proposals_single_image_test, basic) {
+using experimental_detectron_generate_proposals_single_image_test_f32 = experimental_detectron_generate_proposals_single_image_test<float>;
+using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
+
+
+TEST_P(experimental_detectron_generate_proposals_single_image_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(experimental_detectron_generate_proposals_single_image_test_f16, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+template <typename T>
+std::vector<ExperimentalDetectronGenerateProposalsSingleImageParams<T>> getExperimentalDetectronGenerateProposalsSingleImageParams() {
+    std::vector<ExperimentalDetectronGenerateProposalsSingleImageParams<T>> params = {
+            {
+                    0.0f, 0.7f, 1000, 6,
+                    getValues<T>({149.0, 149.0, 149.0, 149.0,
+                     149.0, 0.0, 149.0, 149.0,
+                     149.0, 60.8744, 149.0, 149.0,
+                     149.0, 61.8950, 149.0, 149.0,
+                     149.0, 149.0, 149.0, 149.0,
+                     149.0, 149.0, 149.0, 149.0}),
+                    getValues<T>({0.989487, 0.942969, 0.940246, 0.923749, 0.905361, 0.884219})
+            },
+            {
+                    1.5f, 0.4f, 1000, 10,
+                    getValues<T>({43.171, 0.31823, 53.5592, 149,
+                     0, 75.2272, 149, 87.2278,
+                     141.058, 114.876, 149, 149,
+                     0, 146.297, 149, 149,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0}),
+                    getValues<T>({0.695249, 0.411288, 0.0941284, 0.0794298, 0.0,
+                     0.0, 0.0, 0.0, 0.0, 0.0})
+            },
+            {
+                    5.0f, 0.71f, 10, 15,
+                    getValues<T>({43.171, 0.31823, 53.5592, 149,
+                     0, 75.2272, 149, 87.2278,
+                     141.058, 114.876, 149, 149,
+                     149, 149, 149, 149,
+                     30.2866, 149, 149, 149,
+                     149, 149, 149, 149,
+                     149, 126.679, 149, 149,
+                     149, 6.53844, 149, 149,
+                     149, 0, 149, 149,
+                     149, 149, 149, 149,
+                     0, 0, 0, 0,
+                     0, 0, 0, 0,
+                     0, 0, 0, 0,
+                     0, 0, 0, 0,
+                     0, 0, 0, 0}),
+                    getValues<T>({0.695249, 0.411288, 0.0941284, 0.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0})
+            }
+    };
+    return params;
 }
 
 INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_gpu_test,
-        experimental_detectron_generate_proposals_single_image_test,
-        ::testing::Values(
-                ExperimentalDetectronGenerateProposalsSingleImageParams{
-                        0.0f, 0.7f, 1000, 6,
-                        {149.0, 149.0, 149.0, 149.0,
-                         149.0, 0.0, 149.0, 149.0,
-                         149.0, 60.8744, 149.0, 149.0,
-                         149.0, 61.8950, 149.0, 149.0,
-                         149.0, 149.0, 149.0, 149.0,
-                         149.0, 149.0, 149.0, 149.0},
-                        {0.989487, 0.942969, 0.940246, 0.923749, 0.905361, 0.884219}
-                },
-                ExperimentalDetectronGenerateProposalsSingleImageParams{
-                        1.5f, 0.4f, 1000, 10,
-                        {43.171, 0.31823, 53.5592, 149,
-                         0, 75.2272, 149, 87.2278,
-                         141.058, 114.876, 149, 149,
-                         0, 146.297, 149, 149,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0},
-                        {0.695249, 0.411288, 0.0941284, 0.0794298, 0.0,
-                         0.0, 0.0, 0.0, 0.0, 0.0}
-                },
-                ExperimentalDetectronGenerateProposalsSingleImageParams{
-                        5.0f, 0.71f, 10, 15,
-                        {43.171, 0.31823, 53.5592, 149,
-                         0, 75.2272, 149, 87.2278,
-                         141.058, 114.876, 149, 149,
-                         149, 149, 149, 149,
-                         30.2866, 149, 149, 149,
-                         149, 149, 149, 149,
-                         149, 126.679, 149, 149,
-                         149, 6.53844, 149, 149,
-                         149, 0, 149, 149,
-                         149, 149, 149, 149,
-                         0, 0, 0, 0,
-                         0, 0, 0, 0,
-                         0, 0, 0, 0,
-                         0, 0, 0, 0,
-                         0, 0, 0, 0},
-                        {0.695249, 0.411288, 0.0941284, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-                }
-        ));
+        experimental_detectron_generate_proposals_single_image_test_f32,
+        ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<float>()));
+
+INSTANTIATE_TEST_SUITE_P(
+        experimental_detectron_generate_proposals_single_image_gpu_test,
+        experimental_detectron_generate_proposals_single_image_test_f16,
+        ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()));
