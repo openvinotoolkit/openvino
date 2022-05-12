@@ -38,10 +38,18 @@ DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATA
 if (paddlepaddle_FOUND AND ${PADDLEDET_RESULT} STREQUAL "ON")
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
 
+    if (WIN32)
+        set(SETENV "set")
+        set(PATHSEP ";")
+    else()
+        set(SETENV "export")
+        set(PATHSEP ":")
+    endif()
+
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
-            COMMAND PYTHONPATH=$ENV{PYTHONPATH}:${PADDLEDET_DIRNAME} ${PYTHON_EXECUTABLE}
+            COMMAND ${SETENV} PYTHONPATH=${PADDLEDET_DIRNAME}${PATHSEP}$ENV{PYTHONPATH} && ${PYTHON_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
             ${TEST_PADDLE_MODELS}
