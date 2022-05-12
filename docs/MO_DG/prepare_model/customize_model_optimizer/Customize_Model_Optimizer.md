@@ -123,8 +123,8 @@ The result of operations attributes extracting step can be depicted like in the 
 The only difference in the graph from the previous step is that nodes contain dictionary with extracted attributes and
 operation-specific attributes needed for Model Optimizer. However, starting from this step, Model Optimizer does not
 need the original representation of the operation/model and uses just Model Optimizer representation (there are some
-very special cases when Model Optimizer still uses the *`pb`* attribute and they are partially covered in this
-article). Detailed list of common node attributes and their values is provided below in the
+peculiar cases in which Model Optimizer still uses the *`pb`* attribute, covered in this
+article partially). A detailed list of common node attributes and their values is provided below in the
 [Model Optimizer Operation](#extension-operation) section.
 
 ### Front Phase <a name="front-phase"></a>
