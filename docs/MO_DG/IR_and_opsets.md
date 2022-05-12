@@ -165,7 +165,7 @@ It consists of several groups of operations:
 
  * Comparison operations that compare two numeric tensors and produce boolean tensors, for example, *`Less`*, *`Equeal`*, *`Greater`*.
 
- * Logical operations that are dealing with boolean tensors, like *`And`*, *`Xor`*, *`Not`*.
+ * Logical operations that are dealing with boolean tensors, for example, *`And`*, *`Xor`*, *`Not`*.
 
  * Data movement operations which are dealing with parts of tensors, like *`Concat`*, *`Split`*, *`StridedSlice`*, *`Select`*.
 
