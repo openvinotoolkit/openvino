@@ -76,8 +76,6 @@ public:
     std::vector<onnx_editor::OutputEdge> convert_place_to_output_edge(
         const std::vector<ov::frontend::Place::Ptr>& outputs);
 
-    void serialize(const std::string& path) const override;
-
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;

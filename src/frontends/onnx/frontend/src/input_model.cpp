@@ -492,7 +492,3 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
         model->reshape(actual_inputs_to_reshape);
     }
 }
-
-void InputModel::serialize(const std::string& path) const {
-    m_editor->serialize(path);
-}

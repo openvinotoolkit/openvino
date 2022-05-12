@@ -207,8 +207,6 @@ public:
     /// \param min_value Lower bound of partial value for tensor place
     /// \param max_value Upper bound of partial value for tensor place
     virtual void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
-
-    virtual void serialize(const std::string& path) const;
 };
 
 }  // namespace frontend
