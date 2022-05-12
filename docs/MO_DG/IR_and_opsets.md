@@ -161,7 +161,7 @@ It consists of several groups of operations:
 
  * Various activation functions such as *`ReLU`*, *`Tanh`*, and *`PReLU`*.
 
- * Generic element-wise arithmetic tensor operations, like *`Add`*, *`Subtract`*, *`Multiply`*.
+ * Generic element-wise arithmetic tensor operations such as *`Add`*, *`Subtract`*, and *`Multiply`*.
 
  * Comparison operations that compare two numeric tensors and produce boolean tensors, like *`Less`*, *`Equeal`*, *`Greater`*.
 
