@@ -21,7 +21,7 @@
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "multi_schedule.hpp"
+#include "bind_multi_schedule.hpp"
 #include "multi_executable_network.hpp"
 #include "auto_schedule.hpp"
 #include "auto_executable_network.hpp"

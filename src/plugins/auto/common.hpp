@@ -39,6 +39,7 @@ using IExecNetwork = IE::IExecutableNetworkInternal;
 using SoInfer = IE::SoIInferRequestInternal;
 using SoExecNetwork = IE::SoExecutableNetworkInternal;
 using Time = std::chrono::time_point<std::chrono::steady_clock>;
+
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 struct DeviceInformation {
@@ -62,33 +63,47 @@ struct WorkerInferRequest {
 
 using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
 using NotBusyWorkerRequests = IE::ThreadSafeBoundedQueue<WorkerInferRequest*>;
-template<typename T>
-struct IdleGuard {
-    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr, T& notBusyWorkerRequests) :
+template <typename T>
+struct IdleGuard {};
+template<>
+struct IdleGuard<NotBusyWorkerRequests> {
+    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr, NotBusyWorkerRequests& notBusyWorkerRequests) :
         _workerInferRequestPtr{workerInferRequestPtr},
         _notBusyWorkerRequests{&notBusyWorkerRequests} {
     }
     ~IdleGuard() {
         if (nullptr != _notBusyWorkerRequests) {
-            if (std::is_same<T, NotBusyWorkerRequests>::value) {
-                auto temp = std::static_pointer_cast<NotBusyWorkerRequests>(_notBusyWorkerRequests);
-                temp->try_push(_workerInferRequestPtr);
-            }
-            if (std::is_same<T, NotBusyPriorityWorkerRequests>::value) {
-                auto temp = std::static_pointer_cast<NotBusyPriorityWorkerRequests>(_notBusyWorkerRequests);
-                temp->try_push(std::make_pair(_workerInferRequestPtr->_index, _workerInferRequestPtr));
-            }
+            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
         }
     }
-    T* Release() {
+    NotBusyWorkerRequests* Release() {
         auto notBusyWorkerRequests = _notBusyWorkerRequests;
         _notBusyWorkerRequests = nullptr;
         return notBusyWorkerRequests;
     }
     WorkerInferRequest* _workerInferRequestPtr = nullptr;
-    T*  _notBusyWorkerRequests = nullptr;
+    NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
 };
 
+template<>
+struct IdleGuard<NotBusyPriorityWorkerRequests> {
+    explicit IdleGuard(WorkerInferRequest* workerInferRequestPtr, NotBusyPriorityWorkerRequests& notBusyWorkerRequests) :
+        _workerInferRequestPtr{workerInferRequestPtr},
+        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+    }
+    ~IdleGuard() {
+        if (nullptr != _notBusyWorkerRequests) {
+            _notBusyWorkerRequests->try_push(std::make_pair(_workerInferRequestPtr->_index, _workerInferRequestPtr));
+        }
+    }
+    NotBusyPriorityWorkerRequests* Release() {
+        auto notBusyWorkerRequests = _notBusyWorkerRequests;
+        _notBusyWorkerRequests = nullptr;
+        return notBusyWorkerRequests;
+    }
+    WorkerInferRequest* _workerInferRequestPtr = nullptr;
+    NotBusyPriorityWorkerRequests*  _notBusyWorkerRequests = nullptr;
+};
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext> {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;

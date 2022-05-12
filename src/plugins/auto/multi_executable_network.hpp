@@ -6,6 +6,7 @@
 #pragma once
 #include "executable_network.hpp"
 #include "multi_schedule.hpp"
+#include "bind_multi_schedule.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -17,6 +18,7 @@
 namespace MultiDevicePlugin {
 class MultiExecutableNetwork : public ExecutableNetwork {
     friend IInferPtr MultiSchedule::CreateInferRequest();
+    friend IInferPtr BinderMultiSchedule::CreateInferRequest();
 public:
     using Ptr = std::shared_ptr<MultiExecutableNetwork>;
 

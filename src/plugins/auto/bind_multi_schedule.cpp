@@ -5,18 +5,18 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
-#include "multi_schedule.hpp"
+#include "bind_multi_schedule.hpp"
 #include "multi_executable_network.hpp"
 // ------------------------------MultiSchedule----------------------------
 namespace MultiDevicePlugin {
 
-thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullptr;
-// TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
-thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
+thread_local WorkerInferRequest* BinderMultiSchedule::_thisWorkerInferRequest = nullptr;
+thread_local SoInfer BinderMultiSchedule::_sharedRequest = {};
 
-void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
+void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     Schedule::init(sContext);
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
+    _bindMultiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(_sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
         auto& network = networkValue.second;
@@ -26,11 +26,11 @@ void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
         _passthroughExeNet = _multiSContext->_networksPerDevice.begin()->second;
 }
 
-Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
+Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
     Pipeline pipeline = {
         // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
         Stage {
-            /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
+            /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
                 // by default, no preferred device:
                 _thisPreferredDeviceName = "";
                 auto execNetwork = _multiSContext->_executableNetwork.lock();
@@ -59,6 +59,8 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                         }
                     }
                 }
+                _thisWorkerInferRequest = *workerInferRequest;
+                _sharedRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest();
             }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
         // then sets the device-agnostic blobs to the actual (device-specific) request
@@ -88,7 +90,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
     return pipeline;
 }
 
-void MultiSchedule::GenerateWorkers(const std::string& device,
+void BinderMultiSchedule::GenerateWorkers(const std::string& device,
     const SoExecNetwork& executableNetwork) {
     auto itNumRequests = std::find_if(_multiSContext->_devicePriorities.cbegin(), _multiSContext->_devicePriorities.cend(),
                             [&device](const DeviceInformation & d) {
@@ -141,7 +143,7 @@ void MultiSchedule::GenerateWorkers(const std::string& device,
     }
 }
 
-bool MultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
+bool BinderMultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     devices = [&] {
         std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
@@ -165,65 +167,87 @@ bool MultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Dev
     return false;
 }
 
-bool MultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
+bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     NotBusyWorkerRequests& idleWorkerRequests,
     const DeviceName& preferred_device) {
     WorkerInferRequest* workerRequestPtr = nullptr;
-    if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
-        _thisWorkerInferRequest = workerRequestPtr;
-        {
-            auto capturedTask = std::move(inferPipelineTask);
-            capturedTask();
+    WorkerInferRequest* headWorker;
+    bool flag = false;
+    while (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        if (flag && workerRequestPtr == headWorker)
+            break;
+        if (!flag) {
+            headWorker = workerRequestPtr;
+            flag = true;
         }
-        idleGuard.Release();
-        return true;
+        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+        if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
+            _thisWorkerInferRequest = workerRequestPtr;
+            {
+                auto capturedTask = std::move(inferPipelineTask);
+                capturedTask();
+            }
+            idleGuard.Release();
+            return true;
+        }
     }
     return false;
 }
 
-void MultiSchedule::run(IE::Task inferPipelineTask) {
-    ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName);
+void BinderMultiSchedule::run(IE::Task inferPipelineTask) {
+    if (_thisWorkerInferRequest) {
+        auto capturedTask = std::move(inferPipelineTask);
+        capturedTask();
+    } else {
+        ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName);
+    }
 }
 
-MultiSchedule::~MultiSchedule() {
-    {
-        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
-        _multiSContext->_devicePriorities.clear();
-    }
-    /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
-     *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
-     */
-    for (auto&& idleWorker : _idleWorkerRequests) {
-        // stop accepting any idle requests back (for re-scheduling)
-        idleWorker.second.set_capacity(0);
-    }
-    for (auto&& _workerRequest : _workerRequests) {
-        unsigned int count = 0;
-        for (auto& request : _workerRequest.second) {
-            count += request._inferCount;
-        }
-        LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
-    }
-    _workerRequests.clear();
+BinderMultiSchedule::~BinderMultiSchedule() {
 }
 
-IInferPtr MultiSchedule::CreateInferRequestImpl(
+IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    auto num = _numRequestsCreated++;
+    size_t sum = 0;
     SoInfer request_to_share_blobs_with;
     IE::RemoteContext::Ptr ctx = nullptr;
-    return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
+    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
+    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
+    for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
+        auto& dev_requests = _workerRequests[device.deviceName];
+        if ((num - sum) < dev_requests.size()) {
+            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
+            break;
+        }
+        sum += dev_requests.size();
+    }
+    auto syncImpl = std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
+    return syncImpl;
 }
 
-IInferPtr MultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
+IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
     IE::OutputsDataMap networkOutputs) {
+    auto num = _numRequestsCreated++;
     SoInfer request_to_share_blobs_with;
+    size_t sum = 0;
     IE::RemoteContext::Ptr ctx = nullptr;
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
+    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
+    for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
+        auto& dev_requests = _workerRequests[device.deviceName];
+        if ((num - sum) < dev_requests.size()) {
+            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
+            break;
+        }
+        sum += dev_requests.size();
+    }
+    auto syncImpl = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+    return syncImpl;
 }
 
-IInferPtr MultiSchedule::CreateInferRequest() {
+IInferPtr BinderMultiSchedule::CreateInferRequest() {
     auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(
             _multiSContext->_executableNetwork.lock());
     if (_passthroughExeNet) {
