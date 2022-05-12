@@ -36,7 +36,7 @@ This representation is commonly referred to as the *Intermediate Representation*
 
 The XML file describes a network topology using a *`<layer>`* tag for an operation node and an *`<edge>`* tag for a data-flow connection.
 Each operation has a fixed number of attributes that define operation flavor used for a node.
-For example, *`Convolution`* operation has such attributes as *`dilation`*, *`stride`*, *`pads_begin`* and *`pads_end`*.
+For example, the *`Convolution`* operation has such attributes as *`dilation`*, *`stride`*, *`pads_begin`*, and *`pads_end`*.
 
 The XML file does not have big constant values like convolution weights.
 Instead, it refers to a part of the accompanying binary file that stores such values in a binary format.
