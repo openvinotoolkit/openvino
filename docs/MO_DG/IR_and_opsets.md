@@ -157,7 +157,7 @@ In contrast, properties of data such as tensor dimensions and their data types a
 Operations in the OpenVINO Operation Set are selected based on capabilities of supported deep learning frameworks and hardware capabilities of the target inference device.
 It consists of several groups of operations:
 
- * Conventional deep learning layers, like *`Convolution`*, *`MaxPool`*, *`MatMul`* (also known as *`FullyConnected`*).
+ * Conventional deep learning layers such as *`Convolution`*, *`MaxPool`*, and *`MatMul`* (also known as *`FullyConnected`*).
 
  * Various activation functions, like *`ReLU`*, *`Tanh`*, *`PReLU`*.
 
