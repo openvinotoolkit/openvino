@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset9 as ov
 from openvino.runtime import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -240,5 +240,42 @@ def test_gelu_tanh_operator_with_array():
 
     result = computation()
     expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    [
+        Type.f64,
+        Type.f32,
+        Type.f16,
+    ],
+)
+def test_softsign_with_parameters(data_type):
+    data = np.random.rand(4, 2).astype(data_type.to_dtype())
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    param = ov.parameter(data.shape, data_type, name="Data")
+    result = runtime.computation(ov.softsign(param, "SoftSign"), param)(data)
+
+    assert np.allclose(result, expected, 1e-6, 1e-3)
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    [
+        np.float64,
+        np.float32,
+        np.float16,
+    ],
+)
+def test_softsign_with_array(data_type):
+    data = np.random.rand(32, 5).astype(np.float32)
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    result = runtime.computation(ov.softsign(data, "SoftSign"))()
 
     assert np.allclose(result, expected, 1e-6, 1e-6)
