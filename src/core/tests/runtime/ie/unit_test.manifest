@@ -430,8 +430,6 @@ onnx_model_max_pool_4d_ceil_strides
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
-# Unsupported primitive of type: ROIAlign
-IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
