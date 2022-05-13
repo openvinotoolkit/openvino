@@ -146,10 +146,7 @@ OutputVector resize(const onnx_import::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
-    const auto use_sizes_input =
-        inputs.size() == 4 && std::dynamic_pointer_cast<NullNode>(inputs[3].get_node_shared_ptr()) == nullptr;
-
-    if (use_sizes_input) {
+    if (inputs.size() == 4 && !ngraph::op::is_null(inputs[3])) {
         attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
         const auto scales = calculate_scales_based_on_sizes(data, sizes);
