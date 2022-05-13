@@ -165,6 +165,7 @@ from ngraph.opset9 import sinh
 from ngraph.opset9 import slice
 from ngraph.opset9 import softmax
 from ngraph.opset9 import softplus
+from ngraph.opset9 import softsign
 from ngraph.opset9 import space_to_batch
 from ngraph.opset9 import space_to_depth
 from ngraph.opset9 import split

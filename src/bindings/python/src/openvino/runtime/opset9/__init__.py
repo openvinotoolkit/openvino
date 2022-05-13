@@ -149,6 +149,7 @@ from openvino.runtime.opset1.ops import sinh
 from openvino.runtime.opset8.ops import slice
 from openvino.runtime.opset8.ops import softmax
 from openvino.runtime.opset4.ops import softplus
+from openvino.runtime.opset9.ops import softsign
 from openvino.runtime.opset2.ops import space_to_batch
 from openvino.runtime.opset1.ops import space_to_depth
 from openvino.runtime.opset1.ops import split
