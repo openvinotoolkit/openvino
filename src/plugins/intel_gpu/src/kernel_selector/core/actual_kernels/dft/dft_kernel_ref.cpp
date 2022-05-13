@@ -97,7 +97,6 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         }
         jit_constants.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
     }
-    jit_constants.AddConstant(MakeJitConstant("ORIGINAL_OUTPUT_DIMS", params.original_rank));
     return jit_constants;
 }
 

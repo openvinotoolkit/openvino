@@ -29,7 +29,6 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         if (primitive->kind == dft_kind::inverse) {
             params.kind = kernel_selector::dft_params::inverse;
         }
-        params.original_rank = primitive->output_shape.size();
         auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::dft_instance();

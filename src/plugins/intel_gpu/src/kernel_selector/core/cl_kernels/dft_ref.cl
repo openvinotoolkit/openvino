@@ -40,16 +40,12 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
 #ifdef A1
     const float a1 = pi2 * y1 / OUTPUT_SIZES[1];
 #else
-#    if ORIGINAL_OUTPUT_DIMS > 3
     inputOffset += INPUT0_PITCHES[1] * y1;
-#    endif
 #endif
 #ifdef A2
     const float a2 = pi2 * y2 / OUTPUT_SIZES[2];
 #else
-#    if ORIGINAL_OUTPUT_DIMS > 2
     inputOffset += INPUT0_PITCHES[2] * y2;
-#    endif
 #endif
 #ifdef A3
     const float a3 = pi2 * y3 / OUTPUT_SIZES[3];
@@ -118,14 +114,9 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
                         const cfloat e = expmi(a);
 #endif
                         y = cadd(y, cmult(x, e));
-
-#if ORIGINAL_OUTPUT_DIMS > 3
                         inputOffset += INPUT0_PITCHES[1];
-#endif
                     }
-#if ORIGINAL_OUTPUT_DIMS > 2
                     inputOffset = saveOffset + INPUT0_PITCHES[2];
-#endif
                 }
                 inputOffset = saveOffset + INPUT0_PITCHES[3];
             }
@@ -139,13 +130,8 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
 #endif
 
     uint outputOffset = OUTPUT_OFFSET;
-
-#if ORIGINAL_OUTPUT_DIMS > 3
     outputOffset += OUTPUT_PITCHES[1] * y1;
-#endif
-#if ORIGINAL_OUTPUT_DIMS > 2
     outputOffset += OUTPUT_PITCHES[2] * y2;
-#endif
     outputOffset += OUTPUT_PITCHES[3] * y3;
 #if OUTPUT_DIMS > 4
     outputOffset += OUTPUT_PITCHES[4] * y4;
