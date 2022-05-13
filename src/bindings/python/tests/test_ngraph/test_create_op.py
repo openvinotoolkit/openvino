@@ -7,7 +7,7 @@ import pytest
 from openvino.runtime import PartialShape, Dimension, Model
 from openvino.runtime.exceptions import UserInputError
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset9 as ov
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 from openvino.runtime import Type
@@ -1964,3 +1964,15 @@ def test_nv12_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_softsign():
+    input_shape = [2, 4, 8, 16]
+
+    param = ov.parameter(input_shape, name="input")
+    node = ov.softsign(param, input_shape)
+
+    assert node.get_type_name() == "SoftSign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.f32
