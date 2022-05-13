@@ -1016,6 +1016,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::SoftPlus> 
     return std::make_shared<ov::Model>(results, params, "SoftPlusGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::SoftSign> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f16, {{4, 4}});
+    auto Node = std::make_shared<ov::op::v9::SoftSign>(params.at(0));
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "SoftSignGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Softmax> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f16, {{2, 2, 3}});
     auto Node = std::make_shared<ov::op::v1::Softmax>(params.at(0), 0);
