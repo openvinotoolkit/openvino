@@ -46,3 +46,14 @@ def eye(
         inputs = as_nodes(num_rows, num_columns, diagonal_index)
 
     return _get_node_factory_opset9().create("Eye", inputs, {"output_type": output_type})
+
+
+@nameable_op
+def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply SoftSign operation on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: The optional name for the output node.
+    :return: New node with SoftSign operation applied on each element of it.
+    """
+    return _get_node_factory_opset9().create("SoftSign", [as_node(node)], {})

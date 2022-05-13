@@ -70,6 +70,7 @@
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
+#include <ngraph/runtime/reference/roi_align.hpp>
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
@@ -77,6 +78,7 @@
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/softsign.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
@@ -3159,6 +3161,40 @@ bool evaluate(const shared_ptr<op::v5::GRUSequence>& op,
     return true;
 }
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::ROIAlign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<int64_t> batch_indices_vec_scaled_up = host_tensor_2_vector<int64_t>(inputs[2]);
+    op::v3::ROIAlign::PoolingMode m_mode_v3;
+    switch (op->get_mode()) {
+    case op::v9::ROIAlign::PoolingMode::AVG: {
+        m_mode_v3 = op::v3::ROIAlign::PoolingMode::AVG;
+        break;
+    }
+    case op::v9::ROIAlign::PoolingMode::MAX: {
+        m_mode_v3 = op::v3::ROIAlign::PoolingMode::MAX;
+        break;
+    }
+    default: {
+        NGRAPH_CHECK(false, "unsupported PoolingMode ");
+    }
+    }
+    runtime::reference::roi_align<T>(inputs[0]->get_data_ptr<const T>(),
+                                     inputs[1]->get_data_ptr<const T>(),
+                                     batch_indices_vec_scaled_up.data(),
+                                     outputs[0]->get_data_ptr<T>(),
+                                     op->get_input_shape(0),
+                                     op->get_input_shape(1),
+                                     op->get_input_shape(2),
+                                     op->get_output_shape(0),
+                                     op->get_pooled_h(),
+                                     op->get_pooled_w(),
+                                     op->get_sampling_ratio(),
+                                     op->get_spatial_scale(),
+                                     m_mode_v3,
+                                     op->get_aligned_mode());
+    return true;
+}
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::ROIPooling>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -3765,6 +3801,36 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
                                                           op->get_attrs());
         break;
     default:;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        runtime::reference::softsign<double>(inputs[0]->get_data_ptr<double>(),
+                                             outputs[0]->get_data_ptr<double>(),
+                                             shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f32:
+        runtime::reference::softsign<float>(inputs[0]->get_data_ptr<float>(),
+                                            outputs[0]->get_data_ptr<float>(),
+                                            shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f16:
+        runtime::reference::softsign<float16>(inputs[0]->get_data_ptr<float16>(),
+                                              outputs[0]->get_data_ptr<float16>(),
+                                              shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::bf16:
+        runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                               outputs[0]->get_data_ptr<bfloat16>(),
+                                               shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
     }
     return true;
 }
