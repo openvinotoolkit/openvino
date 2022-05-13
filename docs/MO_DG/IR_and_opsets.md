@@ -152,7 +152,7 @@ Here is an example of a small IR XML file that corresponds to a graph from the p
 The IR does not use explicit data nodes described in the previous section.
 In contrast, properties of data such as tensor dimensions and their data types are described as properties of input and output ports of operations.
 
-## Operation Set
+## Operation Sets
 
 Operations in OpenVINO Operation Sets are selected based on capabilities of supported deep learning frameworks and hardware capabilities of the target inference device.
 It consists of several groups of operations:
