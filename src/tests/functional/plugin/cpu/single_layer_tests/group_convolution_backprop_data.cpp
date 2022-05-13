@@ -694,42 +694,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCP
         ::testing::ValuesIn(dw_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
-        // TODO lc: crash
-        // ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx2_dw_2D})),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx2_dw_2D})),
         ::testing::Values(cpuEmptyPluginConfig)),
     GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-// TODO lc: crash
-// INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
-//     ::testing::Combine(
-//         groupConvParams_ExplicitPadding_DW_2D,
-//         ::testing::ValuesIn(dw_2D_inputs_smoke),
-//         ::testing::Values(ElementType::f32),
-//         ::testing::ValuesIn(fusingParamsSet),
-//         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
-//         ::testing::Values(cpuBF16PluginConfig)),
-//     GroupDeconvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        groupConvParams_ExplicitPadding_DW_2D,
+        ::testing::ValuesIn(dw_2D_inputs_smoke),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
+        ::testing::Values(cpuBF16PluginConfig)),
+    GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
-//     ::testing::Combine(
-//         groupConvParams_ExplicitPadding_DW_2D,
-//         ::testing::ValuesIn(dw_2D_inputs_nightly),
-//         ::testing::Values(ElementType::f32),
-//         ::testing::ValuesIn(fusingParamsSet),
-//         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx2_dw_2D})),
-//         ::testing::Values(cpuEmptyPluginConfig)),
-//     GroupDeconvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32, GroupDeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        groupConvParams_ExplicitPadding_DW_2D,
+        ::testing::ValuesIn(dw_2D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx2_dw_2D})),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
-//     ::testing::Combine(
-//         groupConvParams_ExplicitPadding_DW_2D,
-//         ::testing::ValuesIn(dw_2D_inputs_nightly),
-//         ::testing::Values(ElementType::f32),
-//         ::testing::ValuesIn(fusingParamsSet),
-//         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
-//         ::testing::Values(cpuBF16PluginConfig)),
-//     GroupDeconvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_BF16, GroupDeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        groupConvParams_ExplicitPadding_DW_2D,
+        ::testing::ValuesIn(dw_2D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D})),
+        ::testing::Values(cpuBF16PluginConfig)),
+    GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Reorder + GroupDeconvolution ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_reorder_GroupDeconv_2D, GroupDeconvolutionLayerCPUTest,
