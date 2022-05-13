@@ -72,9 +72,14 @@ def roi_align(
     :param sampling_ratio: Number of bins over height and width to use to calculate
                            each output feature map element.
     :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
-    :param mode: Method to perform pooling to produce output feature map elements.
+    :param mode: Method to perform pooling to produce output feature map elements. Avaiable modes are:
+                         - 'max' - maximum pooling
+                         - 'avg' - average pooling
     :param aligned_mode: Specifies how to transform the coordinate in original tensor to the resized tensor.
-                         Mode 'asymmetric' is the default value. Optional.
+                         Mode 'asymmetric' is the default value. Optional. Avaiable aligned modes are:
+                         - 'asymmetric'
+                         - 'half_pixel_for_nn'
+                         - 'half_pixel'
     :param name: The optional name for the output node
 
     :return: The new node which performs ROIAlign
