@@ -227,7 +227,16 @@ const std::vector<std::vector<InputShape>> dynShapes = {
         },
 };
 
-const std::vector<std::vector<InputShape>> dynShapesWithBatches = {
+const std::vector<std::vector<InputShape>> dynShapesWith2DBatches = {
+        {
+            {{-1}, {{1}, {1}, {1}}},  // input 0
+            {{-1}, {{1}, {1}, {1}}},  // input 1
+            {{-1}, {{1}, {1}, {1}}},  // input 2
+            {{2}, {{2}, {2}, {2}}}    // input 3
+        },
+};
+
+const std::vector<std::vector<InputShape>> dynShapesWith3DBatches = {
         {
             {{-1}, {{1}, {1}, {1}}},  // input 0
             {{-1}, {{1}, {1}, {1}}},  // input 1
@@ -247,10 +256,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLikeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_WithBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
-                                         ::testing::ValuesIn(dynShapesWithBatches),
+                                         ::testing::ValuesIn(dynShapesWith2DBatches),
+                                         ::testing::ValuesIn(batchShapes2D),
+                                         ::testing::ValuesIn(eyePars),
+                                         ::testing::ValuesIn(netPrecisions),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
+                         EyeLikeLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_With3DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         ::testing::ValuesIn(dynShapesWith3DBatches),
                                          ::testing::ValuesIn(batchShapes3D),
                                          ::testing::ValuesIn(eyePars),
                                          ::testing::ValuesIn(netPrecisions),
