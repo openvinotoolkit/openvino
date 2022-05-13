@@ -124,3 +124,4 @@ For more information, refer to the [Converting a Kaldi Model](prepare_model/conv
 
 To get conversion recipes for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models,
 refer to the [Model Conversion Tutorials](prepare_model/convert_model/Convert_Model_Tutorials.md).
+- For more information about IR, see [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](IR_and_opsets.md).
