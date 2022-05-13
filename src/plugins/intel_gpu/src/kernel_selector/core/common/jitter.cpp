@@ -1851,6 +1851,28 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
+    if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
+        conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
+        input_tensor.SameDimsSizes(prim_output) && input_tensor.LogicalSize() != 1) {
+        std::string sub_group_local_id_str = "get_sub_group_local_id";
+        size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
+        if (found_sub != std::string::npos) {
+            throw std::runtime_error("[clDNN] LT ALIGNED LoadType is used with get_sub_group_local_id.");
+        }
+
+        auto new_idx_order = conf.bfzyx_idx_order;
+        new_idx_order[1] = "(" + conf.bfzyx_idx_order[1] + " + " + sub_group_local_id_str + "()" + ")";
+
+        std::string new_index_func_call = GetIdx(input_id, idx_desc{new_idx_order, desc.tensors[input_id]}, safe_load);
+        if (vec_size > 1) {
+            throw std::runtime_error("[clDNN] Mixed layouts of input tensors are supported only if vector size is 1 :"
+                                        "[" + toString_v2(input_tensor) + "/" + toString_v2(prim_output));
+        } else {
+            return GetInputPtrName(input_id) + "[" + new_index_func_call + "]";
+        }
+    }
+
     std::string index_func_call_vec = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx, desc.tensors[input_id]}, safe_load);
     std::string index_func_call = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx, desc.tensors[input_id]}, safe_load);
     if (conf.index_type == FusedOpsConfiguration::IndexType::LINEAR_OFFSET) {
