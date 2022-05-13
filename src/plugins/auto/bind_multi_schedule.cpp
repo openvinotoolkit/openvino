@@ -87,7 +87,7 @@ bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     NotBusyWorkerRequests& idleWorkerRequests,
     const DeviceName& preferred_device) {
     WorkerInferRequest* workerRequestPtr = nullptr;
-    WorkerInferRequest* headWorker;
+    WorkerInferRequest* headWorker = nullptr;
     bool flag = false;
     while (idleWorkerRequests.try_pop(workerRequestPtr)) {
         if (flag && workerRequestPtr == headWorker)
