@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define GET_INDEX(prefix, ORDER) CAT(prefix, _GET_INDEX)(ORDER)
+
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
 #define real(a)                     ((a).s0)
@@ -17,130 +19,109 @@ typedef float2 cfloat;
 
 // TODO: pregenerate e{r,i} array on host in macro. maybe it could be done with kernel which runs once?
 KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) {
-    uint g2 = get_global_id(2);
+    const uint dim0 = get_global_id(0);
+    const uint dim1 = get_global_id(1);
+    const uint dim2 = get_global_id(2);
 
-    const uint y1 = g2 % OUTPUT_SIZES[1];
-    g2 /= OUTPUT_SIZES[1];
-    const uint y2 = g2 % OUTPUT_SIZES[2];
-    g2 /= OUTPUT_SIZES[2];
-    const uint y3 = g2 % OUTPUT_SIZES[3];
-#if OUTPUT_DIMS > 4
-    g2 /= OUTPUT_SIZES[3];
-    const uint y4 = g2 % OUTPUT_SIZES[4];
-#    if OUTPUT_DIMS > 5
-    g2 /= OUTPUT_SIZES[4];
-    const uint y5 = g2 /*% OUTPUT_SIZES[5]*/;
-#    endif
+    const uint x = 0;
+    const uint y = dim0;
+#if OUTPUT_DIMS == 4
+#    define ORDER   b, f, y, x
+#    define ORDER_K kb, kf, ky, x
+    const uint f = dim1;
+    const uint b = dim2;
+#elif OUTPUT_DIMS == 5
+#    define ORDER   b, f, z, y, x
+#    define ORDER_K kb, kf, kz, ky, x
+    const uint z = dim1;
+    const uint f = dim2 % OUTPUT_FEATURE_NUM;
+    const uint b = dim2 / OUTPUT_FEATURE_NUM;
+#elif OUTPUT_DIMS == 6
+#    define ORDER   b, f, w, z, y, x
+#    define ORDER_K kb, kf, kw, kz, ky, x
+    const uint z = dim1 % OUTPUT_SIZE_Z;
+    const uint w = dim1 / OUTPUT_SIZE_Z;
+    const uint f = dim2 % OUTPUT_FEATURE_NUM;
+    const uint b = dim2 / OUTPUT_FEATURE_NUM;
 #endif
 
-    cfloat y = czero();  // TODO: use OUTPUT_TYPE for intermediate calculations?
-    const float pi2 = M_PI_F * 2;
-    uint inputOffset = INPUT0_OFFSET;
+    // TODO: use OUTPUT_TYPE for intermediate calculations?
+    // We don't use it for now as we will lose a lot of precision for f16 and tests won't pass
+    cfloat Y = czero();
+    const float PI2 = M_PI_F * 2;
 
-#ifdef A1
-    const float a1 = pi2 * y1 / OUTPUT_SIZES[1];
+#ifdef AXIS_Y
+    const float ay = PI2 * y / OUTPUT_SIZE_Y;
+#endif
+#ifdef AXIS_Z
+    const float az = PI2 * z / OUTPUT_SIZE_Z;
+#endif
+#ifdef AXIS_W
+    const float aw = PI2 * w / OUTPUT_SIZE_W;
+#endif
+#ifdef AXIS_FEATURE
+    const float af = PI2 * f / OUTPUT_FEATURE_NUM;
+#endif
+#ifdef AXIS_BATCH
+    const float ab = PI2 * b / OUTPUT_BATCH_NUM;
+#endif
+
+#ifdef AXIS_BATCH
+    for (uint kb = 0; kb < AXIS_BATCH; ++kb)
 #else
-    inputOffset += INPUT0_PITCHES[1] * y1;
+#    define kb b
 #endif
-#ifdef A2
-    const float a2 = pi2 * y2 / OUTPUT_SIZES[2];
+#ifdef AXIS_FEATURE
+        for (uint kf = 0; kf < AXIS_FEATURE; ++kf)
 #else
-    inputOffset += INPUT0_PITCHES[2] * y2;
+#    define kf f
 #endif
-#ifdef A3
-    const float a3 = pi2 * y3 / OUTPUT_SIZES[3];
+#ifdef AXIS_W
+            for (uint kw = 0; kw < AXIS_W; ++kw)
 #else
-    inputOffset += INPUT0_PITCHES[3] * y3;
+#    define kw w
 #endif
-#if OUTPUT_DIMS > 4
-#    ifdef A4
-    const float a4 = pi2 * y4 / OUTPUT_SIZES[4];
-#    else
-    inputOffset += INPUT0_PITCHES[4] * y4;
-#    endif
-#    if OUTPUT_DIMS > 5
-#        ifdef A5
-    const float a5 = pi2 * y5 / OUTPUT_SIZES[5];
-#        else
-    inputOffset += INPUT0_PITCHES[5] * y5;
-#        endif
-#    endif
+#ifdef AXIS_Z
+                for (uint kz = 0; kz < AXIS_Z; ++kz)
+#else
+#    define kz z
 #endif
-
-#ifdef A5
-    for (uint x5 = 0; x5 < A5; x5++)
-#endif
-    {  // TODO: repeat upto maximum number of dimensions - 1(last one is complex pairs)
-        const uint saveOffset = inputOffset;
-#ifdef A4
-        for (uint x4 = 0; x4 < A4; x4++)
-#endif
-        {
-            const uint saveOffset = inputOffset;
-#ifdef A3
-            for (uint x3 = 0; x3 < A3; x3++)
-#endif
-            {
-                const uint saveOffset = inputOffset;
-#ifdef A2
-                for (uint x2 = 0; x2 < A2; x2++)
-#endif
-                {
-                    const uint saveOffset = inputOffset;
-#ifdef A1
-                    for (uint x1 = 0; x1 < A1; x1++)
+#ifdef AXIS_Y
+                    for (uint ky = 0; ky < AXIS_Y; ++ky)
+#else
+#    define ky y
 #endif
                     {
                         float a = 0;
-#ifdef A1
-                        a += a1 * x1;
+#ifdef AXIS_Y
+                        a += ay * ky;
 #endif
-#ifdef A2
-                        a += a2 * x2;
+#ifdef AXIS_Z
+                        a += az * kz;
 #endif
-#ifdef A3
-                        a += a3 * x3;
+#ifdef AXIS_W
+                        a += aw * kw;
 #endif
-#ifdef A4
-                        a += a4 * x4;
+#ifdef AXIS_FEATURE
+                        a += af * kf;
 #endif
-#ifdef A5
-                        a += a5 * x5;
+#ifdef AXIS_BATCH
+                        a += ab * kb;
 #endif
-                        const cfloat x = cload(data, inputOffset, INPUT0_PITCHES[0]);
+                        const cfloat X = cload(data, GET_INDEX(INPUT0, ORDER_K), INPUT0_X_PITCH);
 #ifdef INVERSE_DFT_MULTIPLIER
-                        const cfloat e = expi(a);
+                        const cfloat E = expi(a);
 #else
-                        const cfloat e = expmi(a);
+        const cfloat E = expmi(a);
 #endif
-                        y = cadd(y, cmult(x, e));
-                        inputOffset += INPUT0_PITCHES[1];
+                        Y = cadd(Y, cmult(X, E));
                     }
-                    inputOffset = saveOffset + INPUT0_PITCHES[2];
-                }
-                inputOffset = saveOffset + INPUT0_PITCHES[3];
-            }
-            inputOffset = saveOffset + INPUT0_PITCHES[4];
-        }
-        inputOffset = saveOffset + INPUT0_PITCHES[5];
-    }
 
 #ifdef INVERSE_DFT_MULTIPLIER
-    y = crmult(y, INVERSE_DFT_MULTIPLIER);
+    Y = crmult(Y, INVERSE_DFT_MULTIPLIER);
 #endif
 
-    uint outputOffset = OUTPUT_OFFSET;
-    outputOffset += OUTPUT_PITCHES[1] * y1;
-    outputOffset += OUTPUT_PITCHES[2] * y2;
-    outputOffset += OUTPUT_PITCHES[3] * y3;
-#if OUTPUT_DIMS > 4
-    outputOffset += OUTPUT_PITCHES[4] * y4;
-#    if OUTPUT_DIMS > 5
-    outputOffset += OUTPUT_PITCHES[5] * y5;
-#    endif
-#endif
-
-    cstore(output, outputOffset, OUTPUT_PITCHES[0], y);
+    cstore(output, GET_INDEX(OUTPUT, ORDER), OUTPUT_X_PITCH, Y);
 }
 
 #undef real
@@ -153,3 +134,6 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
 #undef cload
 #undef cstore
 #undef czero
+#undef GET_INDEX
+#undef ORDER
+#undef ORDER_K

@@ -11,16 +11,74 @@ namespace kernel_selector {
 namespace {
 
 CommonDispatchData SetDefault(const dft_params& params) {
-    CommonDispatchData dispatchData;
+    CommonDispatchData dispatch_data;
+    const auto in_layout = params.inputs.front().GetLayout();
+    const auto& output = params.outputs.front();
+    const auto out_layout = output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    auto outDims = params.outputs.front().LogicalDims();
-    // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
-    // we are skipping x, since it contains complex pairs
-    auto complexSize = std::accumulate(outDims.begin() + 1, outDims.end(), size_t{1}, std::multiplies<size_t>{});
-    dispatchData.gws = {1, 1, complexSize};  // TODO: these could be split better
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    // We are skipping X, since it contains complex pairs and always has dimension 2
+    switch (out_layout) {
+    case DataLayout::bfyx:
+        dispatch_data.gws = {output.Y().v, output.Feature().v, output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::BATCH}};
+        break;
+    case DataLayout::bfzyx:
+        dispatch_data.gws = {output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        break;
+    case DataLayout::bfwzyx:
+        dispatch_data.gws = {output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        break;
+    default:
+        throw std::invalid_argument("Unsupported data layout for dft primitive");
+    }
 
-    return dispatchData;
+    dispatch_data.lws =
+        GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+
+    return dispatch_data;
+}
+
+template <class T>
+void MakeJitConstForAxis(JitConstants& jit, const DataLayout& layout, int64_t index, T value) {
+    std::string name = "AXIS";
+    switch (index) {
+    case 0:
+        jit.AddConstant(MakeJitConstant(name + "_BATCH", value));
+        break;
+    case 1:
+        jit.AddConstant(MakeJitConstant(name + "_FEATURE", value));
+        break;
+    case 2:
+        if (layout == DataLayout::bfwzyx) {
+            jit.AddConstant(MakeJitConstant(name + "_W", value));
+        } else if (layout == DataLayout::bfzyx) {
+            jit.AddConstant(MakeJitConstant(name + "_Z", value));
+        } else {  // DataLayout::bfyx
+            jit.AddConstant(MakeJitConstant(name + "_Y", value));
+        }
+        break;
+    case 3:
+        if (layout == DataLayout::bfwzyx) {
+            jit.AddConstant(MakeJitConstant(name + "_Z", value));
+        } else {  // DataLayout::bfzyx
+            jit.AddConstant(MakeJitConstant(name + "_Y", value));
+        }
+        break;
+    case 4:
+        jit.AddConstant(MakeJitConstant(name + "_Y", value));
+        break;
+    default:
+        throw std::invalid_argument("Unsupported axis for dft primitive");
+    }
 }
 
 }  // namespace
@@ -78,26 +136,25 @@ bool DFTKernelRef::Validate(const Params& p, const optional_params& o) const {
 }
 
 JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
-    auto jit_constants = MakeBaseParamsJitConstants(params);
-    const auto output_sizes = params.outputs.front().LogicalDims();
-    const auto input_sizes = params.inputs.front().LogicalDims();
-    const auto n1 = input_sizes.size() - 1;
+    auto jit = MakeBaseParamsJitConstants(params);
+    const auto out_layout = params.outputs.front().GetLayout();
+    const auto out_sizes = params.outputs.front().LogicalDims();
+    const auto in_sizes = params.inputs.front().LogicalDims();
+
+    // We are skipping X, since it contains complex pairs and should not be in axes
+    const auto dims_size = in_sizes.size() - 1;
+
+    size_t s = 1;
     for (auto axis : params.axes) {
-        axis = n1 - axis;  // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest
-                           // index, b is largest
-        jit_constants.AddConstant(
-            MakeJitConstant('A' + std::to_string(axis), std::min(output_sizes[axis], input_sizes[axis])));
+        // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
+        auto inverted_axis = dims_size - axis;
+        s *= out_sizes[inverted_axis];
+        MakeJitConstForAxis(jit, out_layout, axis, std::min(out_sizes[inverted_axis], in_sizes[inverted_axis]));
     }
     if (params.kind == dft_params::inverse) {
-        size_t s = 1;
-        for (auto axis : params.axes) {
-            axis = n1 - axis;  // opencl kernels have inverted order of dimensions with respect to axis spec: x is
-                               // smallest index, b is largest
-            s *= output_sizes[axis];
-        }
-        jit_constants.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
+        jit.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
     }
-    return jit_constants;
+    return jit;
 }
 
 }  // namespace kernel_selector
