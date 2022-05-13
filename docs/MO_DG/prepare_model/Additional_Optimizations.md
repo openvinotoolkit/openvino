@@ -5,7 +5,7 @@ To accelerate the whole pipeline including preprocessing and inference, Model Op
 *`--scale_values`*, *`--reverse_input_channels`*, and *`--layout`*. Based on these parameters, Model Optimizer generates IR with additionally
 inserted sub-graphs to perform the defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
 reverting data along channel dimension, and changing the data layout. 
-The same functionality is also available in runtime, refer to the [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md)
+See the following sections for details on the parameters, or the [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md) for the same functionality in OpenVINO Runtime.
 for more information.
 
 ## Specifying Layout
