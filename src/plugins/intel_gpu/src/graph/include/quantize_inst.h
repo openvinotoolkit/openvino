@@ -17,6 +17,10 @@ template <>
 struct typed_program_node<quantize> : public typed_program_node_base<quantize> {
     using parent = typed_program_node_base<quantize>;
 
+    typed_program_node(std::shared_ptr<quantize> prim, program& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
+
 public:
     using parent::parent;
 
