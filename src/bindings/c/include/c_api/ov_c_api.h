@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char ov_partial_shape_t[4];
+typedef char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
@@ -617,7 +617,28 @@ OPENVINO_C_API(void) ov_preprocess_free(ov_preprocess_t *preprocess);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_preprocess_get_input_info(const ov_preprocess_t* preprocess,
+                                                ov_preprocess_input_info_t **preprocess_input_info);
+
+/**
+ * @brief Get the input info of ov_preprocess_t instance by tensor name. 
+ * @param preprocess A pointer to the ov_preprocess_t.
+ * @param tensor_name The name of input.
+ * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_get_input_info_by_name(const ov_preprocess_t* preprocess,
                                                 const char* tensor_name,
+                                                ov_preprocess_input_info_t **preprocess_input_info);
+
+/**
+ * @brief Get the input info of ov_preprocess_t instance by tensor order. 
+ * @param preprocess A pointer to the ov_preprocess_t.
+ * @param tensor_index The order of input.
+ * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_get_input_info_by_index(const ov_preprocess_t* preprocess,
+                                                const size_t tensor_index,
                                                 ov_preprocess_input_info_t **preprocess_input_info);
 
 /**
@@ -692,12 +713,32 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_layout(ov_prepro
 /**
  * @brief Get the output info of ov_preprocess_output_info_t instance. 
  * @param preprocess A pointer to the ov_preprocess_t.
- * @param tensor_index The output index
  * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_preprocess_get_output_info(const ov_preprocess_t* preprocess,
+                                                ov_preprocess_output_info_t **preprocess_output_info);
+
+/**
+ * @brief Get the output info of ov_preprocess_output_info_t instance. 
+ * @param preprocess A pointer to the ov_preprocess_t.
+ * @param tensor_index The tensor index
+ * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_get_output_info_by_index(const ov_preprocess_t* preprocess,
                                                 const size_t tensor_index,
+                                                ov_preprocess_output_info_t **preprocess_output_info);
+
+/**
+ * @brief Get the output info of ov_preprocess_output_info_t instance. 
+ * @param preprocess A pointer to the ov_preprocess_t.
+ * @param tensor_name The name of input.
+ * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_get_output_info_by_name(const ov_preprocess_t* preprocess,
+                                                const char* tensor_name,
                                                 ov_preprocess_output_info_t **preprocess_output_info);
 
 /**
@@ -893,9 +934,9 @@ OPENVINO_C_API(void) ov_profiling_info_list_free(ov_profiling_info_list_t *profi
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_create_from_ptr(const ov_element_type_e type,
+OPENVINO_C_API(ov_status_e) ov_tensor_create_from_host_ptr(const ov_element_type_e type,
                                                     const ov_shape_t shape,
-                                                    const void* host_ptr, ov_tensor_t **tensor);
+                                                    void* host_ptr, ov_tensor_t **tensor);
 
 
 /**
