@@ -28,7 +28,7 @@ struct ov_node {
 };
 
 struct ov_output_node {
-    std::shared_ptr<ov::Output<ov::Node>> object;
+    std::shared_ptr<ov::Output<const ov::Node>> object;
 };
 
 struct ov_model {
@@ -476,12 +476,12 @@ ov_status_e ov_model_get_outputs(const ov_model_t* model, ov_output_node_list_t 
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        auto results = model->object->outputs();
+        auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
         output_nodes->num = results.size();
         auto tmp_output_nodes(new ov_output_node_t[output_nodes->num]);
 
         for (size_t i = 0; i < output_nodes->num; i++) {
-            tmp_output_nodes[i].object = std::make_shared<ov::Output<ov::Node>>(std::move(results[i]));
+            tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
         output_nodes->output_nodes = tmp_output_nodes;
     } CATCH_OV_EXCEPTIONS
@@ -493,12 +493,12 @@ ov_status_e ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        auto results = model->object->inputs();
+        auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
         input_nodes->num = results.size();
         auto tmp_output_nodes(new ov_output_node_t[input_nodes->num]);
 
         for (size_t i = 0; i < input_nodes->num; i++) {
-            tmp_output_nodes[i].object = std::make_shared<ov::Output<ov::Node>>(std::move(results[i]));
+            tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
         input_nodes->output_nodes = tmp_output_nodes;
     } CATCH_OV_EXCEPTIONS
@@ -512,9 +512,9 @@ ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        auto result = model->object->input(tensor_name);
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
         *input_node = new ov_output_node_t;
-        (*input_node)->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
@@ -526,9 +526,9 @@ ov_status_e ov_model_get_input_by_id(const ov_model_t* model,
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        auto result = model->object->input(index);
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
         *input_node = new ov_output_node_t;
-        (*input_node)->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
