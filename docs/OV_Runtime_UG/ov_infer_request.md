@@ -145,7 +145,7 @@ You can use the `ov::InferRequest::cancel` method if you want to abort execution
 
 @endsphinxtabset
 
-
+@anchor in_out_tensors
 ## Working with Input and Output tensors
 
 The `ov::InferRequest` allows you to get input/output tensors by tensor name, index, port and without any arguments in case if a model has only one input or output.
