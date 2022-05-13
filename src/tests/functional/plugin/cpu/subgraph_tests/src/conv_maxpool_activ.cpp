@@ -59,6 +59,10 @@ protected:
         }
 
         selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
+        // the new convolution kernel changes to brgconv since avx512
+        if (selectedType == "jit_avx512_FP32") {
+            selectedType = "brgconv_avx512_FP32";
+        }
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
     }
