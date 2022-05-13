@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char ov_partial_shape_t[4];
+typedef char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
@@ -934,9 +934,9 @@ OPENVINO_C_API(void) ov_profiling_info_list_free(ov_profiling_info_list_t *profi
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_create_from_ptr(const ov_element_type_e type,
+OPENVINO_C_API(ov_status_e) ov_tensor_create_from_host_ptr(const ov_element_type_e type,
                                                     const ov_shape_t shape,
-                                                    const void* host_ptr, ov_tensor_t **tensor);
+                                                    void* host_ptr, ov_tensor_t **tensor);
 
 
 /**
