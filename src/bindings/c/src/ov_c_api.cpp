@@ -234,7 +234,7 @@ ov_status_e ov_core_read_model(const ov_core_t *core,
     }
 
     try {
-        std::string bin;
+        std::string bin = "";
         if (bin_path) {
             bin = bin_path;
         }
@@ -273,7 +273,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
     }
 
     try {
-        std::string dev_name;
+        std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
         }
@@ -294,7 +294,7 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     }
 
     try {
-        std::string dev_name;
+        std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
         }
