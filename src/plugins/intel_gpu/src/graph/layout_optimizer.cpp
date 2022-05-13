@@ -778,8 +778,6 @@ bool layout_optimizer::needs_all_usr_onednn_small_ic_to_blocked(const program_no
 }
 
 bool layout_optimizer::needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node) {
-    auto next_output_layout = node.get_output_layout();
-
     // Target output_layout format
     if (!(fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16 ||
         fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
