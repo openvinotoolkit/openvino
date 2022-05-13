@@ -875,7 +875,6 @@ ov::AnyMap property2Map(const ov_property_t *property) {
     return config;
 }
 
-// CompiledModel
 ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model,
                                                 ov_model_t **model) {
     if (!compiled_model || !model) {
@@ -885,7 +884,7 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
     try {
         *model = new ov_model_t;
         auto runtime_model = compiled_model->object->get_runtime_model();
-        (*model)->object = std::const_pointer_cast<ov::Model>(runtime_model);
+        (*model)->object = std::const_pointer_cast<ov::Model>(std::move(runtime_model));
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
