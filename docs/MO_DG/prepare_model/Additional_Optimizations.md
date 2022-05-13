@@ -12,7 +12,8 @@ for more information.
 
 You may need to set input layouts, as it is required by some preprocessing, for example, setting a batch, applying mean or scales, and reversing input channels (BGR<->RGB).
 
-Layout defines the meaning of dimensions in shape and can be specified for both inputs and outputs.
+Layout defines the meaning of dimensions in shape and can be specified for both inputs and outputs. Some preprocessing requires to set input layouts, for example, setting a batch, applying mean or scales, and reversing input channels (BGR<->RGB).
+
 For the layout syntax, check the [Layout API overview](../../OV_Runtime_UG/layout_overview.md). 
 To specify the layout, you can use the *`--layout`* option followed by the layout value. 
 
