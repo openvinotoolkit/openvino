@@ -812,7 +812,7 @@ OPENVINO_C_API(ov_status_e) ov_compiled_model_get_runtime_model(const ov_compile
                                                         ov_model_t **model);
 
 /**
- * @brief Gets runtime model information from a device.
+ * @brief Gets all inputs of a compiled model.
  * @param compiled_model A pointer to the ov_compiled_model_t.
  * @param input_nodes A pointer to the ov_input_nodes.
  * @return Status code of the operation: OK(0) for success.
