@@ -89,3 +89,14 @@ def roi_align(
         "aligned_mode": aligned_mode,
     }
     return _get_node_factory_opset9().create("ROIAlign", inputs, attributes)
+
+
+@nameable_op
+def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply SoftSign operation on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: The optional name for the output node.
+    :return: New node with SoftSign operation applied on each element of it.
+    """
+    return _get_node_factory_opset9().create("SoftSign", [as_node(node)], {})
