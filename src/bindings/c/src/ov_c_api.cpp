@@ -860,7 +860,7 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
     }
     try {
         *tensor = new ov_tensor_t;
-        auto tmp_type = element_type_map[type];
+        auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_if(shape, shape + 4,
                      tmp_shape.begin(),
@@ -877,7 +877,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const o
     }
     try {
         *tensor = new ov_tensor_t;
-        auto tmp_type = element_type_map[type];
+        auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_if(shape, shape + 4,
                      tmp_shape.begin(),
@@ -920,12 +920,7 @@ ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_typ
     }
     try {
         auto tmp_type = tensor->object->get_element_type();
-        for (auto it : element_type_map) {
-            if (it.second == tmp_type) {
-                *type = it.first;
-                break;
-            }
-        }
+        *type = GET_CAPI_ELEMENT_TYPE(tmp_type);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
