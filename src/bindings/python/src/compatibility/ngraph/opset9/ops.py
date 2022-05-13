@@ -73,8 +73,8 @@ def roi_align(
                            each output feature map element.
     :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
     :param mode: Method to perform pooling to produce output feature map elements.
-    :param aligned_mode: specifies how to transform the coordinate in original tensor to the resized tensor.
-                         Mode 'asymmetric' is default.
+    :param aligned_mode: Specifies how to transform the coordinate in original tensor to the resized tensor.
+                         Mode 'asymmetric' is the default value. Optional.
     :param name: The optional name for the output node
 
     :return: The new node which performs ROIAlign
