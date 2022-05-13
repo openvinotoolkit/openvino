@@ -79,7 +79,7 @@ class TestROIAlignOps(unittest.TestCase):
                 'input_data': {'shape': int64_array([7, 256, 200, 200])},
                 'rois_data': {'shape': int64_array([300, 4])},
                 'indices_data': {'shape': int64_array([300])},
-                'node': {'mode': 'max', 'pooled_h': 5, 'pooled_w': 6, 'aligned_mode': 'tf_half_pixel_for_nn', 'version':'opset9'},
+                'node': {'mode': 'max', 'pooled_h': 5, 'pooled_w': 6, 'aligned_mode': 'half_pixel_for_nn', 'version':'opset9'},
             }
         )
         graph.graph["layout"] = "NCHW"
