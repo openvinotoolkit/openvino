@@ -224,7 +224,7 @@ A single *`xml`* file with IR may contain operations from different opsets.
 An operation that is included in several opsets may be referred to with *`version`* which points to any opset that includes that operation.
 For example, the same *`Convolution`* can be used with *`version="opset1"`* and *`version="opset2"`* because both opsets have the same *`Convolution`* operations.
 
-## How to Read the Specification
+## How to Read Opset Specification
 
 In the [Available Operation Sets](../ops/opset.md) there are opsets and there are operations.
 Each opset specification has a list of links to operations descriptions that are included into that specific opset.
