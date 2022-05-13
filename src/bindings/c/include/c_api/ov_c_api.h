@@ -853,13 +853,13 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_req
  * @brief Starts inference of specified input(s) in asynchronous mode.
  * @param infer_request A pointer to the ov_infer_request_t.
  */
-OPENVINO_C_API(void) ov_infer_request_start_async(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e) ov_infer_request_start_async(ov_infer_request_t* infer_request);
 
 /**
  * @brief Waits for the result to become available. Blocks until the result
  * @param infer_request A pointer to the ov_infer_request_t.
  */
-OPENVINO_C_API(void) ov_infer_request_wait(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e) ov_infer_request_wait(ov_infer_request_t* infer_request);
 
 /**
  * @brief Waits for the result to become available. Blocks until the result
