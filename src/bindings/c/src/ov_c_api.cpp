@@ -190,6 +190,116 @@ ov_status_e ov_core_create(const char *xml_config_file, ov_core_t **core) {
     return ov_status_e::OK;
 }
 
+ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
+    if (!tensor || !shape || element_type_map.find(type) == element_type_map.end()) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor = new ov_tensor_t;
+        auto tmp_type = element_type_map[type];
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0; });
+        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const ov_shape_t shape, void *host_ptr,
+                                      ov_tensor_t **tensor) {
+    if (!tensor || !host_ptr || !shape || element_type_map.find(type) == element_type_map.end()) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor = new ov_tensor_t;
+        auto tmp_type = element_type_map[type];
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0; });
+        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
+    if (!tensor || !shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        ov::Shape tmp_shape;
+        std::copy_if(shape, shape + 4,
+                     tmp_shape.begin(),
+                     [](size_t x) { return x != 0;});
+        tensor->object->set_shape(tmp_shape);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
+    if (!tensor || !shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        auto tmp_shape = tensor->object->get_shape();
+        std::copy_if(tmp_shape.begin(), tmp_shape.end(),
+                     *shape,
+                     [](size_t x) { return x != 0;});
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type) {
+    if (!tensor || !type) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        auto tmp_type = tensor->object->get_element_type();
+        for (auto it : element_type_map) {
+            if (it.second == tmp_type) {
+                *type = it.first;
+                break;
+            }
+        }
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size) {
+    if (!tensor || !elements_size) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *elements_size = tensor->object->get_size();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size) {
+    if (!tensor || !byte_size) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *byte_size = tensor->object->get_byte_size();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_tensor_get_data(const ov_tensor_t* tensor, void** data) {
+    if (!tensor || !data) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *data = tensor->object->data();
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+void ov_tensor_free(const ov_tensor_t* tensor) {
+    delete tensor;
+}
+
 ov_status_e ov_preprocess_create(const ov_model_t* model,
                             ov_preprocess_t **preprocess) {
     if (!model || !preprocess) {
