@@ -113,6 +113,7 @@ void Eye::executeSpecified() {
             splitter(elementsCount, nthr, ithr, start, end);
             memset(dst + start, 0, (end - start) * sizeof(T));
         });
+        if (onesPerBatchNum == 0) return;
         for (size_t bShift = 0; bShift < batchVolume * spatialCount; bShift += spatialCount) {
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
                 size_t start = 0, end = 0;
@@ -127,6 +128,7 @@ void Eye::executeSpecified() {
             size_t start = 0, end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
             memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
+            if (onesPerBatchNum == 0) return;
             for (size_t spShift = start * spatialCount; spShift < end * spatialCount; spShift += spatialCount) {
                 for (size_t j = 0; j < onesPerBatchNum; j++) {
                     dst[dataShift + j * (colNum + 1) + spShift] = static_cast<T>(1);
