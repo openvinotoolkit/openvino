@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char ov_partial_shape_t[4];
+typedef char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
