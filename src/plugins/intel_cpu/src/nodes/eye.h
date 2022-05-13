@@ -36,8 +36,8 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::string errorPrefix;
-    ov::element::Type outType;
+    std::string errorPrefix = "";
+    ov::element::Type outType = ov::element::Type_t::undefined;
     template <typename inputType>
     void executeSpecified();
     template<typename T>
@@ -86,7 +86,7 @@ private:
     static constexpr size_t COLS_NUM = 1lu;
     static constexpr size_t DIAGONAL_INDEX = 2lu;
     static constexpr size_t BATCH_SHAPE = 3lu;
-    bool withBatchShape;
+    bool withBatchShape = false;
 };
 
 }   // namespace node
