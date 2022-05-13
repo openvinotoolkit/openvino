@@ -106,7 +106,7 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
+    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1), 4));
     topology.add(tile("tile", "reshape", tensor(2, 1, 2, 4)));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };

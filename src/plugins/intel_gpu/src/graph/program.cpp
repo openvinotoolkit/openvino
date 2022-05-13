@@ -229,7 +229,6 @@ bool program::analyze_output_size_handling_need() {
                 1);
 
             auto filter_size = prim_node.weights(0).get_output_layout().size;
-
             auto inputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,

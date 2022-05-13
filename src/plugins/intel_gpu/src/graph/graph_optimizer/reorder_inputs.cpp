@@ -696,7 +696,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto new_tensor = input_layout.size;
             new_tensor.feature[0] = input_layout.size.spatial[0];
             new_tensor.spatial[0] = 1;
-            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
+            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor, input_layout.get_rank());
             auto& new_reorder_node = p.get_or_create(new_reshape);
             p.add_intermediate(new_reorder_node, fc_node, 0);
         }

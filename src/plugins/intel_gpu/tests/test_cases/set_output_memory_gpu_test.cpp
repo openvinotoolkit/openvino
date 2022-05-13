@@ -309,10 +309,10 @@ TEST(set_output_memory_gpu, basic_opt) {
     topology.add(activation("clamp1", "input1", activation_func::clamp, params1));
     topology.add(input_layout("input2", il));
     topology.add(activation("clamp2", "input2", activation_func::clamp, params2));
-    topology.add(reshape("reshape1", "clamp1", ishape));
-    topology.add(reshape("reshape2", "clamp2", ishape));
+    topology.add(reshape("reshape1", "clamp1", ishape, 4));
+    topology.add(reshape("reshape2", "clamp2", ishape, 4));
     topology.add(concatenation("concat", { "reshape1", "reshape2" }, 0, data_types::f32));
-    topology.add(reshape("reshape3", "concat", oshape));
+    topology.add(reshape("reshape3", "concat", oshape, 4));
     topology.add(reorder("reorder", "reshape3", ol));
     topology.add(reorder("reorder2", "reorder", ol));
 

@@ -1814,10 +1814,10 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder1", "input", format::bfwzyx, data_types::f32),
-        reshape("reshape1", "reorder1", tensor(batch(2), feature(2), spatial(1, 1, 2, 2) )),
+        reshape("reshape1", "reorder1", tensor(batch(2), feature(2), spatial(1, 1, 2, 2)), 6),
         reorder("reorder2", "reshape1", format::bfwzyx, data_types::f32, sub_bfwzyx),
-        reshape("reshape2", "reorder2", tensor(batch(4), feature(2), spatial(1, 1, 1, 2))),
-        reshape("reshape3", "reshape2", tensor(batch(1), feature(4), spatial(2, 2))),
+        reshape("reshape2", "reorder2", tensor(batch(4), feature(2), spatial(1, 1, 1, 2)), 6),
+        reshape("reshape3", "reshape2", tensor(batch(1), feature(4), spatial(2, 2)), 4),
         reorder("reorder3", "reshape3", format::bfyx, data_types::f32, sub_bfyx),
         reorder("out_reorder", "reorder3", format::bfwzyx, data_types::f32)
         );

@@ -52,7 +52,7 @@ TEST(removing_output_node, multiple_outputs) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shuffle_channels("shuffle_channels", "input", group, axis));
-    topology.add(reshape("reshape", "shuffle_channels", after_reshape));
+    topology.add(reshape("reshape", "shuffle_channels", after_reshape, 4));
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));

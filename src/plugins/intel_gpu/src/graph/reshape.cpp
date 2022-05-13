@@ -42,8 +42,24 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
     if (need_recalc)
         sizes[need_recalc] = static_cast<int>(input_layout.size.count()) / shape_count;
 
-    input_layout.size = tensor(sizes);
-    return input_layout;
+    auto output_format = input_layout.format;
+    auto output_dims_size = node.get_primitive()->output_shape_rank;
+
+    if (output_dims_size == 6) {
+        if (input_layout.get_rank() != 6) {
+            output_format = cldnn::format::bfwzyx;
+        }
+    } else if (output_dims_size == 5) {
+        if (input_layout.get_rank() != 5) {
+            output_format = cldnn::format::bfzyx;
+        }
+    } else if (output_dims_size <= 4) {
+        if (input_layout.get_rank() != 4) {
+            output_format = cldnn::format::bfyx;
+        }
+    }
+
+    return layout{input_layout.data_type, output_format, tensor(sizes)};
 }
 
 std::string reshape_inst::to_string(reshape_node const& node) {

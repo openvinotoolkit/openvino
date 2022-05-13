@@ -472,28 +472,41 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());
                 size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
                 auto in_stride = params.stride.empty() ? uSize{1, 1, 1} : params.stride[i];
-                if (out_c <= 4 && in_c <= 4) {
-                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
+                if (out_c <= 4) {
+                    if (in_c <= 4) {
+                        jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
                                                                                           params.layoutBased || params.broadcast,
                                                                                           in_stride)));
+                    } else if (in_c == 5) {
+                        // quite strange case, but can happen due to reorders fusing
+                        // it means that z coord is equal to 1, so z offset will be always equal to 0
+                        jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
+                    } else if (in_c == 6) {
+                        // z,w coords are equal to 1, so z,w offset will be always equal to 0
+                        jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,0,d2,d1"));
+                    } else {
+                        assert(0);
+                    }
                 } else if (out_c == 5) {
-                    if (in_c < 5) {
+                    if (in_c <= 4) {
                         // Skip Z coord for 4d tensors
                         jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d2,d1"));
                     } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d3,d2,d1"));
+                    } else if (in_c == 6) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d5,d4,d3,0,d2,d1"));
+                    } else {
+                        assert(0);
                     }
-                } else if (out_c <= 4 && in_c == 5) {
-                    // quite strange case, but can happen due to reorders fusing
-                    // it means that z coord is equal to 1, so z offset will be always equal to 0
-                    jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
                 } else if (out_c == 6) {
-                    if (in_c < 5) {
+                    if (in_c <= 4) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
                     } else if (in_c == 5) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
-                    } else {
+                    } else if (in_c == 6) {
                         jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
+                    } else {
+                        assert(0);
                     }
                 } else {
                     assert(0);

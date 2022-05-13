@@ -238,13 +238,13 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     topology_ref.add(reorder("reorder1", "Input0", { data_types::f16, format::bfwzyx, tensor{ batch(1), feature(12), spatial(1, 1, 960, 540) }
         }));
     topology_ref.add(
-        reshape("reshape", "reorder1", tensor{ batch(1), feature(2), spatial(960, 540, 3, 2) })
+        reshape("reshape", "reorder1", tensor{ batch(1), feature(2), spatial(960, 540, 3, 2) }, 6)
     );
     topology_ref.add(
         permute("perm", "reshape", perm)
     );
     topology_ref.add(
-        reshape("reshape2", "perm", tensor(1, 3, 2 * 960, 2 * 540))
+        reshape("reshape2", "perm", tensor(1, 3, 2 * 960, 2 * 540), 4)
     );
 
     build_options build_opt;

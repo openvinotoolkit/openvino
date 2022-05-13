@@ -129,6 +129,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto reshapeInPrim = cldnn::reshape(reshapeInName,
                                                 inputName,
                                                 tensor_from_dims(reshapeSize),
+                                                reshapeSize.size(),
                                                 op->get_friendly_name());
             p.AddPrimitive(reshapeInPrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
@@ -157,9 +158,10 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         auto lastLayerName = layerName;
         if (reshape_fc) {
-            auto outputShape = tensor_from_dims(op->get_output_shape(0));
+            auto outputShape = op->get_output_shape(0);
+            auto outputTensor = tensor_from_dims(outputShape);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputTensor, outputShape.size(), op->get_friendly_name());
 
             p.AddPrimitive(outReshapePrim);
             p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);
@@ -239,7 +241,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, inputDims.size(), op->get_friendly_name());
 
                 p.AddPrimitive(reshapePrim);
                 p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
@@ -269,9 +271,9 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         // Reshape output if gemm specific shape does not match default one
         if (outDimsN < 4) {
-            auto outputShape = tensor_from_dims(outDims);
+            auto outputTensor = tensor_from_dims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputTensor, outDims.size(), op->get_friendly_name());
 
             p.AddPrimitive(outReshapePrim);
             p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);

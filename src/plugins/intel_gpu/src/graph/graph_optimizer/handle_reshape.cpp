@@ -89,7 +89,6 @@ void handle_reshape::run(program& p) {
             if (!reorder_node_to_split.empty()) {
                 auto& prim_node = node->as<reshape>();
                 const auto& prim = prim_node.get_primitive();
-                auto output_shape = prim->output_shape;
 
                 // vector for storing reshape nodes to connect to new reorder nodes (if needed)
                 std::vector<program_node*> reorder_reshape_nodes;
@@ -111,7 +110,8 @@ void handle_reshape::run(program& p) {
                         reorder_node_to_split.end()) {
                         auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
                                                                      input_node.id(),
-                                                                     output_shape);
+                                                                     prim->output_shape,
+                                                                     prim->output_shape_rank);
                         auto& new_reshape_node = p.get_or_create(new_reshape);
                         user->replace_dependency(0, input_node);
                         p.add_intermediate(new_reshape_node, *user, 0);

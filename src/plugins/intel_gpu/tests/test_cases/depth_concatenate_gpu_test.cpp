@@ -391,8 +391,8 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reshape("reshape1", "input1", {1, 3, 2, 2}));
-    topology.add(reshape("reshape2", "input2", {1, 3, 2, 2}));
+    topology.add(reshape("reshape1", "input1", {1, 3, 2, 2}, 4));
+    topology.add(reshape("reshape2", "input2", {1, 3, 2, 2}, 4));
     topology.add(concatenation("depth1", {"reshape1", "reshape2"}, 1));
     topology.add(reorder("output", "depth1", format::bfyx, data_types::f32));
 
@@ -719,7 +719,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
-    topology.add(reshape("reshape", "input1", tensor(2, 1, 4, 2)));
+    topology.add(reshape("reshape", "input1", tensor(2, 1, 4, 2), 4));
     topology.add(concatenation("depth1", { "reshape" }, 1));
     topology.add(concatenation("depth2", { "depth1" }, 1));
 

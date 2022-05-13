@@ -61,7 +61,8 @@ void strided_slice_optimize::run(program& p) {
             auto reshape_prim = std::make_shared<reshape>(
                 "reshape_" + node->id(),
                 node->get_dependency(0).get_primitive()->id,
-                tensor(output_dims_sizes[0], output_dims_sizes[1], output_dims_sizes[3], output_dims_sizes[2]));
+                tensor(output_dims_sizes[0], output_dims_sizes[1], output_dims_sizes[3], output_dims_sizes[2]),
+                4);
 
             auto& reshape_prim_node = p.get_or_create(reshape_prim);
 

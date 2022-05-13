@@ -54,7 +54,9 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
     auto reshapePrim = cldnn::reshape(layerName,
                                       reshapeInputId,
                                       outTensor,
-                                      op->get_friendly_name());
+                                      outDims.size(),
+                                      op->get_friendly_name(),
+                                      cldnn::padding());
 
     p.AddPrimitive(reshapePrim);
     p.AddPrimitiveToProfiler(op);

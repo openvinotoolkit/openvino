@@ -65,7 +65,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
                 auto targetShape = tensor_from_dims(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, inputDims.size(), op->get_friendly_name());
 
                 p.AddPrimitive(reshapePrim);
                 p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);

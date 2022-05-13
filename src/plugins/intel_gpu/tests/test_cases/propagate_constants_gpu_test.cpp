@@ -32,7 +32,7 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
-    topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
+    topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2)), 2));
     topology.add(reorder("reorder2", "input", layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(reorder("reorder1", "reshape1", layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(concatenation("concat", { "reorder1", "weights2" }, 3));

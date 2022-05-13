@@ -191,7 +191,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         if (!new_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, reshape_pattern.size(), op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
             inPrimitive = reshapeInName;
@@ -225,7 +225,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         if (!shrink_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, output_shape.size(), op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
             last_layer_primitive = reshapeOutName;

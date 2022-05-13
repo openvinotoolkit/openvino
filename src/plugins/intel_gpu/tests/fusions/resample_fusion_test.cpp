@@ -48,6 +48,10 @@ public:
         return layout{ p.data_type, p.input_format, p.in_shape, padding{} };
     }
 
+    layout get_output_layout(resample_test_params& p) {
+        return layout{ p.data_type, p.default_format, p.out_shape, padding{} };
+    }
+
     layout get_per_channel_layout(resample_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
     }
@@ -322,7 +326,7 @@ TEST_P(resample_scale_fusing_through, reshape) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        reshape("reshape", "resample_prim", reshape_shape),
+        reshape("reshape", "resample_prim", reshape_shape, get_output_layout(p).get_rank()),
         eltwise("scale", "reshape", "scale_data", eltwise_mode::prod),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
@@ -372,7 +376,7 @@ TEST_P(resample_scale_fusing_through_not_allowed, reshape_two_users) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        reshape("reshape", "resample_prim", reshape_shape),
+        reshape("reshape", "resample_prim", reshape_shape, get_output_layout(p).get_rank()),
         eltwise("scale", "reshape", "scale_data", eltwise_mode::prod),
         eltwise("sum", "reshape", "scale", eltwise_mode::sum),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)

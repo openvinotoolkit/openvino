@@ -631,7 +631,7 @@ TEST(fc_permute_crop_gpu, basic_0)
         data("weights", weights_mem),
         data("bias", bias_mem),
         fully_connected("fully_connected", "input", "weights", "bias"),  // yxfb {5, 512, 1, 1}
-        reshape("reshape", "fully_connected", { 1, 5, 1, 512 }),           // yxfb {1, 5, 1, 512}
+        reshape("reshape", "fully_connected", { 1, 5, 1, 512 }, 4),           // yxfb {1, 5, 1, 512}
         permute("permute", "reshape", { 1, 0, 2, 3 }),                     // yxfb {5, 1, 1, 512}        --- without permute fix yxfb {1, 5, 512, 1}
         crop("crop", "permute", { 1, 1, 1, 512 }, { 4, 0, 0 ,0 })           // without permute fix it will fail "Tensor pitches didn't set correctly"
     );
@@ -812,9 +812,9 @@ TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
     topology topology(
         input_layout("input", input_mem->get_layout()),
         reorder("input_6d", "input", { data_types::f32, format::bfwzyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) }),
-        reshape("reshape_4_to_6", "input_6d", cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape))),
+        reshape("reshape_4_to_6", "input_6d", cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape)), 6),
         permute("permute", "reshape_4_to_6", permute_order),
-        reshape("reshape_6_to_4", "permute", cldnn::tensor(batch(b), feature(f), spatial(x, y))),
+        reshape("reshape_6_to_4", "permute", cldnn::tensor(batch(b), feature(f), spatial(x, y)), 4),
         reorder("output_4d", "reshape_6_to_4", { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
     );
 
