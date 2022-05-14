@@ -987,6 +987,90 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
     return ov_status_e::OK;
 }
 
+void ov_infer_request_free(ov_infer_request_t *infer_request) {
+    delete infer_request;
+}
+
+ov_status_e ov_infer_request_set_tensor(ov_infer_request_t *infer_request,
+                                const char* tensor_name, const ov_tensor_t *tensor) {
+    if (!infer_request || !tensor_name || !tensor) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object->set_tensor(tensor_name, *tensor->object);
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
+                                const char* tensor_name, ov_tensor_t **tensor) {
+    if (!infer_request || !tensor_name || !tensor) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        *tensor = new ov_tensor_t;
+        ov::Tensor tensor_get = infer_request->object->get_tensor(tensor_name);
+        (*tensor)->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
+    if (!infer_request) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object->infer();
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
+    if (!infer_request) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object->start_async();
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
+    if (!infer_request) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object->wait();
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
+                                        const ov_call_back_t* callback) {
+    if (!infer_request || !callback) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto func = [&](std::exception_ptr ex) {
+            callback->callback_func(callback->args);
+        };
+        infer_request->object->set_callback(func);
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
     if (!tensor || !shape || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
