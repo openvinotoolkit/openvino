@@ -1597,6 +1597,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     expected = expected_conv_fmt;
             }
         }
+
+        // In case of input -> ... -> quantize -> concat
+        if (expected == format::any
+            && (node.get_users().size() == 1 && node.get_users().front()->is_type<concatenation>())
+            && (layout.batch() < 4 && layout.feature() < 4)) {
+                expected = format::get_default_format(layout.get_rank(), false, false);
+        }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;
     } else if (node.is_type<reshape>()) {
