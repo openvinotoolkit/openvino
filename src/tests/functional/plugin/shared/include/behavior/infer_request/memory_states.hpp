@@ -12,7 +12,8 @@ namespace BehaviorTestsDefinitions {
 typedef std::tuple<
         InferenceEngine::CNNNetwork, // CNNNetwork to work with
         std::vector<std::string>,    // Memory States to query
-        std::string>                 // Target device name
+        std::string,               // Target device name
+        std::map<std::string, std::string>> // device configuration
 memoryStateParams;
 
 class InferRequestVariableStateTest : public CommonTestUtils::TestsCommon,
@@ -21,7 +22,7 @@ protected:
     InferenceEngine::CNNNetwork net;
     std::vector<std::string> statesToQuery;
     std::string deviceName;
-
+    std::map<std::string, std::string> configuration;
     InferenceEngine::ExecutableNetwork PrepareNetwork();
 
 public:
