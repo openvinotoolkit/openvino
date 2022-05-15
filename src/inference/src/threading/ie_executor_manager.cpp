@@ -160,8 +160,10 @@ public:
     ExecutorManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
         auto manager = _manager.lock();
-        if (!manager)
+        if (!manager) {
             _manager = manager = std::make_shared<ExecutorManagerImpl>();
+            manager->setTbbFlag(true);
+        }
         return manager;
     }
 };
