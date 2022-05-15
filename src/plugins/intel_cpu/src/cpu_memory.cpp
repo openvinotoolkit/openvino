@@ -137,6 +137,7 @@ DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
 }
 
 void MKLDNNMemory::setDataHandle(void *data) {
+    std::lock_guard<std::mutex> lock(mutex);
     mgrHandle = DnnlMemMngrHandle(
         std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())),
         this);
