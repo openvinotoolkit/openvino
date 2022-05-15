@@ -1071,6 +1071,57 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
+bool str_copy(char* dst, std::string src) {
+    if (src.size() > 128) {
+        return false;
+    }
+
+    std::copy_n(src.c_str(), src.size(), dst);
+
+    return true;
+}
+
+ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
+                                            ov_profiling_info_list_t* profiling_infos) {
+    if (!infer_request || !profiling_infos) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto infos = infer_request->object->get_profiling_info();
+        int num = infos.size();
+        profiling_infos->num = num;
+        ov_profiling_info_t *profiling_info_arr = new ov_profiling_info_t[num];
+        for (int i = 0; i < num; i++) {
+            profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
+            profiling_info_arr[i].real_time = static_cast<double>(infos[i].real_time.count());
+            profiling_info_arr[i].cpu_time = static_cast<double>(infos[i].cpu_time.count());
+
+            if (!str_copy(profiling_info_arr[i].node_name, infos[i].node_name)) {
+                return ov_status_e::GENERAL_ERROR;
+            }
+            if (!str_copy(profiling_info_arr[i].exec_type, infos[i].exec_type)) {
+                return ov_status_e::GENERAL_ERROR;
+            }
+            if (!str_copy(profiling_info_arr[i].node_type, infos[i].node_type)) {
+                return ov_status_e::GENERAL_ERROR;
+            }
+        }
+        profiling_infos->profiling_infos = profiling_info_arr;
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+void ov_profiling_info_list_free(ov_profiling_info_list_t *profiling_infos) {
+    if (!profiling_infos) {
+        return;
+    }
+    delete [] profiling_infos->profiling_infos;
+    profiling_infos->profiling_infos = nullptr;
+    profiling_infos->num = 0;
+}
+
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
     if (!tensor || !shape || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
