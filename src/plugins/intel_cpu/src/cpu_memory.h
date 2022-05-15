@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <mutex>
 #include <ie_precision.hpp>
 
 /**
@@ -199,6 +200,7 @@ public:
      * @return
      */
     void* GetData() const {
+        std::lock_guard<std::mutex> lock(mutex);
         void* data = mgrHandle->getRawPtr();
         if (data == nullptr &&
             pMemDesc->getShape().isStatic() &&
@@ -266,6 +268,7 @@ private:
     std::shared_ptr<dnnl::memory> prim;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
+    mutable std::mutex mutex;
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
