@@ -29,7 +29,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
             score_threshold = tf.constant(test_params["score_threshold"])
 
             # inputs to be generated
-            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Boxes")
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Input")
 
             # randomize boxes' confidence scores
             np.random.seed(42)
@@ -55,7 +55,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
             soft_nms_sigma = tf.constant(test_params["soft_nms_sigma"])
 
             # inputs to be generated
-            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Boxes")
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Input")
 
             # randomize boxes' confidence scores
             np.random.seed(42)
@@ -104,7 +104,8 @@ class TestNonMaxSupression(CommonTFLayerTest):
     def test_NonMaxSupression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, api_2):
         self._test(*self.create_nms_net(test_params), ie_device, precision,
-                   ir_version, temp_dir, api_2, use_new_frontend)
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
+                   api_2=api_2)
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
@@ -112,4 +113,5 @@ class TestNonMaxSupression(CommonTFLayerTest):
     def test_NonMaxSupressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
                                         use_new_frontend, api_2):
         self._test(*self.create_nms_net_with_scores(test_params), ie_device, precision,
-                   ir_version, temp_dir, api_2, use_new_frontend)
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
+                   api_2=api_2)
