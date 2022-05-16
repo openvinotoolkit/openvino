@@ -98,6 +98,14 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
     return make_blob_with_precision(desc, mem.GetData());
 }
 
+InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const Memory &mem) {
+    auto& memDesc = mem.getDesc();
+    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
+
+    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
+    return desc;
+}
+
 InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc) {
     if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&desc)) {
         InferenceEngine::BlockingDesc blkDesc = desc.getShape().hasZeroDims() ? InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),
