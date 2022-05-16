@@ -7,13 +7,8 @@
 import numpy as np
 from save_model import saveModel
 import paddle
-import sys
-# needed by 'aligned' attribute
-import os
-import importlib
-spec = importlib.util.find_spec("ppdet")
-sys.path.insert(0, os.path.join(os.path.dirname(spec.origin), 'modeling'))
 import ops
+import sys
 
 
 def make_rois(batch_size, width, height, pooled_width, pooled_height, spatial_scale, roi_per_batch):
