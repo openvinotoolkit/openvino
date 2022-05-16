@@ -77,20 +77,12 @@ def non_max_suppression(
     :param output_type: Output element type.
     :return: The new node which performs NonMaxSuppression
     """
-    if max_output_boxes_per_class is None:
-        max_output_boxes_per_class = make_constant_node(0, np.int64)
-    if iou_threshold is None:
-        iou_threshold = make_constant_node(0, np.float32)
-    if score_threshold is None:
-        score_threshold = make_constant_node(0, np.float32)
-    if soft_nms_sigma is None:
-        inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold
-        )
-    else:
-        inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma
-        )
+    max_output_boxes_per_class = max_output_boxes_per_class if max_output_boxes_per_class is not None else make_constant_node(0, np.int64)
+    iou_threshold = iou_threshold if iou_threshold is not None else make_constant_node(0, np.float32)
+    score_threshold = score_threshold if score_threshold is not None else make_constant_node(0, np.float32)
+    soft_nms_sigma = soft_nms_sigma if soft_nms_sigma is not None else make_constant_node(0, np.float32)
+
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma)
 
     attributes = {
         "box_encoding": box_encoding,
@@ -99,3 +91,13 @@ def non_max_suppression(
     }
 
     return _get_node_factory_opset9().create("NonMaxSuppression", inputs, attributes)
+
+
+def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
+    """Apply SoftSign operation on the input node element-wise.
+
+    :param node: One of: input node, array or scalar.
+    :param name: The optional name for the output node.
+    :return: New node with SoftSign operation applied on each element of it.
+    """
+    return _get_node_factory_opset9().create("SoftSign", [as_node(node)], {})
