@@ -42,12 +42,16 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         case format::bs_fs_yx_bsv16_fsv16:
             output_format = format::bs_fs_zyx_bsv16_fsv16;
             break;
+        default:
+            break;
         }
     } else if (dims_converted.size() == 6) {
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
             output_format = format::get_default_format(dims_converted.size());
+            break;
+        default:
             break;
         }
     }
