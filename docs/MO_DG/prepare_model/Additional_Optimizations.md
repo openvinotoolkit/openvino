@@ -95,5 +95,5 @@ in the command line. Input values are *divided* by the scale value(s). If also *
 will be applied first, then *`mean`* and after that *`scale`*. The data flow in the model looks as follows:
 *`Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`*.
 
-## See Also
+## Additional Resources
 * [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md)
