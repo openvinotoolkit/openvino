@@ -1071,12 +1071,12 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-bool str_copy(char* dst, std::string src) {
-    if (src.size() > 128) {
+bool str_copy(char* dst, const std::string &src) {
+    if (src.size() + 1 > 128) {
         return false;
     }
 
-    std::copy_n(src.c_str(), src.size(), dst);
+    std::copy_n(src.c_str(), src.size() + 1, dst);
 
     return true;
 }
@@ -1094,16 +1094,19 @@ ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_reques
         ov_profiling_info_t *profiling_info_arr = new ov_profiling_info_t[num];
         for (int i = 0; i < num; i++) {
             profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
-            profiling_info_arr[i].real_time = static_cast<double>(infos[i].real_time.count());
-            profiling_info_arr[i].cpu_time = static_cast<double>(infos[i].cpu_time.count());
+            profiling_info_arr[i].real_time = infos[i].real_time.count();
+            profiling_info_arr[i].cpu_time = infos[i].cpu_time.count();
 
             if (!str_copy(profiling_info_arr[i].node_name, infos[i].node_name)) {
+                delete [] profiling_info_arr;
                 return ov_status_e::GENERAL_ERROR;
             }
             if (!str_copy(profiling_info_arr[i].exec_type, infos[i].exec_type)) {
+                delete [] profiling_info_arr;
                 return ov_status_e::GENERAL_ERROR;
             }
             if (!str_copy(profiling_info_arr[i].node_type, infos[i].node_type)) {
+                delete [] profiling_info_arr;
                 return ov_status_e::GENERAL_ERROR;
             }
         }

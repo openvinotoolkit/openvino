@@ -78,12 +78,12 @@ typedef struct{
     /**
      * @brief The absolute time, in microseconds, that the node ran (in total).
      */
-    double real_time;
+    int64_t real_time;
 
     /**
      * @brief The net host CPU time that the node ran.
      */
-    double cpu_time;
+    int64_t cpu_time;
 
     /**
      * @brief Name of a node.
