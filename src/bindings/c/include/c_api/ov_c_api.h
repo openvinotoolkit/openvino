@@ -88,17 +88,17 @@ typedef struct{
     /**
      * @brief Name of a node.
      */
-    char node_name[128];
+    char* node_name;
 
     /**
      * @brief Execution type of a unit.
      */
-    char exec_type[128];
+    char* exec_type;
 
     /**
      * @brief Node type.
      */
-    char node_type[128];
+    char* node_type;
 }ov_profiling_info_t;
 
 /**
