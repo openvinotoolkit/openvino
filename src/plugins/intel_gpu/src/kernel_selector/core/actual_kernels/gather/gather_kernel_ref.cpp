@@ -62,6 +62,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
 
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -79,6 +80,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
 
     k.EnableTensorOffset();

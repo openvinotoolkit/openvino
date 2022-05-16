@@ -13,6 +13,25 @@
 using namespace cldnn;
 using namespace ::tests;
 
+std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
+    return os << float(x);
+}
+
+template <class T>
+int dim(const T& a) {
+    int ret = a.size();
+    while (ret - 1 >= 0 && a[ret - 1] == 1)
+        ret--;
+    return ret;
+};
+
+template <class T>
+int mult(const T& a) {
+    return std::accumulate(a.begin(), a.end(), 1, [](int x, int y) {
+        return x * y;
+    });
+};
+
 using gather8_test_4d_param = std::tuple<int,                  // batch_dim
                                          int,                  // axis
                                          format::type,         // format of input0
@@ -26,10 +45,6 @@ using gather8_test_5d_param = std::tuple<int,                  // batch_dim
                                          std::array<int, 5>,   // bfzyx0
                                          std::array<int, 5>>;  // bfzyx1
 
-std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
-    return os << float(x);
-}
-
 // index 0 is input0
 // index 1 is input1
 // index 2 is output
@@ -38,43 +53,37 @@ class gather8_test_4d : public ::testing::TestWithParam<gather8_test_4d_param> {
 public:
     int axis, batch_dim;
     std::array<format::type, 3> fmt;
-    std::array<std::array<int, 4>, 3> shape;
+    std::array<std::array<int, 4>, 2> shape_in;
+    std::array<int, 6> shape_out;
 
     void SetUp() override {
-        auto dim = [](const std::array<int, 4>& a) {
-            int ret = 4;
-            while (ret - 1 >= 0 && a[ret - 1] == 1)
-                ret--;
-            return ret;
-        };
-        auto mult = [](const std::array<int, 4>& a) {
-            return a[0] * a[1] * a[2] * a[3];
-        };
-
-        std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
+        std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1]) = GetParam();
         fmt[2] = fmt[0];
 
         // refer: src/core/shape_inference/include/gather_shape_inference.hpp
-        shape[2] = {1, 1, 1, 1};
+        shape_out = {1, 1, 1, 1, 1, 1};
         for (int i = 0; i < batch_dim; i++)  // batch_dim
-            shape[2][i] = shape[0][i];
-        for (int i = batch_dim; i < axis; i++)  // before axis = shape[0][..]
-            shape[2][i] = shape[0][i];
-        for (int i = batch_dim; i < dim(shape[1]); i++)  // axis = shape[1]
-            shape[2][axis + (i - batch_dim)] = shape[1][i];
-        for (int i = axis + 1; i < dim(shape[0]); i++) {  // after axis = shape[0][..]
-            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] = shape[0][i];
+            shape_out[i] = shape_in[0][i];
+        for (int i = batch_dim; i < axis; i++)  // before axis = shape_in[0][..]
+            shape_out[i] = shape_in[0][i];
+        for (int i = batch_dim; i < dim(shape_in[1]); i++)  // axis = shape_in[1]
+            shape_out[axis + (i - batch_dim)] = shape_in[1][i];
+        for (int i = axis + 1; i < dim(shape_in[0]); i++) {  // after axis = shape_in[0][..]
+            shape_out[axis + dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
         }
+        auto shape_out_end_iter = shape_out.end();
+        while (shape_out_end_iter - shape_out.begin() > 4 && *std::prev(shape_out_end_iter) == 1)
+            shape_out_end_iter--;
 
         auto& engine = get_test_engine();
 
-        auto dat = generate_random_1d<T_dat>(mult(shape[0]), -99, 99);
+        auto dat = generate_random_1d<T_dat>(mult(shape_in[0]), -99, 99);
         auto input0 = engine.allocate_memory(
-            {T_dat_dt, format::bfyx, {shape[0][0], shape[0][1], shape[0][3], shape[0][2]}});  // Dictionary
+            {T_dat_dt, format::bfyx, {shape_in[0][0], shape_in[0][1], shape_in[0][3], shape_in[0][2]}});  // Dictionary
 
-        auto ind = generate_random_1d<T_ind>(mult(shape[1]), -shape[0][axis], shape[0][axis] - 1, 1);
+        auto ind = generate_random_1d<T_ind>(mult(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1 = engine.allocate_memory(
-            {T_ind_dt, format::bfyx, {shape[1][0], shape[1][1], shape[1][3], shape[1][2]}});  // Indexes
+            {T_ind_dt, format::bfyx, {shape_in[1][0], shape_in[1][1], shape_in[1][3], shape_in[1][2]}});  // Indexes
 
         set_values(input0, dat);
         set_values(input1, ind);
@@ -88,10 +97,10 @@ public:
                                 "reorder0",
                                 "reorder1",
                                 axis,
-                                ov::Shape(shape[2].begin(), shape[2].end()),
+                                ov::Shape(shape_out.begin(), shape_out_end_iter),
                                 batch_dim,
                                 true));
-        reorder_topo.add(reorder("reorder2", "gather", format::type::bfyx, T_dat_dt));
+        reorder_topo.add(reorder("reorder2", "gather", format::type::bfwzyx, T_dat_dt));
 
         network reorder_network(engine, reorder_topo);
         reorder_network.set_input_data("input0", input0);
@@ -103,8 +112,13 @@ public:
         topology planar_topo;
         planar_topo.add(input_layout("input0", input0->get_layout()));
         planar_topo.add(input_layout("input1", input1->get_layout()));
-        planar_topo.add(
-            gather("gather", "input0", "input1", axis, ov::Shape(shape[2].begin(), shape[2].end()), batch_dim, true));
+        planar_topo.add(gather("gather",
+                               "input0",
+                               "input1",
+                               axis,
+                               ov::Shape(shape_out.begin(), shape_out_end_iter),
+                               batch_dim,
+                               true));
 
         network planar_network(engine, planar_topo);
         planar_network.set_input_data("input0", input0);
@@ -113,7 +127,7 @@ public:
         auto planar_output = planar_network.execute().at("gather").get_memory();
         cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
 
-        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape_out) * sizeof(T_dat)));
     }
 };
 
@@ -125,44 +139,40 @@ class gather8_test_5d : public ::testing::TestWithParam<gather8_test_5d_param> {
 public:
     int axis, batch_dim;
     std::array<format::type, 3> fmt;
-    std::array<std::array<int, 5>, 3> shape;
+    std::array<std::array<int, 5>, 2> shape_in;
+    std::array<int, 6> shape_out;
 
     void SetUp() override {
-        auto dim = [](const std::array<int, 5>& a) {
-            int ret = 5;
-            while (ret - 1 >= 0 && a[ret - 1] == 1)
-                ret--;
-            return ret;
-        };
-        auto mult = [](const std::array<int, 5>& a) {
-            return a[0] * a[1] * a[2] * a[3] * a[4];
-        };
-
-        std::tie(batch_dim, axis, fmt[0], fmt[1], shape[0], shape[1]) = GetParam();
+        std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1]) = GetParam();
         fmt[2] = fmt[0];
 
-        shape[2] = {1, 1, 1, 1, 1};
+        shape_out = {1, 1, 1, 1, 1, 1};
         for (int i = 0; i < batch_dim; i++)  // batch_dim
-            shape[2][i] = shape[0][i];
-        for (int i = batch_dim; i < axis; i++)  // before axis = shape[0][..]
-            shape[2][i] = shape[0][i];
-        for (int i = batch_dim; i < dim(shape[1]); i++)  // axis = shape[1]
-            shape[2][axis + (i - batch_dim)] = shape[1][i];
-        for (int i = axis + 1; i < dim(shape[0]); i++)  // after axis = shape[0][..]
+            shape_out[i] = shape_in[0][i];
+        for (int i = batch_dim; i < axis; i++)  // before axis = shape_in[0][..]
+            shape_out[i] = shape_in[0][i];
+        for (int i = batch_dim; i < dim(shape_in[1]); i++)  // axis = shape_in[1]
+            shape_out[axis + (i - batch_dim)] = shape_in[1][i];
+        for (int i = axis + 1; i < dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             // batch_dim counted twice -> -batch_dim
-            shape[2][axis + dim(shape[1]) - batch_dim + (i - axis - 1)] = shape[0][i];
+            shape_out[axis + dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
+        auto shape_out_end_iter = shape_out.end();
+        while (shape_out_end_iter - shape_out.begin() > 5 && *std::prev(shape_out_end_iter) == 1)
+            shape_out_end_iter--;
 
         auto& engine = get_test_engine();
 
-        auto dat = generate_random_1d<T_dat>(mult(shape[0]), -99, 99);
-        auto input0 =
-            engine.allocate_memory({T_dat_dt,
-                                    format::bfzyx,
-                                    {shape[0][0], shape[0][1], shape[0][4], shape[0][3], shape[0][2]}});  // Dictionary
+        auto dat = generate_random_1d<T_dat>(mult(shape_in[0]), -99, 99);
+        auto input0 = engine.allocate_memory(
+            {T_dat_dt,
+             format::bfzyx,
+             {shape_in[0][0], shape_in[0][1], shape_in[0][4], shape_in[0][3], shape_in[0][2]}});  // Dictionary
 
-        auto ind = generate_random_1d<T_ind>(mult(shape[1]), -shape[0][axis], shape[0][axis] - 1, 1);
+        auto ind = generate_random_1d<T_ind>(mult(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1 = engine.allocate_memory(
-            {T_ind_dt, format::bfzyx, {shape[1][0], shape[1][1], shape[1][4], shape[1][3], shape[1][2]}});  // Indexes
+            {T_ind_dt,
+             format::bfzyx,
+             {shape_in[1][0], shape_in[1][1], shape_in[1][4], shape_in[1][3], shape_in[1][2]}});  // Indexes
 
         set_values(input0, dat);
         set_values(input1, ind);
@@ -176,10 +186,10 @@ public:
                                 "reorder0",
                                 "reorder1",
                                 axis,
-                                ov::Shape(shape[2].begin(), shape[2].end()),
+                                ov::Shape(shape_out.begin(), shape_out_end_iter),
                                 batch_dim,
                                 true));
-        reorder_topo.add(reorder("reorder2", "gather", format::type::bfzyx, T_dat_dt));
+        reorder_topo.add(reorder("reorder2", "gather", format::type::bfwzyx, T_dat_dt));
 
         network reorder_network(engine, reorder_topo);
         reorder_network.set_input_data("input0", input0);
@@ -191,8 +201,13 @@ public:
         topology planar_topo;
         planar_topo.add(input_layout("input0", input0->get_layout()));
         planar_topo.add(input_layout("input1", input1->get_layout()));
-        planar_topo.add(
-            gather("gather", "input0", "input1", axis, ov::Shape(shape[2].begin(), shape[2].end()), batch_dim, true));
+        planar_topo.add(gather("gather",
+                               "input0",
+                               "input1",
+                               axis,
+                               ov::Shape(shape_out.begin(), shape_out_end_iter),
+                               batch_dim,
+                               true));
 
         network planar_network(engine, planar_topo);
         planar_network.set_input_data("input0", input0);
@@ -201,7 +216,7 @@ public:
         auto planar_output = planar_network.execute().at("gather").get_memory();
         cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
 
-        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape[2]) * sizeof(T_dat)));
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape_out) * sizeof(T_dat)));
     }
 };
 
@@ -226,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
 INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0,1,2),  //[batch_dim,dim(dict))
+                                          testing::Values(0, 1, 2),  //[batch_dim,dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 77, 4, 1}),
@@ -234,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32,
 INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd1,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(1,2),  //[batch_dim,dim(dict))
+                                          testing::Values(1, 2),  //[batch_dim,dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 77, 44, 1}),
@@ -242,11 +257,35 @@ INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd1,
 INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(2),
-                                          testing::Values(2,3),  //[batch_dim,dim(dict))
+                                          testing::Values(2, 3),  //[batch_dim,dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 4, 44, 6}),
                                           testing::Values(std::array<int, 4>{3, 4, 5, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
+                         gather8_test_4d_f16i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
+                                          testing::Values(format::type::b_fs_yx_fsv32),
+                                          testing::Values(std::array<int, 4>{3, 77, 44, 1}),
+                                          testing::Values(std::array<int, 4>{3, 66, 55, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
+                         gather8_test_4d_f16i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::b_fs_yx_fsv16),
+                                          testing::Values(format::type::b_fs_yx_fsv4),
+                                          testing::Values(std::array<int, 4>{3, 77, 44, 1}),
+                                          testing::Values(std::array<int, 4>{3, 66, 55, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8_bfyx_bd0_dim4_to_dim6,
+                         gather8_test_4d_f16i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::b_fs_yx_fsv4),
+                                          testing::Values(std::array<int, 4>{3, 7, 4, 6}),
+                                          testing::Values(std::array<int, 4>{3, 6, 5, 1})));
 
 using gather8_test_4d_f32i8 = gather8_test_4d<float, char, data_types::f32, data_types::i8>;
 TEST_P(gather8_test_4d_f32i8, gather8_test_4d_f32i8) {}
@@ -269,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::array<int, 5>{8, 67, 3, 1, 1}),
                                           testing::Values(std::array<int, 5>{3, 56, 9, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(b_fs_zyx_fsv32,
+INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(1),
                                           testing::Values(2),  //[batch_dim,dim(dict))
@@ -280,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(b_fs_zyx_fsv32,
                                        
 using gather8_test_4d_i32i32 = gather8_test_4d<int, int, data_types::i32, data_types::i32>;
 TEST_P(gather8_test_4d_i32i32, gather8_test_4d_i32i32) {}        
-INSTANTIATE_TEST_SUITE_P(gather8bfyx,
+INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
                          gather8_test_4d_i32i32,
                          testing::Combine(testing::Values(0),
                                           testing::Values(1),  //[batch_dim,dim(dict))
@@ -288,7 +327,7 @@ INSTANTIATE_TEST_SUITE_P(gather8bfyx,
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::array<int, 4>{4, 3, 2, 1}),
                                           testing::Values(std::array<int, 4>{5, 6, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8bfsyx,
+INSTANTIATE_TEST_SUITE_P(gather8_bfsyx4,
                          gather8_test_4d_i32i32,
                          testing::Combine(testing::Values(0),
                                           testing::Values(2),  //[batch_dim,dim(dict))
