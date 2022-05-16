@@ -9,6 +9,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -145,8 +146,7 @@ OutputVector resize(const onnx_import::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
-    if (inputs.size() == 4)  // sizes input is provided
-    {
+    if (inputs.size() == 4 && !ngraph::op::is_null(inputs[3])) {
         attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
         const auto scales = calculate_scales_based_on_sizes(data, sizes);
