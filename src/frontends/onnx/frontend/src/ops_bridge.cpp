@@ -168,14 +168,14 @@
 namespace ngraph {
 namespace onnx_import {
 namespace {
-const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version,
-                                                            const std::map<std::int64_t, Operator>& map) {
+template <typename Container = std::map<int64_t, Operator>>
+typename Container::const_iterator find(int64_t version, const Container& map) {
     // Get the latest version.
     if (version == -1) {
         return map.empty() ? std::end(map) : --std::end(map);
     }
     while (version > 0) {
-        std::map<std::int64_t, Operator>::const_iterator it = map.find(version--);
+        const auto it = map.find(version--);
         if (it != std::end(map)) {
             return it;
         }
@@ -184,12 +184,10 @@ const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version
 }
 }  // namespace
 
-void OperatorsBridge::_register_operator(const std::string& name,
-                                         std::int64_t version,
-                                         const std::string& domain,
-                                         Operator fn) {
-    std::lock_guard<std::mutex> guard(lock);
-
+void OperatorsBridge::register_operator(const std::string& name,
+                                        int64_t version,
+                                        const std::string& domain,
+                                        Operator fn) {
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
         m_map[domain][name].emplace(version, std::move(fn));
@@ -200,9 +198,7 @@ void OperatorsBridge::_register_operator(const std::string& name,
     }
 }
 
-void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
-
+void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
         NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
@@ -228,15 +224,13 @@ void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t
     }
 }
 
-OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::int64_t version) {
-    std::lock_guard<std::mutex> guard(lock);
-
+OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t version) const {
     OperatorSet result;
 
-    auto dm = m_map.find(domain);
+    const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
         NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
-        return OperatorSet{};
+        return result;
     }
     if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
         NGRAPH_WARN << "Currently ONNX operator set version: " << version
@@ -252,41 +246,41 @@ OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::i
     return result;
 }
 
-bool OperatorsBridge::_is_operator_registered(const std::string& name,
-                                              std::int64_t version,
-                                              const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
+bool OperatorsBridge::is_operator_registered(const std::string& name,
+                                             int64_t version,
+                                             const std::string& domain) const {
     // search for domain
-    auto dm_map = m_map.find(domain);
+    const auto dm_map = m_map.find(domain);
     if (dm_map == std::end(m_map)) {
         return false;
     }
     // search for name
-    auto op_map = dm_map->second.find(name);
+    const auto op_map = dm_map->second.find(name);
     if (op_map == std::end(dm_map->second)) {
         return false;
     }
 
-    if (find(version, op_map->second) != std::end(op_map->second)) {
-        return true;
-    } else {
-        return false;
+    return find(version, op_map->second) != std::end(op_map->second);
+}
+
+void OperatorsBridge::overwrite_operator(const std::string& name, const std::string& domain, Operator fn) {
+    const auto domain_it = m_map.find(domain);
+    if (domain_it != m_map.end()) {
+        auto& domain_opset = domain_it->second;
+        domain_opset[name].clear();
     }
+    register_operator(name, 1, domain, std::move(fn));
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
-    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 #define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_) \
-    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
-    _load_initial_state();
-}
-
-void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Abs", 1, abs);
     REGISTER_OPERATOR("Acos", 1, acos);
     REGISTER_OPERATOR("Acosh", 1, acosh);
@@ -420,6 +414,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
     REGISTER_OPERATOR("RNN", 1, rnn);
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
+    REGISTER_OPERATOR("RoiAlign", 16, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
     REGISTER_OPERATOR("Scan", 1, scan);
     REGISTER_OPERATOR("Scan", 9, scan);

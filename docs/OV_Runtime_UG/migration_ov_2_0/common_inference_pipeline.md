@@ -1,17 +1,17 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
-Usually, to infer models with OpenVINO™ Runtime, you need to make the following steps in the application pipeline:
-- 1. Create Core object
- - 1.1. (Optional) Load extensions
-- 2. Read a model from a drive
- - 2.1. (Optional) Perform model preprocessing
-- 3. Load the model to the device
-- 4. Create an inference request
-- 5. Fill input tensors with data
-- 6. Start inference
-- 7. Process the inference results
+To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
+- 1. Create a Core object.
+ - 1.1. (Optional) Load extensions.
+- 2. Read a model from a drive.
+ - 2.1. (Optional) Perform model preprocessing.
+- 3. Load the model to the device.
+- 4. Create an inference request.
+- 5. Fill input tensors with data.
+- 6. Start inference.
+- 7. Process the inference results.
 
-The following code shows how to change the application code in each step to migrate to OpenVINO™ Runtime 2.0.
+The following code explains how to change the application code for migration to OpenVINO™ Runtime 2.0.
 
 ## 1. Create Core
 
@@ -43,9 +43,9 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-### 1.1 (Optional) Load extensions
+### 1.1 (Optional) Load Extensions
 
-To load a model with custom operations, you need to add extensions for these operations. We highly recommend using [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions, but if you already have old extensions you can also load them to the new OpenVINO™ Runtime:
+To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
 Inference Engine API:
 
@@ -75,7 +75,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-## 2. Read a model from a drive
+## 2. Read a Model from a Drive
 
 Inference Engine API:
 
@@ -105,14 +105,14 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-Read model has the same structure as in the example from [Model Creation](./graph_construction.md) migration guide.
+Read model has the same structure as the example from [Model Creation](./graph_construction.md) migration guide.
 
-Note, you can combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
+You can combine read and compile model stages into a single call `ov::Core::compile_model(filename, devicename)`.
 
-### 2.1 (Optional) Perform model preprocessing
+### 2.1 (Optional) Perform Model Preprocessing
 
-When application's input data doesn't perfectly match the model's input format, preprocessing steps may be necessary.
-See a detailed guide on [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
+When application input data does not perfectly match the model input format, preprocessing may be necessary.
+See the detailed guide on [how to migrate preprocessing in OpenVINO Runtime API 2.0](./preprocessing.md)
 
 ## 3. Load the Model to the Device
 
@@ -144,7 +144,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-If you need to configure OpenVINO Runtime devices with additional configuration parameters, refer to the [Configure devices](./configure_devices.md) guide.
+If you need to configure OpenVINO Runtime devices with additional parameters, refer to the [Configure devices](./configure_devices.md) guide.
 
 ## 4. Create an Inference Request
 
@@ -176,7 +176,7 @@ OpenVINO™ Runtime API 2.0:
 
 @endsphinxtabset
 
-## 5. Fill input tensors
+## 5. Fill Input Tensors
 
 The Inference Engine API fills inputs as `I32` precision (**not** aligned with the original model):
 
