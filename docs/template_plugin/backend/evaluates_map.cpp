@@ -41,6 +41,7 @@
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
+#include <ngraph/runtime/reference/generate_proposal.hpp>
 #include <ngraph/runtime/reference/greater.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/group_convolution.hpp>
@@ -49,6 +50,7 @@
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/interpolate.hpp>
+#include <ngraph/runtime/reference/irdft.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -69,6 +71,7 @@
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
+#include <ngraph/runtime/reference/roi_align.hpp>
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
@@ -76,6 +79,7 @@
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/softsign.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
@@ -2173,6 +2177,80 @@ bool evaluate(const shared_ptr<op::v9::RDFT>& op, const HostTensorVector& output
     return true;
 }
 
+namespace irfft_v9 {
+struct InfoForIRFFT9 {
+    std::vector<float> input_data;
+    std::vector<int64_t> axes_data;
+    Shape input_data_shape;
+    Shape axes_data_shape;
+    Shape fft_output_shape;
+    Shape output_shape;
+    int64_t last_signal_size;
+};
+
+InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForIRFFT9 result;
+
+    result.input_data_shape = inputs[0]->get_shape();
+    result.axes_data_shape = inputs[1]->get_shape();
+    result.input_data = get_floats(inputs[0], result.input_data_shape);
+    result.axes_data = get_integers(inputs[1], result.axes_data_shape);
+
+    auto fft_output_shape = result.input_data_shape;
+    auto output_shape = result.input_data_shape;
+
+    int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
+    int64_t complex_data_rank = input_rank - 1;
+    auto canonicalized_axes =
+        runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+
+    size_t num_of_axes = result.axes_data.size();
+    auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
+
+    const auto last_axis = canonicalized_axes.back();
+    for (size_t i = 0; i < num_of_axes; ++i) {
+        int64_t current_axis = canonicalized_axes[i];
+        int64_t current_signal_size = signal_size[i];
+        if (current_signal_size != -1) {
+            fft_output_shape[current_axis] = static_cast<size_t>(current_signal_size);
+            output_shape[current_axis] = static_cast<size_t>(current_signal_size);
+        }
+    }
+    result.last_signal_size = signal_size.back();
+    if (signal_size.back() == -1) {
+        output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
+        fft_output_shape[last_axis] = 2 * (result.input_data_shape[last_axis] - 1);
+        result.last_signal_size = 2 * (result.input_data_shape[last_axis] - 1);
+    }
+
+    output_shape.pop_back();
+
+    result.fft_output_shape = fft_output_shape;
+    result.output_shape = output_shape;
+    result.axes_data = canonicalized_axes;
+
+    return result;
+}
+}  // namespace irfft_v9
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
+    outputs[0]->set_shape(info.output_shape);
+
+    std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
+    runtime::reference::irdft(info.input_data,
+                              info.input_data_shape,
+                              info.axes_data,
+                              irfft_result.data(),
+                              info.fft_output_shape,
+                              info.output_shape);
+
+    const auto output_type = op->get_input_element_type(0);
+    runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);
+    return true;
+}
+
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::LRN>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
@@ -3084,6 +3162,40 @@ bool evaluate(const shared_ptr<op::v5::GRUSequence>& op,
     return true;
 }
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::ROIAlign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<int64_t> batch_indices_vec_scaled_up = host_tensor_2_vector<int64_t>(inputs[2]);
+    op::v3::ROIAlign::PoolingMode m_mode_v3;
+    switch (op->get_mode()) {
+    case op::v9::ROIAlign::PoolingMode::AVG: {
+        m_mode_v3 = op::v3::ROIAlign::PoolingMode::AVG;
+        break;
+    }
+    case op::v9::ROIAlign::PoolingMode::MAX: {
+        m_mode_v3 = op::v3::ROIAlign::PoolingMode::MAX;
+        break;
+    }
+    default: {
+        NGRAPH_CHECK(false, "unsupported PoolingMode ");
+    }
+    }
+    runtime::reference::roi_align<T>(inputs[0]->get_data_ptr<const T>(),
+                                     inputs[1]->get_data_ptr<const T>(),
+                                     batch_indices_vec_scaled_up.data(),
+                                     outputs[0]->get_data_ptr<T>(),
+                                     op->get_input_shape(0),
+                                     op->get_input_shape(1),
+                                     op->get_input_shape(2),
+                                     op->get_output_shape(0),
+                                     op->get_pooled_h(),
+                                     op->get_pooled_w(),
+                                     op->get_sampling_ratio(),
+                                     op->get_spatial_scale(),
+                                     m_mode_v3,
+                                     op->get_aligned_mode());
+    return true;
+}
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::ROIPooling>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -3257,6 +3369,79 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronTopKROIs>& op,
                                                             inputs[1]->get_shape(),
                                                             max_rois,
                                                             outputs[0]->get_data_ptr<T>());
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    const auto attrs = op->get_attrs();
+
+    size_t post_nms_count = 0;
+    if (attrs.post_nms_count < 0) {
+        throw ngraph_error("The attribute post_nms_count of the operation "
+                           "GenerateProposals must be a "
+                           "nonnegative integer.");
+    } else {
+        post_nms_count = static_cast<size_t>(attrs.post_nms_count);
+    }
+
+    const auto output_type = op->get_input_element_type(0);
+
+    const auto im_info_shape = inputs[0]->get_shape();
+    const auto anchors_shape = inputs[1]->get_shape();
+    const auto deltas_shape = inputs[2]->get_shape();
+    const auto scores_shape = inputs[3]->get_shape();
+
+    const auto im_info_data = get_floats(inputs[0], im_info_shape);
+    const auto anchors_data = get_floats(inputs[1], anchors_shape);
+    const auto deltas_data = get_floats(inputs[2], deltas_shape);
+    const auto scores_data = get_floats(inputs[3], scores_shape);
+
+    std::vector<float> output_rois;
+    std::vector<float> output_scores;
+    std::vector<int64_t> output_num;
+
+    runtime::reference::generate_proposals(im_info_data,
+                                           anchors_data,
+                                           deltas_data,
+                                           scores_data,
+                                           attrs,
+                                           im_info_shape,
+                                           anchors_shape,
+                                           deltas_shape,
+                                           scores_shape,
+                                           output_rois,
+                                           output_scores,
+                                           output_num);
+
+    uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
+
+    Shape output_rois_shape = Shape{num_selected, 4};
+    Shape output_scores_shape = Shape{num_selected};
+
+    outputs[0]->set_element_type(output_type);
+    outputs[0]->set_shape(output_rois_shape);
+    outputs[1]->set_element_type(output_type);
+    outputs[1]->set_shape(output_scores_shape);
+
+    const auto roi_num_type = op->get_output_element_type(2);
+    Shape output_roi_num_shape = Shape{im_info_shape[0]};
+    outputs[2]->set_element_type(roi_num_type);
+    outputs[2]->set_shape(output_roi_num_shape);
+
+    runtime::reference::generate_proposals_postprocessing(outputs[0]->get_data_ptr(),
+                                                          outputs[1]->get_data_ptr(),
+                                                          outputs[2]->get_data_ptr(),
+                                                          output_type,
+                                                          roi_num_type,
+                                                          output_rois,
+                                                          output_scores,
+                                                          output_num,
+                                                          output_rois_shape,
+                                                          output_scores_shape);
+
     return true;
 }
 
@@ -3690,6 +3875,36 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
                                                           op->get_attrs());
         break;
     default:;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        runtime::reference::softsign<double>(inputs[0]->get_data_ptr<double>(),
+                                             outputs[0]->get_data_ptr<double>(),
+                                             shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f32:
+        runtime::reference::softsign<float>(inputs[0]->get_data_ptr<float>(),
+                                            outputs[0]->get_data_ptr<float>(),
+                                            shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f16:
+        runtime::reference::softsign<float16>(inputs[0]->get_data_ptr<float16>(),
+                                              outputs[0]->get_data_ptr<float16>(),
+                                              shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::bf16:
+        runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                               outputs[0]->get_data_ptr<bfloat16>(),
+                                               shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
     }
     return true;
 }
