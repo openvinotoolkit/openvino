@@ -80,6 +80,7 @@
 #include "utils.hpp"
 #include "variadic_split_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
+#include "eye_shape_inference.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -549,6 +550,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::opset4::Broadcast>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::Broadcast>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::Eye>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::MaxPool>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::MaxPool>>(node);
