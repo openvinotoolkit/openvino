@@ -7,9 +7,9 @@ You will perform the following steps:
 
 1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
-3. <a href="download-media">Download media files to run inference on.</a>
-4. <a href="run-image-classification">Run inference on the sample and see the results:</a>
-    - <a href="run-image-classification">Image Classification Code Sample</a>
+3. <a href="#download-media">Download media files to run inference on.</a>
+4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
+    - <a href="#run-image-classification">Image Classification Code Sample</a>
 
 This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
 
