@@ -34,7 +34,7 @@ bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -80,7 +80,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherTree::execute(mkldnn::stream strm) {
+void GatherTree::execute(dnnl::stream strm) {
     if (precision == Precision::FP32)
         return gatherTreeKernel<float>();
     else

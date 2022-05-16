@@ -51,6 +51,9 @@ static const char enable_log_message[] = "Optional. Enable GNA logging, which ma
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
 
+/// @brief message for disabling of compact (memory_reuse) mode
+static const char memory_reuse_message[] = "Optional. Disables memory optimizations for compiled model.";
+
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU plugin custom layers."
                                                  "Absolute path to a shared library with the kernels implementations.";
@@ -129,6 +132,9 @@ static const char pwl_max_error_percent_message[] = "Optional. The maximum perce
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
+
+/// \brief Define flag for disabling compact (memory_reuse) mode <br>
+DEFINE_bool(memory_reuse_off, false, memory_reuse_message);
 
 /// \brief Define parameter for set image file <br>
 /// It is a required parameter
@@ -228,6 +234,7 @@ static void show_usage() {
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
+    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
 }
 
 /**
