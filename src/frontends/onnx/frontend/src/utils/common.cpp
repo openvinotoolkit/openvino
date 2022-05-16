@@ -116,7 +116,6 @@ template OutputVector handle_opset6_binary_op<default_opset::Multiply>(const Nod
 template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
-const std::string SKIP_SETTING_FRIENDLY_NAME = "SKIP_SETTING_FRIENDLY_NAME";
 
 std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::element::Type& dtype) {
     const auto failsafe_constant = default_opset::Constant::create(dtype, Shape{}, {0});
@@ -128,31 +127,6 @@ std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::el
 bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
     const auto& rt_info = node->get_rt_info();
     return rt_info.find(FAILSAFE_NODE) != rt_info.end();
-}
-
-void skip_setting_friendly_names(const std::shared_ptr<ov::Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    rt_info[SKIP_SETTING_FRIENDLY_NAME] = true;
-}
-
-bool friendly_name_already_set(const std::shared_ptr<ov::Node>& node) {
-    const auto& rt_info = node->get_rt_info();
-    return rt_info.find(SKIP_SETTING_FRIENDLY_NAME) != rt_info.end();
-}
-
-void set_friendly_names(const std::shared_ptr<ov::Node> op,
-                        const std::shared_ptr<ov::Node> added_bias,
-                        const onnx_import::Node& onnx_node) {
-    const std::string onnx_name = !onnx_node.get_name().empty() ? onnx_node.get_name() : onnx_node.output(0);
-    if (added_bias == nullptr) {
-        op->set_friendly_name(onnx_name);
-        common::skip_setting_friendly_names(op);
-    } else {
-        op->set_friendly_name(onnx_name + "/WithoutBiases");
-        added_bias->set_friendly_name(onnx_name);
-        common::skip_setting_friendly_names(op);
-        common::skip_setting_friendly_names(added_bias);
-    }
 }
 
 }  // namespace  common

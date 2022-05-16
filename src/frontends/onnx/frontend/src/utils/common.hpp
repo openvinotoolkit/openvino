@@ -142,19 +142,6 @@ std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::el
 /// \brief Checks the node's runtime info object and returns true if this node represents
 ///        a dummy failsafe node created instead of an incorrect node found in the original model
 bool is_failsafe_node(const std::shared_ptr<ov::Node>& node);
-
-/// \brief Marks a node with a special entry which indicates that the friendly name has already been set
-///        and any generic mechanism which handles friendly names should skip this node
-void skip_setting_friendly_names(const std::shared_ptr<ov::Node>& node);
-
-/// \brief Checks if this node already has a friendly name set. This information can be used to skip overwriting
-///        the currently set friendly name.
-bool friendly_name_already_set(const std::shared_ptr<ov::Node>& node);
-
-/// \brief Sets friendly names for operators with added bias
-void set_friendly_names(const std::shared_ptr<ov::Node> op,
-                        const std::shared_ptr<ov::Node> added_bias,
-                        const onnx_import::Node& onnx_node);
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph

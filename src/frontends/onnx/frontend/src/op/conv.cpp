@@ -14,7 +14,6 @@
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "utils/common.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
@@ -61,7 +60,6 @@ OutputVector conv(const Node& node,
 
     // no bias param
     if (ngraph::op::is_null(bias)) {
-        common::set_friendly_names(conv_node, nullptr, node);
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();
@@ -69,9 +67,9 @@ OutputVector conv(const Node& node,
         NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
                      "The bias input needs to be 1D vector");
 
-        const auto bias_node = add_bias(conv_node, bias);
-        common::set_friendly_names(conv_node, bias_node, node);
-        return {bias_node};
+        const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
+        conv_node->set_friendly_name(onnx_name + "/WithoutBiases");
+        return {add_bias(conv_node, bias)};
     }
 }
 }  // namespace detail

@@ -393,21 +393,18 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        if (!common::friendly_name_already_set(ng_subgraph_outputs[i].get_node_shared_ptr())) {
-            const auto& onnx_node_name = onnx_node.get_name();
-            if (onnx_node_name.empty()) {
-                // for multioutput nodes, their friendly name is always set to the last ONNX output's name
-                // this is because this setter is called in a loop and the last call is ultimate for a given node
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        const auto& onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
+            // this is because this setter is called in a loop and the last call is ultimate for a given node
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            if (common_node) {
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
             } else {
-                if (common_node) {
-                    ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
-                } else {
-                    // if different outputs are produced by different nodes, then those nodes need to be given
-                    // unique friendly names
-                    ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" +
-                                                                         onnx_node.output(i));
-                }
+                // if different outputs are produced by different nodes, then those nodes need to be given
+                // unique friendly names
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
             }
         }
 
