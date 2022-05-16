@@ -22,7 +22,7 @@ def dict_to_ordered_dict(d: dict, func=lambda t: t):
 
 class Node:
     def __init__(self, graph, node: str):
-        assert node in graph, "Attempt to access node {} that is not in graph".format(node)
+        assert node in graph, "Attempt to access node {} that not in graph".format(node)
 
         super(Node, self).__setattr__('graph', graph)
         super(Node, self).__setattr__('node', node)  # obsolete
