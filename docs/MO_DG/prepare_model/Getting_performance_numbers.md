@@ -7,7 +7,7 @@ When evaluating performance of model with the OpenVINO Runtime, it is required t
 
 - Avoid including one-time costs like model loading.
 
-- Track separately operations which occurred outside the OpenVINO Runtime (like video decoding). 
+- The operations which occur outside the OpenVINO Runtime (like video decoding) should be tracked separately.
 
 > **NOTE**: Some image pre-processing can be baked into the IR and accelerated accordingly. For more information, see the [Embedding the Preprocessing guide](Additional_Optimizations.md). Additional information are also present in the [Runtime Optimizations of the Preprocessing guide](../../optimization_guide/dldt_deployment_optimization_common.md).
 
