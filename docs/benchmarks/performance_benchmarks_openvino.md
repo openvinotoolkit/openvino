@@ -43,14 +43,14 @@ Below benchmark performance results are based on testing as of March 17, 2022. T
 <!-- See configuration disclosure for details. No product can be absolutely secure. -->
 Performance varies by use, configuration and other factors about which you can learn more [here](https://www.intel.com/PerformanceIndex). Used Intel optimizations (for Intel® compilers or other products) may not optimize to the same degree for non-Intel products.
 
-<!-- ### bert-base-cased [124]
+### bert-base-cased [124]
 
 @sphinxdirective
 .. raw:: html
 
-    <div class="chart-block" data-loadcsv="csv/bert-base-cased124.csv"></div> <- This one don't display properly
+    <div class="chart-block" data-loadcsv="csv/bert-base-cased124.csv"></div>
 
-@endsphinxdirective -->
+@endsphinxdirective
 
 
 ### bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
