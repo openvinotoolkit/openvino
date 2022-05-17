@@ -34,7 +34,7 @@ $ ./benchmark_app –d CPU –m <model> -i <input>
 to execute on the CPU instead.
 
 Each of the [OpenVINO supported devices](../../OV_Runtime_UG/supported_plugins/Supported_Devices.md) offers performance settings that contain command-line equivalents in the [Benchmark App](../../../samples/cpp/benchmark_app/README.md).
-While these settings provide really low-level control, and allow to leverage the optimal model performance on the _specific_ device, it is suggested to always start the performance evaluation with the [OpenVINO High-Level Performance Hints](../../OV_Runtime_UG/performance_hints.md) first:
+While these settings provide really low-level control and allow leveraging the optimal model performance on the "specific" device, it is recommended to always start the performance evaluation with the [OpenVINO High-Level Performance Hints](../../OV_Runtime_UG/performance_hints.md) first:
  - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
  - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
 
