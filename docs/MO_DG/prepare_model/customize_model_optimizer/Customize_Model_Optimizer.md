@@ -261,7 +261,7 @@ This layout change is disabled automatically if the model does not have operatio
 It is still possible to force Model Optimizer to do a layout change, using *`--disable_nhwc_to_nchw`* command-line parameter, although it is not advised.
 
 
-The layout change is a complex problem, which is not explained in detail in this article. A very brief
+Layout change is a complex problem and will be addressed here very briefly. For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
 explanation of this process is provided below:
 
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
