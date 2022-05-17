@@ -1,6 +1,6 @@
 # Performance Information Frequently Asked Questions {#openvino_docs_performance_benchmarks_faq}
 
-The following questions (Q#) and answers (A) are related to published [performance benchmarks](./performance_benchmarks.md) article.
+The following questions (Q#) and answers (A) are related to published [performance benchmarks](./performance_benchmarks.md).
 
 #### Q1: How often do performance benchmarks get updated?
 **A**: New performance benchmarks are typically published on every *`major.minor`8 release of the Intel® Distribution of OpenVINO™ toolkit.
