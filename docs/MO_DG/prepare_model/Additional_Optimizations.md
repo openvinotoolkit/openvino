@@ -77,7 +77,7 @@ Sometimes input images for your application can be of the RGB (BGR) format and t
 which is in the opposite order of color channels. In this case, it is important to preprocess the input images by reverting the color channels before inference.
 To embed this preprocessing step into IR, Model Optimizer provides the *`--reverse_input_channels`* command-line parameter to shuffle the color channels.
 
-The *`--reverse_input_channels`* parameter applies to an input of the model in two cases.
+The *`--reverse_input_channels`* parameter can be used to preprocess the model input in the following cases:
  * Only one dimension in the input shape has a size equal to 3.
  * One dimension has an undefined size and is marked as *`C`* channel using *`layout`* parameters.
 
