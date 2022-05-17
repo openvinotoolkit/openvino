@@ -3,7 +3,7 @@
 
 ## Tip 1: Measure the Proper Set of Operations 
 
-When evaluating performance of model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the below options: 
+When evaluating performance of model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the options below : 
 
 - Avoid including one-time costs like model loading.
 
