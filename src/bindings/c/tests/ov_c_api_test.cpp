@@ -37,8 +37,10 @@ std::condition_variable condVar;
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
 #else
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
+        std::string extension_std = TestDataHelpers::generate_ieclass_xml_path("libopenvino_template_extension.so");
 #endif
 const char* plugins_xml = plugins_xml_std.c_str();
+const char* extension = extension_std.c_str();
 
 #define OV_EXPECT_OK(...) EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...) ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
@@ -99,4 +101,207 @@ TEST(ov_c_api_version, api_version) {
 
     EXPECT_STREQ(version.buildNumber, ver.buildNumber);
     ov_version_free(&version);
+}
+
+class ov_core :public::testing::TestWithParam<std::string>{};
+INSTANTIATE_TEST_CASE_P(device_name, ov_core, ::testing::Values("CPU"));
+
+TEST(ov_core, ov_core_create_with_config) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(plugins_xml, &core));
+    ASSERT_NE(nullptr, core);
+    ov_core_free(core);
+}
+
+TEST(ov_core, ov_core_create_with_no_config) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+    ov_core_free(core);
+}
+
+TEST(ov_core, ov_core_read_model) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_core_free(core);
+    ov_model_free(model);
+}
+
+TEST(ov_core, ov_core_read_model_no_bin) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_core_free(core);
+    ov_model_free(model);
+}
+
+static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
+    std::vector<uint8_t> result;
+    {
+        std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
+        if (is) {
+            is.seekg(0, std::ifstream::end);
+            result.resize(is.tellg());
+            if (result.size() > 0) {
+                is.seekg(0, std::ifstream::beg);
+                is.read(reinterpret_cast<char *>(&result[0]), result.size());
+            }
+        }
+    }
+    return result;
+}
+
+TEST(ov_core, ov_core_read_model_from_memory) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+
+    ov_tensor_t* tensor = nullptr;
+    ov_shape_t shape = {1, weights_content.size()};
+    OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
+    ASSERT_NE(nullptr, tensor);
+
+    std::vector<uint8_t> xml_content(content_from_file(xml, false));
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model_from_memory(core, reinterpret_cast<const char *>(xml_content.data()), tensor, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_tensor_free(tensor);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_compile_model) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    ov_property_t property = {};
+    OV_ASSERT_OK(ov_core_compile_model(core, model, devece_name.c_str(), &compiled_model, &property));
+    ASSERT_NE(nullptr, compiled_model);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_compile_model_from_file) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    ov_property_t property = {};
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    ASSERT_NE(nullptr, compiled_model);
+
+    ov_compiled_model_free(compiled_model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_property) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_property_t property{ov_property_key_e::PERFORMANCE_HINT, ov_performance_mode_e::THROUGHPUT, nullptr};
+    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), &property));
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_get_property) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_property_value property_value;
+    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
+    ov_core_free(core);
+}
+
+TEST(ov_core, ov_core_get_available_devices) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_available_devices_t devices;
+    OV_ASSERT_OK(ov_core_get_available_devices(core, &devices));   
+    ov_available_devices_free(&devices);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_compiled_model_export) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    ov_property_t property = {};
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    ASSERT_NE(nullptr, compiled_model);
+
+    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
+    ov_compiled_model_free(compiled_model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_import_model) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    ov_property_t property = {};
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    ASSERT_NE(nullptr, compiled_model);
+
+    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
+    ov_compiled_model_free(compiled_model);
+
+    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
+    ov_compiled_model_t* compiled_model_imported = nullptr;
+    OV_ASSERT_OK(ov_core_import_model(core, reinterpret_cast<const char *>(buffer.data()), buffer.size(), devece_name.c_str(), &compiled_model_imported));
+    ASSERT_NE(nullptr, compiled_model_imported);
+    ov_compiled_model_free(compiled_model_imported);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_get_versions) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+    
+    ov_core_version_list_t version_list;
+    OV_ASSERT_OK(ov_core_get_versions(core, devece_name.c_str(), &version_list));
+    EXPECT_EQ(version_list.num_vers, 1);
+
+    ov_core_versions_free(&version_list);
+    ov_core_free(core);
 }
