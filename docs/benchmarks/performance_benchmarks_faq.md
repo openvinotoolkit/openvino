@@ -18,7 +18,7 @@ The following questions (Q#) and answers (A) are related to published [performan
 **A**: All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called *`benchmark_app`*. This tool is available in both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md).
 
 #### Q6: What image sizes are used for the classification network models?
-**A**: The image size used in inference depends on the benchmarked network. Below table presents the list of input sizes for each network model:
+**A**: The image size used in inference depends on the benchmarked network. The table below presents the list of input sizes for each network model:
 
 |   **Model**                                                                                                                        |   **Public Network**               |     **Task**                | **Input Size** (Height x Width)   |
 |------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|-----------------------------|-----------------------------------|
