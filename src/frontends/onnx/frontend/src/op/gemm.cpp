@@ -84,16 +84,13 @@ OutputVector gemm(const Node& node) {
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
 
-    std::shared_ptr<ngraph::Node> matmul_node =
-        std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
+    const auto matmul_node = std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
+    const auto matmul_times_alpha = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
 
-    if (alpha != 1) {
-        matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
-    }
-
-    auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
-
-    return OutputVector{std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c)};
+    const auto beta_times_input_c = std::make_shared<default_opset::Multiply>(beta_node, input_c);
+    const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
+    matmul_node->set_friendly_name(onnx_name + "/WithoutBiases");
+    return {std::make_shared<default_opset::Add>(matmul_times_alpha, beta_times_input_c)};
 }
 
 }  // namespace set_6

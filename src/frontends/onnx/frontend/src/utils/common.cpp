@@ -120,7 +120,7 @@ const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::element::Type& dtype) {
     const auto failsafe_constant = default_opset::Constant::create(dtype, Shape{}, {0});
     auto& rt_info = failsafe_constant->get_rt_info();
-    rt_info[FAILSAFE_NODE] = "";
+    rt_info[FAILSAFE_NODE] = true;
     return failsafe_constant;
 }
 
