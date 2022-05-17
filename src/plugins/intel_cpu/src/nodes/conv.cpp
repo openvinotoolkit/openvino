@@ -516,9 +516,10 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
     dnnl::post_ops ops;
 
     auto getBinPostOpShape = [&](){
-        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
+        const auto outShape = getOutputShapeAtPort(0).getDims();
         const auto outShapeRank = getOutputShapeAtPort(0).getRank();
         const auto chIdx = getFusingAxis();
+        assert(Shape::UNDEFINED_DIM != outShape[chIdx]);
         std::vector<size_t> binaryShape(outShapeRank, 1);
         binaryShape[chIdx] = outShape[chIdx];
         return binaryShape;
@@ -569,8 +570,8 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                     std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
                     if (!fqScale.empty()) {
                         size_t size = fqScale.size();
-                        size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
-                        if (size == 1) {
+                        size_t OC = getOutputShapeAtPort(0).getDims()[1];
+                        if (size == 1 && Shape::UNDEFINED_DIM != OC) {
                             fqScale.resize(OC);
                             for (size_t k = 0; k < OC; k++)
                                 fqScale[k] = fqScale[0];
@@ -596,8 +597,8 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             std::vector<float> outScale = isc;
                             if (!outScale.empty()) {
                                 size_t size = outScale.size();
-                                size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
-                                if (size == 1) {
+                                size_t OC = getOutputShapeAtPort(0).getDims()[1];
+                                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
                                     outScale.resize(OC);
                                     for (size_t k = 0; k < OC; k++)
                                         outScale[k] = outScale[0];
@@ -631,8 +632,8 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             std::vector<float> outScale = isc;
                             if (!outScale.empty()) {
                                 size_t size = outScale.size();
-                                size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
-                                if (size == 1) {
+                                size_t OC = getOutputShapeAtPort(0).getDims()[1];
+                                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
                                     outScale.resize(OC);
                                     for (size_t k = 0; k < OC; k++)
                                         outScale[k] = outScale[0];
