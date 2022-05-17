@@ -30,7 +30,7 @@ When using Model Optimizer, you are assumed to already have a deep learning mode
 
 > **NOTE**: Model Optimizer does not infer models. It is an offline tool that converts a model into IR and optimizes it before the inference takes place.
 
-The scheme below illustrates the typical workflow for deploying a trained deep learning model:
+The figure below illustrates the typical workflow for deploying a trained deep learning model:
 
 ![](img/BASIC_FLOW_MO_simplified.svg)
 
