@@ -88,7 +88,7 @@ template <typename T>
 void Eye::executeSpecified() {
     const size_t rowNum = getRowNum();
     const size_t colNum = getColNum();
-    const int shift = getDiagIndex();
+    const int64_t shift = getDiagIndex();
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!outPtr || !outPtr ->isAllocated())
             THROW_ERROR << errorPrefix << "Destination memory didn't allocate.";
@@ -100,12 +100,11 @@ void Eye::executeSpecified() {
     const size_t l2CacheSize = dnnl::utils::get_cache_size(2, true);
     const size_t elementsCount = colNum * rowNum * batchVolume;
 
-    const size_t minSide = std::min(rowNum, colNum);
-    const size_t maxSide = std::max(rowNum, colNum);
-    const size_t absShift = std::abs(shift);
-    const size_t onesPerBatchNum = (absShift <= maxSide - minSide ? minSide :
-                              absShift < maxSide ? minSide - absShift : 0);
-    const size_t dataShift = (shift >= 0 ? shift : -shift * colNum);
+    const int64_t countByColumns = std::max(int64_t(colNum) - std::abs(shift), int64_t(0));
+    const int64_t countByRows = std::max(int64_t(rowNum) - std::abs(shift), int64_t(0));
+    const size_t onesPerBatchNum =
+        static_cast<size_t>(shift > 0 ? std::min(countByColumns, int64_t(rowNum)) : std::min(countByRows, int64_t(colNum)));
+    const size_t dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
