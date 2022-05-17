@@ -45,7 +45,7 @@ The generated IR can be additionally optimized for inference by [Post-training o
 
 > **TIP**: You can also work with Model Optimizer in OpenVINO™ [Deep Learning Workbench (DL Workbench)](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html), which is a web-based tool with GUI for optimizing, fine-tuning, analyzing, visualizing, and comparing performance of deep learning models.
 
-## Running Model Optimizer
+## How to Run Model Optimizer
 
 To convert a model to IR, you can run Model Optimizer by using the following command:
 
