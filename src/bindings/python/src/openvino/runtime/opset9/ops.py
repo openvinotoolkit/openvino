@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -12,7 +13,7 @@ from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
-    as_node
+    as_node,
 )
 
 _get_node_factory_opset9 = partial(_get_node_factory, "opset9")
