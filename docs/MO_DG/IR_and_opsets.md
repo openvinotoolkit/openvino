@@ -218,7 +218,7 @@ The *`type="Parameter"`* and *`version="opset1"`* attributes, in the example abo
 When a new operation set is introduced, most of the operations remain unchanged and are just aliased from the previous operation set within a new one.
 The goal of operation set versions evolution is adding new operations, and probably changing of small fraction of existing operations (fixing bugs and extending semantics).
 However, such changes affect only new versions of operations from a new operation set, while old operations are used by specifying an appropriate *`version`*.
-When the old *`version`* is specified, the behavior is kept unchanged from that specified version to provide the backward compatibility with older IRs.
+When an old *`version`* is specified, the behavior will be kept unchanged from that specified version to provide backward compatibility with older IRs.
 
 A single *`xml`* file with IR may contain operations from different opsets.
 An operation that is included in several opsets may be referred to with *`version`* which points to any opset that includes that operation.
