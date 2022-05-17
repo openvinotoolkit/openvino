@@ -13,7 +13,7 @@ OpenVINO property is represented as a named constexpr variable with a given stri
 ```
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 ```
-represents a read-only property with a C++ name *`ov::available_devices`*, a string name *`AVAILABLE_DEVICES`* and a type `std::vector<std::string>`.
+represents a read-only property with a C++ name `ov::available_devices`, a string name `AVAILABLE_DEVICES` and a type `std::vector<std::string>`.
 
 Refer to the [Hello Query Device С++ Sample](../../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device execution](../multi_device.md) documentation for examples of using setting and getting properties in user applications.
 
@@ -48,31 +48,31 @@ GPU.0
 GPU.1
 ```
 
-If there is more than one instance of a specific device, the devices are enumerated with *`.suffix`*, where *`suffix`* is a unique string identifier. Each device name can then be passed to:
+If there is more than one instance of a specific device, the devices are enumerated with `.suffix`, where `suffix` is a unique string identifier. Each device name can then be passed to:
 
 * `ov::Core::compile_model` to load the model to a specific device with specific configuration properties.
 * `ov::Core::get_property` to get common or device specific properties.
-* All other methods of the `ov::Core` class that accept a *`deviceName`*.
+* All other methods of the `ov::Core` class that accept a `deviceName`.
 
 ### Working with Properties in Your Code
 
 The `ov::Core` class provides the following method to query device information, set or get different device configuration properties:
 
 * `ov::Core::get_property` - Gets the current value of a specific property.
-* `ov::Core::set_property` - Sets a new value for the property globally for specified *`device_name`*.
+* `ov::Core::set_property` - Sets a new value for the property globally for specified `device_name`.
 
 The `ov::CompiledModel` class is also extended to support the properties:
 
 * `ov::CompiledModel::get_property`
 * `ov::CompiledModel::set_property`
 
-For documentation about OpenVINO common device-independent properties, refer to the *`openvino/runtime/properties.hpp`*. Device specific configuration keys can be found in corresponding device folders (for example, *`openvino/runtime/intel_gpu/properties.hpp`*).
+For documentation about OpenVINO common device-independent properties, refer to the `openvino/runtime/properties.hpp`. Device specific configuration keys can be found in corresponding device folders (for example, `openvino/runtime/intel_gpu/properties.hpp`).
 
 ### Working with Properties via Core
 
 #### Getting Device Properties
 
-The code below demonstrates how to query *`HETERO`* device priority of devices which will be used to infer the model:
+The code below demonstrates how to query `HETERO` device priority of devices which will be used to infer the model:
 
 @sphinxtabset
 
@@ -90,7 +90,7 @@ The code below demonstrates how to query *`HETERO`* device priority of devices w
 
 @endsphinxtabset
 
-> **NOTE**: All properties have a type, which is specified during property declaration. Based on this, actual type under *`auto`* is automatically deduced by C++ compiler.
+> **NOTE**: All properties have a type, which is specified during property declaration. Based on this, actual type under `auto` is automatically deduced by C++ compiler.
 
 To extract device properties such as available devices (`ov::available_devices`), device name (`ov::device::full_name`), supported properties (`ov::supported_properties`), and others, use the `ov::Core::get_property` method:
 
@@ -110,9 +110,9 @@ To extract device properties such as available devices (`ov::available_devices`)
 
 @endsphinxtabset
 
-A returned value appears as follows: *`Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`*.
+A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
-> **NOTE**: In order to understand a list of supported properties on `ov::Core` or `ov::CompiledModel` levels, use `ov::supported_properties` which contains a vector of supported property names. Properties which can be changed, has `ov::PropertyName::is_mutable` returning the *`true`* value. Most of the properites which are changable on `ov::Core` level, cannot be changed once the model is compiled, so it becomes immutable read-only property.
+> **NOTE**: In order to understand a list of supported properties on `ov::Core` or `ov::CompiledModel` levels, use `ov::supported_properties` which contains a vector of supported property names. Properties which can be changed, has `ov::PropertyName::is_mutable` returning the `true` value. Most of the properites which are changable on `ov::Core` level, cannot be changed once the model is compiled, so it becomes immutable read-only property.
 
 #### Configure a Work with a Model
 
@@ -184,7 +184,7 @@ The `ov::CompiledModel::get_property` method is used to get property values the 
 
 @endsphinxtabset
 
-Or the current temperature of the *`MYRIAD`* device:
+Or the current temperature of the `MYRIAD` device:
 
 @sphinxtabset
 
@@ -203,7 +203,7 @@ Or the current temperature of the *`MYRIAD`* device:
 @endsphinxtabset
 
 
-Or the number of threads that would be used for inference on *`CPU`* device:
+Or the number of threads that would be used for inference on `CPU` device:
 
 @sphinxtabset
 

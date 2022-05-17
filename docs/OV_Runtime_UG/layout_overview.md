@@ -2,15 +2,15 @@
 
 ## Introduction
 
-In a nutshell, with the *`NCHW`* layout it is easier to understand what model *`{8, 3, 224, 224}`* shape means. Without the layout it is just a 4-dimensional tensor.
+In a nutshell, with the `NCHW` layout it is easier to understand what model `{8, 3, 224, 224}` shape means. Without the layout it is just a 4-dimensional tensor.
 
 
-Concept of a layout helps you (and your application) to understand what does each particular dimension of input/output tensor mean. For example, if your input has the *`{1, 3, 720, 1280}`* shape and *`NCHW`* layout - it is clear that *`N(batch) = 1`*, *`C(channels) = 3`*, *`H(height) = 720`* and *`W(width) = 1280`*. Without the layout information, the *`{1, 3, 720, 1280}`* tuple does not give any idea to your application what these numbers mean and how to resize the input image to fit the expectations of the model.
+Concept of a layout helps you (and your application) to understand what does each particular dimension of input/output tensor mean. For example, if your input has the `{1, 3, 720, 1280}` shape and `NCHW` layout - it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720` and `W(width) = 1280`. Without the layout information, the `{1, 3, 720, 1280}` tuple does not give any idea to your application what these numbers mean and how to resize the input image to fit the expectations of the model.
 
 
 Below is a list of cases where input/output layout is significant:
  - Performing model modification:
-    - Applying the [preprocessing](./preprocessing_overview.md) steps, like subtracting means, dividing by scales, resizing an image, converting *`RGB`*<->*`BGR`*.
+    - Applying the [preprocessing](./preprocessing_overview.md) steps, like subtracting means, dividing by scales, resizing an image, converting `RGB`<->`BGR`.
     - Setting/getting a batch for a model.
  - Doing the same operations, used during model conversion phase. For more information, refer to the [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
  - Improving readability of a model input and output.
@@ -36,10 +36,10 @@ The easiest way is to fully specify each dimension with one letter of the alphab
 
 @endsphinxtabset
 
-This assigns *`N`* to the first dimension, *`C`* to the second, *`H`* to the third and *`W`* to fourth.
+This assigns `N` to the first dimension, `C` to the second, `H` to the third and `W` to fourth.
 
 ### Advanced Syntax
-Advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets *`[]`* and specify each name separated by a comma *`,`*.
+Advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
 
 @sphinxtabset
 
@@ -59,7 +59,7 @@ Advanced syntax allows assigning a word to a dimension. To do this, wrap a layou
 
 
 ### Partially Defined Layout
-If some dimension is not important, its name can be set to *`?`*.
+If some dimension is not important, its name can be set to `?`.
 
 @sphinxtabset
 
@@ -79,7 +79,7 @@ If some dimension is not important, its name can be set to *`?`*.
 
 
 ### Dynamic Layout
-If a number of dimensions is not important, an ellipsis *`...`* can be used to specify varying number of dimensions.
+If a number of dimensions is not important, an ellipsis `...` can be used to specify varying number of dimensions.
 
 @sphinxtabset
 
@@ -100,11 +100,11 @@ If a number of dimensions is not important, an ellipsis *`...`* can be used to s
 ### Predefined Names
 
 A layout has some pre-defined dimension names, widely used in a computer vision:
-- *`N`*/*`Batch`* - batch size
-- *`C`*/*`Channels`* - channels dimension
-- *`D`*/*`Depth`* - depth
-- *`H`*/*`Height`* - height
-- *`W`*/*`Width`* - width
+- `N`/`Batch` - batch size
+- `C`/`Channels` - channels dimension
+- `D`/`Depth` - depth
+- `H`/`Height` - height
+- `W`/`Width` - width
 
 These names are used in [PreProcessing API](./preprocessing_overview.md) and there is a set of helper functions to get appropriate dimension index from a layout.
 
@@ -126,7 +126,7 @@ These names are used in [PreProcessing API](./preprocessing_overview.md) and the
 
 ### Equality
 
-Layout names are case-insensitive, which means that *`Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")`*.
+Layout names are case-insensitive, which means that `Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")`.
 
 ### Dump Layout
 

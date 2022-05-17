@@ -194,7 +194,7 @@ C++ references:
 
 Resizing of an image is a typical preprocessing step for computer vision tasks. With preprocessing API, this step can also be integrated into execution graph and performed on a target device.
 
-To resize the input image, it is needed to define *`H`* and *`W`* dimensions of the [layout](./layout_overview.md)
+To resize the input image, it is needed to define `H` and `W` dimensions of the [layout](./layout_overview.md)
 
 @sphinxtabset
 
@@ -212,7 +212,7 @@ To resize the input image, it is needed to define *`H`* and *`W`* dimensions of 
 
 @endsphinxtabset
 
-When original model has known spatial dimensions (*`width`*+*`height`*), target *`width`*/*`height`* can be omitted.
+When original model has known spatial dimensions (`width`+`height`), target `width`/`height` can be omitted.
 
 @sphinxtabset
 
@@ -237,7 +237,7 @@ C++ references:
 
 #### Color Conversion
 
-Typical use case is to reverse color channels from *`RGB`* to *`BGR`* and vice versa. To do this, specify source color format in `tensor` section and perform `convert_color` preprocessing operation. In the example below, a `BGR` image needs to be converted to `RGB` as required for the model input.
+Typical use case is to reverse color channels from `RGB` to `BGR` and vice versa. To do this, specify source color format in `tensor` section and perform `convert_color` preprocessing operation. In the example below, a `BGR` image needs to be converted to `RGB` as required for the model input.
 
 @sphinxtabset
 
@@ -275,7 +275,7 @@ In advanced cases, such YUV images can be split into separate planes, e.g. for N
 
 @endsphinxtabset
 
-In this example, the original *`input`* is split to *`input/y`* and *`input/uv`* inputs. You can fill *`input/y`* from one source, and `input/uv` from another source. Color conversion to *`RGB`* will be performed, using these sources. It is more efficient as there will be no additional copies of NV12 buffers.
+In this example, the original `input` is split to `input/y` and `input/uv` inputs. You can fill `input/y` from one source, and `input/uv` from another source. Color conversion to `RGB` will be performed, using these sources. It is more efficient as there will be no additional copies of NV12 buffers.
 
 C++ references:
 * `ov::preprocess::ColorFormat`
@@ -284,7 +284,7 @@ C++ references:
 
 ### Custom Operations
 
-Preprocessing API also allows adding custom preprocessing steps into execution graph. Custom step is a function, which accepts current *`input`* node and returns new node after adding preprocessing step.
+Preprocessing API also allows adding custom preprocessing steps into execution graph. Custom step is a function, which accepts current `input` node and returns new node after adding preprocessing step.
 
 > **Note:** Custom preprocessing function should only insert node(s) after the input, it will be done during model compilation. This function will NOT be called during execution phase. This may seem serious and require some knowledge of [OpenVINO™ operations](../ops/opset.md).
 

@@ -37,7 +37,7 @@ Run multiple inferences, if arbitrary division along batch dimension is possible
 Use the approach with several pre-compiled models, choosing sized inputs to have the minimum number of inferences,
 having a particular batch size in the input tensor.
 
-For example, if there are models pre-compiled for batch sizes *`1`*, *`2`*, *`4`* and *`8`*,
-the input tensor with batch *`5`* can be processed with two inference calls with batch size *`1`* and *`4`*.
+For example, if there are models pre-compiled for batch sizes `1`, `2`, `4` and `8`,
+the input tensor with batch `5` can be processed with two inference calls with batch size `1` and `4`.
 (At this point, it is assumed that the batch processing is required for performance reasons. In other cases, just loop over images in a batch
 and process image by image with a single compiled model.)

@@ -11,7 +11,7 @@ For an in-depth description of CPU plugin, see:
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit.
 
 ## Device Name
-For the CPU plugin *`CPU`* device name is used, and even though there can be more than one socket on a platform, from the perspective of a plugin, there is only one *`CPU`* device.
+For the CPU plugin `CPU` device name is used, and even though there can be more than one socket on a platform, from the perspective of a plugin, there is only one `CPU` device.
 On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
 In order to use CPU for inference, the device name should be passed to the `ov::Core::compile_model()` method:
 
@@ -63,7 +63,7 @@ Using bf16 precision provides the following performance benefits:
 - Faster multiplication of two bfloat16 numbers because of shorter mantissa of the bfloat16 data.
 - Reduced memory consumption since bfloat16 data size is two times less than 32-bit float. 
 
-To check if the CPU device can support the bfloat16 data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain *`BF16`* in the list of CPU capabilities:
+To check if the CPU device can support the bfloat16 data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
 
 @sphinxtabset
 
@@ -95,7 +95,7 @@ To infer the model in f32 precision instead of bf16 on targets with native bf16 
 
 @endsphinxtabset
 
-Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native *`avx512_bf16`* instruction. This mode is used for development purposes and it does not guarantee good performance.
+Bfloat16 software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, one has to explicitly set the `ov::hint::inference_precision` to `ov::element::bf16`.
 
 > **NOTE**: An exception is thrown in case of setting the `ov::hint::inference_precision` to `ov::element::bf16` on CPU without native bfloat16 support or bfloat16 simulation mode.
@@ -106,7 +106,7 @@ To enable the simulation, one has to explicitly set the `ov::hint::inference_pre
 
 ### Multi-device Execution
 If a machine has OpenVINO supported devices other than CPU (for example integrated GPU), then any supported model can be executed on CPU and all the other devices simultaneously.
-This can be achieved by specifying *`MULTI:CPU,GPU.0`* as a target device in case of simultaneous usage of CPU and GPU.
+This can be achieved by specifying `MULTI:CPU,GPU.0` as a target device in case of simultaneous usage of CPU and GPU.
 
 @sphinxtabset
 
@@ -123,7 +123,7 @@ This can be achieved by specifying *`MULTI:CPU,GPU.0`* as a target device in cas
 For more details, see the [Multi-device execution page](../multi_device.md).
 
 ### Multi-stream Execution
-If either `ov::num_streams(n_streams)` with *`n_streams > 1`* or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for CPU plugin,
+If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for CPU plugin,
 then multiple streams are created for the model. In case of CPU plugin, each stream has its own host thread, which means that incoming infer requests can be processed simultaneously.
 Each stream is pinned to its own group of physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
