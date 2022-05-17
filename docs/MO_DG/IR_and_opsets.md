@@ -232,7 +232,7 @@ Two or more opsets may refer to the same operation.
 That means an operation is kept unchanged from one operation set to another.
 
 Description of each operation has a *`Versioned name`* field.
-For example, *`ReLU`* entry point in [`opset1`](../ops/opset1.md) refers to [`ReLU-1`](../ops/activation/ReLU_1.md) as the versioned name.
+For example, the *`ReLU`* entry point in [`opset1`](../ops/opset1.md) refers to [`ReLU-1`](../ops/activation/ReLU_1.md) as the versioned name.
 Meanwhile, *`ReLU`* in *`opset2`* refers to the same *`ReLU-1`* and both *`ReLU`* operations are the same operation and it has a single [description](../ops/activation/ReLU_1.md), which means that *`opset1`* and *`opset2`* share the same operation *`ReLU`*.
 
 To differentiate versions of the same operation type, like *`ReLU`*, the *`-N`* suffix is used in a versioned name of the operation.
