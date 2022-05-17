@@ -6,7 +6,7 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_faq
-   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2022.1-Download-Excel.xlsx>
+   Download Performance Data Spreadsheet in MS Excel Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2022.1-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
 
 
