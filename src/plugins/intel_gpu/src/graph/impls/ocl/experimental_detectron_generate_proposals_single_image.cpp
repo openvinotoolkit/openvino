@@ -30,6 +30,7 @@ protected:
         }
 
         args.outputs.push_back(instance.output_memory_ptr());
+        //TODO: Future improvement: To add second output parameter only when it's needed
         args.inputs.push_back(instance.output_roi_scores_memory());
 
         return args;
