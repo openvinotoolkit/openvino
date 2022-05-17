@@ -78,7 +78,7 @@ mo --help
 
 Below is a list of separate examples for different frameworks and Model Optimizer parameters:
 
-- Launch Model Optimizer for a TensorFlow MobileNet model in the binary protobuf format:
+1. Launch Model Optimizer for a TensorFlow MobileNet model in the binary protobuf format:
 ```sh
 mo --input_model MobileNet.pb
 ```
