@@ -47,7 +47,7 @@ The generated IR can be additionally optimized for inference by [Post-training o
 
 ## Running Model Optimizer
 
-To convert the model to IR, run Model Optimizer:
+To convert a model to IR, you can run Model Optimizer by using the following command:
 
 ```sh
 mo --input_model INPUT_MODEL
