@@ -862,15 +862,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
                            pooling_supports_fusings(input_data.as<pooling>());
 
-            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+                           quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<resample>() &&
                            quantize_node.get_scale_shift_opt() &&

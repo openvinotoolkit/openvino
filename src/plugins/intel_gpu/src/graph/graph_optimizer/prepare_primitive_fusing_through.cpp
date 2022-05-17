@@ -77,10 +77,10 @@ void prepare_primitive_fusing_through::run(program& p) {
             auto& quantize_node = node->as<quantize>();
             bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
                                      quantize_node.get_per_tensor_input_scale() &&
-                                     quantize_node.get_per_tensor_input_shift() &&
+                                     (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
                                      quantize_node.get_per_tensor_input_range() &&
                                      quantize_node.get_per_tensor_output_scale() &&
-                                     quantize_node.get_per_tensor_output_shift() &&
+                                     (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
                                      quantize_node.get_per_tensor_output_range();
 
             if (!per_tensor_values)
