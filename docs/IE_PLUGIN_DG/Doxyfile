@@ -58,7 +58,7 @@ PROJECT_LOGO           =
 # entered, it will be relative to the location where doxygen was started. If
 # left blank the current directory will be used.
 
-OUTPUT_DIRECTORY       =
+OUTPUT_DIRECTORY       = "@DOCS_BUILD_DIR@"
 
 # If the CREATE_SUBDIRS tag is set to YES then doxygen will create 4096 sub-
 # directories (in 2 levels) under the output directory of each output format and
@@ -228,7 +228,12 @@ TAB_SIZE               = 4
 # "Side Effects:". You can put \n's in the value part of an alias to insert
 # newlines.
 
-ALIASES                =
+ALIASES                = sphinxdirective="\n\xmlonly<sphinxdirective>"
+ALIASES                += endsphinxdirective="</sphinxdirective>\endxmlonly"
+ALIASES                += sphinxtabset="\n\xmlonly<sphinxtabset></sphinxtabset>\endxmlonly\n"
+ALIASES                += endsphinxtabset="\n\xmlonly<endsphinxtabset></endsphinxtabset>\endxmlonly\n"
+ALIASES                += sphinxtab{1}="\n\xmlonly<sphinxtab>\1</sphinxtab>\endxmlonly\n"
+ALIASES                += endsphinxtab="\n\xmlonly<endsphinxtab></endsphinxtab>\endxmlonly\n"
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"
@@ -780,10 +785,16 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = . \
-						 ../../src/common/transformations/include/transformations \
-						 ../../src/inference/dev_api \
-						 ../../src/common/itt/include/openvino
+INPUT                  = "@DOCS_BUILD_DIR@/openvino/docs/IE_PLUGIN_DG/" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/transformations/include/" \
+                         "@OpenVINO_SOURCE_DIR@/src/inference/dev_api" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/itt/include/openvino" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/conditional_compilation/include/" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/low_precision_transformations/include/" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/snippets/include/" \
+                         "@OpenVINO_SOURCE_DIR@/src/common/util/include/" \
+                         "@OpenVINO_SOURCE_DIR@src/core/dev_api"
+
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -862,14 +873,14 @@ EXCLUDE_SYMBOLS        =
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../template_plugin/src \
-                         ../template_plugin/include \
-                         ../template_plugin/src/CMakeLists.txt \
-                         ../template_plugin/tests/functional/CMakeLists.txt \
-                         ../template_plugin/tests/functional/transformations \
-                         ../template_plugin/tests/functional/shared_tests_instances/ \
-                         ../../src/tests/functional/plugin/shared/include \
-                         ../snippets
+EXAMPLE_PATH           = "@OpenVINO_SOURCE_DIR@/docs/template_plugin/src" \
+                         "@OpenVINO_SOURCE_DIR@/docs/template_plugin/include" \
+                         "@OpenVINO_SOURCE_DIR@/docs/template_plugin/src/CMakeLists.txt" \
+                         "@OpenVINO_SOURCE_DIR@/template_plugin/tests/functional/CMakeLists.txt" \
+                         "@OpenVINO_SOURCE_DIR@/docs/template_plugin/tests/functional/transformations" \
+                         "@OpenVINO_SOURCE_DIR@/docs/template_plugin/tests/functional/shared_tests_instances/" \
+                         "@OpenVINO_SOURCE_DIR@/src/tests/functional/plugin/shared/include" \
+                         "@OpenVINO_SOURCE_DIR@/docs/snippets"
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp and
@@ -891,7 +902,7 @@ EXAMPLE_RECURSIVE      = YES
 # that contain images that are to be included in the documentation (see the
 # \image command).
 
-IMAGE_PATH             = ./images
+IMAGE_PATH             = "@DOCS_BUILD_DIR@/openvino/docs/IE_PLUGIN_DG/images"
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program
@@ -1068,7 +1079,7 @@ IGNORE_PREFIX          =
 # If the GENERATE_HTML tag is set to YES, doxygen will generate HTML output
 # The default value is: YES.
 
-GENERATE_HTML          = YES
+GENERATE_HTML          = NO
 
 # The HTML_OUTPUT tag is used to specify where the HTML docs will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
@@ -1892,7 +1903,7 @@ MAN_LINKS              = NO
 # captures the structure of the code including all documentation.
 # The default value is: NO.
 
-GENERATE_XML           = NO
+GENERATE_XML           = YES
 
 # The XML_OUTPUT tag is used to specify where the XML pages will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
@@ -1900,7 +1911,7 @@ GENERATE_XML           = NO
 # The default directory is: xml.
 # This tag requires that the tag GENERATE_XML is set to YES.
 
-XML_OUTPUT             = xml
+XML_OUTPUT             = "@XML_OUTPUT@"
 
 # If the XML_PROGRAMLISTING tag is set to YES, doxygen will dump the program
 # listings (including syntax highlighting and cross-referencing information) to
