@@ -14,7 +14,7 @@
 
 The [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) helps accelerate deep learning inference across a variety of Intel® processors and accelerators.
 
-The benchmark results below demonstrate high performance gains on several public neural networks on multiple Intel® CPUs, GPUs and VPUs covering a broad performance range. The results can be used to assisit with decision which hardware is best for your applications and solutions or to plan AI workload on the Intel computing already included in your solutions.
+The benchmark results below demonstrate high performance gains on several public neural networks on multiple Intel® CPUs, GPUs and VPUs covering a broad performance range. The results may be helpful when deciding which hardware is best for your applications and solutions or to plan AI workload on the Intel computing already included in your solutions.
 
 Links below consist of the benchmarking results for each alternative to review:
 
