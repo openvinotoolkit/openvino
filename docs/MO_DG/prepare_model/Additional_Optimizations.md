@@ -64,7 +64,7 @@ There are two cases of how the input data preprocessing is implemented.
    In this case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides command-line parameters to specify the values: *`--mean_values`*, *`--scale_values`*, *`--scale`*.
 Using these parameters, Model Optimizer embeds the corresponding preprocessing block for mean-value normalization of the input data
-and optimizes this block so that the preprocessing takes a little time for inference.
+and optimizes this block so that the preprocessing takes negligible time for inference.
 
 For example, the following command runs the Model Optimizer for the PaddlePaddle UNet model and applies mean-scale normalization to the input data:
 
