@@ -91,7 +91,7 @@ mo --input_model alexnet.pb --reverse_input_channels
 ```
 
 > **NOTE**: If both mean and scale values are specified, the mean is subtracted first and then the scale is applied regardless of the order of options
-in the command line. Input values are *divided* by the scale value(s). If also *`--reverse_input_channels`* option is used, the *`reverse_input_channels`*
+in the command-line. Input values are *divided* by the scale value(s). If the `--reverse_input_channels` option is also used, `reverse_input_channels`
 will be applied first, then *`mean`* and after that *`scale`*. The data flow in the model looks as follows:
 *`Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model`*.
 
