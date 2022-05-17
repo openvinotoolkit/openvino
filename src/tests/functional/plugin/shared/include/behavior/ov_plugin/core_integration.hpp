@@ -95,6 +95,7 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
@@ -382,6 +383,18 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
     OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+}
+
+TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::force_tbb_terminate(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    EXPECT_EQ(value, false);
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::force_tbb_terminate(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    EXPECT_EQ(value, true);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
