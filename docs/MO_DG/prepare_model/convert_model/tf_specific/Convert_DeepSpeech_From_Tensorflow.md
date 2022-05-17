@@ -18,7 +18,7 @@ wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz
 wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
 ```
 * For Windows systems:
-  1. Download the archive with the model: [https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz](https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz).
+  1. Download [the archive with the model](https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz).
   2. Download the TensorFlow MetaGraph with pretrained weights: [https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz](https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz).
   3. Unpack it with a file archiver application.
 
