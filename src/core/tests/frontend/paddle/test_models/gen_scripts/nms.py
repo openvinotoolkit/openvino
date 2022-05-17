@@ -10,19 +10,12 @@ import sys
 
 from save_model import saveModel, exportModel, print_alike
 
-import paddle as pdpd
-# from ppdet.modeling.ops import multiclass_nms as multiclass_nms
-# from ppdet.modeling.ops import matrix_nms as matrix_nms
-
-import importlib
-spec = importlib.util.find_spec("ppdet")
-sys.path.insert(0, os.path.join(os.path.dirname(spec.origin),'modeling'))
-from ops import multiclass_nms as multiclass_nms
-from ops import matrix_nms as matrix_nms
-
 # bboxes shape (N, M, 4) if shared else (M, C, 4)
 # scores shape (N, C, M) if shared else (M, C)
 def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
+    import paddle as pdpd
+    from ops import multiclass_nms as multiclass_nms
+    from ops import matrix_nms as matrix_nms
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(),
