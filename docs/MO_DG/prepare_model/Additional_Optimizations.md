@@ -57,7 +57,8 @@ Neural network models are usually trained with the normalized input data. This m
 for example, *`[0, 1]`* or *`[-1, 1]`*. Sometimes, the mean values (mean images) are subtracted from the input data values as part of the preprocessing.
 
 There are two cases of how the input data preprocessing is implemented.
- * The input preprocessing operations are a part of a model. In this case, the application does not preprocess the input data as a separate step: everything is embedded into the model itself.
+ * The input preprocessing operations are a part of a model. 
+    In this case, the application does not perform a separate preprocessing step: everything is embedded into the model itself. Model Optimizer will generate the IR with required preprocessing operations, and no `mean` and `scale` parameters are required.
  * The input preprocessing operations are not a part of a model and the preprocessing is performed within the application which feeds the model with input data.
 
 In the first case, the Model Optimizer generates the IR with required preprocessing operations and no *`mean`* and *`scale`* parameters are required.
