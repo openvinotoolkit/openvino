@@ -255,7 +255,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
@@ -268,6 +268,11 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXImportUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
