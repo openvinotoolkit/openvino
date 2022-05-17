@@ -74,7 +74,7 @@ mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 
 ## Reversing Input Channels <a name="when_to_reverse_input_channels"></a>
 Sometimes input images for your application can be of the RGB (BGR) format and the model is trained on images of the BGR (RGB) format,
-the opposite color channel order. In this case, it is important to preprocess the input images by reverting the color channels before inference.
+which is in the opposite order of color channels. In this case, it is important to preprocess the input images by reverting the color channels before inference.
 To embed this preprocessing step into IR, Model Optimizer provides the *`--reverse_input_channels`* command-line parameter to shuffle the color channels.
 
 The *`--reverse_input_channels`* parameter applies to an input of the model in two cases.
