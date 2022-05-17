@@ -307,29 +307,17 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
 
-        // Fuse reorder if the following onednn convolution supports bfyx input
-        if (next.is_type<convolution>() && fmt_prev == format::bfyx && prev_dt == next_dt &&
-            needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
-            auto& conv = next.as<convolution>();
-            if (conv.input().get_output_layout().format == fmt_next)
-                return true;
-        }
-
-        // Remove reorder to support mixed format convolutions of bsv32fsv16 or bsv32fsv32 output
-        if (next.is_type<convolution>() && (prev.is_type<eltwise>() || prev.is_type<quantize>()) &&
-            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            ((fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4))))
-            return true;
-
         // Remove reorder to support blocked input for first convolution
-        if (next.is_type<convolution>() && (fmt_prev == format::bs_fs_yx_bsv4_fsv2 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()))
+        if (next.is_type<convolution>() && needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
+            ((prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() < 8 && fmt_prev == format::b_fs_yx_fsv2) ||
+             (prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv2) ||
+             (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() < 8 && fmt_prev == format::b_fs_yx_fsv4) ||
+             (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv4)))
             return true;
 
         // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
         //                                 b_fs_yx_fsv16 (fp32/fp16) -> b_fs_yx_fsv32 (i8/u8)
-        if (next.is_type<convolution>()) {
+        if (next.is_type<convolution>() && !needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
             const bool fsv32_to_fsv16 = (((fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16) ||
                                           (fmt_prev == format::bs_fs_yx_bsv32_fsv32 && fmt_next == format::bs_fs_yx_bsv32_fsv16)) &&
                                           data_type_traits::is_i8_u8(prev_dt) && data_type_traits::is_floating_point(next_dt));
@@ -790,18 +778,13 @@ bool layout_optimizer::needs_all_usr_onednn_small_ic_to_blocked(const program_no
 }
 
 bool layout_optimizer::needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node) {
-    auto next_output_layout = node.get_output_layout();
-    if (!(prev_output_layout.data_type == next_output_layout.data_type ||
-        (prev_output_layout.data_type == data_types::i8 && next_output_layout.data_type == data_types::u8) ||
-        (prev_output_layout.data_type == data_types::u8 && next_output_layout.data_type == data_types::i8)))
-        return false;
-
     // Target output_layout format
     if (!(fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16 ||
         fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return false;
 
-    if (next_output_layout.feature() >= 8 && prev_output_layout.feature() <= 4)
+    // Check input feature size from node.input() in case prev_output_layout used in post operations.
+    if (prev_output_layout.feature() <= 8 && node.input().get_output_layout().feature() <= 8)
         return true;
 
     return false;
@@ -934,11 +917,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
-    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups);
+    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups) && output_layout.feature() == static_cast<int>(prim->groups);
     int ofm_per_group = output_layout.feature() / prim->groups;
     int ifm_per_group = input_layout.feature() / prim->groups;
     int compute_block = 32;
-    bool valid_int8_dw = is_dw && output_layout.batch() % 16 == 0;
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
@@ -959,10 +941,15 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
-        // bool is_first_conv = input_layout.size.feature[0] < 4;
+        bool fp16_output = output_layout.data_type == data_types::f16;
 
-        if (i8_u8_output) {
-            if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
+        // oneDNNv2.6 needs acdb format for shallow group conv
+        if (!non_grouped && is_2d &&
+            ((is_dw && ((i8_u8_input && input_layout.feature() < 16) || (fp16_output && input_layout.feature() < 8))) ||
+            (!is_dw && ((i8_u8_input && ofm_per_group % 32 != 0) || (fp16_output && ofm_per_group % 16 != 0))))) {
+            expected_format = cldnn::format::byxf;
+        } else if (i8_u8_output) {
+            if ((non_grouped || valid_grouped || is_dw) && is_2d) {
                 if (input_layout.batch() >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
@@ -984,7 +971,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         } else if ((output_layout.data_type == data_types::f16 || output_layout.data_type == data_types::f32) && is_2d) {
             expected_tensor = current_layout.size;
 
-            if (input_layout.batch() >= 16 && onednn_valid_post_ops) {
+            if (input_layout.batch() >= 16) {
                 if (non_grouped || valid_grouped || is_dw) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv16;
                 } else {
@@ -993,7 +980,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             } else {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
             }
-        } else if (output_layout.data_type == data_types::f16 &&
+        } else if (fp16_output &&
                 convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim) &&
                 (output_layout.data_type == input_layout.data_type ||
                 !data_type_traits::is_floating_point(input_layout.data_type)) && is_2d) {
@@ -1331,6 +1318,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_formats = {
+            format::byxf,
             format::b_fs_zyx_fsv16,
             format::b_fs_zyx_fsv32,
             format::b_fs_yx_fsv32,
@@ -1352,20 +1340,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
-        }
-
-        if (node.is_type<convolution>()) {
-            // oneDNN doesn't have good support for groups with fsv16 fmt
-            auto& conv = node.as<convolution>();
-            auto input_layout = conv.input().get_output_layout();
-            auto output_layout = conv.get_output_layout();
-            bool has_groups = conv.get_primitive()->groups > 1;
-            bool is_depthwise = conv.get_primitive()->groups == input_layout.feature();
-            bool first_conv = input_layout.feature() <= 4;
-            if (((has_groups && !is_depthwise) || first_conv) &&
-                output_layout.format == format::b_fs_yx_fsv16 &&
-                !needs_onednn_small_ic_to_blocked(preferred_format, input_layout, conv))
-                impl_candidate = impl_types::ocl;
         }
 
         if (node.is_type<deconvolution>()) {
@@ -1548,10 +1522,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
             expected = format::bfyx;
-        } else if (use_onednn_impls && data_type_traits::is_i8_u8(layout.data_type) &&
-            needs_all_usr_onednn_small_ic_to_blocked(node)) {
+        } else if (use_onednn_impls  && needs_all_usr_onednn_small_ic_to_blocked(node)) {
             // All user nodes are convolutions which satisfy options for onednn first conv
-            expected = format::bs_fs_yx_bsv8_fsv4;
+            if (layout.data_type == data_types::f16) {
+                expected = (layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
+            } else if (data_type_traits::is_i8_u8(layout.data_type)) {
+                expected = (layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
+            }
+            // TODO: check other types for first conv
         } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.batch() % 16 == 0) {

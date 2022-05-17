@@ -167,6 +167,38 @@ inline uint get_b_fs_yx_fsv_index_safe(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                      \
         CAT(prefix, _PAD_AFTER_SIZE_X), 16)
 
+#define GET_DATA_B_FS_YX_FSV2_INDEX(prefix, b, f, y, x) \
+    get_b_fs_yx_fsv_index(                   \
+        b, f, y, x,                                     \
+        CAT(prefix, _SIZE_X ),                          \
+        CAT(prefix, _SIZE_Y),                           \
+        CAT(prefix, _FEATURE_NUM),                      \
+        CAT(prefix, _BATCH_NUM),                        \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),             \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),              \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),           \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),            \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 2)
+
+#define GET_DATA_B_FS_YX_FSV2_INDEX_SAFE(prefix, b, f, y, x) \
+    get_b_fs_yx_fsv_index_safe(                   \
+        b, f, y, x,                                          \
+        CAT(prefix, _SIZE_X ),                               \
+        CAT(prefix, _SIZE_Y),                                \
+        CAT(prefix, _FEATURE_NUM),                           \
+        CAT(prefix, _BATCH_NUM),                             \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),                  \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),                   \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 2)
+
 #define GET_DATA_B_FS_YX_FSV4_INDEX(prefix, b, f, y, x) \
     get_b_fs_yx_fsv_index(                   \
         b, f, y, x,                                     \

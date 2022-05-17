@@ -335,6 +335,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 raw_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::b_fs_yx_fsv16 ||
                        layout == DataLayout::b_fs_yx_fsv32 ||
+                       layout == DataLayout::b_fs_yx_fsv2 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
@@ -349,6 +350,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 if (layout == DataLayout::b_fs_yx_fsv16 ||
                     layout == DataLayout::b_fs_yx_fsv32 ||
+                    layout == DataLayout::b_fs_yx_fsv2  ||
                     layout == DataLayout::b_fs_yx_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv32_fsv32  ||
                     layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||

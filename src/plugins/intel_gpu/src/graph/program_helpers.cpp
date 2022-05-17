@@ -141,7 +141,8 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
                (l2.format == format && l1.format != format);
     };
 
-    if (check_format(format::b_fs_yx_fsv4) ||
+    if (check_format(format::b_fs_yx_fsv2) ||
+        check_format(format::b_fs_yx_fsv4) ||
         check_format(format::fs_b_yx_fsv32) ||
         check_format(format::b_fs_yx_fsv16) ||
         check_format(format::b_fs_yx_fsv32) ||
