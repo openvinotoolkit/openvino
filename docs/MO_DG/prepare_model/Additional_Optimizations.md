@@ -31,7 +31,7 @@ For example, the following command specifies the layout for an ONNX `Yolo v3 Tin
 mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
 ```
 
-## Changing Layout of a Model Inputs and Outputs
+## Changing Model Layout
 
 Changing the model layout may be necessary if it differs from the one presented by input data. 
 Use either *`--layout`* or *`--source_layout`* with *`--target_layout`* to change the layout.
