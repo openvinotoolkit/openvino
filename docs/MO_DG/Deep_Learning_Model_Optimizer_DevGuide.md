@@ -58,7 +58,7 @@ If the out-of-the-box conversion (only the *`--input_model`* parameter is specif
 - Model Optimizer provides two parameters to override original input shapes for model conversion: *`--input`* and *`--input_shape`*.
 For more information about these parameters, refer to the [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md) guide.
 
-To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
+- To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
 use the *`--input`* and *`--output`* parameters to define new inputs and outputs of the converted model.
 For a more detailed description, refer to the [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md) guide.
 
