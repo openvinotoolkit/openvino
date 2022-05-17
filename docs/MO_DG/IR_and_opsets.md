@@ -236,7 +236,7 @@ For example, the *`ReLU`* entry point in [`opset1`](../ops/opset1.md) refers to 
 Meanwhile, *`ReLU`* in *`opset2`* refers to the same *`ReLU-1`* and both *`ReLU`* operations are the same operation and it has a single [description](../ops/activation/ReLU_1.md), which means that *`opset1`* and *`opset2`* share the same operation *`ReLU`*.
 
 To differentiate versions of the same operation type such as *`ReLU`*, the *`-N`* suffix is used in a versioned name of the operation.
-The *`N`* usually refers to the first *`opsetN`* where this version of the operation is introduced.
+The *`N`* suffix usually refers to the first occurrence of *`opsetN`* where this version of the operation is introduced.
 There is no guarantee that new operations will be named according to that rule. The naming convention might be changed, but not for old operations which are frozen completely.
 
 
