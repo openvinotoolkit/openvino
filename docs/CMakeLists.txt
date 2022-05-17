@@ -108,6 +108,10 @@ function(build_docs)
     set(DOXYFILE_SOURCE "${DOCS_SOURCE_DIR}/Doxyfile.config")
     set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
     configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
+    # Doxygen config plugin
+    set(DOXYFILE_SOURCE_PLUGIN "${DOCS_SOURCE_DIR}/IE_PLUGIN_DG/Doxyfile")
+    set(DOXYFILE_BUILD_PLUGIN "${DOCS_BUILD_DIR}/Doxyfile.plugin.config")
+    configure_file(${DOXYFILE_SOURCE_PLUGIN} ${DOXYFILE_BUILD_PLUGIN} @ONLY)
 
     list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
         --input_dir=${OpenVINO_SOURCE_DIR}
@@ -192,8 +196,6 @@ function(build_docs)
 
     add_custom_target(doxygen_xml
                       DEPENDS preprocess_docs
-                      COMMAND ${PYTHON_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"
                       VERBATIM)
@@ -201,8 +203,13 @@ function(build_docs)
     # Post-process docs
     add_custom_command(TARGET doxygen_xml
                        POST_BUILD
-                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
+                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD_PLUGIN}
+                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
+                       COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
+                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
+                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
                        COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
