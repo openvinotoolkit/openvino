@@ -41,7 +41,7 @@ Depending on the distribution type, the granularity of OpenVINO packages may var
 
 - The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs: OpenVINO API 2.0, both Inference Engine and nGraph APIs (being combined as of API 2.0). For C language applications `openvino_c` is additionally required for distribution.
 - The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero execution](../hetero_execution.md) or [Multi-Device execution](../multi_device.md).
-- The "optional" plugin libraries like `openvino_ir_frontnend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats like OpenVINO IR, ONNX or PaddlePaddle.
+- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats like OpenVINO IR, ONNX or PaddlePaddle.
 
 The "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
 
