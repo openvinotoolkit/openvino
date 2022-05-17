@@ -82,7 +82,7 @@ The *`--reverse_input_channels`* parameter can be used to preprocess the model i
  * One dimension has an undefined size and is marked as *`C`* channel using *`layout`* parameters.
 
 Using the *`--reverse_input_channels`* parameter, Model Optimizer embeds the corresponding preprocessing block for reverting
-the input data along channel dimension and optimizes this block so that the preprocessing takes a little time for inference.
+the input data along channel dimension and optimizes this block so that the preprocessing takes only negligible time for inference.
 
 For example, the following command launches the Model Optimizer for the TensorFlow AlexNet model and embeds the `reverse_input_channel` preprocessing block into IR:
 
