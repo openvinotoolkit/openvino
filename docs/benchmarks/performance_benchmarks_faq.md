@@ -9,7 +9,7 @@ The following questions (Q#) and answers (A) are related to published [performan
 **A**: All models used are included in the GitHub repository of [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo).
 
 #### Q3: Will there be any new models added to the list used for benchmarking?
-**A**: The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. New models that support a diverse set of workloads and usage are going to be added.
+**A**: The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. New models that support a diverse set of workloads and usage are added periodically.
 
 #### Q4: What does "CF" or "TF" in the graphs stand for?
 **A**: The "CF" means "Caffe", and "TF" means "TensorFlow".
