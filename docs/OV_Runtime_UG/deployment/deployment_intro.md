@@ -25,28 +25,15 @@ Furthermore, to customize OpenVINO Docker image, use [Docker CI Framework](https
 
 The table below shows which distribution type can be used, depending on a target operating system:
 
-@sphinxdirective
-
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Distribution type                                                                                                           | Operating systems                                                                                                                                                                                            |
-+=============================================================================================================================+==============================================================================================================================================================================================================+
-| Debian packages                                                                                                             | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit                                                                                                                   |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| RMP packages                                                                                                                | Red Hat Enterprise Linux 8, 64-bit                                                                                                                                                                           |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Docker images                                                                                                               | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| PyPi (pip package manager)                                                                                                  | See `https://pypi.org/project/openvino/ <https://pypi.org/project/openvino/>`_                                                                                                                               |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| `OpenVINO Deployment Manager <deployment-manager-tool.md>`_                                                                 | All operating systems                                                                                                                                                                                        |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| `Local distribution <local-distribution.md>`_                                                                               | All operating systems                                                                                                                                                                                        |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| `Build OpenVINO statically and link into the final app <https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries>`_ | All operating systems                                                                                                                                                                                        |
-+-----------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-@endsphinxdirective
-
+| Distribution type | Operating systems |
+|------- ---------- | ----------------- |
+| Debian packages | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit |
+| RMP packages | Red Hat Enterprise Linux 8, 64-bit |
+| Docker images | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
+| PyPi (pip package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
+| [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operating systems |
+| [Local distribution](local-distribution.md) | All operating systems |
+| [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
 
 Depending on the distribution type, the granularity of OpenVINO packages may vary. For example, PyPi distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local distribution](local-distribution.md) is a more configurable type, thus providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
