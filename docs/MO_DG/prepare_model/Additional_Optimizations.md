@@ -84,7 +84,7 @@ The *`--reverse_input_channels`* parameter applies to an input of the model in t
 Using the *`--reverse_input_channels`* parameter, Model Optimizer embeds the corresponding preprocessing block for reverting
 the input data along channel dimension and optimizes this block so that the preprocessing takes a little time for inference.
 
-For example, launch the Model Optimizer for the TensorFlow AlexNet model and embed *`reverse_input_channel`* preprocessing block into IR.
+For example, the following command launches the Model Optimizer for the TensorFlow AlexNet model and embeds the `reverse_input_channel` preprocessing block into IR:
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels
