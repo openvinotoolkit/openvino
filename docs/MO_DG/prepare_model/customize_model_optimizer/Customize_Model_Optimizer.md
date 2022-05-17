@@ -262,7 +262,6 @@ It is still possible to force Model Optimizer to do a layout change, using *`--d
 
 
 Layout change is a complex problem and will be addressed here very briefly. For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
-explanation of this process is provided below:
 
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
 dimensional) tensors as if they were in NHWC layout to NCHW layout: *`nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]`* for
