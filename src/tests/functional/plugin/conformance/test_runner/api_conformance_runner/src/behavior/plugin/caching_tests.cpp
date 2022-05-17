@@ -35,7 +35,6 @@ INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBase,
                                  ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(precisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::Values(std::map<std::string, std::string>())),
+                                 ::testing::ValuesIn(return_all_possible_device_combination())),
                          LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

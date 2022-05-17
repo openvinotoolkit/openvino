@@ -24,8 +24,7 @@ using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
         ngraph::element::Type,  // precision
         std::size_t,            // batch size
-        std::string,            // device name
-        std::map<std::string, std::string> //device configuration
+        std::string            // device name
         >;
 
 namespace LayerTestsDefinitions {
@@ -76,7 +75,7 @@ protected:
         }
         std::replace(test_name.begin(), test_name.end(), '/', '_');
         std::replace(test_name.begin(), test_name.end(), '\\', '_');
-        cache_path = test_name + "_cache";
+        cache_path = "LoadNetwork" + test_name + "_cache";
     }
 };
 } // namespace LayerTestsDefinitions

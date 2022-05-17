@@ -27,8 +27,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                    ::testing::Values(std::map<std::string, std::string>())),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_KernelCachingSupportCase_GPU, LoadNetworkCompiledKernelsCacheTest,

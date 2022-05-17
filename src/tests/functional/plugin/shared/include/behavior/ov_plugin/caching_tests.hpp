@@ -79,7 +79,7 @@ protected:
         }
         std::replace(test_name.begin(), test_name.end(), '/', '_');
         std::replace(test_name.begin(), test_name.end(), '\\', '_');
-        cache_path = test_name + "_cache";
+        cache_path = "compiledModel" + test_name + "_cache";
     }
 };
 } // namespace behavior

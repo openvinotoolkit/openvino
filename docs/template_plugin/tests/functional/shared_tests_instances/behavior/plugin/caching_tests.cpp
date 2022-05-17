@@ -20,7 +20,6 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsTemplate),
                                     ::testing::ValuesIn(batchSizesTemplate),
-                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-                                    ::testing::Values(std::map<std::string, std::string>())),
+                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

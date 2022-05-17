@@ -36,8 +36,7 @@ namespace {
                                     ::testing::ValuesIn(smoke_functions()),
                                     ::testing::ValuesIn(smoke_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                    ::testing::Values(std::map<std::string, std::string>())),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
@@ -45,7 +44,6 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                    ::testing::Values(std::map<std::string, std::string>())),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

@@ -136,7 +136,7 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
 
 void LoadNetworkCacheTestBase::SetUp() {
     nGraphFunctionWithName funcPair;
-    std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
+    std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
