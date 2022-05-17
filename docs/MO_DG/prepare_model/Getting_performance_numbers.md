@@ -40,7 +40,7 @@ While these settings provide really low-level control and allow leveraging the o
 
 ## Comparing Performance with Native/Framework Code 
 
-When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
+When comparing OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
 -	Wrap exactly the inference execution (for examples, refer to the [Benchmark App](../../../samples/cpp/benchmark_app/README.md)).
 -	Do not include model loading time.
