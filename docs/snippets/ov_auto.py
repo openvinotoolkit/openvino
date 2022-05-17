@@ -94,12 +94,25 @@ def part5():
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]
 
+def part6():
+#! [part6]
+    core = Core()
+    # read a network in IR, PaddlePaddle, or ONNX format
+    model = core.read_model(model_path)
+    # compile a model on AUTO and set log level to debug
+    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"LOG_LEVEL":"LOG_DEBUG"});
+    # set log level with set_property and compile model
+    core.set_property(device_name="AUTO", properties={"LOG_LEVEL":"LOG_DEBUG"});
+    compiled_model = core.compile_model(model=model, device_name="AUTO");
+#! [part6]
+
 def main():
     part0()
     part1()
     part3()
     part4()
     part5()
+    part6()
 
 if __name__ == '__main__':
     sys.exit(main())

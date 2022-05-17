@@ -1,117 +1,116 @@
 # Heterogeneous execution {#openvino_docs_OV_UG_Hetero_execution}
 
-Heterogeneous execution enables executing inference of one model on several devices. Its purpose is to:
+The Heterogeneous Execution mode, or HETERO for short, acts as a "virtual" or a "proxy" device, which does not bind to a specific type of hardware. Instead, it executes inference of one model on several devices. Its purpose is to utilize all available hardware more efficiently during one inference. This means that accelerators are used to process the heaviest parts of the model, while fallback devices, like the CPU, execute operations not supported by accelerators.
 
-* Utilize the power of accelerators to process the heaviest parts of the model and to execute unsupported operations on fallback devices, like the CPU.
-* Utilize all available hardware more efficiently during one inference.
+Compiling a model to the Heterogeneous mode assumes splitting it into subgraphs. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel` objects are created. The objects are connected via automatically allocated intermediate tensors.
 
-Execution via the heterogeneous mode can be divided into two independent steps:
+Importantly, the model division is performed according to pre-defined affinities between hardware and operations. Every set of connected operations with the same affinity becomes a dedicated subgraph. Setting these affinities needs to be done as a separate step (`ov::Core::query_model` is used internally by HETERO), as described below.
 
-1. Setting hardware affinity to operations (`ov::Core::query_model` is used internally by the Hetero device)
-2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities`), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel` objects are made, which are connected via automatically allocated intermediate tensors.
 
-These two steps are not interconnected and affinities can be set in one of two ways, used separately or in combination (as described below): in the `manual` or the `automatic` mode.
+### Using the Hetero Mode
 
-### Defining and Configuring the Hetero Device
-
-Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of `"HETERO".` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
+Following the OpenVINO™ naming convention, the Hetero execution mode is assigned the label of `"HETERO".` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
 @sphinxdirective
 +-------------------------------+--------------------------------------------+-----------------------------------------------------------+
-| Parameter Name & C++ property | Property values                            | Description                                               |
+| Property                      | Property values                            | Description                                               |
 +===============================+============================================+===========================================================+
-| | "MULTI_DEVICE_PRIORITIES"   | | HETERO: <device names>                   | | Lists the devices available for selection.              |
-| | `ov::device::priorities`    | | comma-separated, no spaces               | | The device sequence will be taken as priority           |
-| |                             | |                                          | | from high to low.                                       |
+| <device list>                 | | HETERO: <device names>                   | | Specifies the devices available for selection.          |
+|                               | | comma-separated, no spaces               | | The device sequence will be taken as priority           |
++-------------------------------+--------------------------------------------+ | from high to low.                                       |
+| `ov::device::priorities`      | | device names                             | |                                                         |
+|                               | | comma-separated, no spaces               | |                                                         |
 +-------------------------------+--------------------------------------------+-----------------------------------------------------------+
 @endsphinxdirective
 
-### Manual and Automatic modes for assigning affinities
 
-#### The Manual Mode
+### Assigning Affinities
+
+Affinities can be set in one of two ways, used separately or in combination: with the `manual` or the `automatic` option.
+
+#### The Manual Option
 It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info` with the `"affinity"` key. 
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [set_manual_affinities]
+@snippet docs/snippets/ov_hetero.cpp set_manual_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [set_manual_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py set_manual_affinities
 
+@endsphinxtab
 
+@endsphinxtabset
 
-#### The Automatic Mode
+#### The Automatic Option
 It decides automatically which operation is assigned to which device according to the support from dedicated devices (`GPU`, `CPU`, `MYRIAD`, etc.) and query model step is called implicitly by Hetero device during model compilation.
 
-The automatic mode causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, `ov::device::priorities("GPU,CPU")`).
+The automatic option causes "greedy" behavior and assigns all operations that can be executed on a given device to it, according to the priorities you specify (for example, `ov::device::priorities("GPU,CPU")`).
 It does not take into account device peculiarities such as the inability to infer certain operations without other special operations placed before or after that layer. If the device plugin does not support the subgraph topology constructed by the HETERO device, then you should set affinity manually.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [compile_model]
+@snippet docs/snippets/ov_hetero.cpp compile_model
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [compile_model]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py compile_model
 
-#### Using Manual and Automatic Modes in Combination
+@endsphinxtab
+
+@endsphinxtabset
+
+#### Using Manual and Automatic Options in Combination
 In some cases you may need to consider manually adjusting affinities which were set automatically. It usually serves minimizing the number of total subgraphs to optimize memory transfers. To do it, you need to "fix" the automatically assigned affinities like so:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [fix_automatic_affinities]
+@snippet docs/snippets/ov_hetero.cpp fix_automatic_affinities
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [fix_automatic_affinities]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py fix_automatic_affinities
 
-Importantly, the automatic mode will not work if any operation in a model has its `"affinity"` already initialized.
+@endsphinxtab
+
+@endsphinxtabset
+
+Importantly, the automatic option will not work if any operation in a model has its `"affinity"` already initialized.
 
 > **NOTE**: `ov::Core::query_model` does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
+
 
 ### Configure fallback devices
 If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-       :language: cpp
-       :fragment: [configure_fallback_devices]
+@snippet docs/snippets/ov_hetero.cpp configure_fallback_devices
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_hetero.py
-       :language: python
-       :fragment: [configure_fallback_devices]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_hetero.py configure_fallback_devices
+
+@endsphinxtab
+
+@endsphinxtabset
 
 In the example above, the `GPU` device is configured to enable profiling data and uses the default execution precision, while `CPU` has the configuration property to perform inference in `fp32`.
 

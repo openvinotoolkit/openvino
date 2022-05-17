@@ -21,6 +21,7 @@ namespace pass {
  * - order of generated layers in xml file is ngraph specific (given by
  * get_ordered_ops()); MO generates file with different order, but they are
  * logically equivalent
+ * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
 public:
@@ -60,6 +61,7 @@ private:
  * @brief StreamSerialize transformation converts ngraph::Function into single binary stream
  * @attention
  * - dynamic shapes are not supported
+ * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API StreamSerialize : public ov::pass::ModelPass {
 public:

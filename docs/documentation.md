@@ -16,9 +16,9 @@
    :caption: Deploying Inference
    :hidden:
 
-   openvino_docs_OV_Runtime_User_Guide
+   openvino_docs_OV_UG_OV_Runtime_User_Guide
    openvino_2_0_transition_guide
-   openvino_docs_install_guides_deployment_manager_tool
+   openvino_deployment_guide
    openvino_inference_engine_tools_compile_tool_README
 
 
@@ -43,8 +43,8 @@
    workbench_docs_Workbench_DG_Introduction
    workbench_docs_Workbench_DG_Install
    workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets
-   workbench_docs_Workbench_DG_User_Guide
-   workbench_docs_security_Workbench
+   Tutorials <workbench_docs_Workbench_DG_Tutorials>
+   User Guide <workbench_docs_Workbench_DG_User_Guide>
    workbench_docs_Workbench_DG_Troubleshooting
 
 .. toctree::
@@ -82,7 +82,7 @@
    
    openvino_docs_security_guide_introduction
    openvino_docs_security_guide_workbench
-   openvino_docs_IE_DG_protecting_model_guide
+   openvino_docs_OV_UG_protecting_model_guide
    ovsa_get_started
 
 @endsphinxdirective
@@ -93,10 +93,10 @@ This section provides reference documents that guide you through developing your
 With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md).
 
 ## Deploying Inference
-The [OpenVINO™ Runtime User Guide](OV_Runtime_UG/openvino_intro.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the OpenVINO Runtime API for Python, C++, and C. The OpenVINO Runtime API is what you'll use to create an OpenVINO™ inference application, use enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
+The [OpenVINO™ Runtime User Guide](./OV_Runtime_UG/openvino_intro.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the OpenVINO Runtime API for Python, C++, and C. The OpenVINO Runtime API is what you'll use to create an OpenVINO™ inference application, use enhanced operations sets and other features. After writing your application, you can use the [Deployment with OpenVINO](./OV_Runtime_UG/deployment/deployment_intro.md) for deploying to target devices.
 
 ## Tuning for Performance
-The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_optimization_guide.md) and utilities for squeezing the best performance out of your application, including [Accuracy Checker](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), and other tools for measuring accuracy, benchmarking performance, and tuning your application.
+The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_optimization_guide.md) and utilities for squeezing the best performance out of your application, including [Accuracy Checker](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_introduction), and other tools for measuring accuracy, benchmarking performance, and tuning your application.
 
 ## Graphical Web Interface for OpenVINO™ Toolkit
 You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.

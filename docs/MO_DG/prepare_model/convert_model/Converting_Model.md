@@ -3,7 +3,8 @@
 Model Optimizer provides the option of making models more efficient by providing additional shape definition.
 It is achieved with two parameters: `--input_shape` and `--static_shape`, used under certain conditions.
 
-## When to Specify --input_shape Command-line Parameter <a name="when_to_specify_input_shapes"></a>
+@anchor when_to_specify_input_shapes
+## When to Specify --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
@@ -13,7 +14,7 @@ The same functionality is also available in runtime via `reshape` method, please
 For more information about dynamic shapes in runtime, refer to [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md)
 
 OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware (see [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference).
-In this case, the `--input_shape` parameter and the `reshape` method can help to resolve undefined dimensions.
+In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help to resolve undefined dimensions.
 
 Sometimes Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
 Such problem can relate to models with inputs of undefined ranks and a case of cutting off parts of a model.
@@ -58,10 +59,14 @@ For example, launch the Model Optimizer for the ONNX* OCR model and specify a bo
 mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
 ```
 
+Practically, some models are not ready for input shapes change.
+In this case, a new input shape cannot be set via Model Optimizer.
+Learn more about shape [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model). 
+
 ## When to Specify --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
 and to fold shape computing sub-graphs into constants. The resulting IR can be more compact in size and the loading time for such IR can be decreased.
-However, the resulting IR will not be reshape-able with the help of the `reshape` method from OpenVINO Runtime API.
+However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.
 It is worth noting that the `--input_shape` parameter does not affect reshape-ability of the model.
 
 For example, launch the Model Optimizer for the ONNX* OCR model using `--static_shape`.

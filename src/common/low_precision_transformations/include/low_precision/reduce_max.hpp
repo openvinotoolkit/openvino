@@ -19,7 +19,7 @@ namespace low_precision {
  * @brief ReduceMaxTransformation propagates dequantization operations through ReduceMax operation.
  *
  * For more details about the transformation, refer to
- * [ReduceMaxTransformation](@ref openvino_docs_IE_DG_lpt_ReduceMaxTransformation) page
+ * [ReduceMaxTransformation](@ref openvino_docs_OV_UG_lpt_ReduceMaxTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMaxTransformation : public ReduceBaseTransformation {

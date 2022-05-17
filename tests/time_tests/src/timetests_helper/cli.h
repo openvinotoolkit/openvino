@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "timetests_helper/parse.h"
+
 /// @brief message for help argument
 static const char help_message[] =
         "Print a usage message.";
@@ -46,6 +48,10 @@ static const char data_shapes_message[] =
 static const char statistics_path_message[] =
         "Required. Path to a file to write statistics.";
 
+/// @brief message for configuration file path argument
+static const char configuration_path_message[] =
+        "Not Required. Path to a configuration file to read config message.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -76,6 +82,10 @@ DEFINE_bool(c, false, model_cache_message);
 /// It is a required parameter
 DEFINE_string(s, "", statistics_path_message);
 
+/// @brief Define parameter for set path to a file to read configuration <br>
+/// It is a non-required parameter
+DEFINE_string(f, "", configuration_path_message);
+
 /**
  * @brief This function show a help message
  */
@@ -91,4 +101,27 @@ static void showUsage() {
     std::cout << "    -c                   " << model_cache_message << std::endl;
     std::cout << "    -reshape_shapes      " << reshape_shapes_message << std::endl;
     std::cout << "    -data_shapes         " << data_shapes_message << std::endl;
+    std::cout << "    -f \"<path>\"        " << configuration_path_message << std::endl;
+}
+
+std::map<std::string, std::string> parseConfigFile(char comment) {
+    std::map<std::string, std::string> config;
+
+    std::ifstream file(FLAGS_f);
+    if (file.is_open()) {
+        std::string option;
+        while (std::getline(file, option)) {
+            if (option.empty() || option[0] == comment) {
+                continue;
+            }
+            size_t spacePos = option.find(' ');
+            std::string key, value;
+            if (spacePos != std::string::npos) {
+                key = option.substr(0, spacePos);
+                value = option.substr(spacePos + 1);
+                config[key] = value;
+            }
+        }
+    }
+    return config;
 }

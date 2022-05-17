@@ -51,7 +51,7 @@ OpenVINO™ operation contains two constructors:
 
 @snippet template_extension/new/identity.cpp op:visit_attributes
 
-### `evaluate()` and `has_evaluate()`
+### evaluate() and has_evaluate()
 
 `ov::Node::evaluate` method enables you to apply constant folding to an operation.
 
