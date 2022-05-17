@@ -5,7 +5,7 @@ This article provides essential information on the format used for representatio
 ## Overview of Artificial Neural Networks Representation
 
 A deep learning network is usually represented as a directed graph describing the flow of data from the network input data to the inference results.
-Input data can be represented as a photograph, video, audio information or some preprocessed data that represent objects from the target area of interest in a convenient way.
+Input data can be in the form of images, video, audio, or preprocessed information representing objects from the target area of interest.
 
 Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
 
