@@ -61,7 +61,6 @@ There are two cases of how the input data preprocessing is implemented.
     In this case, the application does not perform a separate preprocessing step: everything is embedded into the model itself. Model Optimizer will generate the IR with required preprocessing operations, and no `mean` and `scale` parameters are required.
  * The input preprocessing operations are not a part of a model and the preprocessing is performed within the application which feeds the model with input data.
 
-In the first case, the Model Optimizer generates the IR with required preprocessing operations and no *`mean`* and *`scale`* parameters are required.
 
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
 Model Optimizer provides command-line parameters to specify the values: *`--mean_values`*, *`--scale_values`*, *`--scale`*.
