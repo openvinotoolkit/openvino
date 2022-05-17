@@ -34,7 +34,7 @@ The figure below illustrates the typical workflow for deploying a trained deep l
 
 ![](img/BASIC_FLOW_MO_simplified.svg)
 
-The IR is a pair of files describing the model:
+where IR is a pair of files describing the model:
 
 *  <code>.xml</code> - Describes the network topology.
 
