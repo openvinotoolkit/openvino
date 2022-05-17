@@ -23,7 +23,7 @@ For example, the following command specifies the `NHWC` layout for a Tensorflow 
 mo --input_model tf_nasnet_large.onnx --layout nhwc
 ```
 
-Additionally, if a model has more than one input or needs both input and output layouts specified, you need to provide the name of each input or output to which you apply the layout.
+Additionally, if a model has more than one input or needs both input and output layouts specified, you need to provide the name of each input or output to apply the layout.
 
 For example, an ONNX *`Yolo v3 Tiny`* model has first input *`input_1`* in *`NCHW`* layout and second input *`image_shape`* with two dimensions batch and size of the image, which can be expressed as the *`N?`* layout:
 
