@@ -55,7 +55,7 @@ mo --input_model INPUT_MODEL
 
 If the out-of-the-box conversion (only the *`--input_model`* parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
-Model Optimizer provides two parameters to override original input shapes for model conversion: *`--input`* and *`--input_shape`*.
+- Model Optimizer provides two parameters to override original input shapes for model conversion: *`--input`* and *`--input_shape`*.
 For more information about these parameters, refer to the [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md) guide.
 
 To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
