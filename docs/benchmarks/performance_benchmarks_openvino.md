@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
-Features and benefits of Intel® technologies depend on system configuration and may require enabled hardware, software or service activation. You can learn more on this subject from the original equipment manufacturer (OEM), official [Intel® web page](https://www.intel.com) or retailer.
+Features and benefits of Intel® technologies depend on system configuration and may require enabled hardware, software or service activation. More information on this subject may be obtained from the original equipment manufacturer (OEM), official [Intel® web page](https://www.intel.com) or retailer.
 
 ## Platform Configurations
 
