@@ -16,7 +16,7 @@ The [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/c
 
 The benchmark results below demonstrate high performance gains on several public neural networks on multiple Intel® CPUs, GPUs and VPUs covering a broad performance range. The results may be helpful when deciding which hardware is best for your applications and solutions or to plan AI workload on the Intel computing already included in your solutions.
 
-Links below consist of the benchmarking results for each alternative to review:
+The links below refer to the benchmarking results for each alternative to review:
 
 * [Intel® Distribution of OpenVINO™ toolkit Benchmark Results](performance_benchmarks_openvino.md).
 * [OpenVINO™ Model Server Benchmark Results](performance_benchmarks_ovms.md).
