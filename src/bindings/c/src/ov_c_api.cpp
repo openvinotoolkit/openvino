@@ -1080,7 +1080,7 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_if(shape, shape + 4,
-                     tmp_shape.begin(),
+                     std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0; });
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
     } CATCH_OV_EXCEPTIONS
@@ -1097,7 +1097,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const o
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_if(shape, shape + 4,
-                     tmp_shape.begin(),
+                     std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0; });
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
     } CATCH_OV_EXCEPTIONS
@@ -1111,7 +1111,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     try {
         ov::Shape tmp_shape;
         std::copy_if(shape, shape + 4,
-                     tmp_shape.begin(),
+                     std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0;});
         tensor->object->set_shape(tmp_shape);
     } CATCH_OV_EXCEPTIONS
