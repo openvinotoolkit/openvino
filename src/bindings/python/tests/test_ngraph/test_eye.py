@@ -12,7 +12,7 @@ from openvino.runtime.utils.types import get_element_type
 
 
 @pytest.mark.parametrize(
-    tuple("num_rows, num_columns, diagonal_index, out_type"),
+    ("num_rows", "num_columns", "diagonal_index", "out_type"),
     [
         pytest.param(2, 5, 0, np.float32),
         pytest.param(5, 3, 2, np.int64),
@@ -56,7 +56,7 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
 
 
 @pytest.mark.parametrize(
-    tuple("num_rows, num_columns, diagonal_index, batch_shape, out_type"),
+    ("num_rows", "num_columns", "diagonal_index", "batch_shape", "out_type"),
     [
         pytest.param(2, 5, 0, [1], np.float32),
         pytest.param(5, 3, 2, [2, 2], np.int64),
