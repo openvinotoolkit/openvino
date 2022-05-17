@@ -36,7 +36,7 @@ mo --input_model yolov3-tiny.onnx --layout input_1(nchw),image_shape(n?)
 Changing the model layout may be necessary if it differs from the one presented by input data. 
 Use either *`--layout`* or *`--source_layout`* with *`--target_layout`* to change the layout.
 
-For example, for the same *`nasnet_large`* that was mentioned previously, data in *`NCHW`* layout may be provided:
+For example, for the same `nasnet_large` model mentioned previously, you can use the following commands to provide data in the `NCHW` layout:
 
 ```
 mo --input_model tf_nasnet_large.onnx --source_layout nhwc --target_layout nchw
