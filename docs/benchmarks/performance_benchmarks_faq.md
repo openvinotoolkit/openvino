@@ -6,7 +6,7 @@ The following questions (Q#) and answers (A) are related to published [performan
 **A**: New performance benchmarks are typically published on every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
 
 #### Q2: Where can I find the models used in the performance benchmarks?
-**A**: All used models are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository.
+**A**: All models used are included in the GitHub repository of [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo).
 
 #### Q3: Are there gonna be any new models added to the list used for benchmarking?
 **A**: The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. New models that support a diverse set of workloads and usage are going to be added.
