@@ -241,14 +241,15 @@ const std::vector<std::vector<InputShape>> dynShapesWith2DBatches = {
         },
 };
 
-const std::vector<std::vector<InputShape>> dynShapesWith3DBatches = {
-        {
-            {{-1}, {{1}, {1}, {1}}},  // input 0
-            {{-1}, {{1}, {1}, {1}}},  // input 1
-            {{-1}, {{1}, {1}, {1}}},  // input 2
-            {{3}, {{3}, {3}, {3}}}    // input 3
-        },
-};
+// Ticket: 85127
+// const std::vector<std::vector<InputShape>> dynShapesWith3DBatches = {
+//         {
+//             {{-1}, {{1}, {1}, {1}}},  // input 0
+//             {{-1}, {{1}, {1}, {1}}},  // input 1
+//             {{-1}, {{1}, {1}, {1}}},  // input 2
+//             {{3}, {{3}, {3}, {3}}}    // input 3
+//         },
+// };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
                          ::testing::Combine(
@@ -272,15 +273,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLikeLayerCP
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLikeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_With3DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Combine(
-                                         ::testing::ValuesIn(dynShapesWith3DBatches),
-                                         ::testing::ValuesIn(batchShapes3D),
-                                         ::testing::ValuesIn(eyePars),
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+// Ticket: 85127
+// INSTANTIATE_TEST_SUITE_P(smoke_Eye_With3DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+//                          ::testing::Combine(
+//                                  ::testing::Combine(
+//                                          ::testing::ValuesIn(dynShapesWith3DBatches),
+//                                          ::testing::ValuesIn(batchShapes3D),
+//                                          ::testing::ValuesIn(eyePars),
+//                                          ::testing::ValuesIn(netPrecisions),
+//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
+//                          EyeLikeLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
