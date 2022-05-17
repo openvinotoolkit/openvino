@@ -365,7 +365,7 @@ def test_infer_mixed_keys(device):
     assert np.argmax(res[model.output()]) == 2
 
 
-@pytest.mark.parametrize(("ov_type, numpy_dtype"), [
+@pytest.mark.parametrize(tuple("ov_type, numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -389,7 +389,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
-@pytest.mark.parametrize(("ov_type, numpy_dtype"), [
+@pytest.mark.parametrize(tuple("ov_type, numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -414,7 +414,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype):
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
-@pytest.mark.parametrize(("ov_type, numpy_dtype"), [
+@pytest.mark.parametrize(tuple("ov_type, numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -435,7 +435,7 @@ def test_infer_single_input(device, ov_type, numpy_dtype):
     assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
-@pytest.mark.parametrize(("ov_type, numpy_dtype"), [
+@pytest.mark.parametrize(tuple("ov_type, numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
