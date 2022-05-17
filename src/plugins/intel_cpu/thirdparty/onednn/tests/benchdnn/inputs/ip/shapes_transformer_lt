@@ -1,0 +1,28 @@
+# The current problem list corresponds to sequence length paremeter value
+# equals to 40 (seq_len = 40) and beam patameter equals to 4
+# batch = num_cores for throughput inference / training
+# and batch = 1 for real time inference
+
+# =============================================================================
+# Encoder part
+# num_encoder_stages = 6
+# mb = batch * seq_len
+
+# 6 per each encoder stage, 36 in total
+mb40ic1024oc1024n"Transformer_lt:Encoder_MM_1*36"
+# 1 per each encoder stage
+mb40ic1024oc4096n"Transformer_lt:Encoder_MM_7*6"
+mb40ic4096oc1024n"Transformer_lt:Encoder_MM_8*6"
+
+# =============================================================================
+# Decoder part
+# mb = batch * beam
+# number of calls depends on sequence length value
+
+# 6 per each encoder and sequence length, 1440 in total for seq_len = 40
+mb4ic1024oc1024n"Transformer_lt:Decoder_MM_1*1440"
+# 1 per each encoder and sequence length, 240 in total for seq_len = 40
+mb4ic1024oc4096n"Transformer_lt:Decoder_MM_7*240"
+mb4ic4096oc1024n"Transformer_lt:Decoder_MM_8*240"
+# 1 per each sequence length, 40 in total for seq_len = 40
+mb4ic1024oc32768n"Transformer_lt:Decoder_vocabulary*40"

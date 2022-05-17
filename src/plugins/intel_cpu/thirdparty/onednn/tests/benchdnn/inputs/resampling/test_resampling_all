@@ -1,0 +1,36 @@
+--reset
+
+--mb=2
+--dir=FWD_D,BWD_D
+--alg=nearest,linear
+--tag=abx,axb,aBx8b,aBx16b
+
+# f32
+--sdt=f32
+--ddt=f32
+--batch=set_all
+
+# integer data types
+--sdt=s8
+--ddt=s8
+--batch=set_all
+
+# diffrent data types
+--sdt=s32,s8,bf16
+--ddt=f32,u8
+--batch=shapes_ci
+
+--sdt=f32,u8
+--ddt=s32,s8,bf16
+--batch=shapes_ci
+
+# post_ops
+--dir=FWD_D
+--sdt=f32
+--ddt=f32
+--attr-post-ops=mul:f32, \
+                clip:2:10+sum:0.1+add:s8:per_oc+sum
+--batch=shapes_ci
+
+# bf16
+--batch=test_resampling_bfloat16

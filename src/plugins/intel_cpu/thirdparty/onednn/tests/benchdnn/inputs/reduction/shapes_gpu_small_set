@@ -1,0 +1,20 @@
+# hwd reduction
+16x32x31x64:16x32x1x1
+
+# c reduction
+16x16x64x11:16x1x64x11
+32x64:32x1
+
+# n reduction
+16x32x64x17:1x32x64x17
+33x16:1x16
+
+# hwd, c reduction
+16x32x31x64:16x1x1x1
+
+# hwd, n reduction
+16x32x31x64:1x32x1x1
+
+# all reduction
+16x16x128x64:1x1x1x1
+15x16:1x1

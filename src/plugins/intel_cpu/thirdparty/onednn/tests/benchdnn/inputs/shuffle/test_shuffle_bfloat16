@@ -1,0 +1,11 @@
+--reset
+
+--dt=bf16
+
+--dir=FWD_D
+--tag=abx,axb,aBx16b
+--batch=option_set_all
+
+--dir=BWD_D
+--batch=option_set_min
+

@@ -1,0 +1,7 @@
+# These problems are ported from corresponding inner product shapes for
+# training forward mb=2048
+
+2048x256:256x256n"NCF_train:FWD,0*1"
+2048x256:256x128n"NCF_train:FWD,1*1"
+2048x128:128x64n"NCF_train:FWD,2*1"
+2048x128:128x1n"NCF_train:FWD,3*1"

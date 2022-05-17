@@ -1,0 +1,49 @@
+# i8
+
+# Notes:
+# * DIV doesn't make much sense for i8
+# * SUB is MISTRUSTED for u8 since half values are negative becoming zeros
+
+--reset
+
+--inplace=true,false
+--ddt=s8 --sdt=s8:s8
+
+--alg=ADD,MUL,MAX,MIN,SUB,GE,GT,LE,LT,EQ,NE
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+--alg=ADD # To reduce amount of test cases since all algs act the same
+## Post-ops
+--attr-post-ops=, \
+                sum:0.5, \
+                linear:2:0.125, \
+                add:f32:per_oc, \
+                sum:0.25+relu:-0.01:0:20, \
+                mul:s8+sum:0.5+abs, \
+                eq:s8
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+## Scales
+--ddt=u8 --sdt=u8:u8
+--attr-scales=, \
+              src:common:16+src1:common:2, \
+              src:common:8, \
+              src1:common:4, \
+              src:common:16*+src1:common:2*
+--attr-post-ops=
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+## Post-ops + scales
+--attr-scales=,src:common:16+src1:common:2
+--attr-post-ops=,sum:0.5+abs+ge:s8
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+## Check for proper saturation
+--ddt=s8 --sdt=s8:s8
+--attr-scales=src:common:4294967295+src1:common:4294967295
+--batch=option_set_all
+--batch=option_set_src0_bcast

@@ -1,0 +1,5 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt data mb=128
+
+128x512:512x512n"GNMT_train:BWD_D,0*1"
+128x1024:1024x1024n"GNMT_train:BWD_D,1*1"

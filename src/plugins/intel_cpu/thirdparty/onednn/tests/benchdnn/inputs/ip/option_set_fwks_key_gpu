@@ -1,0 +1,4 @@
+#candleuno.tr.f32.tf.mb128
+ --reset --allow-enum-tags-only=0 --cfg=f32 --dir=BWD_WB --stag=ab --wtag=ab --dtag=ab mb128ic1000oc1n"candleuno.tr.f32.tf.mb128*1"
+ --reset --allow-enum-tags-only=0 --cfg=f32 --dir=BWD_WB --stag=ab --wtag=ab --dtag=ab mb128ic1000oc1000n"candleuno.tr.f32.tf.mb128*8"
+ --reset --allow-enum-tags-only=0 --cfg=f32 --dir=BWD_WB --stag=ab --wtag=ab --dtag=ab mb128ic2000oc1000n"candleuno.tr.f32.tf.mb128*1"

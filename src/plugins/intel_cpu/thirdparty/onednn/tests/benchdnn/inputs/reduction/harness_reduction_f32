@@ -1,0 +1,6 @@
+# f32
+--reset
+
+--sdt=f32 --ddt=f32
+--attr-post-ops=,sum+linear:2:1+add:f32
+--batch=option_set_all_algs

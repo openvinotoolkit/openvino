@@ -1,0 +1,30 @@
+--reset
+
+--mb=2
+--tag=abx,axb
+--alg=nearest,linear
+
+--dir=FWD_D
+--attr-post-ops=,sum+add:f32
+
+--sdt=f32 --ddt=f32,s8
+--batch=shapes_ci
+
+--sdt=bf16 --ddt=bf16
+--batch=shapes_ci
+
+--sdt=f16 --ddt=f16
+--batch=shapes_ci
+
+# backward
+--dir=BWD_D
+--attr-post-ops=
+
+--sdt=f32 --ddt=f32
+--batch=shapes_ci
+
+--sdt=bf16 --ddt=bf16
+--batch=shapes_ci
+
+--sdt=f16 --ddt=f16
+--batch=shapes_ci

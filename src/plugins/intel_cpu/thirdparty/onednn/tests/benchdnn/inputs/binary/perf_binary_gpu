@@ -1,0 +1,38 @@
+# This perf file targets testing two configurations for binary primitive:
+# * when it's used to simulate Fake Quantization with a chain post-op for first
+#   convolutions
+# * when it's used as scale_shift operation in the middle of topologies
+
+--reset
+
+--inplace=false
+--alg=ADD
+
+# three post-ops cases:
+# 1) no post-ops (pure-op);
+# 2) single binary post-op (optimized fq case)
+# 3) full fq chain of post-ops
+--attr-post-ops=, \
+                add:f32:per_oc, \
+                max:f32:common+min:f32:common+add:f32:common+mul:f32:common+round+mul:f32:per_oc+add:f32:per_oc
+
+# 1st conv cases always have plain format
+--stag=abx:abx
+
+--sdt=u8:f32 --ddt=s8
+--batch=shapes_perf_1st_conv
+
+--sdt=u8:f16 --ddt=f16
+--batch=shapes_perf_1st_conv
+
+# scale_shift cases may have different data types and blocking formats
+--stag=abx:abx,axb:axb,aBx16b:aBx16b,ABx32a16b:ABx32a16b
+
+--sdt=f32:f32 --ddt=f32
+--batch=shapes_perf_scaleshift
+
+--sdt=bf16:bf16 --ddt=bf16
+--batch=shapes_perf_scaleshift
+
+--sdt=f16:f16 --ddt=f16
+--batch=shapes_perf_scaleshift

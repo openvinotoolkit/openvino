@@ -1,0 +1,12 @@
+# multihead self-attention layer
+# mb = 1, num_heads = 12, hidden_size = 768, t_x = t_y = 384
+mb12m384n384k64n"encoder:QK_matmul:12"
+mb12m384n64k384n"encoder:WV_matmul:12"
+
+# mb = 128, num_heads = 12, hidden_size = 768, t_x = t_y = 384
+mb1536m384n384k64n"encoder:QK_matmul:12"
+mb1536m384n64k384n"encoder:WV_matmul:12"
+
+# mb = 128, num_heads = 16, hidden_size = 1024, t_x = t_y = 384
+#mb2048m384n384k64n"encoder:QK_matmul:24"
+#mb2048m384n64k384n"encoder:WV_matmul:24"

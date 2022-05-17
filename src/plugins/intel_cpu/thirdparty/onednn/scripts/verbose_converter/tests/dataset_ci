@@ -1,0 +1,37 @@
+################################################################################
+# Copyright 2021 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+binary,test_binary_ci
+bnorm,test_bnorm_ci
+concat,test_concat_ci
+conv,test_conv_ci
+deconv,test_deconv_ci
+eltwise,test_eltwise_ci
+ip,test_ip_ci
+lnorm,test_lnorm_ci
+lrn,test_lrn_ci
+matmul,test_matmul_ci
+pool,test_pool_ci
+prelu,test_prelu_ci
+reduction,test_reduction_ci
+resampling,test_resampling_ci
+#FIXME: RNN is not supported due to multiple differencies with other primitives
+#rnn,test_lstm_ci
+#rnn,test_gru_ci
+#rnn,test_rnn_ci
+shuffle,test_shuffle_ci
+softmax,test_softmax_ci
+sum,test_sum_ci

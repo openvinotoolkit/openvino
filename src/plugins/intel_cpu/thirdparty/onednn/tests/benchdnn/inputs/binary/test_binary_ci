@@ -1,0 +1,44 @@
+--reset
+
+--inplace=true,false
+--alg=ADD,MUL,MAX,MIN,DIV,SUB,GE,GT,LE,LT,EQ,NE
+--stag=abx:abx,axb:axb
+
+--ddt=f32 --sdt=f32:f32
+--batch=shapes_ci
+
+--ddt=bf16 --sdt=bf16:bf16
+--batch=shapes_ci
+
+--ddt=f16 --sdt=f16:f16
+--batch=shapes_ci
+
+--ddt=s8 --sdt=s8:s8
+--batch=shapes_ci
+
+--ddt=u8 --sdt=u8:u8
+--batch=shapes_ci
+
+# A separate section with a single alg to avoid tons of same test cases
+--alg=ADD
+--attr-post-ops=, \
+                sum:0.5, \
+                linear:2:0.125, \
+                add:f32, \
+                mul:s8:per_oc+sum:0.25+relu:-0.01+add:f32:per_tensor
+--attr-scales=,src:common:0.25+src1:common:0.5,src:common:0.5*+src1:common:0.25*
+
+--ddt=f32 --sdt=f32:f32
+--batch=shapes_ci
+
+--ddt=bf16 --sdt=bf16:bf16
+--batch=shapes_ci
+
+--ddt=f16 --sdt=f16:f16
+--batch=shapes_ci
+
+--ddt=s8 --sdt=s8:s8
+--batch=shapes_ci
+
+--ddt=u8 --sdt=u8:u8
+--batch=shapes_ci

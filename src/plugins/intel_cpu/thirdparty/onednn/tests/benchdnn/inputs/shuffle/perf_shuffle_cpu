@@ -1,0 +1,6 @@
+--reset
+
+--dir=FWD_D
+--dt=f32,bf16
+--tag=abx,axb,aBx4b,aBx8b,aBx16b
+--batch=option_set_perf

@@ -1,0 +1,27 @@
+--reset
+
+############################
+# extending test_prelu_all #
+--dir=FWD_D,BWD_DW
+--sdt=f32:f32,f16:f16,f16:f32
+--batch=option_set_all
+
+--batch=test_prelu_bfloat16
+
+############################
+# testing ABx16a16b layout #
+--sdt=f32:f32,f16:f16,f16:f32
+# tag:any
+--stag=ABx16a16b:any
+--batch=shapes_all
+
+# tag:tag
+--stag=ABx16a16b:ABx16a16b
+--batch=shapes_all
+
+# tag1:tag2
+--stag=ABx16a16b:axb, \
+       ABx16a16b:abx, \
+       ABx16a16b:aBx8b, \
+       ABx16a16b:aBx16b
+--batch=shapes_all

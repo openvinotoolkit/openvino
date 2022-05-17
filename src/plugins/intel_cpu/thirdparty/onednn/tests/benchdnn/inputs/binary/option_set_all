@@ -1,0 +1,92 @@
+# same src0 and src1 tags
+--stag=abx:abx             3x5x6x9:3x5x6x9
+                           5x3x2x9:1x3x2x9
+                           4x4x4x4:4x4x1x4
+                           32x17x2x3:32x17x1x1
+                           32x17x2x3:1x17x1x1
+                           3x5x6x9:1x1x1x9
+                           3x5x6x9:3x1x1x9
+                           3x5x6x9:3x1x6x9
+                           16x12x2x2x2x2:16x1x1x1x1x1
+                           16x12x2x2x3:1x1x1x1x1
+                           8x16x7:8x16
+                           12x12:1x12
+                           12x12:12x1
+                           1024:1024
+                           127:1
+                           2x3x16:1x3x1
+                           1000x60:1000x60 # NCF
+
+--stag=axb:axb             3x5x6x9:3x5x6x9
+                           5x48x2x9:5x1x2x9
+                           4x4x4x4:4x4x4x1
+                           3x5x6x9:1x1x1x9
+                           3x5x6x9:3x1x1x9
+                           3x5x6x9:3x1x6x9
+                           32x65x2x3x2x3:32x65x1x1x1x1
+                           32x64x2x3x2:1x64x1x1x1
+                           16x12x2x2:1
+                           8x16x7:8x16
+                           12x12:1x12
+
+--stag=aBx16b:aBx16b       4x16x5x7:4x16x5x7
+                           8x15x5x8:8x15x1x1
+                           8x15x5x8:8x1x1x8
+                           8x15x5x8:8x1x5x8
+                           8x15x5x7:1
+                           8x16x5x7:1
+                           8x16x7:8x16
+                           8x16x12:8x16
+                           8x16x14:8x16
+
+--stag=aBx8b:aBx8b         4x16x5x7:4x16x5x7
+                           8x15x5x7:1x15x1x1
+                           8x15x5x7:8x1x5x7
+                           8x15x5x7:1x1x1x7
+                           8x15x5x7:1
+                           8x16x7:8x16
+
+--stag=ABx16a16b:ABx16a16b 32x16x3x4:32x16x3x4
+                           32x10x3x4:32x10x3x4
+                           2x32x5x7:2x32x5x1
+                           16x15x5x7:1x15x1x1
+                           16x15x5x7:1x1x1x7
+                           16x15x5x7:1
+
+--stag=aBx32b:aBx32b       2x16x3x4:2x16x3x4
+
+
+# different src0 and src1 tags
+--stag=abx:axb       3x5x6x9:3x5x6x9
+                     5x3x2x9:1x3x2x9
+                     3x5x8x8:3x5x8x8
+                     3x8x8x7:3x8x8x7
+                     3x9x13x5:3x9x13x5
+
+--stag=axb:abx       3x5x6x9:3x5x6x9
+                     5x3x2x9:1x3x2x9
+                     3x5x8x8:3x5x8x8
+                     3x7x8x8:3x7x8x8
+                     3x7x7x7:3x7x7x7
+
+--stag=abx:aBx16b    2x16x3x10:2x16x3x10
+                     2x32x3x10:2x32x3x1
+                     2x17x3x10:1x17x1x1
+                     2x3x80:1x3x1
+
+--stag=axb:aBx8b     2x8x3x10:2x8x3x10
+                     2x7x3x10:2x7x3x1
+                     2x17x3x10:1x17x1x1
+
+--stag=aBx8b:aBx16b  2x16x5x7:2x16x5x7
+                     2x16x5x7:2x16x1x1
+                     3x15x5x1:1x15x5x1
+
+--stag=aBx16b:axb    2x16x5x7:2x16x5x7
+                     2x16x5x7:2x16x1x1
+                     2x16x5x14:2x1x1x14
+                     3x15x5x1:1x15x5x1
+
+--stag=abcd:dabc     1x1x3x3:1x1x3x3
+--stag=abc:bac       4x6x7:4x6x7 4x6x7:4x6x1
+

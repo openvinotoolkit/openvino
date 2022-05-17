@@ -1,0 +1,10 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt weights mb=2048
+
+13x2048:2048x512n"DLRM_train:BWD_W,0*1"
+512x2048:2048x256n"DLRM_train:BWD_W,1*2"
+256x2048:2048x128n"DLRM_train:BWD_W,2*1"
+479x2048:2048x1024n"DLRM_train:BWD_W,3*1"
+1024x2048:2048x1024n"DLRM_train:BWD_W,4*1"
+1024x2048:2048x512n"DLRM_train:BWD_W,5*1"
+256x2048:2048x1n"DLRM_train:BWD_W,7*1"

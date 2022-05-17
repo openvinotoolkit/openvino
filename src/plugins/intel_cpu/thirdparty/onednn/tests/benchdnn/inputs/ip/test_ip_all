@@ -1,0 +1,17 @@
+# f32
+--reset
+--dir=FWD_B,BWD_D,BWD_WB
+--batch=set_all --batch=shapes_0d
+
+--dir=FWD_B
+--attr-post-ops=sum:0.5+relu:0.5+add:f32:per_oc
+--mb=2 --batch=set_all
+--mb=0 --batch=shapes_0d
+
+--batch=harness_ip_tag
+
+# int8
+--batch=test_ip_int8
+
+# bf16
+--batch=test_ip_bfloat16

@@ -1,0 +1,6 @@
+# These problems are ported from corresponding inner product shapes for
+# training forward mb=1024
+
+1024x9216:9216x4096n"Alexnet_train:FWD,ip1*1"
+1024x4096:4096x4096n"Alexnet_train:FWD,ip2*1"
+1024x4096:4096x1000n"Alexnet_train:FWD,ip3*1"

@@ -1,0 +1,9 @@
+--reset
+--mb=2
+--cfg=s8u8,u8s8,u8f32,f32u8,s8f32,f32s8,u8f16,f16u8,s8f16,f16s8
+--dir=FWD_I
+--tag=axb
+--alg=max,avg_np,avg_p
+--attr-post-ops=,add:f32:per_oc
+--batch=shapes_1d
+--batch=shapes_2d_small

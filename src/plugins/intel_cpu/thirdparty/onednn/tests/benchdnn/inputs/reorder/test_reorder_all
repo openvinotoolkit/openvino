@@ -1,0 +1,77 @@
+#
+# f32 <-> s32 <-> s8 <-> u8
+#
+--reset
+--sdt=f32,s32,s8,u8
+--ddt=f32,s32,s8,u8
+
+--attr-oscale=per_dim_1:0.
+--stag=abx,axb,aBx4b,aBx8b,aBx16b
+--dtag=abx,axb,aBx8b,aBx16b
+2x64x3x3
+
+--stag=abx,axb,aBx16b
+--dtag=abx,axb,aBx16b
+--attr-oscale=,per_dim_1:0.
+--attr-post-ops=sum:0.5
+2x64x1x1
+
+--attr-oscale=per_dim_0:0.
+--stag=abx,xba
+--dtag=abx,xba
+2x64x3x3
+
+--attr-oscale=per_dim_01:0.
+--stag=abx,gOIhw16i16o
+--dtag=abx,gOIhw16i16o
+3x32x32x2x2
+
+# blocked with tail
+--stag=aBx4b,aBx8b --dtag=aBx16b 2x40x3x3
+--stag=aBx16b      --dtag=aBx8b  2x40x3x3
+--stag=ab --dtag=AB16b16a2b 16x63
+
+--attr-oscale=common:0.
+--stag=abx,axb
+--dtag=abx,axb
+2x8x8 # special 8x8 kernel
+
+--stag=abx,axb,aBx4b,aBx8b,aBx16b
+--dtag=abx,axb,aBx4b,aBx8b,aBx16b
+2x64x3x3
+
+--stag=abx,xba
+--dtag=abx,xba
+2x64x3x3
+
+# simple nChw{8,16}c impl
+--stag=aBx4b,aBx8b --dtag=aBx16b 2x71x16x16 2x72x16x16 2x73x16x16
+--stag=aBx16b      --dtag=aBx8b  2x71x16x16 2x72x16x16 2x73x16x16
+
+# test if jit kernels properly handle large stride problems
+--reset
+--skip-impl=ref,simple # ! test jit version only
+--sdt=f32 --ddt=f32
+--stag=abx --dtag=aBx8b 2x16x19200x19200
+--skip-impl=
+
+# f16
+--reset
+--attr-oscale=per_dim_1:0.5
+--sdt=f32 --ddt=f16 3x5x7x11
+--sdt=f16 --ddt=f32 3x5x7x11
+
+# bf16
+--batch=test_reorder_bfloat16
+
+# Run-time
+--batch=harness_reorder_runtime
+
+# Saturation
+--batch=harness_reorder_saturation
+
+# Weights formats for AMX kernels
+--batch=harness_reorder_amx
+
+# Compensation
+--batch=harness_reorder_compensation

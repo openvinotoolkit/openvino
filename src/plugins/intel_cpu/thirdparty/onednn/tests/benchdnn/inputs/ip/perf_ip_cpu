@@ -1,0 +1,13 @@
+--reset
+
+# Forward
+--dir=FWD_B
+--cfg=f32,u8s8s32,s8s8s8
+--mb=1,64,256,1024,2048
+--batch=set_topologies
+
+# Backward
+--cfg=f32
+--dir=BWD_D,BWD_WB
+--mb=64,256,1024,2048
+--batch=set_topologies

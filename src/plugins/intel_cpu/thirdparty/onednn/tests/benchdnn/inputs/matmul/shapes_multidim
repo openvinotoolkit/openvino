@@ -1,0 +1,6 @@
+# Broadcast shapes > 4D
+22x3x1x8x14:22x1x4x14x8:22x3x4x8x8
+13x1x1x8x16:1x13x8x16x8:13x13x8x8x8
+2x3x1x1x6x2x3:1x1x4x5x6x3x4:2x3x4x5x6x2x4
+2x1x7x3x1x6x9:2x6x7x3x4x9x6:2x6x7x3x4x6x6
+3x5x2x9x4x7x3:1x5x2x1x4x3x9:3x5x2x9x4x7x9

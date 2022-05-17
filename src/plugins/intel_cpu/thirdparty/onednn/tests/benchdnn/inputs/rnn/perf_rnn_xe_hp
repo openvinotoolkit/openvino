@@ -1,0 +1,21 @@
+--batch=perf_rnn_xe_lp
+
+--reset
+
+# Forward, bf16
+
+--prop=FWD_I
+--cfg=bf16
+
+--batch=option_set_perf_inference_lb
+--batch=option_set_perf_inference_sb
+--batch=option_set_perf_training
+
+# Backward
+
+--prop=BWD_DW
+--cfg=bf16
+
+--batch=option_set_perf_inference_lb
+--batch=option_set_perf_inference_sb
+--batch=option_set_perf_training

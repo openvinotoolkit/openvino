@@ -1,0 +1,241 @@
+### shuffle dims
+--reset
+--sdt=f32
+--ddt=f32
+--stag=abx,axb
+--dtag=abx,axb
+11 7x11 5x7x11 3x5x7x11 2x3x5x7x11
+
+# test vectorized kernel
+--stag=abcd
+--dtag=acbd,bacd
+3x5x7x64 64x16x384x64
+
+--stag=abcde
+--dtag=bacde,acbde
+3x5x7x11x16
+
+# test 6d reorder
+--sdt=f32
+--ddt=f32
+--stag=abdfce
+--dtag=abcdef
+1x1x3x2x16x2
+
+# test plain-to-ABxxxx8ayb kernel
+--stag=ab
+--dtag=AB32a32b8a4b,AB32a32b8a2b,AB8a4b,AB8a2b
+512x512
+
+# test plain to ABx8a2b
+--allow-enum-tags-only=0
+--stag=abx,axb
+--dtag=ABx8a2b
+4x3x230 16x16x32x16 1x3x10x10 8x5x7x7x7
+
+# test transposeNxN kernel, including checks if it tries to support formats it's not suitable for
+--allow-enum-tags-only=0
+
+--stag=a
+--dtag=a
+1 8 15 16 17 32
+
+--stag=abcd,aBcd16b,aBcd8b,aBcd24b,aBcd32b
+--dtag=abcd,aBcd16b,aBcd8b,aBcd24b,aBcd32b
+1x256x360x640 1x64x720x1280 15x64x31x64 16x16x16x16 16x64x32x128 16x16x16x1 16x16x1x16 16x1x16x16 1x16x16x16 8x8x8x8 8x16x8x16 8x8x16x16 16x8x8x16 16x24x8x32
+
+--stag=ab,AB8a8b,AB8a16b,AB16a8b,AB16a16b
+--dtag=Ab16a,BA16b16a,BA8b16a,BA32b16a,Ab32a,Ab8a
+128x128 128x136 136x128 96x96
+
+--stag=AB32a32b16a16b,BA32b16a16b,AB32a32b8a8b,BA32b8a8b,AB32a32b16a8b,AB32a32b8a16b
+--dtag=Ab16a,Ab8a,Ab24a,Ab32a
+1024x1024 1536x1536
+
+--stag=abc
+--dtag=acb,aBc16b,aCB16c16b,ABc16a16b,cBa16b,aBc8b,aCB8c8b,ABc8a8b,cBa8b
+16x128x16 16x96x96 96x16x96 96x96x16 7x96x96 96x7x96 96x96x7 128x128x128 8x8x8 24x24x24 16x8x64
+
+--stag=abcdef
+--dtag=abcdEf16e,Abcdef16a,bcdefa
+16x16x16x16x16x16 16x15x16x16x16x16 15x16x16x16x16x16 16x16x16x16x16x15 16x16x16x16x15x16
+
+--stag=aBcd32b
+--dtag=aBcd16b
+1x64x1x1
+
+# test unaligned nhwc->nchw kernel
+--stag=nhwc
+--dtag=nchw
+128x3x230x230 99x3x231x231 33x33x33x33 33x1x33x33
+
+# test cases unsupported by vectorize-groups
+--stag=ABcd32a32b
+--dtag=acdb
+128x256x40x40 128x256x5x5 128x256x80x80
+
+# tests for xb->xab/xba kernel
+--stag=ab,ba
+--dtag=BA4b8a8b2a
+2048x1001 1024x30522 1024x4096 1001x2048 1024x1024 30522x1024 4096x1024
+
+--stag=abcd,acdb,cdba,cdba
+--dtag=BAcd4b8a8b2a,ABcd4a2b,ABcd4a8b8a2b,ABcd8a2b
+1024x512x1x1 128x128x3x3 128x256x1x1 128x3x230x230 128x512x1x1 2048x512x1x1
+256x256x3x3 256x512x1x1 256x64x1x1 512x128x1x1 512x2048x1x1 512x512x3x3
+64x256x1x1 64x3x7x7 64x64x1x1 64x64x3x3 1024x256x1x1
+
+# tests based on cosmictagger; will run mainly on pad_innermost and xb->xab/xba kernels
+--stag=acdb --dtag=aBcd16b 4x56x10x16
+--stag=acdb --dtag=aBcd16b 4x168x10x16
+
+--stag=cdba
+--dtag=ABcd16a16b
+32x24x1x1 48x56x1x1 56x48x1x1 40x48x1x1 48x40x1x1 24x16x1x1 16x24x1x1 24x32x1x1
+32x40x1x1 3x8x1x1 8x16x1x1 40x32x1x1 16x8x1x1 168x256x1x1 256x168x1x1
+
+--dtag=ABcd16b16a
+48x40x1x1 48x56x1x1 40x48x1x1 56x48x1x1 16x24x1x1 32x24x1x1 8x1x5x5 24x32x1x1
+24x16x1x1 8x16x1x1 16x8x1x1 3x8x1x1 32x40x1x1 40x32x1x1 256x168x1x1 168x256x1x1
+
+--stag=aBcd16b
+--dtag=acdb
+4x32x40x64 4x168x10x16 4x48x10x16
+--stag=ABcd16b16a --dtag=cdba
+40x48x1x1 8x16x1x1 16x8x1x1 3x8x1x1 168x256x1x1 48x56x1x1 32x24x1x1 56x48x1x1
+8x1x5x5 48x40x1x1 24x32x1x1 24x16x1x1 32x40x1x1 16x24x1x1 40x32x1x1 256x168x1x1
+
+### test types
+--reset
+--sdt=f32,s32,s8,u8,f16,bf16
+--ddt=f32,s32,s8,u8,f16,bf16
+--stag=abx,aBx16b,ABx16a16b
+--dtag=abx,aBx16b,ABx16a16b
+32x32x2x2
+
+### test scale
+# axis type
+--reset
+--sdt=u8
+--ddt=u8
+--stag=abx,xba
+--dtag=abx,xba
+--attr-oscale=per_dim_0:0,per_dim_1:0,per_dim_01:0
+3x5x7x11
+
+# data types
+--reset
+--sdt=f32,s32,s8,u8,f16,bf16
+--ddt=f32,s32,s8,u8,f16,bf16
+
+--attr-oscale=per_dim_1:0.5
+--stag=abx,xba
+--dtag=abx,xba
+3x5x7x11
+
+# post operation
+--reset
+--sdt=f32,s32,s8,u8,f16,bf16
+--ddt=f32,s32,s8,u8,f16,bf16
+
+--attr-oscale=per_dim_1:0.5
+--attr-post-ops=sum:0.5
+--stag=abx,xba
+--dtag=abx,xba
+2x16x3x4
+
+# layouts
+--reset
+--sdt=u8
+--ddt=u8
+
+--attr-oscale=per_dim_0:0.5
+--stag=a
+--dtag=a
+128
+
+--stag=ab,ba
+--dtag=ab,ba
+7x11
+
+--stag=abc,bac
+--dtag=abc,bac
+5x7x11
+
+--stag=abcd,ABcd16a16b
+--dtag=abcd,ABcd16a16b
+32x32x2x2
+
+--stag=abcde,ABcde16a16b
+--dtag=abcde,ABcde16a16b
+32x32x2x2x2
+
+--stag=abcdef,aBCdef16b16c
+--dtag=abcdef,aBCdef16b16c
+2x32x32x2x2x2
+
+### test blocking
+--reset
+--sdt=f32
+--ddt=f32
+
+# data
+--stag=abx,aBx4b,aBx8b,aBx16b
+--dtag=abx,aBx4b,aBx8b,aBx16b
+2x64x3 2x19x5 2x64x3x2 2x19x3x5 2x64x3x2x2 2x19x2x3x5
+
+# weights
+--stag=abc,ABc16a16b,ABc16b16a,BAc16a16b,BAc16b16a
+--dtag=abc,ABc16a16b,ABc16b16a,BAc16a16b,BAc16b16a
+16x32x3 32x16x3 11x17x3
+
+--stag=abcd,ABcd16a16b,ABcd16b16a,BAcd16a16b,BAcd16b16a
+--dtag=abcd,ABcd16a16b,ABcd16b16a,BAcd16a16b,BAcd16b16a
+16x32x3x2 32x16x2x3 11x17x2x3
+
+--stag=abcde,ABcde16a16b,ABcde16b16a,BAcde16b16a
+--dtag=abcde,ABcde16a16b,ABcde16b16a,BAcde16b16a
+16x32x3x2x4 32x16x2x3x4 11x17x2x3x4
+
+# weights with groups
+--stag=abcd,aBCd16b16c,aBCd16c16b,aCBd16b16c,aCBd16c16b
+--dtag=abcd,aBCd16b16c,aBCd16c16b,aCBd16b16c,aCBd16c16b
+2x16x32x3 5x32x16x2 4x11x27x2
+
+--stag=abcde,aBCde16b16c,aBCde16c16b,aCBde16b16c,aCBde16c16b
+--dtag=abcde,aBCde16b16c,aBCde16c16b,aCBde16b16c,aCBde16c16b
+3x16x32x3x2 5x32x16x2x3 4x11x17x2x2
+
+--stag=abcdef,aBCdef16b16c,aBCdef16c16b,aCBdef16c16b
+--dtag=abcdef,aBCdef16b16c,aBCdef16c16b,aCBdef16c16b
+3x16x32x3x2x4 5x32x16x2x3x4 4x11x17x2x2x3
+
+--stag=oiw,OIw8o16i2o,OIw8i16o2i
+--dtag=oiw,OIw8o16i2o,OIw8i16o2i
+16x32x3 32x16x2 11x27x2
+
+--stag=oihw,OIhw8o16i2o,OIhw8i16o2i,OIhw4o8i8o4i,OIhw2o8i8o2i
+--dtag=oihw,OIhw8o16i2o,OIhw8i16o2i,OIhw4o8i8o4i,OIhw2o8i8o2i
+32x32x3x2 32x32x2x3 29x27x2x2
+
+--stag=oidhw,OIdhw8i16o2i
+--dtag=oidhw,OIdhw8i16o2i
+16x32x3x2x4 32x16x2x3x4 11x17x2x2x3
+
+--stag=goiw,gOIw8o16i2o,gOIw8i16o2i
+--dtag=goiw,gOIw8o16i2o,gOIw8i16o2i
+2x16x32x3 5x32x16x2 4x11x27x2
+
+--stag=goihw,gOIhw8o16i2o,gOIhw8i16o2i,gOIhw4o8i8o4i,gOIhw2o8i8o2i
+--dtag=goihw,gOIhw8o16i2o,gOIhw8i16o2i,gOIhw4o8i8o4i,gOIhw2o8i8o2i
+3x32x32x3x2 5x32x32x2x3 4x29x27x2x2
+
+--stag=goidhw,gOIdhw8i16o2i
+--dtag=goidhw,gOIdhw8i16o2i
+3x16x32x3x2x4 5x32x16x2x3x4 4x11x17x2x2x3
+
+--batch=harness_reorder_cross_engine_gpu
+
+# Test layers of some key GPU DL Frameworks
+--reset
+--batch=option_set_fwks_key_gpu

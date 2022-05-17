@@ -1,0 +1,7 @@
+--reset
+
+--dir=FWD_D,BWD_DW
+--sdt=f32:f32,s32:s32,s8:s8,u8:u8
+--batch=option_set_all
+
+--batch=test_prelu_bfloat16

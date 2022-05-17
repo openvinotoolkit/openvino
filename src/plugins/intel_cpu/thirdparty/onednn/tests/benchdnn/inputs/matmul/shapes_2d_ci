@@ -1,0 +1,4 @@
+# 2d shapes for correctness testing in CI
+--batch=shapes_converted_ip_inf_lb_dlrm
+--batch=shapes_converted_ip_inf_lb_ncf
+--batch=shapes_converted_ip_inf_lb_rnn_t

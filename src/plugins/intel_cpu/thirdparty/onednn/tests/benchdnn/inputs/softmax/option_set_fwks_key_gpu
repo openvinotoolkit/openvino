@@ -1,0 +1,8 @@
+#bert.inf.f16.pt.mb64
+ --reset --allow-enum-tags-only=0 --dt=f16 --dir=FWD_D --tag=abcd --axis=3 64x16x384x384n"bert.inf.f16.pt.mb64*24"
+#bert.tr.bf16.pt.mb4
+ --reset --allow-enum-tags-only=0 --dt=bf16 --dir=FWD_D --tag=abcd --axis=3 4x16x512x512n"bert.tr.bf16.pt.mb4*24"
+#cosmictagger.tr.f32.pt.mb4
+ --reset --allow-enum-tags-only=0 --dt=f32 --dir=FWD_D --tag=abcd --axis=1 4x3x640x1024n"cosmictagger.tr.f32.pt.mb4*15"
+#pointnet.tr.f32.pt.mb16
+ --reset --allow-enum-tags-only=0 --dt=f32 --dir=FWD_D --tag=abc --axis=1 16x5x15000n"pointnet.tr.f32.pt.mb16*16"

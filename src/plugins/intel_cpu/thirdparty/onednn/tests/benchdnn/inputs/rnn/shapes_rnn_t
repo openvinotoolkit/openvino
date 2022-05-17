@@ -1,0 +1,6 @@
+# RNN-T shapes with fixed timestamp = 256
+l1t256mb896sic1024slc240dhc1024dic1024n"RNN-T:Encoder_1"
+l1t256mb896sic1024slc1024dhc1024dic1024n"RNN-T:Encoder_2"
+l1t128mb896sic1024slc2048dhc1024dic1024n"RNN-T:Encoder_3"
+l1t128mb896sic1024slc1024dhc1024dic1024n"RNN-T:Encoder_4*2"
+l1t1mb896sic320slc320dhc320dic320n"RNN-T:Prediction*768"

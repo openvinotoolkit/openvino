@@ -1,0 +1,7 @@
+# These problems are ported from corresponding inner product shapes for
+# training forward mb=64
+
+64x25088:25088x4096n"VGG16_train:FWD,ip1*1"
+64x4096:4096x4096n"VGG16_train:FWD,ip2*1"
+64x4096:4096x81n"VGG16_train:FWD,ip3*1"
+64x4096:4096x324n"VGG16_train:FWD,ip4*1"

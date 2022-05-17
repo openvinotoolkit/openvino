@@ -1,0 +1,12 @@
+--reset
+
+--inplace=false # Different src and dst data types does not support in-place mode.
+--ddt=s8,u8,f32 --sdt=s8:u8,u8:s8,s8:f32,f32:u8,f32:f32
+--alg=ADD,MUL,MAX,MIN,DIV,SUB,GE,GT,LE,LT,EQ,NE
+--stag=abx:abx,axb:axb
+--batch=shapes_ci
+
+--alg=ADD
+--attr-post-ops=,add:f32:per_oc+sum:2+linear:2:1:3
+--attr-scales=,src:common:0.25+src1:common:0.5,src:common:0.5*+src1:common:0.25*
+--batch=shapes_ci

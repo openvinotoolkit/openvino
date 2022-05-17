@@ -1,0 +1,4 @@
+# int8
+--reset
+
+--batch=harness_lstm_int8

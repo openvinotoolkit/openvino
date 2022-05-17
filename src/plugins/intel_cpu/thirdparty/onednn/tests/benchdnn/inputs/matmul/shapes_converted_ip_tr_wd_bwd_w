@@ -1,0 +1,12 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt weights
+
+# mb=40
+845x40:40x1024n"WnD-40_train:BWD_W,0*1"
+1024x40:40x512n"WnD-40_train:BWD_W,1*1"
+512x40:40x256n"WnD-40_train:BWD_W,2*1"
+
+# mb=256
+#845x256:256x1024n"WnD-256_train:BWD_W,0*1"
+#1024x256:256x512n"WnD-256_train:BWD_W,1*1"
+#512x256:256x256n"WnD-256_train:BWD_W,2*1"

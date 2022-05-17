@@ -1,0 +1,33 @@
+# f32
+--reset
+
+--inplace=true,false
+--ddt=f32 --sdt=f32:f32
+
+--alg=ADD,MUL,MAX,MIN,DIV,SUB,GE,GT,LE,LT,EQ,NE
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+--alg=ADD # To reduce amount of test cases since all algs act the same
+## post_ops
+--attr-post-ops=, \
+                sum:0.5, \
+                linear:2:0.125, \
+                sum:0.25+relu:-0.01+gt:f32, \
+                relu:-0.01+sum:2, \
+                add:f32:per_oc, \
+                ge:f32, \
+                add:bf16:per_oc+linear:2:1, \
+                mul:s8+add:f32:common+sum:0.5+abs
+--batch=option_set_all
+--batch=option_set_src0_bcast
+
+## scales
+--attr-post-ops=
+--attr-scales=, \
+              src:common:0.25+src1:common:0.5, \
+              src:common:0.125, \
+              src1:common:2, \
+              src:common:0.25*+src1:common:0.5*
+--batch=option_set_all
+--batch=option_set_src0_bcast

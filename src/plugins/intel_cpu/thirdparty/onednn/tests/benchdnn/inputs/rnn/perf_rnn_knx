@@ -1,0 +1,8 @@
+--reset
+
+--prop=FWD_I,BWD_DW
+
+--cfg=f32
+--batch=option_set_perf_inference_lb
+--batch=option_set_perf_inference_sb
+--batch=option_set_perf_training

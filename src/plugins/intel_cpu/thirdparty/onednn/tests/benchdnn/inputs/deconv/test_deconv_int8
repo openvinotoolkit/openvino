@@ -1,0 +1,11 @@
+# int8
+--reset
+--skip-impl=ref
+--mb=2
+--dir=FWD_I,FWD_B
+--batch=set_all
+--batch=shapes_1x1
+
+--batch=harness_deconv_regression_general_int8
+--batch=harness_deconv_attrs_int8
+--batch=harness_deconv_attrs_int8_asymmetric

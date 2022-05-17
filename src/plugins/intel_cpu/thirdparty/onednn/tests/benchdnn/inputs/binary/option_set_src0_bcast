@@ -1,0 +1,9 @@
+--stag=abx:abx             1x5x1x1:3x5x6x9
+                           4x1x4x4:4x4x1x4
+                           1x1x1x1:16x12x2x2
+                           1x12:12x1
+
+--stag=aBx8b:aBx16b  2x16x1x1:2x16x5x7
+
+--stag=aBx16b:axb    1x16x5x7:2x16x5x7
+                     2x16x1x1:2x16x1x1

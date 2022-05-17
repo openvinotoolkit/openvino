@@ -1,0 +1,105 @@
+# Binary tests have the following degrees of freedom:
+# 12 algorithms
+# 2 inplace options
+# 2 post-ops
+# 4 basic (src0=src1=dst) + 18 mixed (s8:f32->u8, etc) operand types
+# 2 scales options
+# 60 tensor sizes
+# for a total of over 20000 possible test cases.
+# To reduce test time, some combinations will not be checked
+#
+# Majority of tests use inplace=false, post-ops present, scales enabled
+# to reduce number of testcases 8-fold.
+# Tests for inplace=true, port-ops=none, scales=disabled use reduced number
+# of tensor sizes, algorithms and data types.
+#
+# Every feature is tested, but not all possible combinations of features
+
+# test cases for inplace=true
+# limited to single algorithm and few datatypes: one each of 8, 16 and 32 bit
+# 280 test cases
+--reset
+--inplace=true
+--alg=ADD
+--attr-post-ops=,sum:0.25+relu:-0.01+add:f32:per_tensor
+--attr-scales=,src:common:0.25+src1:common:0.5
+
+--ddt=bf16
+--sdt=bf16:bf16
+--batch=option_set_minimal
+
+--ddt=f32
+--sdt=f32:f32
+--batch=option_set_minimal
+
+--ddt=s8
+--sdt=s8:s8
+--attr-scales=,src:common:0.25+src1:common:0.5
+--batch=option_set_minimal
+
+# test cases without post-ops
+# limited number of checks as a sanity check that missing post ops don't break kernel
+# other
+--reset
+--inplace=false
+--alg=ADD,MAX,DIV
+
+--ddt=f32
+--sdt=f32:f32
+--batch=option_set_minimal
+
+--ddt=bf16
+--sdt=bf16:bf16
+--batch=option_set_minimal
+
+# test cases with s8/u8 src data types and no scales
+--reset
+--inplace=false
+--attr-post-ops=sum:0.25+relu:-0.01+add:f32:per_tensor
+--alg=ADD,MUL,MAX,MIN,DIV,SUB,GE,GT,LE,LT,EQ,NE
+
+--ddt=s8
+--sdt=s8:s8
+--batch=option_set_minimal
+
+# main body of tests
+# uses all tensor sizes, all algorithms, most data types
+# (all except s8:s8->s8 and ??:??->u8, both partially covered above)
+# but limited to: inplace=false, post-ops enabled, scales enabled (when valid)
+--reset
+--inplace=false
+--attr-post-ops=sum:0.25+relu:-0.01+add:f32
+--alg=ADD,MUL,MAX,MIN,DIV,SUB,GE,GT,LE,LT,EQ,NE
+
+--ddt=f16
+--sdt=f16:f16
+--batch=option_set_all
+
+--ddt=bf16
+--sdt=bf16:bf16
+--batch=option_set_all
+
+--ddt=f32
+--sdt=f32:f32
+--batch=option_set_all
+
+--batch=harness_binary_different_dt
+
+# tests for gen9_binary kernel that cares about formats
+--reset
+--inplace=false
+--attr-post-ops=,sum:0.25+relu:-0.01+add:f32
+--alg=ADD
+--ddt=f32
+--sdt=f32:f32
+--stag=abcd:abcd,abcd:aBcd16b,aBcd16b:abcd,aBcd16b:aBcd16b
+--dtag=abcd,aBcd16b
+1x1024x7x7:1x1024x1x1
+1x16x16x16:1x16x16x16
+1x16x16x16:1x16x16x1
+1x16x16x16:1x16x1x16
+1x16x16x16:1x1x16x16
+
+# Test layers of some key GPU DL Frameworks
+--reset
+--batch=option_set_fwks_key_gpu

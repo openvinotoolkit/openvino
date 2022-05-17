@@ -1,0 +1,8 @@
+# These problems are ported from corresponding inner product shapes for
+# training forward
+
+# resnet mb=112
+112x2048:2048x1000n"resnet_train:FWD,ip1*1"
+
+# resnet_sparse mb=64
+64x2048:2048x1000n"resnet_sparse_train:FWD,ip1*1"

@@ -1,0 +1,12 @@
+# GEMM false-positives for busy wait when handling k partitioning
+[thread]
+fun:*sum_k_blocks*
+# GEMM false-positives for busy wait when handling k partitioning
+[thread]
+fun:*sum_matrices*
+# GEMM false-positives for busy wait when handling k partitioning
+[thread]
+fun:*jit_avx512_common_gemm_f32*
+# GEMM false-positives for busy wait when handling k partitioning
+[thread]
+fun:*jit_avx_gemm_f32*

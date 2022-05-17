@@ -1,0 +1,12 @@
+# These problems are ported from corresponding inner product shapes for
+# training forward
+
+# mb=40
+40x845:845x1024n"WnD-40_train:FWD,0*1"
+40x1024:1024x512n"WnD-40_train:FWD,1*1"
+40x512:512x256n"WnD-40_train:FWD,2*1"
+
+# mb=256
+#256x845:845x1024n"WnD-256_train:FWD,0*1"
+#256x1024:1024x512n"WnD-256_train:FWD,1*1"
+#256x512:512x256n"WnD-256_train:FWD,2*1"

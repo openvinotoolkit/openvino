@@ -1,0 +1,23 @@
+--reset
+
+--cfg=f32
+--dir=FWD_D,BWD_D,BWD_W
+--alg=direct
+
+--mb=0,20,40,80
+--batch=set_perf_cpu_large_mb
+
+--mb=1,4,8
+--batch=set_perf_cpu_all_mb
+
+--reset
+## int8
+--cfg=u8s8u8
+--dir=FWD_D
+--alg=direct
+
+--mb=0,20,40,80
+--batch=set_perf_cpu_large_mb
+
+--mb=1,4,8
+--batch=set_perf_cpu_all_mb

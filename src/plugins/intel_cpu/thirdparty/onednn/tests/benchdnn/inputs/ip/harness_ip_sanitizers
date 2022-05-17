@@ -1,0 +1,12 @@
+# shapes to help sanitizers catch bugs
+
+--reset
+--cfg=f32,bf16bf16bf16,s8s8s8
+--dir=FWD_B
+
+# mb * ic will overflow for int data type in below shape
+mb2613184_ic1536oc16_n"huge_mb_ic"
+
+--cfg=f32,bf16bf16bf16
+--dir=BWD_D,BWD_WB
+mb2613184_ic1536oc16_n"huge_mb_ic"

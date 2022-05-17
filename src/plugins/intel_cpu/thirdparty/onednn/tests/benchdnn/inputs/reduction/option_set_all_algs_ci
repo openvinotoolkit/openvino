@@ -1,0 +1,8 @@
+# Algorithm coverage based on p and eps validity
+--p=1,2 --eps=0.5
+--alg=norm_lp_max,norm_lp_sum,norm_lp_power_p_max,norm_lp_power_p_sum
+--batch=shapes_ci
+
+--p= --eps=
+--alg=sum,mul,max,min,mean
+--batch=shapes_ci

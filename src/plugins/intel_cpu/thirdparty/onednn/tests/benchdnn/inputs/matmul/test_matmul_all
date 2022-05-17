@@ -1,0 +1,65 @@
+# f32
+--reset
+--cfg=f32
+--stag=ab --wtag=ab,ba --dtag=ab
+--runtime_m=0,1 --runtime_n=0 --runtime_k=0,1
+--bia_dt=undef,f32 --bia_mask=1,3
+
+                                                       --batch=shapes_2d
+--attr-oscale=common:2.25 --attr-post-ops=sum        --batch=shapes_2d
+--attr-oscale=per_oc:2.25 --attr-post-ops=relu       --batch=shapes_2d
+
+--stag=ba --wtag=ab,ba --dtag=ab
+--runtime_m=1 --runtime_n=0,1 --runtime_k=1
+--bia_dt=f32 --bia_mask=1,2,3
+--attr-oscale=,common:1.25
+--attr-post-ops=add:f32,sum+mul:s32:per_oc+linear:2:-1
+--batch=shapes_2d
+
+# f32 test any
+--reset
+--cfg=f32
+--runtime_m=0 --runtime_n=0 --runtime_k=0
+--bia_dt=undef
+--stag=ab,ba,any --wtag=ab,ba,any --dtag=any
+--batch=shapes_2d
+
+# f32 3d
+--reset
+--cfg=f32
+--stag=abc,acb --wtag=abc,acb --dtag=abc,bac
+--bia_dt=undef,f32 --bia_mask=4,6
+
+--runtime_dims_masks=0,1:1
+--attr-post-ops=,sum
+--batch=shapes_3d
+
+--runtime_dims_masks=2:4,6:6,3:5,7:7
+--attr-oscale=common:2.25
+--attr-post-ops=sum+relu+add:u8,add:f32:per_tensor+sub:f32:per_oc
+--batch=shapes_3d
+
+# batch size smaller than num_threads
+--reset
+--stag=abc --wtag=abc --dtag=abc
+--bia_dt=f32 --bia_mask=4
+2x20x30:2x30x4
+2x20x30:1x30x4
+
+# f32 Run-time
+--batch=harness_matmul_runtime_f32
+
+# f32 regression
+--batch=harness_matmul_regression_f32
+
+# int8
+--batch=test_matmul_int8
+
+# bf16
+--batch=test_matmul_bfloat16
+
+# data-tags
+--batch=harness_matmul_data_tags
+
+# matmul with strides
+--batch=harness_matmul_strides

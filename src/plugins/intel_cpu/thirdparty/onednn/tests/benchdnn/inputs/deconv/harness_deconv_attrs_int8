@@ -1,0 +1,20 @@
+# i8
+--reset
+--mb=2
+--skip-impl=ref
+--dir=FWD_B
+--attr-oscale=per_oc:2.25 --attr-post-ops=sum:1.5+relu:0:0:2.6
+--cfg=u8s8u8,s8s8s32 --batch=shapes_1d
+--cfg=s8s8f32 --batch=shapes_2d
+--cfg=u8s8s32 --batch=shapes_3d
+
+--dir=FWD_D
+--attr-oscale=common:2.25 --attr-post-ops=sum:1.5
+--cfg=u8s8s8  --batch=shapes_1x1
+--cfg=u8s8s32 --batch=harness_deconv_regression_general_int8
+--cfg=u8s8f32,s8s8s8  --batch=shapes_dilated
+--cfg=s8s8s32 --batch=shapes_2d
+
+--dir=FWD_I
+--attr-post-ops=sum:0.25+add:f32:per_oc+relu:0.5
+--cfg=s8s8s8,u8s8s32 --batch=shapes_ci

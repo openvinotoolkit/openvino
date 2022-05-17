@@ -1,0 +1,32 @@
+--reset
+--dir=FWD_D,BWD_D,BWD_WB
+# IO
+--wtag=xba,abx
+mb2ic640oc256
+mb2ic640iw10oc256
+--wtag=abx,xba,aBx16b,aBx8b,aBx4b
+mb2ic640ih10oc256
+mb2ic640id2ih10iw10oc256
+# Target BRGEMM impl. TODO: extend support with nD cases in future.
+--wtag=ABx16b64a,ABx16b32a,ABx16b16a
+mb2ic645oc284
+mb2ic333oc119
+
+--reset
+--dir=FWD_D,BWD_D,BWD_WB
+# IO
+--stag=abx
+mb2ic640oc256
+mb2ic640iw10oc256
+
+--stag=abx,aBx16b,aBx8b,aBx4b
+mb2ic640ih10oc256
+mb2ic640id2ih10iw10oc256
+
+# Test GEMM impl (regression shapes) with different tags
+--reset
+--cfg=f32,bf16bf16bf16 --dir=FWD_B,BWD_D,BWD_WB
+--stag=ba --wtag=ba --dtag=ab mb16ic16oc16
+
+--cfg=s8s8s8 --dir=FWD_B
+mb32ic32oc16

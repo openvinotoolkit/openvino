@@ -1,0 +1,17 @@
+# f32
+--reset
+--skip-impl=ref
+
+--cfg=f32
+--stag=ab,ba --wtag=ab,ba --dtag=ab
+--bia_dt=undef,f32 --bia_mask=2
+
+--runtime_m=0 --runtime_n=0 --runtime_k=0
+--attr-oscale=common:2.25*,per_oc:2.25*
+--attr-post-ops=,sum,relu
+--batch=shapes_2d
+
+--runtime_m=1 --runtime_n=1 --runtime_k=1
+--attr-oscale=common:2.25*,per_oc:2.25*
+--attr-post-ops=,sum+add:s8,mul:f32:per_oc,mul:f32:per_tensor
+--batch=shapes_2d

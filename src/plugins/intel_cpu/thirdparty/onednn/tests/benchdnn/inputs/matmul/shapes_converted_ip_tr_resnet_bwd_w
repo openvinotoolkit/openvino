@@ -1,0 +1,8 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt weights
+
+# resnet mb=112
+2048x112:112x1000n"resnet_train:BWD_W,ip1*1"
+
+# resnet_sparse mb=64
+2048x64:64x1000n"resnet_sparse_train:BWD_W,ip1*1"

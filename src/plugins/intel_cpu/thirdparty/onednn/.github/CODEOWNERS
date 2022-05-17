@@ -1,0 +1,34 @@
+#===============================================================================
+# Copyright 2019-2021 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Default
+* @intel-innersource/dnn-arch
+
+# Documentation
+*.md  @intel-innersource/dnn-doc @intel-innersource/dnn-mgmt @intel-innersource/dnn-arch
+/doc/ @intel-innersource/dnn-doc @intel-innersource/dnn-arch
+
+# CPU-specific optimizations
+/src/cpu/ @intel-innersource/dnn-cpu
+
+# CPU BLAS
+/src/cpu/gemm/ @intel-innersource/dnn-blas @intel-innersource/dnn-arch
+
+# GPU-specific optimizations
+/src/gpu/ @intel-innersource/dnn-gpu
+
+# Tests
+/tests/benchdnn/inputs/ @intel-innersource/dnn-arch @intel-innersource/dnn-cpu @intel-innersource/dnn-gpu

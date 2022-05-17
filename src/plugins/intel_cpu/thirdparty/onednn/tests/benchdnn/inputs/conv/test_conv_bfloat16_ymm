@@ -1,0 +1,9 @@
+# Currently, only gemm routine implements bf16_ymm hint
+# Therefore test bfloat16 GeMM specific functionality
+
+# global benchdnn knob, will not be reset again
+--cpu-isa-hints=prefer_ymm
+--reset
+
+--batch=test_conv_gemm_bfloat16
+--batch=test_conv_gemm_bfloat16_nxc

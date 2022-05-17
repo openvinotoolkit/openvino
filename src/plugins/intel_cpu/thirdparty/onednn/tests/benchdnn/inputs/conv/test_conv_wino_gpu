@@ -1,0 +1,7 @@
+# f16 wino
+--reset --cfg=f16,f32 --stag=any,nhwc --alg=wino
+--match=.*[^k][^d][0-9]kh3[^0-9].*       # only 3x3 convolutions so far
+--mb=2,32                      # for fwd and bwd_d reduce mb
+--batch=set_conv_all
+--batch=shapes_regression_padding
+--batch=shapes_tails

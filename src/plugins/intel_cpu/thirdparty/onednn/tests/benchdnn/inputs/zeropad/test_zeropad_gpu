@@ -1,0 +1,70 @@
+
+###################################
+#  test block optimized zero pad  #
+--dt=s8,f16,f32
+
+####
+# 2d
+--tag=AB16b16a,AB16b32a,AB16b64a
+16x1
+16x31
+32x31
+96x49
+112x80
+
+--tag=AB48a16b
+1x32
+97x64
+
+--tag=AB48a32b
+1x16
+145x80
+
+####
+# 3d
+--tag=ABc16a16b,ABc32a16b,ABc40a16b,BAc16a16b,ABc32a32b,ABc40a32b
+1x16x2
+39x16x4
+47x48x15
+
+--tag=ABc16b16a,BAc16b16a
+16x1x2
+16x31x3
+32x40x4
+48x47x5
+
+--tag=aBC48b16c,aBC48b32c
+2x1x16
+3x2x32
+4x3x48
+5x47x96
+
+####
+# 4d
+--tag=ABcd16a16b,ABcd32a16b,ABcd40a16b,aBCd16c16b,aCBd16c16b,BAcd16a16b
+1x16x2x3
+1x128x3x4
+17x16x4x5
+
+--tag=ABcd32a32b,ABcd40a32b
+2x16x3x4
+20x48x4x5
+66x96x5x6
+
+--tag=ABcd16b16a,BAcd16b16a
+16x1x2x3
+16x17x3x4
+48x88x4x5
+
+--tag=aBCd16b16c,aCBd16b16c
+2x1x16x3
+3x17x16x4
+40x47x48x5
+
+# end of test block optimized zero pad  #
+#########################################
+
+# test kernel optimized for RCAN dim
+--dt=s8
+--tag=aBcd32b
+1x4x360x640

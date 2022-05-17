@@ -1,0 +1,9 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt weights mb=896 (16 * num_cores)
+
+240x896:896x4096n"RNN-T:BWD_W,Encoder_cell1_Input*2"
+1024x896:896x4096n"RNN-T:BWD_W,Encoder_cell1_Hidden*11"
+2048x896:896x4096n"RNN-T:BWD_W,Encoder_cell3_Input*1"
+320x896:896x1280n"RNN-T:BWD_W,Prediction_Input*12"
+1344x896:896x512n"RNN-T:BWD_W,JointNet_Linear1*3"
+512x896:896x29n"RNN-T:BWD_W,JointNet_Linear2*3"

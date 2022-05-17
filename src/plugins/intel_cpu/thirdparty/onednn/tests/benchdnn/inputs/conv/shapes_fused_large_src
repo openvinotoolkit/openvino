@@ -1,0 +1,2 @@
+# large-mb, small-ic shape to exceed combined L2 cache and target jit impls
+mb448_ic16oc64_ih56oh56kh1sh1dh0ph0n"fused_large_src"

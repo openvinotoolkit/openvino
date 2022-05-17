@@ -1,0 +1,22 @@
+--batch=perf_conv_xe_lp
+
+--reset
+
+# Forward, bf16
+
+--dir=FWD_B
+--cfg=bf16bf16bf16
+--mb=16,64
+--batch=set_perf_gpu_large_mb
+
+--dir=FWD_B
+--cfg=bf16bf16bf16
+--mb=1
+--batch=set_perf_gpu_all_mb
+
+# Backward, bf16
+
+--cfg=bf16bf16bf16
+--dir=BWD_D,BWD_W
+--mb=64
+--batch=set_perf_gpu_large_mb

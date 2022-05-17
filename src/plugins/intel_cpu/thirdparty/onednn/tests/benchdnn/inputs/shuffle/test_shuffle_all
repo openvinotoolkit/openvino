@@ -1,0 +1,13 @@
+--reset
+
+--dir=FWD_D
+--dt=f32,s32,s8,u8
+--tag=abx,axb,aBx4b,aBx8b,aBx16b
+--batch=option_set_all
+
+--dir=BWD_D
+--dt=f32
+--batch=option_set_min
+
+# bf16
+--batch=test_shuffle_bfloat16

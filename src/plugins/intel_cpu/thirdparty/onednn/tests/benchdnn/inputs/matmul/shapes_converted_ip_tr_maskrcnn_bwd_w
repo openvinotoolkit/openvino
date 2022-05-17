@@ -1,0 +1,7 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt weights mb=512
+
+12544x512:512x1024n"masknet_train:BWD_W,ip1*1"
+1024x512:512x1024n"masknet_train:BWD_W,ip2*1"
+1024x512:512x324n"masknet_train:BWD_W,ip3*1"
+1024x512:512x81n"masknet_train:BWD_W,ip4*1"

@@ -1,0 +1,6 @@
+# bf16
+--reset
+
+--sdt=bf16 --ddt=bf16,f32
+--attr-post-ops=,sum+linear:2:1+add:f32
+--batch=option_set_all_algs

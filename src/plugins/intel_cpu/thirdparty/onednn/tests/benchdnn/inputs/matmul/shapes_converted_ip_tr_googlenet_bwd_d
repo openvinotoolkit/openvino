@@ -1,0 +1,9 @@
+# These problems are ported from corresponding inner product shapes for
+# training backward wrt data
+
+# googlenet_v1 mb=128
+128x1024:1024x2048n"googlenet_v1_train:BWD_D,ip1*1"
+128x1000:1000x1024n"googlenet_v1_train:BWD_D,ip2*1"
+
+# inceptionv3 mb=224
+224x1000:1000x2048n"inceptionv3_train:BWD_D,ip1*1"

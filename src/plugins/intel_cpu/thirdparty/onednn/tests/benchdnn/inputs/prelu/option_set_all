@@ -1,0 +1,19 @@
+# tag:any
+--stag=abx:any, \
+       axb:any, \
+       aBx8b:any, \
+       aBx16b:any
+--batch=shapes_all
+
+# tag:tag
+--stag=abx:abx, \
+       axb:axb, \
+       aBx8b:aBx8b, \
+       aBx16b:aBx16b
+--batch=shapes_all
+
+# tag1:tag2
+--stag=abx:axb, \
+       axb:aBx8b, \
+       aBx16b:abx
+--batch=shapes_all

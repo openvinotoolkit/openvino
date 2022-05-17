@@ -1,0 +1,8 @@
+--batch=shapes_dlrm
+--batch=shapes_ncf
+--batch=shapes_resnet_50
+--batch=shapes_rnn_t
+--batch=shapes_bert
+--batch=shapes_bert_large
+--batch=shapes_gnmt
+--batch=shapes_wd

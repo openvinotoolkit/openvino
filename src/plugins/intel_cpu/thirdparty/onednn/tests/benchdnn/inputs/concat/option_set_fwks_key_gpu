@@ -1,0 +1,12 @@
+#dlrm.inf.f16.pt.mb32k
+ --reset --allow-enum-tags-only=0 --sdt=f16 --ddt=f16 --stag=abc --dtag=abc --axis=1 32768x1x128:32768x9x128:32768x1x128:32768x9x128:32768x1x128:32768x1x128:32768x5x128n"dlrm.inf.f16.pt.mb32k*1"
+ --reset --allow-enum-tags-only=0 --sdt=f16 --ddt=f16 --stag=ab --dtag=ab --axis=1 32768x128:32768x351n"dlrm.inf.f16.pt.mb32k*1"
+#dlrm.tr.bf16.pt.mb32k
+ --reset --allow-enum-tags-only=0 --sdt=bf16 --ddt=bf16 --stag=ab --dtag=ab --axis=1 32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128:32768x128n"dlrm.tr.bf16.pt.mb32k*1"
+ --reset --allow-enum-tags-only=0 --sdt=bf16 --ddt=bf16 --stag=ab --dtag=ab --axis=1 32768x128:32768x351n"dlrm.tr.bf16.pt.mb32k*1"
+#cosmictagger.tr.f32.pt.mb4
+ --reset --allow-enum-tags-only=0 --sdt=f32 --ddt=f32 --stag=abcd --dtag=abcd --axis=1 4x56x10x16:4x56x10x16:4x56x10x16n"cosmictagger.tr.f32.pt.mb4*10"
+#adorym.tr.f32.pt.mb1
+ --reset --allow-enum-tags-only=0 --sdt=f32 --ddt=f32 --stag=abcde --dtag=abcde --axis=0 1x256x256x256x2:1x256x256x256x2n"adorym.tr.f32.pt.mb1*1"
+#pointnet.tr.f32.pt.mb16
+ --reset --allow-enum-tags-only=0 --sdt=f32 --ddt=f32 --stag=abc --dtag=abc --axis=1 16x64x15000:16x1024x15000n"pointnet.tr.f32.pt.mb16*16"

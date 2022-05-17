@@ -1,0 +1,9 @@
+# These problems are ported from corresponding inner product forward
+# ip mb=896 (16 * num_cores)
+
+896x240:240x4096n"RNN-T:Encoder_cell1_Input*2"
+896x1024:1024x4096n"RNN-T:Encoder_cell1_Hidden*11"
+896x2048:2048x4096n"RNN-T:Encoder_cell3_Input*1"
+896x320:320x1280n"RNN-T:Prediction_Input*12"
+896x1344:1344x512n"RNN-T:JointNet_Linear1*3"
+896x512:512x29n"RNN-T:JointNet_Linear2*3"

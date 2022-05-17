@@ -1,0 +1,33 @@
+# test matmul input with strides
+
+# 2d input
+--reset
+--cfg=f32,s8s8s8,bf16bf16bf16
+--bia_dt=f32 --bia_mask=1,3
+--attr-oscale=,common:1.25
+--attr-post-ops=add:f32,sum+mul:f32:per_oc+linear:2:-1
+
+--strides=4x1:4x1:4x1,4x1:4x1:8x1,13x1:7x1:9x1
+2x4:4x4:2x4
+
+--strides=::13x1 114x21:21x12:114x12
+
+# 3d input
+--reset
+--cfg=u8s8s32,bf16bf16f32
+
+--strides=8x4x1:16x4x1:8x4x1,12x4x1:20x4x1:22x8x1,27x13x1:29x7x1:19x9x1
+2x2x4:2x4x4:2x2x4
+
+--reset
+--cfg=s8s8s8,bf16bf16bf16 --wtag=bax
+
+--strides=::12x4x1,::21x7x1
+3x2x4:3x4x4:3x2x4
+
+# 4d input
+--reset
+--cfg=s8s8s8,bf16bf16bf16
+
+--strides=60x27x13x1:71x29x7x1:59x19x9x1
+3x2x2x4:3x2x4x4:3x2x2x4

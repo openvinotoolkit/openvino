@@ -1,0 +1,8 @@
+# mb = 16 * num_cores  for throughput inference / training
+# and mb = 16 for real time inference
+mb16ic240oc4096n"RNN-T:Encoder_cell1_Input*2"
+mb16ic1024oc4096n"RNN-T:Encoder_cell1_Hidden*11"
+mb16ic2048oc4096n"RNN-T:Encoder_cell3_Input*1"
+mb16ic320oc1280n"RNN-T:Prediction_Input*12"
+mb16ic1344oc512n"RNN-T:JointNet_Linear1*3"
+mb16ic512oc29n"RNN-T:JointNet_Linear2*3"

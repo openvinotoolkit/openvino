@@ -1,0 +1,34 @@
+--reset
+
+--dir=FWD_B
+--cfg=bf16bf16bf16,bf16bf16f32
+--batch=set_all --batch=shapes_0d --batch=shapes_regression
+
+--dir=BWD_D
+--cfg=bf16bf16bf16,f32bf16bf16
+--batch=set_all --batch=shapes_0d --batch=shapes_regression
+
+--dir=BWD_WB
+--cfg=bf16bf16bf16,bf16f32bf16
+--batch=set_all --batch=shapes_0d
+
+# attributes
+--dir=FWD_B
+--cfg=bf16bf16bf16,bf16bf16f32
+--attr-post-ops=linear:1:1:2.5,add:s32,sum:0.5+mul:s32:per_oc+relu:0.5
+--mb=2 --batch=set_all
+--mb=0 --batch=shapes_0d
+
+# Tests for external blocked weights layout. This targets BRGEMM impl.
+# TODO: extend support with nD cases in the future.
+--reset
+--dir=FWD_B,BWD_D,BWD_WB
+--skip-impl=ref
+--cfg=bf16bf16bf16
+--wtag=AB16b64a2b,AB16b32a2b,AB16b16a2b
+mb2ic368oc623
+mb2ic1462oc412
+--wtag=AB8b64a2b,AB8b32a2b,AB8b16a2b
+mb2ic368oc623
+mb2ic1462oc412
+mb2ic65oc65

@@ -1,0 +1,23 @@
+# i8 asymmetric
+--reset
+
+--skip-impl=ref
+--mb=2
+
+--dir=FWD_B
+--stag=any,axb
+--attr-zero-points=src:common:31+dst:common:15
+--cfg=u8s8u8,s8s8u8
+--batch=shapes_1d
+--batch=shapes_1x1
+--batch=shapes_2d
+
+--dir=FWD_D
+--stag=any,axb
+--attr-zero-points=src:common:31
+--cfg=s8s8f32,u8s8s32
+--batch=shapes_3d
+--batch=shapes_dilated
+
+--attr-zero-points=src:per_dim_1:1*+dst:per_dim_1:1*,src:common:31+dst:per_dim_1:1*
+--batch=shapes_ci # Too slow to validate full set

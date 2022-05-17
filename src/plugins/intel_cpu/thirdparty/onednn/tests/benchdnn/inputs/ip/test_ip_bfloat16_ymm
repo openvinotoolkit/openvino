@@ -1,0 +1,3 @@
+# global benchdnn knob, will not be reset again
+--cpu-isa-hints=prefer_ymm
+--batch=test_ip_bfloat16

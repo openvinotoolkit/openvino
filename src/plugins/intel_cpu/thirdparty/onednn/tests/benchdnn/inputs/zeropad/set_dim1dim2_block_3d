@@ -1,0 +1,8 @@
+# The follwing tags are omitted as they should be tested in the 4d dim2 dim3
+# blocked cases
+# --tag=ABc16a16b,ABc4a4b,ABc16b16a,ABc4b16a4b,ABc2b8a4b,
+#       ABc16b16a4b,ABc16b16a2b,ABc4b4a,ABc8a16b2a,ABc8a8b,
+#       ABc8a4b,ABc8b16a2b,ABc8b8a
+
+--tag=ABc32a32b,ABc16b32a,ABc16b64a,ABc4b32a4b,ABc4b64a4b,ABc8b32a2b,ABc8b64a2b,ABc4a8b8a4b
+--batch=shapes_dim1dim2_block_3d

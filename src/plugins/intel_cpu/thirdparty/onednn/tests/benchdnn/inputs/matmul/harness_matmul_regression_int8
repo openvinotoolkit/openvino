@@ -1,0 +1,22 @@
+--reset
+--cfg=s8s8s8
+97x2053:2053x997n"test_scratchpad_allocation_for_non_batched_case"
+
+# batch size smaller than num_threads
+--stag=abc --wtag=abc --cfg=u8s8s32 --bia_dt=f32 --bia_mask=4
+2x20x30:2x30x4
+2x20x30:1x30x4
+
+# verify assertions
+--reset
+--cfg=s8s8s32,u8s8s32
+--attr-zero-points=,src:common:1,wei:common:2,src:common:1+wei:common:2 1x1:1x1
+
+--stag=ab,ba --wtag=ab,ba --dtag=ab
+--attr-zero-points=src:common:1*+wei:common:2* 2x2:2x2
+
+# verify zero-padding for blocked format tags
+--reset
+--cfg=s8s8s8
+--stag=ab,ba --wtag=ba --dtag=AB16b16a
+11x13:13x16:11x16

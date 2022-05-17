@@ -1,0 +1,9 @@
+--axis=1,2
+
+--group=2,4 1x12x56x56 1x24x56x56 1x272x56x56
+
+--group=3   1x36x225x225 1x72x57x57 1x144x27x27
+
+--group=8   1x24x56x56 1x32x56x56 1x72x56x56
+
+--group=16  1x16x64x64 1x48x64x64 1x128x64x64

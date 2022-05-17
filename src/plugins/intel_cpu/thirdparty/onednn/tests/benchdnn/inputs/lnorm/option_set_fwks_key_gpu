@@ -1,0 +1,8 @@
+#bert.inf.f16.pt.mb64
+ --reset --allow-enum-tags-only=0 --dt=f16 --flags=S --dir=FWD_I --tag=abc 1x24576x1024n"bert.inf.f16.pt.mb64*1"
+ --reset --allow-enum-tags-only=0 --dt=f16 --flags=S --dir=FWD_I --tag=AB48a16b 24576x1024n"bert.inf.f16.pt.mb64*48"
+#bert.tr.bf16.pt.mb4
+ --reset --allow-enum-tags-only=0 --dt=f32 --flags=S --dir=FWD_D --tag=abc 1x2048x1024n"bert.tr.bf16.pt.mb4*1"
+ --reset --allow-enum-tags-only=0 --dt=bf16 --flags=S --dir=FWD_D --tag=abc 1x2048x1024n"bert.tr.bf16.pt.mb4*49"
+ --reset --allow-enum-tags-only=0 --dt=bf16 --flags=S --dir=BWD_DW --tag=abc 1x2048x1024n"bert.tr.bf16.pt.mb4*49"
+ --reset --allow-enum-tags-only=0 --dt=f32 --flags=S --dir=BWD_DW --tag=abc 1x2048x1024n"bert.tr.bf16.pt.mb4*1"

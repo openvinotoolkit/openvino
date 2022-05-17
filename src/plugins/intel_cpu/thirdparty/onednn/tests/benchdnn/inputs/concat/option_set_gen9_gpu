@@ -1,0 +1,70 @@
+# plain formats
+--axis=1
+--sdt=f32,bf16,s8
+--ddt=f32,bf16,s8
+--stag=axb:axb
+--dtag=axb
+6x112:6x64
+6x512:6x2
+6x0x10x10:6x2x10x10
+6x0x10x10:6x16x10x10
+6x0x10x128:6x2x10x128
+6x0x10x128:6x17x10x128
+--stag=axb:axb:axb
+--dtag=axb
+6x512x128x10:6x2x128x10:6x2x128x10
+--stag=axb:axb:axb:axb
+--dtag=axb
+6x512x128x10:6x2x128x10:6x2x128x10:6x2x128x10
+
+# blocked formats
+--stag=aBx32b:aBx32b
+--dtag=aBx32b
+6x112:6x64
+6x512:6x2
+6x0x10x10:6x2x10x10
+6x0x10x10:6x16x10x10
+6x0x10x128:6x2x10x128
+6x0x10x128:6x17x10x128
+--stag=aBx32b:aBx32b:aBx32b
+--dtag=aBx32b
+6x0x10x10:6x2x10x10:6x2x10x10
+--stag=aBx32b:aBx32b:aBx32b:aBx32b
+--dtag=aBx32b
+6x16x10x10:6x2x10x10:6x2x10x10:6x2x10x10
+--stag=ABx32a32b:ABx32a32b
+--dtag=ABx32a32b
+6x112:6x64
+--stag=ABx32a32b:ABx32a32b:ABx32a32b
+--dtag=ABx32a32b
+6x16x10x10:6x16x10x10:6x16x10x10
+
+# different axes
+--axis=0
+--stag=axb:axb
+--dtag=axb
+112x6:64x6
+--stag=aBx32b:aBx32b
+--dtag=aBx32b
+112x6:64x6
+--axis=2
+--stag=axb:axb
+--dtag=axb
+1x2x112x6:1x2x64x6
+--stag=aBx32b:aBx32b
+--dtag=aBx32b
+1x2x112x6:1x2x64x6
+--axis=3
+--stag=axb:axb
+--dtag=axb
+6x2x1x112:6x2x1x64
+--stag=aBx32b:aBx32b
+--dtag=aBx32b
+6x2x1x112:6x2x1x64
+
+# layers from MobileNet and other networks
+--reset
+--sdt=s8 --ddt=s8 --stag=nChw32c:nChw32c --dtag=nChw32c 32x112x256x256:32x64x256x256
+--sdt=s8 --ddt=s8 --stag=NChw32n32c:NChw32n32c --dtag=NChw32n32c 32x112x256x256:32x64x256x256
+--stag=abc:abc:abc:abc:abc:abc --dtag=abc 64x1083x91:64x600x91:64x150x91:64x54x91:64x24x91:64x6x91
+--stag=abc:abc:abc:abc:abc:abc --dtag=abc 64x1083x4:64x600x4:64x150x4:64x54x4:64x24x4:64x6x4

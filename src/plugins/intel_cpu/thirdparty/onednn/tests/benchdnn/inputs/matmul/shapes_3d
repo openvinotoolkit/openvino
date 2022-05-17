@@ -1,0 +1,11 @@
+# random batched shapes for correctness testing
+1x1x1:1x1x1
+2x10x30:2x30x1
+3x30x1:3x1x20
+1x30x30:1x30x20
+
+# batch broadcast shapes
+7x32x16:1x16x8
+1x128x8:2x8x16
+2x16x73:1x73x8
+1x26x17:5x17x65

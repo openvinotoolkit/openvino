@@ -1,0 +1,9 @@
+# data-tags or non-trivial strides
+--reset
+--skip-impl=ref
+--allow-enum-tags-only=0
+--cfg=f32,s8s8f32
+--stag=acbde,bacde,cabde,abced,abdce
+--dtag=acbde,bacde,cabde,abced,abdce
+--wtag=abcde,acbde
+3x5x7x11x13:1x1x1x13x13

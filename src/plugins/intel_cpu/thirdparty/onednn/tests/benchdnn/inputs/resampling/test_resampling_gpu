@@ -1,0 +1,39 @@
+# this file includes workaround for benchdnn's limited precision,
+# which in some cases is worse than GPU kernels' 
+--reset
+--mb=2
+
+--sdt=f32,bf16,f16,s32,u8,s8
+--ddt=f32,bf16,f16
+--dir=FWD_D
+--alg=nearest,linear
+--tag=abx,axb,aBx16b
+# attr-post-ops values adjusted to avoid failures
+--attr-post-ops=,sum+add:f32:per_tensor+linear:1.5
+--batch=set_all
+
+--sdt=s32,u8,s8
+--ddt=s32,u8,s8
+--dir=FWD_D
+--alg=nearest,linear
+--tag=abx,axb,aBx16b
+# attr-post-ops default values 
+--attr-post-ops=,sum+add:f32:per_tensor+linear:1.5:-1.25:0.5
+--batch=set_all
+
+--sdt=f32,bf16,f16
+--ddt=s32,u8,s8
+--dir=FWD_D
+--alg=nearest,linear
+--tag=abx,axb,aBx16b
+# attr-post-ops values adjusted, skipped no post-ops case to avoid failures
+--attr-post-ops=sum+add:f32:per_tensor+linear:1.5:-1.2:0.44
+--batch=set_all
+
+--sdt=f32,bf16
+--ddt=f32,bf16
+--dir=BWD_D
+--alg=nearest,linear
+--tag=abx,axb,aBx16b
+--attr-post-ops=
+--batch=set_all

@@ -1,0 +1,7 @@
+# RNN-T LSTM shapes
+
+--alg=VANILLA_LSTM
+--activation=UNDEF
+--direction=left2right
+
+--batch=shapes_rnn_t

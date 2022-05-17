@@ -1,0 +1,5 @@
+# global benchdnn knob, will not be reset again
+--cpu-isa-hints=prefer_ymm
+
+--reset
+--batch=test_lstm_bfloat16

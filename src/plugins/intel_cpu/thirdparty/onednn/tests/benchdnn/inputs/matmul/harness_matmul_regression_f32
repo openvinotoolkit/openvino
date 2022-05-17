@@ -1,0 +1,6 @@
+--reset
+
+# verify zero-padding for blocked format tags
+--cfg=f32
+--stag=ab,ba --wtag=ba --dtag=AB16b16a
+11x13:13x16:11x16

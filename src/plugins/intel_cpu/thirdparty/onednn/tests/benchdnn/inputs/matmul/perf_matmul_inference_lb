@@ -1,0 +1,14 @@
+--batch=shapes_converted_ip_inf_lb_gmnt
+--batch=shapes_converted_ip_inf_lb_wd
+--batch=shapes_converted_ip_inf_lb_resnet
+--batch=shapes_converted_ip_inf_lb_googlenet
+--batch=shapes_converted_ip_inf_lb_vgg16
+--batch=shapes_converted_ip_inf_lb_ncf
+--batch=shapes_converted_ip_inf_lb_alexnet
+--batch=shapes_converted_ip_inf_lb_maskrcnn
+--batch=shapes_converted_ip_inf_lb_rnn_t
+--batch=shapes_converted_ip_inf_lb_dlrm
+--batch=harness_matmul_bert_inf_lb_int8
+#--batch=harness_matmul_bert_inf_lb_bfloat16
+--batch=harness_matmul_transformer_lt_inf_lb_int8
+#--batch=harness_matmul_transformer_lt_inf_lb_bfloat16

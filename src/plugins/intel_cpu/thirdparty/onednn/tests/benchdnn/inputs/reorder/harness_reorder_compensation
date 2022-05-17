@@ -1,0 +1,56 @@
+# s8, f32, bf16 -> s8 w/ compensations
+--reset
+--sdt=f32,bf16,s8
+--ddt=s8
+
+# Non-grouped cases
+--attr-oscale=,common:2
+--oflag=,s8s8_comp:1,zp_comp:1,s8s8_comp:1+zp_comp:1
+--stag=abx,xba,bxa
+--dtag=xba,ABx2b8a4b,ABx4a4b,ABx4b16a4b,ABx4b32a4b,ABx4b64a4b
+32x32x3
+32x32x3x3 80x24x3x5
+32x32x3x3x3
+# Special case: no general 0D-spatial support
+--dtag=ABx4b16a4b,ABx4b32a4b,ABx4b64a4b
+80x24
+
+# Following tags have no s8s8 compensation support.
+--attr-oscale=
+--oflag=,zp_comp:1
+## Special case: no general 3D-spatial support
+--dtag=AxB16a4b,ABx16b16a4b
+32x32x3
+32x32x3x3 80x24x3x5
+## Special case: reduced-lowering
+--dtag=Acb16a 32x32x3
+--dtag=Adcb16a 32x32x3x3
+
+# Grouped cases
+--attr-oscale=,common:2
+--oflag=,s8s8_comp:3,zp_comp:3,s8s8_comp:3+zp_comp:3
+--stag=abx,xcab
+--dtag=xcab        2x32x32x3 2x32x32x3x3 16x32x32x3x3x3
+# Special case: no general 3D support for AMX and depthwise
+--dtag=aBCx4c16b4c 2x32x32x3 2x32x32x3x3
+--dtag=aBCx4b4c    2x36x36x3 2x36x36x3x3
+--dtag=aBCx2c8b4c  2x40x40x3 2x40x40x3x3
+--dtag=Abcx16a,Abcx8a,Abcx4a 64x1x1x3 512x1x1x3x3
+
+# Following tags have no s8s8 compensation support.
+--attr-oscale=
+--oflag=,zp_comp:3
+## Special case: no general 3D support for AMX and depthwise
+--dtag=aBxC16b4c,aBCx16c16b4c 2x32x32x3 2x32x32x3x3
+## Special case: reduced-lowering
+--dtag=aBdc16b 2x32x32x3
+--dtag=aBedc16b 2x32x32x3x3
+
+# sanity checks for nhm & snb machines
+--reset
+--sdt=s32
+--ddt=s32
+--attr-zero-points=src:common:-1+dst:common:2,src:common:-1*+dst:common:2*
+--stag=abx
+--dtag=abx
+2x16x3x4 1x17x5x3

@@ -1,0 +1,5 @@
+# bf16
+
+# global benchdnn knob, will not be reset again
+--cpu-isa-hints=prefer_ymm
+--batch=test_deconv_bfloat16

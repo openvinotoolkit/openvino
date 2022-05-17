@@ -1,0 +1,22 @@
+# i8 asymmetric
+--reset
+--mb=2
+--dir=FWD_B
+--attr-oscale=per_oc:2.25
+--attr-zero-points=src:common:2+dst:common:1
+--cfg=u8s8f32,s8s8f32 --batch=shapes_googlenet_v2
+--cfg=u8s8s32 --batch=shapes_3d
+--cfg=u8s8s32 --batch=shapes_gemm
+--attr-post-ops=sum:1:0:s8
+--cfg=u8s8u8,s8s8u8 --batch=shapes_vgg_19
+
+--dir=FWD_D
+--attr-oscale=common:2.25
+--attr-post-ops=sum:1.5,sum:1.5:2
+--attr-zero-points=src:per_dim_1:1*+dst:per_dim_1:1*
+--cfg=u8s8s8,s8s8s8 --batch=shapes_googlenet_v3
+--cfg=u8s8s32 --batch=shapes_alexnet
+--attr-zero-points=src:common:1*+dst:common:1*
+--cfg=s8s8s32 --batch=shapes_alexnet --batch=shapes_3d
+--cfg=u8s8s32 --batch=shapes_gemm
+

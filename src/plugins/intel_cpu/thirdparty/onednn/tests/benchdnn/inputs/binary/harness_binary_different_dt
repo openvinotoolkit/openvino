@@ -1,0 +1,22 @@
+# testing ddt different from sdt
+--reset
+--inplace=false # Different src and dst dts do not support in-place mode.
+--attr-post-ops=,sum:0.25+relu:-0.01+add:f32
+--alg=ADD
+
+--ddt=s8,u8,f16,f32
+--sdt=s8:u8,s8:f32,f16:s8,u8:f16,u8:f32,f32:s8,f32:u8,f16:f32
+--batch=option_set_minimal
+
+
+## s8/u8 bnorm implementation via binary
+--reset
+--alg=SUB
+--ddt=u8,s8
+--sdt=u8:f32,s8:f32
+--attr-post-ops=div:f32:per_oc+add:f32:per_oc+mul:f32:per_oc
+--stag=axb:axb
+16x2048x10x10:1x2048x1x1
+8x1024x19x19:1x1024x1x1
+2x512x38x38:1x512x1x1
+1x256x75x75:1x256x1x1

@@ -1,0 +1,5 @@
+--dt=s8,f16,f32
+--batch=set_dim1_block_3d
+--batch=set_dim2_block_3d
+--batch=set_dim1dim2_block_3d
+--batch=set_dim2dim3_block_4d
