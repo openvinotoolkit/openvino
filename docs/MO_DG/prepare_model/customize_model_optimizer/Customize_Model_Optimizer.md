@@ -275,7 +275,6 @@ specific conditions, identified during a model conversion, to produce correct in
 The list of main transformations responsible for a layout change are: *`extensions/middle/ApplyPermutations.py`*,
 *`extensions/middle/InsertLayoutPropagationTransposes.py`*, *`extensions/middle/MarkSubgraphsWithCorrectLayout.py`*,
 *`extensions/middle/ApplyNHWCtoNCHWpermutation.py`* and *`extensions/middle/LayoutChangeForConstantShapePaths.py`*.
-For more details on how the layout change works, refer to the source code of these transformations.
 
 ### Back Phase <a name="back-phase"></a>
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:
