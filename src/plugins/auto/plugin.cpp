@@ -114,10 +114,25 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         return "";
     };
-
+    auto checkPriorityConfig = [&] (const std::string& priString) {
+        std::string::size_type pos = 0;
+        std::string::size_type endpos = 0;
+        while ((endpos = priString.find(",", pos)) != std::string::npos) {
+            auto subStr = priString.substr(pos, endpos - pos);
+            if (subStr.find("-") != 0)
+                return true;
+            pos = endpos + 1;
+        }
+        if (priString.substr(pos, priString.length() - pos).find("-") != 0 )
+            return true;
+        return false;
+    };
     unsigned int devicePriority = 0;
     auto prioritiesIter = config.find(ov::device::priorities.name());
-    bool enableDevicePriority = (prioritiesIter != config.end());
+    // if AUTO:-***,-***...., also do not need to enable device priority
+    bool enableDevicePriority = (prioritiesIter != config.end()) &&
+                                checkPriorityConfig(prioritiesIter->second);
+
     auto deviceList = GetCore()->GetAvailableDevices();
     for (auto && d : devicesWithRequests) {
         auto openingBracket = d.find_first_of('(');
@@ -474,11 +489,11 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     return queryResult;
 }
 
-DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices,
-        const std::string& networkPrecision, unsigned int priority) {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::SelectDevice");
+std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
+    const std::vector<DeviceInformation>& metaDevices,
+    const std::string& networkPrecision) {
     if (metaDevices.empty()) {
-        IE_THROW(NotFound) << "No available device to select in " << GetName() <<  " plugin";
+        IE_THROW(NotFound) << "No available device to select in " << GetName() << " plugin";
     }
 
     std::list<DeviceInformation> CPU;
@@ -512,7 +527,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     }
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
-    std::list<DeviceInformation>  devices;
+    std::list<DeviceInformation> devices;
     if (networkPrecision == "INT8") {
         devices.splice(devices.end(), VPUX);
         devices.splice(devices.end(), dGPU);
@@ -529,7 +544,9 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     if (metaDevices.size() > 1) {
         auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
             for (auto iter = devices.begin(); iter != devices.end();) {
-                auto capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
+                auto capability = GetCore()
+                                      ->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES))
+                                      .as<std::vector<std::string>>();
                 auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
                 if (supportNetwork != capability.end()) {
                     validDevices.push_back(std::move(*iter));
@@ -550,12 +567,22 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     }
 
     if (validDevices.empty()) {
-         IE_THROW() << "Cannot select any device";
+        IE_THROW() << "Cannot select any device";
     }
     // sort validDevices
     validDevices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
-            return a.devicePriority < b.devicePriority;
-            });
+        return a.devicePriority < b.devicePriority;
+    });
+
+    return validDevices;
+}
+
+DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices,
+        const std::string& networkPrecision, unsigned int priority) {
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::SelectDevice");
+
+    std::list<DeviceInformation> validDevices = GetValidDevice(metaDevices, networkPrecision);
+
     // all available Devices are in validDevices now
     // need to remove higher priority devices
     // save the last device first
@@ -614,16 +641,81 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
-
+    auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (deviceListConfig == config.end()) {
-        auto deviceList = GetCore()->GetAvailableDevices();
         for (auto&& device : deviceList) {
             allDevices += device;
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
         }
     } else {
-        allDevices = deviceListConfig->second;
+        // parsing the string and splitting the comma-separated tokens
+        std::string::size_type i = 0;
+        std::string::size_type idelimeter;
+        std::vector<std::string> deviceVec;
+        auto priorities = deviceListConfig->second;
+        while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
+            deviceVec.push_back(priorities.substr(i, idelimeter - i));
+            i = idelimeter + 1;
+        }
+        // last token in the string (which has no comma after that)
+        deviceVec.push_back(priorities.substr(i, priorities.length() - i));
+        std::vector<std::string> devicesToBeDeleted;
+        auto updateDeviceVec = [&](const std::string& delPattern = "") {
+            auto iter = deviceVec.begin();
+            while (iter != deviceVec.end()) {
+                if (delPattern.empty()) {
+                    if ((*iter).find("-") == 0) {
+                        devicesToBeDeleted.push_back((*iter).erase(0, 1));
+                        iter = deviceVec.erase(iter);
+                    } else {
+                        iter++;
+                    }
+                } else {
+                    if ((*iter).find(delPattern) != std::string::npos)
+                        iter = deviceVec.erase(iter);
+                    else
+                        iter++;
+                }
+            }
+        };
+        updateDeviceVec();
+        if (devicesToBeDeleted.size() == 0) {
+            allDevices = deviceListConfig->second;
+        } else {
+            auto deviceNeedToMerge = [&](const std::string& devicename) {
+                for (auto&& iter : devicesToBeDeleted) {
+                    if (iter.find(devicename) != std::string::npos)
+                        return true;
+                }
+                return false;
+            };
+            auto mergeDeviceList = [&]() {
+                std::vector<std::string> mergedList;
+                auto prevSize = mergedList.size();
+                for (auto&& iter : deviceVec) {
+                    for (auto&& viter : deviceList) {
+                        if (viter.find(iter) != std::string::npos && deviceNeedToMerge(iter))
+                            mergedList.push_back(std::move(viter));
+                    }
+                    // if virtual devices or mock devices
+                    if (mergedList.size() == prevSize)
+                        mergedList.push_back(std::move(iter));
+                    prevSize = mergedList.size();
+                }
+                return mergedList;
+            };
+
+            deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
+            for (auto& iter : devicesToBeDeleted) {
+                LOG_INFO("[AUTOPLUGIN]:remove %s from device candidate list", iter.c_str());
+                updateDeviceVec(iter);
+            }
+            for (auto&& device : deviceVec) {
+                allDevices += device;
+                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+            }
+        }
     }
 
     if (allDevices.empty()) {
@@ -694,6 +786,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
+            context.performanceHint = kvp.second;
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
@@ -748,7 +841,17 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
 
     std::vector<DeviceInformation> filterDevice;
     auto model = network.getFunction();
-    if (model->is_dynamic()) {
+    auto isStateful = [&]() {
+        for (auto& op : model->get_ops()) {
+            if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
+                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+                    LOG_INFO("[AUTOPLUGIN]:stateful mode, try deployed to CPU");
+                    return true;
+                }
+        }
+        return false;
+    };
+    if (model->is_dynamic() || isStateful()) {
         for (auto& iter : metaDevices) {
             if (iter.deviceName.find("CPU") != std::string::npos) {
                 filterDevice.push_back(iter);

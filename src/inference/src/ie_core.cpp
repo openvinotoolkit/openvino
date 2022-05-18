@@ -134,6 +134,12 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
     return result;
 }
 
+void stripDeviceName(std::string& device, const std::string& substr) {
+    auto pos = device.find(substr);
+    if (pos == 0) {
+        device.erase(pos, substr.length());
+    }
+}
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
@@ -929,6 +935,7 @@ public:
         auto deviceName = pluginName;
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
+        stripDeviceName(deviceName, "-");
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
