@@ -57,7 +57,6 @@ def decode_name_with_port(
             found_node_names.append(name)
             found_nodes.append(node)
 
-
     def try_get_node(model, name, framework):
         node = model.get_place_by_operation_name(name)
         if node:
@@ -70,7 +69,6 @@ def decode_name_with_port(
                 return tensor.get_producing_operation()
         return None
 
-
     regexp_post = r"(.+):(\d+)"
     match_post = re.search(regexp_post, node_name)
     if match_post:
@@ -80,12 +78,13 @@ def decode_name_with_port(
             output_port = node_post.get_output_port(
                 output_port_index=int(match_post.group(2))
             )
-            if framework == "onnx":
-                found_node_names.append("Tensor:" + name)
-                found_nodes.append(output_port.get_target_tensor())
-            else:
-                found_node_names.append(name)
-                found_nodes.append(output_port)
+            if output_port:
+                if framework == "onnx":
+                    found_node_names.append("Tensor:" + name)
+                    found_nodes.append(output_port.get_target_tensor())
+                else:
+                    found_node_names.append(name)
+                    found_nodes.append(output_port)
 
     regexp_pre = r"(\d+):(.+)"
     match_pre = re.search(regexp_pre, node_name)
@@ -96,14 +95,15 @@ def decode_name_with_port(
             input_port = node_pre.get_input_port(
                 input_port_index=int(match_pre.group(1))
             )
-            if framework == "onnx":
-                found_node_names.append("Tensor:" + name)
-                found_nodes.append(
-                    input_port.get_producing_port().get_target_tensor()
-                )
-            else:
-                found_nodes.append(input_port)
-                found_node_names.append(name)
+            if input_port:
+                if framework == "onnx":
+                    found_node_names.append("Tensor:" + name)
+                    found_nodes.append(
+                        input_port.get_producing_port().get_target_tensor()
+                    )
+                else:
+                    found_nodes.append(input_port)
+                    found_node_names.append(name)
 
     if len(found_nodes) == 0:
         raise_no_node(node_name)
