@@ -5,13 +5,13 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install & Configure OpenVINO
+   :caption: Installation & Configuration
    
    Overview <openvino_docs_install_guides_overview>
-   Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
-   Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
+   Installing OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
+   Installing OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
-   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
+   Creating a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
 
@@ -57,17 +57,19 @@
 @sphinxdirective
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
+   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style_v2.css">
     
-   <p>If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:
-   <li><b>Intel® Distribution of OpenVINO™ toolkit</b> - the CLI-based version of OpenVINO. See more details in this guide.</li>
-   <li><b>Deep Learning Workbench (DL Workbench)</b> - the web version of OpenVINO with a graphical interface, developed based on Intel® Distribution of OpenVINO™ toolkit. See the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench User Guide</a> for its introduction and installation steps.</li>
+   <p id="GSG_introtext">If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
+     <a href="openvino_docs_install_guides_overview.html" >Intel® Distribution of <br />OpenVINO™ toolkit</a>
+     <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench <br />(DL Workbench)</a>
    </p>
    
-   <p id="GSG_introtext">To get started with Intel® Distribution of OpenVINO™ toolkit, check the following steps from left to right:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
-     <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
-     <a href="#get-started-tutorials" >Try <br/>Get Started Steps</a>
+   <p>This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit only. Check the following steps:<br />
+    <ol>
+    <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
+    <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
+    <li><a href="#get-started-tutorials" >Try out simple tutorials and samples.</a></li>
+    </ol>
    </p>
    <div style="clear:both;"> </div> 
    

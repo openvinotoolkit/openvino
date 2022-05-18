@@ -57,19 +57,15 @@
 @sphinxdirective
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style_v2.css">
-    
-   <p id="GSG_introtext">If you have not installed OpenVINO™ before, the first thing to do is to decide which version of OpenVINO to install:<br />
-     <a href="openvino_docs_install_guides_overview.html" >Intel® Distribution of <br />OpenVINO™ toolkit</a>
-     <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench <br />(DL Workbench)</a>
-   </p>
+   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    
-   <p>This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit only. Check the following steps:<br />
-    <ol>
-    <li><a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution of OpenVINO™ toolkit.</a></li>
-    <li><a href="openvino_docs_install_guides_configurations_header.html" >Configure OpenVINO for your device.</a></li>
-    <li><a href="#get-started-tutorials" >Try out simple tutorials and samples.</a></li>
-    </ol>
+   <p id="GSG_introtext">This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit. Check the following steps from left to right:<br />
+     <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
+     <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
+     <a href="#get-started-tutorials" >Try <br/>Get Started Steps</a>
+   </p>
+
+   <p>If you prefer using a graphical interface, you can use the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench</a>, which is the web version of OpenVINO developed based on Intel® Distribution of OpenVINO™ toolkit with a similar but slightly different function set.</li>
    </p>
    <div style="clear:both;"> </div> 
    
