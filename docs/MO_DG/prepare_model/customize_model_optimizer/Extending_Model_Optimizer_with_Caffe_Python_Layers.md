@@ -34,7 +34,7 @@ class attribute value should be set to the *`module + "." + layer`* value so the
 operation.
 
 Below is a simplified example of the extractor for the custom operation Proposal from the mentioned Faster-R-CNN model.
-The full code with additional checks is provided in the [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py) file. 
+The full code with additional checks can be found [here](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py).
 
 The sample code uses operation *`ProposalOp`* which corresponds to *`Proposal`* operation described in the [Available Operations Sets](../../../ops/opset.md)
 page. For a detailed explanation of the extractor, refer to the source code below.
