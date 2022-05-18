@@ -4,7 +4,6 @@
 
 #include "test_utils.h"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "shape.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scatter_update.hpp>
@@ -17,7 +16,6 @@
 #include <cstring>
 #include <numeric>
 #include <stdlib.h>
-#include <time.h>
 #include <algorithm>
 
 using namespace cldnn;
@@ -44,14 +42,28 @@ struct scatter_nd_update_basic_test_params
 struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
 {
     template<typename T>
+    T generate_random_val(int min, int max, int k = 8) {
+        static std::default_random_engine generator(random_seed);
+        // 1/k is the resolution of the floating point numbers
+        std::uniform_int_distribution<int> distribution(k * min, k * max);
+        T val = (T)distribution(generator);
+        val /= k;
+
+        return val;
+    }
+    
+    template<typename T>
     std::vector<T> generate_random_indices(size_t a, int min, int max, int k = 1) 
     {
-        srand(time(0));
+        // srand(time(0));
         std::vector<T> vec(a);
         for(int i = 0; i < a; ++i) {
-            int val = rand() % (max + 1);
-            if (val >= min && std::find(vec.begin(), vec.end(), static_cast<T>(val)) == vec.end())
+            // int val = rand() % (max + 1);
+            T val = generate_random_val<T>(min, max, k);
+            if (std::find(vec.begin(), vec.end(), static_cast<T>(val)) == vec.end())
                 vec[i] = val;
+            else
+                --i;
         }
         return vec;
     }
@@ -165,7 +177,7 @@ TEST_P(scatter_nd_update_random_test, random)
     else if (param.input_type == data_types::f32)
         this->execute<float, float>(param);
     else
-        std::cout << "unidentified data type" << std::endl;
+        IE_THROW() << "unidentified data type";
 }
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_fp32, 

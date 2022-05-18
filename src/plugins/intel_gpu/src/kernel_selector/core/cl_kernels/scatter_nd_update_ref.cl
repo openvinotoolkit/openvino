@@ -91,15 +91,13 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     // Get indices index
     uint idx[INDICES_MAX_DIM] = {0};
     uint rmd_idx = dim2;
-    for(int i = 0; i < INDICES_RANK - 1; ++i)
-    {
+    for (int i = 0; i < INDICES_RANK - 1; ++i) {
         idx[i] = rmd_idx / indicesND[INPUT1_DIMS - INDICES_RANK + i];
         rmd_idx %= indicesND[INPUT1_DIMS - INDICES_RANK + i];
     }
     
     uint out[INDICES_MAX_DIM] = {0};
-    for (int i = 0; i < indices_dim[INDICES_RANK - 1]; ++i)
-    {
+    for (int i = 0; i < indices_dim[INDICES_RANK - 1]; ++i) {
         idx[INDICES_RANK - 1] = i;
         const uint idx_b = idx[0];
         const uint idx_f = idx[1];
@@ -127,17 +125,14 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             out[i] = data_dim[i] - 1;
     }
     
-    for(int i = 0; i < size_to_update; ++i)
-    {
+    for (int i = 0; i < size_to_update; ++i) {
         // Define updates index
         uint upd[INDICES_MAX_DIM] = {0};
-        for(int j = 0; j < INDICES_RANK - 1; ++j)
-        {
+        for (int j = 0; j < INDICES_RANK - 1; ++j) {
             upd[j] = idx[j];
         }
         uint rmd = i;
-        for (int j = indices_dim[INDICES_RANK - 1], k = INDICES_RANK - 1; j < INPUT0_DIMS; ++j, ++k)
-        {
+        for (int j = indices_dim[INDICES_RANK - 1], k = INDICES_RANK - 1; j < INPUT0_DIMS; ++j, ++k) {
             out[j] = rmd / blockND[j + 1];
             upd[k] = out[j];
             rmd %= blockND[j + 1];
