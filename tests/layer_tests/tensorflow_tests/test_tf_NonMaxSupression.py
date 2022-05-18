@@ -12,10 +12,12 @@ class TestNonMaxSupression(CommonTFLayerTest):
 
     # overload inputs generation to suit NMS use case
     def _prepare_input(self, inputs_dict):
+        channel = ':0' if self.api_2 else ''
+        input_data = {}
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.uniform(low=0, high=1,
-                                                   size=inputs_dict[input]).astype(np.float32)
-        return inputs_dict
+            input_data[input + channel] = np.random.uniform(low=0, high=1,
+                                                            size=inputs_dict[input]).astype(np.float32)
+        return input_data
 
     def create_nms_net(self, test_params: dict):
 
@@ -55,7 +57,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
             soft_nms_sigma = tf.constant(test_params["soft_nms_sigma"])
 
             # inputs to be generated
-            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Input")
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], 'Input')
 
             # randomize boxes' confidence scores
             np.random.seed(42)
@@ -103,15 +105,17 @@ class TestNonMaxSupression(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_NonMaxSupression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, api_2):
+        self.api_2 = api_2
         self._test(*self.create_nms_net(test_params), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
-                   api_2=api_2)
+                   api_2=1)
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_NonMaxSupressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
                                         use_new_frontend, api_2):
+        self.api_2 = api_2
         self._test(*self.create_nms_net_with_scores(test_params), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
-                   api_2=api_2)
+                   api_2=1)
