@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/roll.hpp"
+#include "intel_gpu/primitives/roll.hpp"
+
+#include <ngraph/op/roll.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
-#include "intel_gpu/primitives/roll.hpp"
 
 namespace ov {
 namespace runtime {
@@ -60,7 +61,7 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
         }
     }
 
-    const cldnn::roll roll_prim(layer_name, inputs[0], {format, shift}, op_friendly_name);
+    const cldnn::roll roll_prim(layer_name, inputs.front(), {format, shift}, op_friendly_name);
     p.AddPrimitive(roll_prim);
     p.AddPrimitiveToProfiler(op);
 }

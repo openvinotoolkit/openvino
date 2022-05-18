@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 namespace kernel_selector {
 
-struct roll_params : public base_params {
+struct roll_params : base_params {
     roll_params() : base_params(KernelType::ROLL) {}
     DimTensor<> shift;
 };
@@ -24,7 +24,7 @@ public:
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const roll_params& params) const;
+    JitConstants GetJitConstants(const roll_params& kernel_params) const;
 };
 
 }  // namespace kernel_selector

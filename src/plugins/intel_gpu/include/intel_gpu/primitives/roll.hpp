@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace cldnn {
 /// @{
 
 /// @brief Roll-7 primitive.
-struct roll : public primitive_base<roll> {
+struct roll : primitive_base<roll> {
     CLDNN_DECLARE_PRIMITIVE(roll)
 
     /// @brief Constructs roll primitive.

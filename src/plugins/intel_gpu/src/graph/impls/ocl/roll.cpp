@@ -1,12 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
+// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
+// so, a "fix" for now is to turn off clang-format for these include
+// clang-format off
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "roll/roll_kernel_ref.h"
-#include "roll/roll_kernel_selector.h"
-#include "roll_inst.h"
+// clang-format on
+#include "roll/roll_kernel_ref.hpp"
+#include "roll/roll_kernel_selector.hpp"
+#include "roll_inst.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -35,7 +40,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new roll_impl(arg, best_kernels[0]);
+        return new roll_impl(arg, best_kernels.front());
     }
 };
 

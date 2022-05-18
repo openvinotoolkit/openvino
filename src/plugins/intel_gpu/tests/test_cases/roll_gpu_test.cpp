@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,14 +26,14 @@ struct roll_test : testing::Test {
         auto& engine = get_test_engine();
 
         const auto input_format = format::get_default_format(input_shape.size());
-        const layout data_layout(type_to_data_type<T>::value, input_format, tensor{input_shape});
+        const layout data_layout(type_to_data_type<T>::value, input_format, tensor(input_format, input_shape));
         const auto input_data = GenInput(data_layout.get_linear_size());
         auto input = engine.allocate_memory(data_layout);
         set_values(input, input_data);
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(roll("roll", "input", tensor{shift}));
+        topology.add(roll("roll", "input", tensor(input_format, shift)));
 
         network network(engine, topology);
         network.set_input_data("input", input);

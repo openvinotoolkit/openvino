@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "roll_kernel_ref.h"
+#include "roll_kernel_ref.hpp"
 
 #include "kernel_selector_utils.h"
 
@@ -10,13 +10,12 @@ namespace kernel_selector {
 
 namespace {
 
-CommonDispatchData SetDefault(const roll_params& params) {
+CommonDispatchData SetDefault(const roll_params& kernel_params) {
     CommonDispatchData dispatch_data;
-    const auto in_layout = params.inputs[0].GetLayout();
-    const auto out_layout = params.outputs[0].GetLayout();
+    const auto in_layout = kernel_params.inputs.front().GetLayout();
+    const auto& output = kernel_params.outputs.front();
+    const auto out_layout = output.GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
-
-    const auto& output = params.outputs[0];
 
     switch (out_layout) {
     case DataLayout::bfyx:
@@ -44,7 +43,7 @@ CommonDispatchData SetDefault(const roll_params& params) {
     }
 
     dispatch_data.lws =
-        GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatch_data;
 }
@@ -57,14 +56,12 @@ KernelsData RollKernelRef::GetKernelsData(const Params& params, const optional_p
     }
 
     auto kernel_data = KernelData::Default<roll_params>(params);
-    const auto& new_params = dynamic_cast<const roll_params&>(*kernel_data.params);
-
-    const auto dispatch_data = SetDefault(new_params);
-    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
-    const auto roll_specific_jit = GetJitConstants(new_params);
-    const auto jit = CreateJit(kernelName, roll_specific_jit, entry_point);
-
-    auto& kernel = kernel_data.kernels[0];
+    const auto& kernel_params = dynamic_cast<const roll_params&>(*kernel_data.params);
+    const auto dispatch_data = SetDefault(kernel_params);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
+    const auto jit_constants = GetJitConstants(kernel_params);
+    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+    auto& kernel = kernel_data.kernels.front();
 
     FillCLKernelData(kernel, dispatch_data, params.engineInfo, kernelName, jit, entry_point);
 
@@ -72,32 +69,34 @@ KernelsData RollKernelRef::GetKernelsData(const Params& params, const optional_p
 }
 
 ParamsKey RollKernelRef::GetSupportedKey() const {
-    ParamsKey k;
-    k.EnableAllInputDataType();
-    k.EnableAllOutputDataType();
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableBatching();
-    return k;
+    ParamsKey key;
+    key.EnableAllInputDataType();
+    key.EnableAllOutputDataType();
+    key.EnableInputLayout(DataLayout::bfyx);
+    key.EnableInputLayout(DataLayout::bfzyx);
+    key.EnableInputLayout(DataLayout::bfwzyx);
+    key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableOutputLayout(DataLayout::bfzyx);
+    key.EnableOutputLayout(DataLayout::bfwzyx);
+    key.EnableTensorOffset();
+    key.EnableTensorPitches();
+    key.EnableBatching();
+    return key;
 }
 
-JitConstants RollKernelRef::GetJitConstants(const roll_params& params) const {
-    auto jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("SHIFT", params.shift));
-    return jit;
+JitConstants RollKernelRef::GetJitConstants(const roll_params& kernel_params) const {
+    auto jit_constants = MakeBaseParamsJitConstants(kernel_params);
+    jit_constants.AddConstant(MakeJitConstant("SHIFT", kernel_params.shift));
+    return jit_constants;
 }
 
-bool RollKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ROLL || o.GetType() != KernelType::ROLL) {
+bool RollKernelRef::Validate(const Params& params, const optional_params& options) const {
+    if (params.GetType() != KernelType::ROLL || options.GetType() != KernelType::ROLL) {
         return false;
     }
 
-    const auto& params = dynamic_cast<const roll_params&>(p);
-    if (params.inputs.size() != 1) {
+    const auto& kernel_params = dynamic_cast<const roll_params&>(params);
+    if (kernel_params.inputs.size() != 1) {
         return false;
     }
 
