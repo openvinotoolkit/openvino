@@ -49,7 +49,6 @@ from tests import (
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
-    xfail_issue_82040,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -408,10 +407,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_82039,
         "OnnxBackendNodeModelTest.test_identity_opt_cpu",
-    ),
-    (
-        xfail_issue_82040,
-        "OnnxBackendNodeModelTest.test_roialign_aligned_true_cpu",
     ),
 ]
 

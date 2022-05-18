@@ -1,15 +1,19 @@
 # Installation & Deployment {#openvino_2_0_deployment}
 
-"Easy to use" is one of the main concepts for OpenVINO™ API 2.0. It is about simplifying migration from different frameworks to OpenVINO, but also touches on how OpenVINO is organized, how its development tools are used, and how OpenVINO-based applications are developed and deployed.
+One of the main concepts for OpenVINO™ API 2.0 is being *"easy to use"*, which includes:
+* Simplification of migration from different frameworks to OpenVINO.
+* Organization of OpenVINO. 
+* Usage of development tools.
+* Development and deployment of OpenVINO-based applications.
 
-To accomplish that, we made some changes to the installation and deployment processes of OpenVINO in the 2022.1 release. This guide will walk you through them.
+To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation and deployment processes. This guide will walk you through these changes.
 
 ## The Installer Package Contains OpenVINO™ Runtime Only
 
-Starting from OpenVINO 2022.1, development tools are distributed via [PyPI](https://pypi.org/project/openvino-dev/) only and are no longer included in the OpenVINO installer package. For a list of these components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md). This approach has several benefits:
+Since OpenVINO 2022.1, development tools have been distributed only via [PyPI](https://pypi.org/project/openvino-dev/), and are no longer included in the OpenVINO installer package. For a list of these components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md) guide. Benefits of this approach include:
 
-* simplifies the user experience - in previous versions, installation and usage of OpenVINO Development Tools differed from one distribution type to another (the OpenVINO installer vs. PyPI), 
-* ensures that dependencies are handled properly via the PIP package manager and support virtual environments of development tools.
+* simplification of the user experience - in previous versions, installation and usage of OpenVINO Development Tools differed from one distribution type to another (the OpenVINO installer vs. PyPI), 
+* ensuring that dependencies are handled properly via the PIP package manager, and support virtual environments of development tools.
 
 The structure of the OpenVINO 2022.1 installer package has been organized as follows:
 
@@ -31,7 +35,7 @@ $ mo.py -h
 
 ### For 2022.1 and After
 
-In OpenVINO 2022.1 and later, you can install the development tools from a [PyPI](https://pypi.org/project/openvino-dev/) repository only, using the following command (taking TensorFlow as an example):
+In OpenVINO 2022.1 and later, you can install the development tools only from a [PyPI](https://pypi.org/project/openvino-dev/) repository, using the following command (taking TensorFlow as an example):
 
 ```sh
 $ python3 -m pip install -r <INSTALL_DIR>/tools/requirements_tf.txt 
@@ -46,7 +50,7 @@ $ mo -h
 $ pot -h
 ```
 
-You don't have to install any other dependencies. For more details on the installation steps, see [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
+Installation of any other dependencies is not required. For more details on the installation steps, see the [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
 
 ## Interface Changes for Building C/C++ Applications
 
@@ -78,7 +82,7 @@ target_link_libraries(ov_c_app PRIVATE openvino::runtime::c)
 
 ### Native Interfaces
 
-To build applications without the CMake interface, you can also use MSVC IDE, UNIX makefiles, and any other interface, which has been changed as shown here:
+It is possible to build applications without the CMake interface by using: MSVC IDE, UNIX makefiles, and any other interface, which has been changed as shown here:
 
 **With Inference Engine of previous versions**:
 
@@ -153,12 +157,12 @@ To build applications without the CMake interface, you can also use MSVC IDE, UN
 
 ## Clearer Library Structure for Deployment
 
-OpenVINO 2022.1 introduced a reorganization of the libraries, to make deployment easier. In the previous versions, to perform deployment steps, you had to use several libraries. Now you can just use `openvino` or `openvino_c` based on your developing language, together with the necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable you to load OpenVINO IRs and perform inference on the CPU device (see [Local distribution with OpenVINO](../deployment/local-distribution.md) for more details).
+OpenVINO 2022.1 introduced a reorganization of the libraries, to make deployment easier. In the previous versions, it was required to use several libraries to perform deployment steps. Now you can just use `openvino` or `openvino_c` based on your developing language,  with the necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable loading OpenVINO IRs and performing inference on the CPU device (for more details, see the [Local distribution with OpenVINO](../deployment/local-distribution.md)).
 
-Here you can find detailed comparisons on the library structure between OpenVINO 2022.1 and the previous versions:
+Below are detailed comparisons of the library structure between OpenVINO 2022.1 and the previous versions:
 
-* A single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used in 2022.1, instead of the previous core libraries which contained `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
-* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) has been renamed to `openvino_gapi_preproc` and deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
+* Starting with 2022.1 release, a single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used, instead of the previous core libraries which contained `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
+* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) has been renamed to `openvino_gapi_preproc` and deprecated in 2022.1. For more details, see the [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
 * The libraries of plugins have been renamed as follows:
    * `openvino_intel_cpu_plugin` is used for [CPU](../supported_plugins/CPU.md) device instead of `MKLDNNPlugin`.
    * `openvino_intel_gpu_plugin` is used for [GPU](../supported_plugins/GPU.md) device instead of `clDNNPlugin`.
