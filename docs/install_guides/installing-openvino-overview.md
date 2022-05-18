@@ -11,7 +11,7 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 Since the 2022.1 release, the OpenVINO installation package has been distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools. See the following instructions to choose your installation process.
 ### Decide What to Install
 
-**If you have already finished your model development and want to deploy your applications on various devices, [install OpenVINO Runtime](installing-openvino-runtime.md)**, which contains a set of libraries for easy inference integration with your products.
+**If you have already finished developing your models and converting them to the OpenVINO model format, you can [install OpenVINO Runtime](installing-openvino-runtime.md) to deploy your applications on various devices**. OpenVINO Runtime contains a set of libraries for easy inference integration with your products.
 
 **If you want to download models from [Open Model Zoo](../model_zoo.md), [convert your own models to OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), or [optimize and tune pre-trained deep learning models](../optimization_guide/model_optimization_guide.md)**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
 
