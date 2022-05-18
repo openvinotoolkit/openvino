@@ -36,8 +36,9 @@ private:
     mutable std::mutex taskExecutorMutex;
     bool tbbTerminateFlag = false;
     mutable std::mutex tbbMutex;
+    bool tbbThreadsCreated = false;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    std::shared_ptr<tbb::task_scheduler_init> _tbb = nullptr;
+    std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
 #endif
 };
 
@@ -52,11 +53,11 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     tbbTerminateFlag = flag;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     if (tbbTerminateFlag) {
-        if (!_tbb) {
-            _tbb = std::make_shared<tbb::task_scheduler_init>();
+        if (!tbbTaskScheduler) {
+            tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
         }
     } else {
-        _tbb = nullptr;
+        tbbTaskScheduler = nullptr;
     }
 #endif
 }
@@ -71,12 +72,13 @@ void ExecutorManagerImpl::resetTbb() {
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         try {
-            if (_tbb) {
-                _tbb->blocking_terminate();
+            if (tbbTaskScheduler && tbbThreadsCreated) {
+                tbbTaskScheduler->blocking_terminate();
             }
-            _tbb = nullptr;
+            tbbThreadsCreated = false;
+            tbbTaskScheduler = nullptr;
         } catch (std::exception& e) {
-            _tbb = nullptr;
+            tbbTaskScheduler = nullptr;
             IE_THROW() << e.what();
         }
 #endif
@@ -89,6 +91,7 @@ ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
         auto newExec = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{id});
+        tbbThreadsCreated = true;
         executors[id] = newExec;
         return newExec;
     }
@@ -113,6 +116,7 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
                 return executor;
     }
     auto newExec = std::make_shared<CPUStreamsExecutor>(config);
+    tbbThreadsCreated = true;
     cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
     return newExec;
 }
