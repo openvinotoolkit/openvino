@@ -55,16 +55,16 @@ const auto params2D_dynamic = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D_static,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_static,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D_dynamic,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_dynamic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 const std::vector<ov::Shape> inputStaticShape4D = {
@@ -107,16 +107,16 @@ const auto params4Ddynamic = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D_static,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params4Dstatic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D_dynamic,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params4Ddynamic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 
@@ -160,16 +160,16 @@ const auto params5Ddynamic = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax5D_static,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params5Dstatic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax5D_dynamic,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params5Ddynamic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 }  // namespace

@@ -38,9 +38,9 @@ const auto params2D = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 const std::vector<ov::Shape> inputShapes4D = {
@@ -63,9 +63,9 @@ const auto params4D = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params4D,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 const std::vector<ov::Shape> inputShapes5D = {
@@ -88,9 +88,9 @@ const auto params5D = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax5D,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params5D,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 }  // namespace
