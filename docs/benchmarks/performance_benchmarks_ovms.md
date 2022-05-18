@@ -16,7 +16,7 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 
 - **Load Balancer** -- Works on the client platform in a docker container by using a HAProxy. Load Balancer main role is counting of requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason of locating this part on the client site is to simulate real life scenario that includes impact of physical network on reported metrics.
 
-- **Execution Controller** -- Launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from the load balancer and presenting the final report of the execution.
+- **Execution Controller** -- It is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from Load Balancer and presenting the final report of the execution.
 
 ## resnet-50-TF (INT8)
 ![](../img/throughput_ovms_resnet50_int8.png)
