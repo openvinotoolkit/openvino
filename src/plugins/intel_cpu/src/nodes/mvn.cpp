@@ -1036,7 +1036,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
     size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
 
-    for (size_t b = 0lu; b < N; b++) {
+    parallel_for(N, [&](int b) {
         size_t cb = b * C3;
         if (mvnAttrs.execAcrossChannels_) {
             // Calculate mean value for one instance in batch
@@ -1153,7 +1153,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                 }
             });
         }
-    }
+    // }
+    });
 }
 
 void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
