@@ -14,7 +14,7 @@
 #include <tuple>
 #include <memory>
 #include <streambuf>
-#include <istream>
+#include <fstream>
 
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
@@ -177,9 +177,10 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
         CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)         \
         catch (...) {return ov_status_e::UNEXPECTED;}
 
-void str_to_char_array(const std::string& str, char** char_array) {
-    *char_array = new char[str.length() + 1];
-    std::copy_n(str.begin(), str.length() + 1, *char_array);
+char* str_to_char_array(const std::string& str) {
+    char *char_array = new char[str.length() + 1];
+    std::copy_n(str.begin(), str.length() + 1, char_array);
+    return char_array;
 }
 
 ov_status_e ov_get_version(ov_version_t *version) {
@@ -191,10 +192,10 @@ ov_status_e ov_get_version(ov_version_t *version) {
         ov::Version object = ov::get_openvino_version();
 
         std::string version_builderNumber = object.buildNumber;
-        str_to_char_array(version_builderNumber, &(version->buildNumber));
+        version->buildNumber = str_to_char_array(version_builderNumber);
 
         std::string version_description = object.description;
-        str_to_char_array(version_description, &version->description);
+        version->description = str_to_char_array(version_description);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
@@ -245,16 +246,16 @@ ov_status_e ov_core_read_model(const ov_core_t *core,
 }
 
 ov_status_e ov_core_read_model_from_memory(const ov_core_t *core,
-                                    const char *model_path,
+                                    const char *model_str,
                                     const ov_tensor_t *weights,
                                     ov_model_t **model) {
-    if (!core || !model_path || !weights || !model) {
+    if (!core || !model_str || !weights || !model) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
         *model = new ov_model_t;
-        (*model)->object = core->object->read_model(model_path, *(weights->object));
+        (*model)->object = core->object->read_model(model_str, *(weights->object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
@@ -274,11 +275,14 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 
     try {
         std::string dev_name = "";
+        ov::CompiledModel object;
         if (device_name) {
             dev_name = device_name;
+            object = core->object->compile_model(model->object, dev_name);
+        } else {
+            object = core->object->compile_model(model->object);
         }
         *compiled_model = new ov_compiled_model_t;
-        auto object = core->object->compile_model(model->object, dev_name);
         (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -294,12 +298,15 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     }
 
     try {
+        ov::CompiledModel object;
         std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
+            object = core->object->compile_model(model_path, dev_name);
+        } else {
+            object = core->object->compile_model(model_path);
         }
         *compiled_model = new ov_compiled_model_t;
-        auto object = core->object->compile_model(model_path, dev_name);
         (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -359,7 +366,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core, const char* device_name,
             for (const auto& i : supported_properties) {
                 tmp_s = tmp_s + "\n" + i;
             }
-            if (tmp_s.length() + 1 > 256) {
+            if (tmp_s.length() + 1 > 512) {
                 return ov_status_e::GENERAL_ERROR;
             }
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, property_value->value_s);
@@ -372,18 +379,8 @@ ov_status_e ov_core_get_property(const ov_core_t* core, const char* device_name,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_add_extension(const ov_core_t* core, const char* library_path) {
-    if (!core || !library_path) {
-        return ov_status_e::GENERAL_ERROR;
-    }
-    try {
-        core->object->add_extension(library_path);
-    } CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
 ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices) {
-    if (!core || !devices) {
+    if (!core) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -391,7 +388,7 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
         devices->num_devices = available_devices.size();
         auto tmp_devices(new char*[available_devices.size()]);
         for (int i = 0; i < available_devices.size(); i++) {
-            str_to_char_array(available_devices[i], &(tmp_devices[i]));
+            tmp_devices[i] = str_to_char_array(available_devices[i]);
         }
         devices->devices = tmp_devices;
     } CATCH_OV_EXCEPTIONS
@@ -445,13 +442,13 @@ ov_status_e ov_core_get_versions(const ov_core_t* core,
         auto iter = object.cbegin();
         for (int i = 0; i < object.size(); i++, iter++) {
             const auto& tmp_version_name = iter->first;
-            str_to_char_array(tmp_version_name, &(tmp_versions[i].device_name));
+            tmp_versions[i].device_name = str_to_char_array(tmp_version_name);
 
             const auto tmp_version_build_number = iter->second.buildNumber;
-            str_to_char_array(tmp_version_build_number, &(tmp_versions[i].buildNumber));
+            tmp_versions[i].buildNumber = str_to_char_array(tmp_version_build_number);
 
             const auto tmp_version_description = iter->second.description;
-            str_to_char_array(tmp_version_description, &(tmp_versions[i].description));
+            tmp_versions[i].description = str_to_char_array(tmp_version_description);
         }
         versions->versions = tmp_versions;
     } CATCH_OV_EXCEPTIONS
@@ -467,7 +464,7 @@ void ov_core_versions_free(ov_core_version_list_t *versions) {
         delete[] versions->versions[i].buildNumber;
         delete[] versions->versions[i].description;
     }
-    delete versions->versions;
+    delete[] versions->versions;
     versions->versions = nullptr;
 }
 
@@ -580,7 +577,7 @@ ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char **friendly_
     }
     try {
         auto& result = model->object->get_friendly_name();
-        str_to_char_array(result, friendly_name);
+        *friendly_name = str_to_char_array(result);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
@@ -987,6 +984,22 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
     return ov_status_e::OK;
 }
 
+ov_status_e ov_compiled_model_export(const ov_compiled_model_t* compiled_model,
+                                const char* export_model_path) {
+    if (!compiled_model || !export_model_path) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::ofstream model_file(export_model_path, std::ios::out | std::ios::binary);
+        if (model_file.is_open()) {
+            compiled_model->object->export_model(model_file);
+        } else {
+            return ov_status_e::GENERAL_ERROR;
+        }
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 void ov_infer_request_free(ov_infer_request_t *infer_request) {
     delete infer_request;
 }
@@ -1069,6 +1082,46 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
+                                            ov_profiling_info_list_t* profiling_infos) {
+    if (!infer_request || !profiling_infos) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto infos = infer_request->object->get_profiling_info();
+        int num = infos.size();
+        profiling_infos->num = num;
+        ov_profiling_info_t *profiling_info_arr = new ov_profiling_info_t[num];
+        for (int i = 0; i < num; i++) {
+            profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
+            profiling_info_arr[i].real_time = infos[i].real_time.count();
+            profiling_info_arr[i].cpu_time = infos[i].cpu_time.count();
+
+            profiling_info_arr[i].node_name = str_to_char_array(infos[i].node_name);
+            profiling_info_arr[i].exec_type = str_to_char_array(infos[i].exec_type);
+            profiling_info_arr[i].node_type = str_to_char_array(infos[i].node_type);
+        }
+        profiling_infos->profiling_infos = profiling_info_arr;
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+void ov_profiling_info_list_free(ov_profiling_info_list_t *profiling_infos) {
+    if (!profiling_infos) {
+        return;
+    }
+    for (int i = 0; i < profiling_infos->num; i++) {
+        delete[] profiling_infos->profiling_infos[i].node_name;
+        delete[] profiling_infos->profiling_infos[i].exec_type;
+        delete[] profiling_infos->profiling_infos[i].node_type;
+    }
+    delete[] profiling_infos->profiling_infos;
+    profiling_infos->profiling_infos = nullptr;
+    profiling_infos->num = 0;
 }
 
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
