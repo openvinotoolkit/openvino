@@ -14,7 +14,7 @@
 #include <tuple>
 #include <memory>
 #include <streambuf>
-#include <istream>
+#include <fstream>
 
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
@@ -246,16 +246,16 @@ ov_status_e ov_core_read_model(const ov_core_t *core,
 }
 
 ov_status_e ov_core_read_model_from_memory(const ov_core_t *core,
-                                    const char *model_path,
+                                    const char *model_str,
                                     const ov_tensor_t *weights,
                                     ov_model_t **model) {
-    if (!core || !model_path || !weights || !model) {
+    if (!core || !model_str || !weights || !model) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
         *model = new ov_model_t;
-        (*model)->object = core->object->read_model(model_path, *(weights->object));
+        (*model)->object = core->object->read_model(model_str, *(weights->object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
@@ -275,11 +275,14 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 
     try {
         std::string dev_name = "";
+        ov::CompiledModel object;
         if (device_name) {
             dev_name = device_name;
+            object = core->object->compile_model(model->object, dev_name);
+        } else {
+            object = core->object->compile_model(model->object);
         }
         *compiled_model = new ov_compiled_model_t;
-        auto object = core->object->compile_model(model->object, dev_name);
         (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -295,12 +298,15 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     }
 
     try {
+        ov::CompiledModel object;
         std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
+            object = core->object->compile_model(model_path, dev_name);
+        } else {
+            object = core->object->compile_model(model_path);
         }
         *compiled_model = new ov_compiled_model_t;
-        auto object = core->object->compile_model(model_path, dev_name);
         (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -360,7 +366,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core, const char* device_name,
             for (const auto& i : supported_properties) {
                 tmp_s = tmp_s + "\n" + i;
             }
-            if (tmp_s.length() + 1 > 256) {
+            if (tmp_s.length() + 1 > 512) {
                 return ov_status_e::GENERAL_ERROR;
             }
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, property_value->value_s);
@@ -373,18 +379,8 @@ ov_status_e ov_core_get_property(const ov_core_t* core, const char* device_name,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_add_extension(const ov_core_t* core, const char* library_path) {
-    if (!core || !library_path) {
-        return ov_status_e::GENERAL_ERROR;
-    }
-    try {
-        core->object->add_extension(library_path);
-    } CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
 ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices) {
-    if (!core || !devices) {
+    if (!core) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -985,6 +981,22 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
         }
     } CATCH_OV_EXCEPTIONS
 
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_compiled_model_export(const ov_compiled_model_t* compiled_model,
+                                const char* export_model_path) {
+    if (!compiled_model || !export_model_path) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::ofstream model_file(export_model_path, std::ios::out | std::ios::binary);
+        if (model_file.is_open()) {
+            compiled_model->object->export_model(model_file);
+        } else {
+            return ov_status_e::GENERAL_ERROR;
+        }
+    } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 

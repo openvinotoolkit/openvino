@@ -325,7 +325,7 @@ typedef enum {
 
 typedef union {
     uint32_t value_u;
-    char value_s[256];
+    char value_s[320];
     ov_performance_mode_e value_performance_mode;
 }ov_property_value;
 
@@ -381,7 +381,7 @@ OPENVINO_C_API(ov_status_e) ov_core_read_model(const ov_core_t *core,
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
  * @param core A pointer to the ie_core_t instance.
- * @param model_path String with a model in IR/ONNX/PDPD format.
+ * @param model_str String with a model in IR/ONNX/PDPD format.
  * @param weights Shared pointer to a constant tensor with weights.
  * @param model A pointer to the newly created model.
  * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
@@ -391,7 +391,7 @@ OPENVINO_C_API(ov_status_e) ov_core_read_model(const ov_core_t *core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_core_read_model_from_memory(const ov_core_t *core,
-                                                        const char *model_path,
+                                                        const char *model_str,
                                                         const ov_tensor_t *weights,
                                                         ov_model_t **model);
 
@@ -856,7 +856,7 @@ OPENVINO_C_API(ov_status_e) ov_compiled_model_set_property(const ov_compiled_mod
 /**
  * @brief Gets properties for current compiled model.
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param property_name  Property name.
+ * @param property_name Property name.
  * @param property_value A pointer to property value.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -864,6 +864,15 @@ OPENVINO_C_API(ov_status_e) ov_compiled_model_get_property(const ov_compiled_mod
                                 const ov_property_key_e property_name,
                                 ov_property_value* property_value);
 
+/**
+ * @brief Exports the current compiled model to an output stream `std::ostream`.
+ * The exported model can also be imported via the ov::Core::import_model method.
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param export_model_path Path to the file.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_compiled_model_export(const ov_compiled_model_t* compiled_model,
+                                const char* export_model_path);
 /**
  * @brief Sets an input/output tensor to infer on.
  * @param infer_request A pointer to the ov_infer_request_t.
