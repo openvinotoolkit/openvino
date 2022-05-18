@@ -305,3 +305,519 @@ TEST_P(ov_core, ov_core_get_versions) {
     ov_core_versions_free(&version_list);
     ov_core_free(core);
 }
+
+TEST(ov_compiled_model, get_runtime_model) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_model_t *runtime_model = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_runtime_model(compiled_model, &runtime_model));
+    EXPECT_NE(nullptr, runtime_model);
+
+    ov_model_free(runtime_model);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_runtime_model_error_handling) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_model_t *runtime_model = nullptr;
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(nullptr, &runtime_model));
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(compiled_model, nullptr));
+
+    ov_model_free(runtime_model);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_inputs) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_node_list_t *input_nodes = new ov_output_node_list_t;
+    input_nodes->output_nodes = nullptr;
+    input_nodes->num = 0;
+    OV_EXPECT_OK(ov_compiled_model_get_inputs(compiled_model, input_nodes));
+    EXPECT_NE(nullptr, input_nodes->output_nodes);
+    EXPECT_NE(0, input_nodes->num);
+
+    ov_output_nodes_free(input_nodes);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_inputs_error_handling) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_node_list_t *input_nodes = new ov_output_node_list_t;
+    input_nodes->output_nodes = nullptr;
+    input_nodes->num = 0;
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_inputs(nullptr, input_nodes));
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_inputs(compiled_model, nullptr));
+
+    ov_output_nodes_free(input_nodes);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_outputs) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_node_list_t *output_nodes = new ov_output_node_list_t;
+    output_nodes->output_nodes = nullptr;
+    output_nodes->num = 0;
+    OV_EXPECT_OK(ov_compiled_model_get_outputs(compiled_model, output_nodes));
+    EXPECT_NE(nullptr, output_nodes->output_nodes);
+    EXPECT_NE(0, output_nodes->num);
+
+    ov_output_nodes_free(output_nodes);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_outputs_error_handling) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_node_list_t *output_nodes = new ov_output_node_list_t;
+    output_nodes->output_nodes = nullptr;
+    output_nodes->num = 0;
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_outputs(nullptr, output_nodes));
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_outputs(compiled_model, nullptr));
+
+    ov_output_nodes_free(output_nodes);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model_create, create_infer_request) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_infer_request *infer_request = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+    EXPECT_NE(nullptr, infer_request);
+
+    ov_infer_request_free(infer_request);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, create_infer_request_error_handling) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_infer_request *infer_request = nullptr;
+    OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(nullptr, &infer_request));
+    OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(compiled_model, nullptr));
+
+    ov_infer_request_free(infer_request);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+// TEST(ov_compiled_model_set_property, set_property) {
+//     ov_core_t *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model_t *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model_t *compiled_model = nullptr;
+//     const char* device_name = "";
+//     const ov_property_t property = {NUM_STREAMS, 2, nullptr};
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     const ov_property_t set_property = {PERFORMANCE_HINT, THROUGHPUT, nullptr};
+//     OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, &set_property));
+
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_compiled_model, set_property_error_handling) {
+//     ov_core_t *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model_t *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model_t *compiled_model = nullptr;
+//     const char* device_name = "CPU";
+//     const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     const ov_property_t set_property = {PERFORMANCE_HINT, THROUGHPUT, nullptr};
+//     OV_EXPECT_NOT_OK(ov_compiled_model_set_property(nullptr, &set_property));
+//     OV_EXPECT_NOT_OK(ov_compiled_model_set_property(compiled_model, nullptr));
+
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+TEST(ov_compiled_model, get_property) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_property_value property_value;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, SUPPORTED_PROPERTIES, &property_value));
+    EXPECT_NE("", property_value.value_s);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_compiled_model, get_property_error_handling) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_property_value property_value;
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_property(nullptr, SUPPORTED_PROPERTIES, &property_value));
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_property(compiled_model, SUPPORTED_PROPERTIES, nullptr));
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+//InferRequest
+TEST(ov_infer_request_set_tensor, set_tensor) {
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    const char* device_name = "CPU";
+    const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_infer_request *infer_request = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+    EXPECT_NE(nullptr, infer_request);
+
+    ov_tensor_t *input_tensor = nullptr;
+    cv::Mat image = cv::imread(input_image);
+    const ov_element_type_e type = U8;
+    const ov_shape_t shape = {1, (size_t)image.rows, (size_t)image.cols, (size_t)image.channels()};
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &input_tensor));
+    EXPECT_NE(nullptr, input_tensor);
+
+    mat_2_tensor(image, input_tensor);
+
+    OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
+
+    ov_tensor_free(input_tensor);
+    ov_infer_request_free(infer_request);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+// TEST(ov_infer_request_get_tensor, get_tensor) {
+//     ov_core_t *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model_t *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model_t *compiled_model = nullptr;
+//     const char* device_name = "CPU";
+//     const ov_property_t property = {PERFORMANCE_HINT, LATENCY, nullptr};
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, &compiled_model, &property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     ov_infer_request *infer_request = nullptr;
+//     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+//     EXPECT_NE(nullptr, infer_request);
+
+//     ov_tensor *input_tensor = nullptr;
+//     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "data", &input_tensor));
+//     EXPECT_NE(nullptr, input_tensor);
+
+//     ov_tensor_free(input_tensor);
+//     ov_infer_request_free(infer_request);
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_infer_request_set_tensor, set_tensor_error_handle) {
+//     ov_core *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model *compiled_model = nullptr;
+//     const ov_property_t* property = {PERFORMANCE_HINT, LATENCY, nullptr}
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, "CPU", compiled_model, property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     ov_infer_request *infer_request = nullptr;
+//     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+//     EXPECT_NE(nullptr, infer_request);
+
+//     cv::Mat image = cv::imread(input_image);
+//     ov_tensor *tensor = nullptr;
+//     mat_2_tensor(image, tensor);
+//     OV_EXPECT_NOT_OK(ov_infer_request_set_tensor(nullptr, "data", tensor));
+//     OV_EXPECT_NOT_OK(ov_infer_request_set_tensor(infer_request, nullptr, tensor));
+//     OV_EXPECT_NOT_OK(ov_infer_request_set_tensor(infer_request, "data", nullptr));
+
+//     ov_tensor_free(tensor);
+//     ov_infer_request_free(infer_request);
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_infer_request_get_tensor, infer_request_get_tensor) {
+//     ov_core *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model *compiled_model = nullptr;
+//     const ov_property_t* property = {PERFORMANCE_HINT, LATENCY, nullptr}
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, "CPU", compiled_model, property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     ov_infer_request *infer_request = nullptr;
+//     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+//     EXPECT_NE(nullptr, infer_request);
+
+//     cv::Mat image = cv::imread(input_image);
+//     ov_tensor *input_tensor = nullptr;
+//     ov_tensor *output_tensor = nullptr;
+//     mat_2_tensor(image, tensor);
+//     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
+
+//     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
+
+//     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out/sink_port_0", &output_tensor));
+//     EXPECT_NE(nullptr, output_tensor);
+
+//     ov_tensor_free(input_tensor);
+//     ov_tensor_free(output_tensor);
+//     ov_infer_request_free(infer_request);
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_infer_request_get_tensor, get_tensor_error_handle) {
+//     ov_core *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model *compiled_model = nullptr;
+//     const ov_property_t* property = {PERFORMANCE_HINT, LATENCY, nullptr}
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, "CPU", compiled_model, property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     ov_infer_request *infer_request = nullptr;
+//     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+//     EXPECT_NE(nullptr, infer_request);
+
+//     cv::Mat image = cv::imread(input_image);
+//     ov_tensor *input_tensor = nullptr;
+//     ov_tensor *output_tensor = nullptr;
+//     mat_2_tensor(image, input_tensor);
+//     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
+
+//     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
+
+//     OV_EXPECT_NOT_OK(ov_infer_request_get_tensor(nullptr, "fc_out/sink_port_0", &output_tensor));
+//     OV_EXPECT_NOT_OK(ov_infer_request_get_tensor(infer_request, nullptr, &output_tensor));
+//     OV_EXPECT_NOT_OK(ov_infer_request_get_tensor(infer_request, "fc_out/sink_port_0", nullptr));
+
+//     ov_tensor_free(input_tensor);
+//     ov_tensor_free(output_tensor);
+//     ov_infer_request_free(infer_request);
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_infer_request_infer, infer_request_infer) {
+//     ov_core *core = nullptr;
+//     OV_ASSERT_OK(ov_core_create("", &core));
+//     ASSERT_NE(nullptr, core);
+
+//     ov_model *model = nullptr;
+//     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+//     EXPECT_NE(nullptr, model);
+
+//     ov_compiled_model *compiled_model = nullptr;
+//     const ov_property_t* property = {PERFORMANCE_HINT, LATENCY, nullptr}
+//     OV_EXPECT_OK(ov_core_compile_model(core, model, "CPU", compiled_model, property));
+//     EXPECT_NE(nullptr, compiled_model);
+
+//     ov_infer_request *infer_request = nullptr;
+//     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+//     EXPECT_NE(nullptr, infer_request);
+
+//     cv::Mat image = cv::imread(input_image);
+//     ov_tensor *input_tensor = nullptr;
+//     mat_2_tensor(image, input_tensor);
+//     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
+
+//     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
+
+//     ov_tensor_free(input_tensor);
+//     ov_infer_request_free(infer_request);
+//     ov_compiled_model_free(compiled_model);
+//     ov_model_free(model);
+//     ov_core_free(core);
+// }
+
+// TEST(ov_infer_request_infer, infer_request_infer_error_handle) {
+//     OV_EXPECT_NOT_OK(ov_infer_request_infer(nullptr));
+// }
