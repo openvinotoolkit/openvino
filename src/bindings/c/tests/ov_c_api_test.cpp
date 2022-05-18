@@ -43,6 +43,7 @@ const char* plugins_xml = plugins_xml_std.c_str();
 #define OV_EXPECT_OK(...) EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...) ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_NOT_OK(...) EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
+#define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
 
 size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
@@ -99,4 +100,109 @@ TEST(ov_c_api_version, api_version) {
 
     EXPECT_STREQ(version.buildNumber, ver.buildNumber);
     ov_version_free(&version);
+}
+
+TEST(ov_tensor_create, tensor_create) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_create_from_host_ptr, tensor_create_from_host_ptr) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {1, 3, 4, 4};
+    uint8_t host_ptr[1][3][4][4]= {0};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr,&tensor));
+    EXPECT_NE(nullptr, tensor);
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_shape, tensor_get_shape) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape_t = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape_t, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_shape_t shape_res;
+    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_EXPECT_ARREQ(shape_t, shape_res);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_set_shape, tensor_set_shape) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {1, 1, 1, 1};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_shape_t shape_t = {10, 20, 30, 40};
+    OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_t));
+    ov_shape_t shape_res;
+    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_EXPECT_ARREQ(shape_t, shape_res);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_element_type, tensor_get_element_type) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape_t = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape_t, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_element_type_e type_res;
+    OV_EXPECT_OK(ov_tensor_get_element_type(tensor, &type_res));
+    EXPECT_EQ(type, type_res);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_size, tensor_get_size) {
+    ov_element_type_e type = ov_element_type_e::I16;
+    ov_shape_t shape_t = {1, 3, 4, 4};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape_t, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    size_t size_res;
+    OV_EXPECT_OK(ov_tensor_get_size(tensor, &size_res));
+    EXPECT_EQ(size_res, 48);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_byte_size, tensor_get_byte_size) {
+    ov_element_type_e type = ov_element_type_e::I16;
+    ov_shape_t shape_t = {1, 3, 4, 4};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape_t, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    size_t size_res;
+    OV_EXPECT_OK(ov_tensor_get_byte_size(tensor, &size_res));
+    EXPECT_EQ(size_res, 96);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_data, tensor_get_data) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape_t = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape_t, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    void *data = nullptr;
+    OV_EXPECT_OK(ov_tensor_get_data(tensor, &data));
+    EXPECT_NE(nullptr, data);
+
+    ov_tensor_free(tensor);
 }
