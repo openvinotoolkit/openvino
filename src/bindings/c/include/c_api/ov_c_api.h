@@ -325,7 +325,7 @@ typedef enum {
 
 typedef union {
     uint32_t value_u;
-    char value_s[512];
+    char value_s[320];
     ov_performance_mode_e value_performance_mode;
 }ov_property_value;
 

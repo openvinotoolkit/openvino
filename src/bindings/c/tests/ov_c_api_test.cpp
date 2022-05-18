@@ -37,10 +37,8 @@ std::condition_variable condVar;
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
 #else
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
-        std::string extension_std = TestDataHelpers::generate_ieclass_xml_path("libopenvino_template_extension.so");
 #endif
 const char* plugins_xml = plugins_xml_std.c_str();
-const char* extension = extension_std.c_str();
 
 #define OV_EXPECT_OK(...) EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...) ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
@@ -129,8 +127,8 @@ TEST(ov_core, ov_core_read_model) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_core_free(core);
     ov_model_free(model);
+    ov_core_free(core);
 }
 
 TEST(ov_core, ov_core_read_model_no_bin) {
@@ -142,8 +140,8 @@ TEST(ov_core, ov_core_read_model_no_bin) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_core_free(core);
     ov_model_free(model);
+    ov_core_free(core);
 }
 
 static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
@@ -247,7 +245,8 @@ TEST(ov_core, ov_core_get_available_devices) {
     ASSERT_NE(nullptr, core);
 
     ov_available_devices_t devices;
-    OV_ASSERT_OK(ov_core_get_available_devices(core, &devices));   
+    OV_ASSERT_OK(ov_core_get_available_devices(core, &devices));
+
     ov_available_devices_free(&devices);
     ov_core_free(core);
 }
@@ -265,6 +264,7 @@ TEST_P(ov_core, ov_compiled_model_export) {
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
+    
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
 }
