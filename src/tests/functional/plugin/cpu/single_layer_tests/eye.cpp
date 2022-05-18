@@ -160,9 +160,10 @@ const std::vector<std::vector<int>> batchShapes1D = {
 const std::vector<std::vector<int>> batchShapes2D = {
     {3, 2}, {2, 1}, {0, 0}
 };
-const std::vector<std::vector<int>> batchShapes3D = {
-    {3, 2, 1}, {1, 1, 1}
-};
+// Ticket: 85127
+// const std::vector<std::vector<int>> batchShapes3D = {
+//     {3, 2, 1}, {1, 1, 1}
+// };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLayerCPUTest,
                          ::testing::Combine(
@@ -212,17 +213,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLayerCPUTest,
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
                          EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Combine(
-                                         ::testing::ValuesIn(static_shapes_to_test_representation(
-                                             std::vector<std::vector<ov::Shape>> {{{}, {}, {}, {3}}})),
-                                         ::testing::ValuesIn(batchShapes3D),
-                                         ::testing::ValuesIn(eyePars),
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLayerCPUTest::getTestCaseName);
+// Ticket: 85127
+// INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLayerCPUTest,
+//                          ::testing::Combine(
+//                                  ::testing::Combine(
+//                                          ::testing::ValuesIn(static_shapes_to_test_representation(
+//                                              std::vector<std::vector<ov::Shape>> {{{}, {}, {}, {3}}})),
+//                                          ::testing::ValuesIn(batchShapes3D),
+//                                          ::testing::ValuesIn(eyePars),
+//                                          ::testing::ValuesIn(netPrecisions),
+//                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
+//                          EyeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynShapes = {
         {
