@@ -27,14 +27,14 @@ using EyeLayerTestParams = std::tuple<
         ElementType,                // Net precision
         TargetDevice>;              // Device name
 
-using EyeLikeLayerCPUTestParamsSet = std::tuple<
+using EyeLayerCPUTestParamsSet = std::tuple<
         CPULayerTestsDefinitions::EyeLayerTestParams,
         CPUSpecificParams>;
 
-class EyeLikeLayerCPUTest : public testing::WithParamInterface<EyeLikeLayerCPUTestParamsSet>,
+class EyeLayerCPUTest : public testing::WithParamInterface<EyeLayerCPUTestParamsSet>,
                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EyeLikeLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<EyeLayerCPUTestParamsSet> obj) {
         CPULayerTestsDefinitions::EyeLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
@@ -125,7 +125,7 @@ protected:
     }
 };
 
-TEST_P(EyeLikeLayerCPUTest, CompareWithRefs) {
+TEST_P(EyeLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "Eye");
@@ -164,7 +164,7 @@ const std::vector<std::vector<int>> batchShapes3D = {
     {3, 2, 1}, {1, 1, 1}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(static_shapes_to_test_representation(
@@ -174,9 +174,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_PureScalar_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(static_shapes_to_test_representation(
@@ -186,9 +186,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(static_shapes_to_test_representation(
@@ -198,9 +198,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(static_shapes_to_test_representation(
@@ -210,9 +210,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(static_shapes_to_test_representation(
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynShapes = {
         {
@@ -251,7 +251,7 @@ const std::vector<std::vector<InputShape>> dynShapesWith2DBatches = {
 //         },
 // };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(dynShapes),
@@ -260,9 +260,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_Dynamic_Test, EyeLikeLayerCPUTest,
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          ::testing::ValuesIn(dynShapesWith2DBatches),
@@ -271,10 +271,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLikeLayerCP
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-                         EyeLikeLayerCPUTest::getTestCaseName);
+                         EyeLayerCPUTest::getTestCaseName);
 
 // Ticket: 85127
-// INSTANTIATE_TEST_SUITE_P(smoke_Eye_With3DBatchShape_Dynamic_Test, EyeLikeLayerCPUTest,
+// INSTANTIATE_TEST_SUITE_P(smoke_Eye_With3DBatchShape_Dynamic_Test, EyeLayerCPUTest,
 //                          ::testing::Combine(
 //                                  ::testing::Combine(
 //                                          ::testing::ValuesIn(dynShapesWith3DBatches),
@@ -283,6 +283,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_With2DBatchShape_Dynamic_Test, EyeLikeLayerCP
 //                                          ::testing::ValuesIn(netPrecisions),
 //                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                                  ::testing::Values(CPUSpecificParams{{}, {}, {}, {}})),
-//                          EyeLikeLayerCPUTest::getTestCaseName);
+//                          EyeLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
