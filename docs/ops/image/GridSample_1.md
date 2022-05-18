@@ -1,4 +1,4 @@
-# Interpolate {#openvino_docs_ops_image_Interpolate_1}
+# GridSample {#openvino_docs_ops_image_GridSample_1}
 
 **Versioned name**: *GridSample-1*
 
