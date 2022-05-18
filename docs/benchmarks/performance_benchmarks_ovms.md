@@ -50,19 +50,19 @@ feature improves overall performance on networks where the bandwidth constitutes
 ### Supported Image Formats for OVMS Compression
 
 - Always supported:
-  - Portable image format - *`*.pbm`*, *`*.pgm`*, *`*.ppm`* *`*.pxm`*, *`*.pnm`*.
-  - Radiance HDR - *`*.hdr`*, *`*.pic`*.
-  - Sun rasters - *`*.sr`*, *`*.ras`*.
-  - Windows bitmaps - *`*.bmp`*, *`*.dib`*.
+  - Portable image format - `*.pbm`, `*.pgm`, `*.ppm`, `*.pxm`, `*.pnm`.
+  - Radiance HDR - `*.hdr`, `*.pic`.
+  - Sun rasters - `*.sr`, `*.ras`.
+  - Windows bitmaps - `*.bmp`, `*.dib`.
 
 - Limited support (please see OpenCV documentation):
   - Raster and Vector geospatial data supported by GDAL.
-  - JPEG files - *`*.jpeg`*, *`*.jpg`*, *`*.jpe`*.
-  - Portable Network Graphics - *`*.png`*.
-  - TIFF files - *`*.tiff`*, *`*.tif`*.
-  - OpenEXR Image files - *`*.exr`*.
-  - JPEG 2000 files - *`*.jp2`*.
-  - WebP - *`*.webp`*.
+  - JPEG files - `*.jpeg`, `*.jpg`, `*.jpe`.
+  - Portable Network Graphics - `*.png`.
+  - TIFF files - `*.tiff`, `*.tif`.
+  - OpenEXR Image files - `*.exr`.
+  - JPEG 2000 files - `*.jp2`.
+  - WebP - `*.webp`.
 
 ### googlenet-v4-tf (FP32)
 ![](../img/throughput_ovms_1gbps_googlenet4_fp32.png)
