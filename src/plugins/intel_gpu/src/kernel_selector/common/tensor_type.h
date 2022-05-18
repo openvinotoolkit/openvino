@@ -33,7 +33,9 @@ enum DataLayout {
     fyxb,                   // 3D+batch
     bfxy,                   // 3D+batch
     b_fs_yx_fsv2,
+    b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
+    b_fs_zyx_fsv4,
     b_fs_yx_fsv16,          // 3D+batch
     b_fs_zyx_fsv16,         // batch, feature, 3D spatial. Blocks of 16 input channels
     b_fs_yx_fsv32,          // 3D+batch
@@ -127,6 +129,8 @@ enum WeightsLayout {
     os_is_zyx_osa2_isa8_osv8_isv2,
     os_is_yx_osa2_isa8_osv16_isv4,
     os_is_yx_osa2_isa8_osv16_isv2,
+    os_is_zyx_isa8_osv8_isv2,
+    is_os_zyx_isa8_osv8_isv2,
     os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa2_osa8_isv8_osv2,

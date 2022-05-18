@@ -30,13 +30,6 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt = ifmt;
     }
 
-    if (node.is_valid_output_layout() && input_layout.feature() <= 3) {
-        auto expected_fmt = node.get_output_layout().format;
-        if (expected_fmt == format::bs_fs_zyx_bsv8_fsv2) {
-            ofmt = expected_fmt;
-        }
-    }
-
     if (ifmt.is_nv12()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };

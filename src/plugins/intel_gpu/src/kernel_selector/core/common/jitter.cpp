@@ -428,6 +428,14 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv2) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV2_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv4) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else {
                 index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";

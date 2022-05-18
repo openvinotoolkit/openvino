@@ -78,7 +78,9 @@ struct format {
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
+        b_fs_zyx_fsv2,
         b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
+        b_fs_zyx_fsv4,                          ///< format for input for IMAD 3D convolutions
         b_fs_yx_fsv16,                          ///< format used for blocked convolution
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
@@ -168,6 +170,8 @@ struct format {
         os_is_yx_osa2_isa8_osv16_isv4,
         os_is_yx_isa8_osv8_isv2,
         is_os_yx_isa8_osv8_isv2,
+        os_is_zyx_isa8_osv8_isv2,
+        is_os_zyx_isa8_osv8_isv2,
         is_os_yx_isa2_osa8_isv8_osv2,
         is_os_yx_isa4_osa8_isv8_osv4,
         is_os_yx_osa4_isa8_osv8_isv4,

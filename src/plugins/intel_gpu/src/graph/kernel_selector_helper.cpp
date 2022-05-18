@@ -110,6 +110,10 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::b_fs_yx_fsv16;
         case format::b_fs_yx_fsv32:
             return kernel_selector::data_layout::b_fs_yx_fsv32;
+        case format::b_fs_zyx_fsv2:
+            return kernel_selector::data_layout::b_fs_zyx_fsv2;
+        case format::b_fs_zyx_fsv4:
+            return kernel_selector::data_layout::b_fs_zyx_fsv4;
         case format::b_fs_zyx_fsv32:
             return kernel_selector::data_layout::b_fs_zyx_fsv32;
         case format::bs_x_bsv16:
@@ -430,6 +434,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv16;
         case format::g_os_zyx_is_osv32_isv32:
             return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32;
+        case format::os_is_zyx_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv2;
+        case format::is_os_zyx_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2;
         case format::os_is_yx_isa8_osv8_isv2:
             return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv2;
         case format::is_os_yx_isa8_osv8_isv2:
@@ -562,6 +570,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::is_os_zyx_isv16_osv16;
         case kernel_selector::weights_layout::is_os_yx_isv16_osv16:
             return cldnn::format::is_os_yx_isv16_osv16;
+        case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2:
+            return cldnn::format::is_os_zyx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv2:
+            return cldnn::format::os_is_zyx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::is_os_yx_isa8_osv8_isv2:
             return cldnn::format::is_os_yx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv2:

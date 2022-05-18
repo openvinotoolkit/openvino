@@ -356,6 +356,70 @@ inline uint get_fs_b_yx_fsv32_index_safe(uint b, uint f, uint y, uint x,
     return index;
 }
 
+#define GET_DATA_B_FS_ZYX_FSV2_INDEX(prefix, b, f, z, y, x) \
+    get_b_fs_zyx_fsv_index(                       \
+        b, f, z, y, x,                                       \
+        CAT(prefix, _SIZE_X ),                               \
+        CAT(prefix, _SIZE_Y),                                \
+        CAT(prefix, _SIZE_Z),                                \
+        CAT(prefix, _FEATURE_NUM),                           \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 2)
+
+#define GET_DATA_B_FS_ZYX_FSV2_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_b_fs_zyx_fsv_index_safe(                       \
+        b, f, z, y, x,                                            \
+        CAT(prefix, _SIZE_X),                                     \
+        CAT(prefix, _SIZE_Y),                                     \
+        CAT(prefix, _SIZE_Z),                                     \
+        CAT(prefix, _FEATURE_NUM),                                \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                     \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 2)
+
+#define GET_DATA_B_FS_ZYX_FSV4_INDEX(prefix, b, f, z, y, x) \
+    get_b_fs_zyx_fsv_index(                       \
+        b, f, z, y, x,                                       \
+        CAT(prefix, _SIZE_X ),                               \
+        CAT(prefix, _SIZE_Y),                                \
+        CAT(prefix, _SIZE_Z),                                \
+        CAT(prefix, _FEATURE_NUM),                           \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                 \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                     \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 4)
+
+#define GET_DATA_B_FS_ZYX_FSV4_INDEX_SAFE(prefix, b, f, z, y, x) \
+    get_b_fs_zyx_fsv_index_safe(                       \
+        b, f, z, y, x,                                            \
+        CAT(prefix, _SIZE_X),                                     \
+        CAT(prefix, _SIZE_Y),                                     \
+        CAT(prefix, _SIZE_Z),                                     \
+        CAT(prefix, _FEATURE_NUM),                                \
+        CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                     \
+        CAT(prefix, _PAD_AFTER_FEATURE_NUM),                      \
+        CAT(prefix, _PAD_BEFORE_SIZE_Z),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_Z),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_Y),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_Y),                           \
+        CAT(prefix, _PAD_BEFORE_SIZE_X),                          \
+        CAT(prefix, _PAD_AFTER_SIZE_X), 4)
+
 #define GET_DATA_B_FS_ZYX_FSV16_INDEX(prefix, b, f, z, y, x) \
     get_b_fs_zyx_fsv_index(                       \
         b, f, z, y, x,                                       \

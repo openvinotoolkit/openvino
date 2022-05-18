@@ -594,12 +594,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto dims = new_layout.format.dimension();
             if (new_layout.data_type == data_types::f16) {
                 if (dims == 5)
-                    new_layout.format = format::bs_fs_zyx_bsv8_fsv2;
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
                 else
                     new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
             } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
                 if (dims == 5)
-                    new_layout.format = format::bs_fs_zyx_bsv8_fsv4;
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
                 else
                     new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
             }
