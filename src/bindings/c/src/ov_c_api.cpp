@@ -729,7 +729,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tenso
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        preprocess_input_tensor_info->object->set_layout(layout);
+        ov::Layout tmp_layout(std::string(layout, 4));
+        preprocess_input_tensor_info->object->set_layout(tmp_layout);
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
@@ -832,7 +833,8 @@ ov_status_e ov_preprocess_input_model_set_layout(ov_preprocess_input_model_info_
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        preprocess_input_model_info->object->set_layout(layout);
+        ov::Layout tmp_layout(std::string(layout, 4));
+        preprocess_input_model_info->object->set_layout(tmp_layout);
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
