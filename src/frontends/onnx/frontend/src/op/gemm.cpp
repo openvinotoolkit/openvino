@@ -73,7 +73,7 @@ OutputVector gemm(const Node& node) {
         input_c = default_opset::Constant::create(input_b.get_element_type(), ngraph::Shape{}, {0});
     }
 
-    const auto alpha = node.get_attribute_value<float>("alpha", 1);
+    const auto alpha_node = node.get_attribute_as_constant<float>("alpha", 1, input_b.get_element_type());
     const auto beta_node = node.get_attribute_as_constant<float>("beta", 1, input_c.get_element_type());
 
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
