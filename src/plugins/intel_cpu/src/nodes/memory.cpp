@@ -67,8 +67,12 @@ void MemoryOutput::getSupportedDescriptors() {}
 void MemoryOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+    
+    // WA: should use MemoryInput store type to avoid buffer mismatch
+    auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
+    IE_ASSERT(inputMemoryNode != nullptr);
+    auto precision = inputMemoryNode->getOriginalInputPrecisionAtPort(0);
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
