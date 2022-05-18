@@ -80,8 +80,7 @@ It helps the model to remember the context of the words that it takes as input.
 Model Optimizer assumes that output model is for inference only.
 Therefore, you should cut those variables off and resolve keeping cell and hidden states on application level.
 
-There is a certain limitation for the model conversion:
-- Original model cannot be reshaped, so you should keep original shapes.
+There is a certain limitation for the model conversion: the original model cannot be reshaped, so you should keep original shapes.
 
 To generate the *`lm_1b`* Intermediate Representation (IR), provide TensorFlow *`lm_1b`* model to the
 Model Optimizer with parameters:
