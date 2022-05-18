@@ -43,6 +43,26 @@ const char* plugins_xml = plugins_xml_std.c_str();
 #define OV_EXPECT_OK(...) EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...) ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_NOT_OK(...) EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
+#define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
+
+std::map<ov_element_type_e, size_t> element_type_size_map = {
+        {ov_element_type_e::BOOLEAN, 8},
+        {ov_element_type_e::BF16, 16},
+        {ov_element_type_e::F16, 16},
+        {ov_element_type_e::F32, 32},
+        {ov_element_type_e::F64, 64},
+        {ov_element_type_e::I4, 4},
+        {ov_element_type_e::I8, 8},
+        {ov_element_type_e::I16, 16},
+        {ov_element_type_e::I32, 32},
+        {ov_element_type_e::I64, 64},
+        {ov_element_type_e::U1, 1},
+        {ov_element_type_e::U4, 4},
+        {ov_element_type_e::U8, 8},
+        {ov_element_type_e::U16, 16},
+        {ov_element_type_e::U32, 32},
+        {ov_element_type_e::U64, 64}};
+#define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
 size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
@@ -264,7 +284,7 @@ TEST_P(ov_core, ov_compiled_model_export) {
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
-    
+
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
 }
@@ -297,11 +317,136 @@ TEST_P(ov_core, ov_core_get_versions) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
-    
+
     ov_core_version_list_t version_list;
     OV_ASSERT_OK(ov_core_get_versions(core, devece_name.c_str(), &version_list));
     EXPECT_EQ(version_list.num_vers, 1);
 
     ov_core_versions_free(&version_list);
     ov_core_free(core);
+}
+
+TEST(ov_tensor_create, tensor_create) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_create_from_host_ptr, tensor_create_from_host_ptr) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {1, 3, 4, 4};
+    uint8_t host_ptr[1][3][4][4]= {0};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr,&tensor));
+    EXPECT_NE(nullptr, tensor);
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_shape, tensor_get_shape) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_shape_t shape_res;
+    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_EXPECT_ARREQ(shape, shape_res);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_set_shape, tensor_set_shape) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {1, 1, 1, 1};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_shape_t shape_update = {10, 20, 30, 40};
+    OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
+    ov_shape_t shape_res;
+    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_EXPECT_ARREQ(shape_update, shape_res);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_element_type, tensor_get_element_type) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {10, 20, 30, 40};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    ov_element_type_e type_res;
+    OV_EXPECT_OK(ov_tensor_get_element_type(tensor, &type_res));
+    EXPECT_EQ(type, type_res);
+
+    ov_tensor_free(tensor);
+}
+
+static size_t product(const std::vector<size_t>& dims) {
+    if (dims.empty())
+        return 0;
+    return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
+}
+
+size_t calculate_size(ov_shape_t shape) {
+    std::vector<size_t> tmp_shape;
+    std::copy_if(shape, shape + 4,
+                 std::back_inserter(tmp_shape),
+                 [](size_t x) { return x != 0;});
+    return product(tmp_shape);
+}
+
+size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
+    return (calculate_size(shape) * GET_ELEMENT_TYPE_SIZE(type) + 7) >> 3;
+}
+
+TEST(ov_tensor_get_size, tensor_get_size) {
+    ov_element_type_e type = ov_element_type_e::I16;
+    ov_shape_t shape = {1, 3, 4, 4};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    size_t size = calculate_size(shape);
+    size_t size_res;
+    OV_EXPECT_OK(ov_tensor_get_size(tensor, &size_res));
+    EXPECT_EQ(size_res, size);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_byte_size, tensor_get_byte_size) {
+    ov_element_type_e type = ov_element_type_e::I16;
+    ov_shape_t shape = {1, 3, 4, 4};
+    ov_tensor_t* tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    size_t size = calculate_byteSize(shape, type);
+    size_t size_res;
+    OV_EXPECT_OK(ov_tensor_get_byte_size(tensor, &size_res));
+    EXPECT_EQ(size_res, size);
+
+    ov_tensor_free(tensor);
+}
+
+TEST(ov_tensor_get_data, tensor_get_data) {
+    ov_element_type_e type = ov_element_type_e::U8;
+    ov_shape_t shape = {10, 20, 30, 40};
+    ov_tensor_t *tensor = nullptr;
+    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    EXPECT_NE(nullptr, tensor);
+
+    void *data = nullptr;
+    OV_EXPECT_OK(ov_tensor_get_data(tensor, &data));
+    EXPECT_NE(nullptr, data);
+
+    ov_tensor_free(tensor);
 }

@@ -1225,6 +1225,6 @@ ov_status_e ov_tensor_get_data(const ov_tensor_t* tensor, void** data) {
     return ov_status_e::OK;
 }
 
-void ov_tensor_free(const ov_tensor_t* tensor) {
+void ov_tensor_free(ov_tensor_t* tensor) {
     delete tensor;
 }
