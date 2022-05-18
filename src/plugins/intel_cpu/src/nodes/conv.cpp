@@ -553,6 +553,7 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
+            const Dim OC = dims[1];
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
@@ -576,7 +577,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                     std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
                     if (!fqScale.empty()) {
                         size_t size = fqScale.size();
-                        size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
                         if (size == 1) {
                             fqScale.resize(OC);
                             for (size_t k = 0; k < OC; k++)
@@ -603,7 +603,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             std::vector<float> outScale = isc;
                             if (!outScale.empty()) {
                                 size_t size = outScale.size();
-                                size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
                                 if (size == 1) {
                                     outScale.resize(OC);
                                     for (size_t k = 0; k < OC; k++)
@@ -638,7 +637,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             std::vector<float> outScale = isc;
                             if (!outScale.empty()) {
                                 size_t size = outScale.size();
-                                size_t OC = getOutputShapeAtPort(0).getStaticDims()[1];
                                 if (size == 1) {
                                     outScale.resize(OC);
                                     for (size_t k = 0; k < OC; k++)

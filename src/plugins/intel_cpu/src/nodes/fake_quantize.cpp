@@ -1750,18 +1750,16 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
     if (getAlgorithm() == Algorithm::FQBinarization) {
         const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
         const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
-        if (!isPostOpDataInitialized) {
-            binarizationThresholds.resize(axisPaddedSize, 0);
-            binarizationOutputMask.resize(axisPaddedSize, 0);
+        binarizationThresholds.resize(axisPaddedSize, 0);
+        binarizationOutputMask.resize(axisPaddedSize, 0);
 
-            if (isInputLowBroadcasted) {
-                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
-            }
-            if (isOutputHighBroadcasted) {
-                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
-            }
+        if (isInputLowBroadcasted) {
+            std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
+            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+        }
+        if (isOutputHighBroadcasted) {
+            std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
+            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
     } else {
         if (cropLow.size() > 1)
@@ -1789,25 +1787,25 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
 }
 
 void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
-    if (isPostOpDataInitialized)
+    if (isLegacyPostOpDataInitialized)
         return;
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
         const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
         const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
-        if (!isPostOpDataInitialized) {
-            binarizationThresholds.resize(axisPaddedSize, 0);
-            binarizationOutputMask.resize(axisPaddedSize, 0);
 
-            if (isInputLowBroadcasted) {
-                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
-            }
-            if (isOutputHighBroadcasted) {
-                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
-            }
+        binarizationThresholds.resize(axisPaddedSize, 0);
+        binarizationOutputMask.resize(axisPaddedSize, 0);
+
+        if (isInputLowBroadcasted) {
+            std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
+            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
+        if (isOutputHighBroadcasted) {
+            std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
+            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+        }
+
     } else {
         quantizationData.insert(quantizationData.end(), cropLow.begin(), cropLow.end());
         quantizationData.insert(quantizationData.end(), cropHigh.begin(), cropHigh.end());
@@ -1821,7 +1819,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
         quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 
-    isPostOpDataInitialized = true;
+    isLegacyPostOpDataInitialized = true;
 }
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {

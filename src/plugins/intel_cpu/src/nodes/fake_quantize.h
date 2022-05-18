@@ -201,8 +201,11 @@ private:
 
     std::vector<float> fqScales;
 
-    // onednn style post ops data representation
+
     bool isPostOpDataInitialized = false;
+    bool isLegacyPostOpDataInitialized = false;
+
+    // onednn style post ops data representation
     dnnl::impl::shifts_t<float> cropLowData;
     dnnl::impl::shifts_t<float> cropHighData;
     dnnl::impl::scales_t inputScaleData;
