@@ -263,7 +263,7 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
         {opset8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
         {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
-        {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},        
+        {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
