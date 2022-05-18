@@ -59,13 +59,13 @@
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    
-   <p id="GSG_introtext">This guide will introduce the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit. Check the following steps from left to right:<br />
+   <p id="GSG_introtext">This guide introduces the installation, configuration, and get started guides of Intel® Distribution of OpenVINO™ toolkit. Check the following steps from left to right:<br />
      <a href="openvino_docs_install_guides_overview.html" >Install Intel® Distribution<br/>of OpenVINO™ toolkit</a>
      <a href="openvino_docs_install_guides_configurations_header.html" >Perform <br/>Additional Configurations</a>
      <a href="#get-started-tutorials" >Try <br/>Get Started Steps</a>
    </p>
 
-   <p>If you prefer using a graphical interface, you can use the <a href="workbench_docs_Workbench_DG_Introduction.html" >Deep Learning Workbench</a>, which is the web version of OpenVINO developed based on Intel® Distribution of OpenVINO™ toolkit with a similar but slightly different function set.</li>
+   <p>If you prefer using a graphical interface, you can <a href="workbench_docs_Workbench_DG_Start_DL_Workbench_in_DevCloud.html" >Run Deep Learning Workbench in the Intel® DevCloud for the Edge</a>.  Deep Learning Workbench (DL Workbench) is the web version of OpenVINO developed based on Intel® Distribution of OpenVINO™ toolkit with a similar but slightly different function set.</li>
    </p>
    <div style="clear:both;"> </div> 
    
