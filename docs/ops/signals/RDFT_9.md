@@ -39,9 +39,9 @@
 
 **Detailed description**: *RDFT* performs the discrete Fourier transformation of real-valued input tensor with respect to specified axes. Calculations are performed according to the following rules.
 
-For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{q-1}]`, `axes=[k,...,k+q-1]`, and `signal_size=[S_0,...,S_{q-1}]`.
+For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{q-1}]`, `axes=[k,...,k+q-1]`, and `signal_size=[S_0,...,S_{1-1}]`.
 
-Let `D` be an input tensor `A`, taking into account the `signal_size`, and, hence, `D` has the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{q-1}]`.
+Let `D` be an input tensor `A`, taking into account the `signal_size`, and, hence, `D` has the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{1-1}]`.
 
 Next, let
 \f[X=X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1}]\f]
