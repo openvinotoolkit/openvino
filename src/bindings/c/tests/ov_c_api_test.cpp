@@ -1043,7 +1043,7 @@ TEST_P(ov_compiled_model, create_infer_request) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_infer_request *infer_request = nullptr;
+    ov_infer_request_t *infer_request = nullptr;
     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
     EXPECT_NE(nullptr, infer_request);
 
@@ -1068,59 +1068,11 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_infer_request *infer_request = nullptr;
+    ov_infer_request_t *infer_request = nullptr;
     OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(nullptr, &infer_request));
     OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(compiled_model, nullptr));
 
     ov_infer_request_free(infer_request);
-    ov_compiled_model_free(compiled_model);
-    ov_model_free(model);
-    ov_core_free(core);
-}
-
-TEST_P(ov_compiled_model, get_property) {
-    auto device_name = GetParam();
-    ov_core_t *core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
-    ASSERT_NE(nullptr, core);
-
-    ov_model_t *model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    EXPECT_NE(nullptr, model);
-
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
-    EXPECT_NE(nullptr, compiled_model);
-
-    ov_property_value property_value;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, SUPPORTED_PROPERTIES, &property_value));
-    EXPECT_NE("", property_value.value_s);
-
-    ov_compiled_model_free(compiled_model);
-    ov_model_free(model);
-    ov_core_free(core);
-}
-
-TEST_P(ov_compiled_model, get_property_error_handling) {
-    auto device_name = GetParam();
-    ov_core_t *core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
-    ASSERT_NE(nullptr, core);
-
-    ov_model_t *model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    EXPECT_NE(nullptr, model);
-
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
-    EXPECT_NE(nullptr, compiled_model);
-
-    ov_property_value property_value;
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_property(nullptr, SUPPORTED_PROPERTIES, &property_value));
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_property(compiled_model, SUPPORTED_PROPERTIES, nullptr));
-
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
