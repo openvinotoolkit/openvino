@@ -1010,6 +1010,6 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_data(const ov_tensor_t* tensor, void *
  * @brief Free ov_tensor_t.
  * @param tensor A point to ov_tensor_t
  */
-OPENVINO_C_API(void) ov_tensor_free(const ov_tensor_t* tensor);
+OPENVINO_C_API(void) ov_tensor_free(ov_tensor_t* tensor);
 
 #endif  // OV_C_API_H
