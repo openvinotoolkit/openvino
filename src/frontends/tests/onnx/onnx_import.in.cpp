@@ -23,6 +23,7 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
@@ -39,7 +40,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -79,7 +79,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_output_names_check) {
     std::size_t size = function->get_output_size();
     for (std::size_t i{0}; i < size; ++i) {
         std::shared_ptr<Node> node = function->get_output_op(i);
-        EXPECT_EQ(node->get_friendly_name(), "output_" + std::to_string(i + 1) + "/sink_port_" + std::to_string(i));
+        EXPECT_EQ(node->get_friendly_name(), "output_" + std::to_string(i + 1) + "/sink_port_0");
     }
 }
 
@@ -94,9 +94,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     });
 
     EXPECT_EQ(additions.size(), 2);
-    EXPECT_EQ(additions.at(0)->get_friendly_name(), "X");
+    EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
     EXPECT_EQ(additions.at(0)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"X"});
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
 }
 
@@ -330,6 +330,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_op_domain) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_custom_op_in_supported_operators) {
+    onnx_import::register_operator("CustomAdd", 1, "custom.op", [](const onnx_import::Node& node) -> OutputVector {
+        OutputVector ng_inputs{node.get_ng_inputs()};
+        return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
+    });
+
+    const auto& supported_ops = onnx_import::get_supported_operators(1, "custom.op");
+    EXPECT_NE(std::find(std::begin(supported_ops), std::end(supported_ops), "CustomAdd"), std::end(supported_ops));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unknown_domain) {
     // the importer should not throw when it encounters an unknown domain in the model
     EXPECT_NO_THROW(onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain.onnx")));
@@ -415,6 +425,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph
     test_case.add_input<float>(Shape{5}, {3.f, 5.f, 3.f, 3.f, 6.f});
     test_case.add_input<float>(Shape{5}, {1.f, 4.f, 3.f, 7.f, 8.f});
     test_case.add_expected_output<int32_t>(Shape{5}, {1, 1, 1, 0, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_greater_or_equal_inside_if) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal_inside_if.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // case when condition == true and any(x >= y)
+    // expected value == x * y
+    std::vector<float> x(40, 2);
+    std::vector<float> y(40);
+    std::iota(y.begin(), y.end(), -20);
+    std::vector<float> expected;
+    std::transform(x.begin(), x.end(), y.begin(), std::back_inserter(expected), [](float i, float j) -> float {
+        return i * j;
+    });
+    test_case.add_input<bool>({true});  // condition
+    test_case.add_input<float>(x);
+    test_case.add_input<float>(y);
+    test_case.add_expected_output<float>(expected);
     test_case.run();
 }
 
@@ -3397,6 +3429,84 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_roi_align_f32) {
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_roialign16_avg_out_half_pixel) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/roialign16_avg_out_half_pixel.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        {1.1,   2.2,   3.3,   4.4,   5.5,   6.6,   7.7,   8.8,   9.9,   11.,   12.1,  13.2,  14.3,  15.4,  16.5,  17.6,
+         18.7,  19.8,  20.9,  22.,   23.1,  24.2,  25.3,  26.4,  27.5,  28.6,  29.7,  30.8,  31.9,  33.,   34.1,  35.2,
+         36.3,  37.4,  38.5,  39.6,  40.7,  41.8,  42.9,  44.,   45.1,  46.2,  47.3,  48.4,  49.5,  50.6,  51.7,  52.8,
+         53.9,  55.,   56.1,  57.2,  58.3,  59.4,  60.5,  61.6,  62.7,  63.8,  64.9,  66.,   67.1,  68.2,  69.3,  70.4,
+         71.5,  72.6,  73.7,  74.8,  75.9,  77.,   78.1,  79.2,  80.3,  81.4,  82.5,  83.6,  84.7,  85.8,  86.9,  88.,
+         89.1,  90.2,  91.3,  92.4,  93.5,  94.6,  95.7,  96.8,  97.9,  99.,   100.1, 101.2, 102.3, 103.4, 104.5, 105.6,
+         106.7, 107.8, 108.9, 110.,  111.1, 112.2, 113.3, 114.4, 115.5, 116.6, 117.7, 118.8, 119.9, 121.,  122.1, 123.2,
+         124.3, 125.4, 126.5, 127.6, 128.7, 129.8, 130.9, 132.,  133.1, 134.2, 135.3, 136.4, 137.5, 138.6, 139.7, 140.8,
+         141.9, 143.,  144.1, 145.2, 146.3, 147.4, 148.5, 149.6, 150.7, 151.8, 152.9, 154.,  155.1, 156.2, 157.3, 158.4,
+         159.5, 160.6, 161.7, 162.8, 163.9, 165.,  166.1, 167.2, 168.3, 169.4, 170.5, 171.6, 172.7, 173.8, 174.9, 176.,
+         177.1, 178.2, 179.3, 180.4, 181.5, 182.6, 183.7, 184.8, 185.9, 187.,  188.1, 189.2, 190.3, 191.4, 192.5, 193.6,
+         194.7, 195.8, 196.9, 198.,  199.1, 200.2, 201.3, 202.4, 203.5, 204.6, 205.7, 206.8, 207.9, 209.,  210.1, 211.2,
+         212.3, 213.4, 214.5, 215.6, 216.7, 217.8, 218.9, 220.,  221.1, 222.2, 223.3, 224.4, 225.5, 226.6, 227.7, 228.8,
+         229.9, 231.,  232.1, 233.2, 234.3, 235.4, 236.5, 237.6});
+
+    test_case.add_input<float>({0, 0, 0.75, 2.2, 1.2, 0.5, 2.8, 1.9, 0, 3, 0, 3});
+
+    test_case.add_input<int64_t>({0, 2, 1});
+    test_case.add_expected_output<float>(
+        Shape{3, 2, 4, 4},
+        {2.145,     2.42,      2.6950002, 2.9700003, 3.96,      4.235,    4.51,      4.7850003, 5.775,     6.05,
+         6.325,     6.6000004, 7.59,      7.8650007, 8.14,      8.415001, 41.745003, 42.019997, 42.295,    42.57,
+         43.56,     43.835,    44.11,     44.385002, 45.375,    45.65,    45.925003, 46.200005, 47.190002, 47.465004,
+         47.74,     48.015,    162.77249, 163.0475,  163.32251, 163.5975, 164.42252, 164.69751, 164.9725,  165.2475,
+         166.07251, 166.3475,  166.6225,  166.8975,  167.72249, 167.9975, 168.27249, 168.5475,  202.3725,  202.6475,
+         202.9225,  203.19751, 204.02252, 204.2975,  204.57251, 204.8475, 205.6725,  205.94751, 206.2225,  206.4975,
+         207.32251, 207.5975,  207.8725,  208.1475,  91.162506, 91.4375,  91.7125,   91.9875,   92.8125,   93.0875,
+         93.3625,   93.6375,   94.4625,   94.7375,   95.0125,   95.28749, 96.1125,   96.3875,   96.6625,   96.9375,
+         130.76251, 131.0375,  131.3125,  131.5875,  132.4125,  132.6875, 132.9625,  133.2375,  134.0625,  134.33751,
+         134.6125,  134.88751, 135.7125,  135.9875,  136.26251, 136.53749});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_roialign16_avg_half_pixel) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/roialign16_avg_half_pixel.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        {1.1,   2.2,   3.3,   4.4,   5.5,   6.6,   7.7,   8.8,   9.9,   11.,   12.1,  13.2,  14.3,  15.4,  16.5,  17.6,
+         18.7,  19.8,  20.9,  22.,   23.1,  24.2,  25.3,  26.4,  27.5,  28.6,  29.7,  30.8,  31.9,  33.,   34.1,  35.2,
+         36.3,  37.4,  38.5,  39.6,  40.7,  41.8,  42.9,  44.,   45.1,  46.2,  47.3,  48.4,  49.5,  50.6,  51.7,  52.8,
+         53.9,  55.,   56.1,  57.2,  58.3,  59.4,  60.5,  61.6,  62.7,  63.8,  64.9,  66.,   67.1,  68.2,  69.3,  70.4,
+         71.5,  72.6,  73.7,  74.8,  75.9,  77.,   78.1,  79.2,  80.3,  81.4,  82.5,  83.6,  84.7,  85.8,  86.9,  88.,
+         89.1,  90.2,  91.3,  92.4,  93.5,  94.6,  95.7,  96.8,  97.9,  99.,   100.1, 101.2, 102.3, 103.4, 104.5, 105.6,
+         106.7, 107.8, 108.9, 110.,  111.1, 112.2, 113.3, 114.4, 115.5, 116.6, 117.7, 118.8, 119.9, 121.,  122.1, 123.2,
+         124.3, 125.4, 126.5, 127.6, 128.7, 129.8, 130.9, 132.,  133.1, 134.2, 135.3, 136.4, 137.5, 138.6, 139.7, 140.8,
+         141.9, 143.,  144.1, 145.2, 146.3, 147.4, 148.5, 149.6, 150.7, 151.8, 152.9, 154.,  155.1, 156.2, 157.3, 158.4,
+         159.5, 160.6, 161.7, 162.8, 163.9, 165.,  166.1, 167.2, 168.3, 169.4, 170.5, 171.6, 172.7, 173.8, 174.9, 176.,
+         177.1, 178.2, 179.3, 180.4, 181.5, 182.6, 183.7, 184.8, 185.9, 187.,  188.1, 189.2, 190.3, 191.4, 192.5, 193.6,
+         194.7, 195.8, 196.9, 198.,  199.1, 200.2, 201.3, 202.4, 203.5, 204.6, 205.7, 206.8, 207.9, 209.,  210.1, 211.2,
+         212.3, 213.4, 214.5, 215.6, 216.7, 217.8, 218.9, 220.,  221.1, 222.2, 223.3, 224.4, 225.5, 226.6, 227.7, 228.8,
+         229.9, 231.,  232.1, 233.2, 234.3, 235.4, 236.5, 237.6});
+
+    test_case.add_input<float>({0, 0, 0.75, 2.2, 1.2, 0.5, 2.8, 1.9, 0, 3, 0, 3});
+
+    test_case.add_input<int64_t>({0, 2, 1});
+    test_case.add_expected_output<float>(
+        Shape{3, 2, 4, 4},
+        {1.1,       1.1,       1.1,       1.1,       1.1,       1.1,       1.1,       1.1,       2.3375,    2.3375,
+         2.3375,    2.3375,    4.1525,    4.1525,    4.1525,    4.1525,    40.7,      40.7,      40.7,      40.7,
+         40.7,      40.7,      40.7,      40.7,      41.9375,   41.9375,   41.9375,   41.9375,   43.7525,   43.7525,
+         43.7525,   43.7525,   159.72,    159.94,    160.16,    160.38,    159.90562, 160.12563, 160.34563, 160.56563,
+         160.9575,  161.1775,  161.3975,  161.61751, 162.1125,  162.3325,  162.55249, 162.77249, 199.32,    199.54001,
+         199.76001, 199.97998, 199.50562, 199.72563, 199.94562, 200.16562, 200.5575,  200.7775,  200.9975,  201.2175,
+         201.7125,  201.93251, 202.1525,  202.37251, 86.9,      86.9,      86.9,      86.9,      86.9,      86.9,
+         86.9,      86.9,      86.9,      86.9,      86.9,      86.9,      86.9,      86.9,      86.9,      86.9,
+         126.5,     126.5,     126.5,     126.5,     126.5,     126.5,     126.5,     126.5,     126.5,     126.5,
+         126.5,     126.5,     126.5,     126.5,     126.5,     126.5});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern.onnx"));
@@ -4736,4 +4846,297 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_failsafe_node) {
     // the target shape is an empty constant so the Expand operation should not modify the input shape
     test_case.add_expected_output<float>(input_data);
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_fib_like) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_fib_like.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>(10, 1));
+
+    test_case.add_expected_output<float>(Shape{}, {55});
+    test_case.add_expected_output<float>(Shape{}, {89});
+    test_case.add_expected_output<float>(Shape{10}, {1., 2., 3., 5., 8., 13., 21., 34., 55., 89.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_fib_like_out_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_fib_like_out_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>(10, 1));
+
+    test_case.add_expected_output<float>(Shape{}, {55});
+    test_case.add_expected_output<float>(Shape{}, {89});
+    test_case.add_expected_output<float>(Shape{10}, {89., 55., 34., 21., 13., 8., 5., 3., 2., 1.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_fib_like_input_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_fib_like_input_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+
+    test_case.add_expected_output<float>(Shape{}, {0.14897026});
+    test_case.add_expected_output<float>(Shape{}, {0.});
+    test_case.add_expected_output<float>(
+        Shape{10},
+        {0.9, 1.52, 1.694, 1.9284, 1.8112, 1.4958401, 0.9921121, 0.49759045, 0.14897026, 0.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_fib_like_input_out_rev) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_fib_like_input_out_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{}, {0});
+    test_case.add_input<float>(Shape{}, {1});
+    test_case.add_input<float>(Shape{10}, std::vector<float>{0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+
+    test_case.add_expected_output<float>(Shape{}, {0.14897026});
+    test_case.add_expected_output<float>(Shape{}, {0.});
+    test_case.add_expected_output<float>(
+        Shape{10},
+        {0., 0.14897026, 0.49759045, 0.9921121, 1.4958401, 1.8112, 1.9284, 1.694, 1.52, 0.9});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_mixed_ones) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_ND_mixed.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0, 0, 0, 0, 0, 0});
+    test_case.add_input<float>(Shape{1, 3, 2}, {1, 1, 1, 1, 1, 1});
+    test_case.add_input<float>(Shape{1, 3, 5, 2}, std::vector<float>(30, 1));  // multiply by one
+    test_case.add_input<float>(Shape{1, 5, 3, 2}, std::vector<float>(30, 1));  // div by one
+
+    test_case.add_expected_output<float>(Shape{1, 3, 2}, {5., 5., 5., 5., 5., 5.});
+    test_case.add_expected_output<float>(Shape{1, 3, 2}, {8., 8., 8., 8., 8., 8.});
+    test_case.add_expected_output<float>(Shape{1, 3, 2, 5},
+                                         {8., 5., 3., 2., 1., 8., 5., 3., 2., 1., 8., 5., 3., 2., 1.,
+                                          8., 5., 3., 2., 1., 8., 5., 3., 2., 1., 8., 5., 3., 2., 1.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_mixed_vals) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_ND_mixed.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0, 0, 0, 0, 0, 0});
+    test_case.add_input<float>(Shape{1, 3, 2}, {1, 1, 1, 1, 1, 1});
+    std::vector<float> sequence_vals{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,  1.1, 1.2, 1.3, 1.4, 1.5,
+                                     1.6, 1.7, 1.8, 1.9, 2.,  2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.};
+    test_case.add_input<float>(Shape{1, 3, 5, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{1, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {2.7327938, 2.1428573, 21.070545, 16.92727, 49.765778, 41.444443});
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {0.40161943, 0.5274726, 16.80789, 14.025973, 59.98805, 50.518517});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 5},
+        {0.40161943, 2.7327938, 7.3076925, 10.,       9.,       0.5274726, 2.1428573, 4.714286,  6.,        5.,
+         16.80789,   21.070545, 20.185184, 13.851851, 6.333333, 14.025973, 16.92727,  15.799998, 10.799999, 5.,
+         59.98805,   49.765778, 33.074867, 16.690908, 5.8,      50.518517, 41.444443, 27.444445, 14.,       5.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_mixed_vals_neg_axes) {
+    // Negative indices for scan_input_axes and scan_output_axes attributes
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_ND_mixed_neg_axes.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0, 0, 0, 0, 0, 0});
+    test_case.add_input<float>(Shape{1, 3, 2}, {1, 1, 1, 1, 1, 1});
+    std::vector<float> sequence_vals{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,  1.1, 1.2, 1.3, 1.4, 1.5,
+                                     1.6, 1.7, 1.8, 1.9, 2.,  2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.};
+    test_case.add_input<float>(Shape{1, 3, 5, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{1, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {2.7327938, 2.1428573, 21.070545, 16.92727, 49.765778, 41.444443});
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {0.40161943, 0.5274726, 16.80789, 14.025973, 59.98805, 50.518517});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 5},
+        {0.40161943, 2.7327938, 7.3076925, 10.,       9.,       0.5274726, 2.1428573, 4.714286,  6.,        5.,
+         16.80789,   21.070545, 20.185184, 13.851851, 6.333333, 14.025973, 16.92727,  15.799998, 10.799999, 5.,
+         59.98805,   49.765778, 33.074867, 16.690908, 5.8,      50.518517, 41.444443, 27.444445, 14.,       5.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_dyn_rank_vals) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_dyn_rank.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2}, {0, 0, 0, 0, 0, 0});
+    test_case.add_input<float>(Shape{1, 3, 2}, {1, 1, 1, 1, 1, 1});
+    std::vector<float> sequence_vals{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,  1.1, 1.2, 1.3, 1.4, 1.5,
+                                     1.6, 1.7, 1.8, 1.9, 2.,  2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.};
+    test_case.add_input<float>(Shape{1, 3, 5, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{1, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {2.7327938, 2.1428573, 21.070545, 16.92727, 49.765778, 41.444443});
+    test_case.add_expected_output<float>(Shape{1, 3, 2},
+                                         {0.40161943, 0.5274726, 16.80789, 14.025973, 59.98805, 50.518517});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 5},
+        {0.40161943, 2.7327938, 7.3076925, 10.,       9.,       0.5274726, 2.1428573, 4.714286,  6.,        5.,
+         16.80789,   21.070545, 20.185184, 13.851851, 6.333333, 14.025973, 16.92727,  15.799998, 10.799999, 5.,
+         59.98805,   49.765778, 33.074867, 16.690908, 5.8,      50.518517, 41.444443, 27.444445, 14.,       5.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_dyn_rank_vals_neg_axes) {
+    // Negative indices for scan_input_axes and scan_output_axes attributes
+    try {
+        const auto function =
+            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_dyn_rank_neg_axes.onnx"));
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("Rank must be static in order to normalize negative axis"));
+    } catch (...) {
+        FAIL() << "Expected exception was not thrown.";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_b4_input_rev_vals) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan15_ND_b4_input_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 0));
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 1));
+    std::vector<float> sequence_vals{
+        0.1,  0.2, 0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1.,   1.1,  1.2,  1.3,  1.4,  1.5,  1.6,  1.7,  1.8,
+        1.9,  2.,  2.1,  2.2,  2.3,  2.4,  2.5,  2.6,  2.7,  2.8,  2.9,  3.,   3.1,  3.2,  3.3,  3.4,  3.5,  3.6,
+        3.7,  3.8, 3.9,  4.,   4.1,  4.2,  4.3,  4.4,  4.5,  4.6,  4.7,  4.8,  4.9,  5.,   5.1,  5.2,  5.3,  5.4,
+        5.5,  5.6, 5.7,  5.8,  5.9,  6.,   6.1,  6.2,  6.3,  6.4,  6.5,  6.6,  6.7,  6.8,  6.9,  7.,   7.1,  7.2,
+        7.3,  7.4, 7.5,  7.6,  7.7,  7.8,  7.9,  8.,   8.1,  8.2,  8.3,  8.4,  8.5,  8.6,  8.7,  8.8,  8.9,  9.,
+        9.1,  9.2, 9.3,  9.4,  9.5,  9.6,  9.7,  9.8,  9.9,  10.,  10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8,
+        10.9, 11., 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12.};
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(
+        Shape{4, 3, 2},
+        {61.210526, 33.2,      23.857145, 19.181818, 16.373913, 14.5,      6.8880844, 6.83,
+         6.7754016, 6.7239814, 6.6754713, 6.6296296, 5.9686656, 5.953226,  5.9382715, 5.9237804,
+         5.9097314, 5.896105,  5.652082,  5.645059,  5.638186,  5.6314588, 5.624872,  5.618421});
+    test_case.add_expected_output<float>(
+        Shape{4, 3, 2},
+        {6.271278, 6.2461543, 6.2433867, 6.2545457, 6.2744985, 6.3,       6.9531364, 6.970527,
+         6.987378, 7.003712,  7.019554,  7.034921,  7.30868,   7.3164845, 7.324116,  7.3315806,
+         7.338885, 7.346032,  7.485426,  7.489783,  7.494067,  7.49828,   7.5024257, 7.506502});
+    test_case.add_expected_output<float>(
+        Shape{5, 4, 3, 2},
+        {25.,       13.,       9.,        7.,        5.8,       5.,        1.7741936, 1.75,      1.7272727, 1.7058823,
+         1.6857144, 1.6666667, 1.3934426, 1.3870969, 1.3809522, 1.375,     1.3692307, 1.3636364, 1.2637362, 1.2608696,
+         1.2580644, 1.2553192, 1.2526315, 1.25,      70.57143,  35.,       23.333334, 17.6,      14.218181, 12.,
+         3.6739323, 3.618421,  3.5664334, 3.5176468, 3.471777,  3.4285717, 2.822119,  2.8083491, 2.7950313, 2.7821426,
+         2.7696643, 2.757576,  2.543786,  2.5377107, 2.5317693, 2.5259573, 2.520271,  2.514706,  95.57143,  47.999996,
+         32.333336, 24.6,      20.01818,  17.,       5.448126,  5.368421,  5.293706,  5.223529,  5.157491,  5.0952387,
+         4.215562,  4.195446,  4.1759834, 4.1571426, 4.138895,  4.1212125, 3.8075223, 3.7985802, 3.7898335, 3.7812767,
+         3.7729027, 3.764706,  61.210526, 33.2,      23.857145, 19.181818, 16.373913, 14.5,      6.8880844, 6.83,
+         6.7754016, 6.7239814, 6.6754713, 6.6296296, 5.9686656, 5.953226,  5.9382715, 5.9237804, 5.9097314, 5.896105,
+         5.652082,  5.645059,  5.638186,  5.6314588, 5.624872,  5.618421,  6.271278,  6.2461543, 6.2433867, 6.2545457,
+         6.2744985, 6.3,       6.9531364, 6.970527,  6.987378,  7.003712,  7.019554,  7.034921,  7.30868,   7.3164845,
+         7.324116,  7.3315806, 7.338885,  7.346032,  7.485426,  7.489783,  7.494067,  7.49828,   7.5024257, 7.506502});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_ones) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan8_ND_b4.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 0));
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 1));
+    std::vector<float> sequence_vals(120, 1);
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // multiply by one
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // div by one
+
+    test_case.add_expected_output<float>(Shape{4, 3, 2}, {5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.,
+                                                          5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5., 5.});
+    test_case.add_expected_output<float>(Shape{4, 3, 2}, {8., 8., 8., 8., 8., 8., 8., 8., 8., 8., 8., 8.,
+                                                          8., 8., 8., 8., 8., 8., 8., 8., 8., 8., 8., 8.});
+    test_case.add_expected_output<float>(
+        Shape{4, 5, 3, 2},
+        {1., 1., 1., 1., 1., 1., 2., 2., 2., 2., 2., 2., 3., 3., 3., 3., 3., 3., 5., 5., 5., 5., 5., 5.,
+         8., 8., 8., 8., 8., 8., 1., 1., 1., 1., 1., 1., 2., 2., 2., 2., 2., 2., 3., 3., 3., 3., 3., 3.,
+         5., 5., 5., 5., 5., 5., 8., 8., 8., 8., 8., 8., 1., 1., 1., 1., 1., 1., 2., 2., 2., 2., 2., 2.,
+         3., 3., 3., 3., 3., 3., 5., 5., 5., 5., 5., 5., 8., 8., 8., 8., 8., 8., 1., 1., 1., 1., 1., 1.,
+         2., 2., 2., 2., 2., 2., 3., 3., 3., 3., 3., 3., 5., 5., 5., 5., 5., 5., 8., 8., 8., 8., 8., 8.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_input_rev_vals) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan8_ND_b4_input_rev.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 0));
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 1));
+    std::vector<float> sequence_vals{
+        0.1,  0.2, 0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1.,   1.1,  1.2,  1.3,  1.4,  1.5,  1.6,  1.7,  1.8,
+        1.9,  2.,  2.1,  2.2,  2.3,  2.4,  2.5,  2.6,  2.7,  2.8,  2.9,  3.,   3.1,  3.2,  3.3,  3.4,  3.5,  3.6,
+        3.7,  3.8, 3.9,  4.,   4.1,  4.2,  4.3,  4.4,  4.5,  4.6,  4.7,  4.8,  4.9,  5.,   5.1,  5.2,  5.3,  5.4,
+        5.5,  5.6, 5.7,  5.8,  5.9,  6.,   6.1,  6.2,  6.3,  6.4,  6.5,  6.6,  6.7,  6.8,  6.9,  7.,   7.1,  7.2,
+        7.3,  7.4, 7.5,  7.6,  7.7,  7.8,  7.9,  8.,   8.1,  8.2,  8.3,  8.4,  8.5,  8.6,  8.7,  8.8,  8.9,  9.,
+        9.1,  9.2, 9.3,  9.4,  9.5,  9.6,  9.7,  9.8,  9.9,  10.,  10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8,
+        10.9, 11., 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12.};
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // div factor
+
+    test_case.add_expected_output<float>(
+        Shape{4, 3, 2},
+        {61.210526, 33.2,      23.857145, 19.181818, 16.373913, 14.5,      6.8880844, 6.83,
+         6.7754016, 6.7239814, 6.6754713, 6.6296296, 5.9686656, 5.953226,  5.9382715, 5.9237804,
+         5.9097314, 5.896105,  5.652082,  5.645059,  5.638186,  5.6314588, 5.624872,  5.618421});
+    test_case.add_expected_output<float>(
+        Shape{4, 3, 2},
+        {6.271278, 6.2461543, 6.2433867, 6.2545457, 6.2744985, 6.3,       6.9531364, 6.970527,
+         6.987378, 7.003712,  7.019554,  7.034921,  7.30868,   7.3164845, 7.324116,  7.3315806,
+         7.338885, 7.346032,  7.485426,  7.489783,  7.494067,  7.49828,   7.5024257, 7.506502});
+    test_case.add_expected_output<float>(
+        Shape{4, 5, 3, 2},
+        {25.,       13.,       9.,        7.,        5.8,       5.,        70.57143,  35.,       23.333334, 17.6,
+         14.218181, 12.,       95.57143,  47.999996, 32.333336, 24.6,      20.01818,  17.,       61.210526, 33.2,
+         23.857145, 19.181818, 16.373913, 14.5,      6.271278,  6.2461543, 6.2433867, 6.2545457, 6.2744985, 6.3,
+         1.7741936, 1.75,      1.7272727, 1.7058823, 1.6857144, 1.6666667, 3.6739323, 3.618421,  3.5664334, 3.5176468,
+         3.471777,  3.4285717, 5.448126,  5.368421,  5.293706,  5.223529,  5.157491,  5.0952387, 6.8880844, 6.83,
+         6.7754016, 6.7239814, 6.6754713, 6.6296296, 6.9531364, 6.970527,  6.987378,  7.003712,  7.019554,  7.034921,
+         1.3934426, 1.3870969, 1.3809522, 1.375,     1.3692307, 1.3636364, 2.822119,  2.8083491, 2.7950313, 2.7821426,
+         2.7696643, 2.757576,  4.215562,  4.195446,  4.1759834, 4.1571426, 4.138895,  4.1212125, 5.9686656, 5.953226,
+         5.9382715, 5.9237804, 5.9097314, 5.896105,  7.30868,   7.3164845, 7.324116,  7.3315806, 7.338885,  7.346032,
+         1.2637362, 1.2608696, 1.2580644, 1.2553192, 1.2526315, 1.25,      2.543786,  2.5377107, 2.5317693, 2.5259573,
+         2.520271,  2.514706,  3.8075223, 3.7985802, 3.7898335, 3.7812767, 3.7729027, 3.764706,  5.652082,  5.645059,
+         5.638186,  5.6314588, 5.624872,  5.618421,  7.485426,  7.489783,  7.494067,  7.49828,   7.5024257, 7.506502});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_seq_lens) {
+    // ONNX Scan-8 can has optional `sequence_lens` input, the input was removed since ONNX Scan-9
+    try {
+        const auto function =
+            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scan8_ND_b4_seq_lens.onnx"));
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string(" ONNX Scan-8 `sequence_lens` input is not supported. "));
+    } catch (...) {
+        FAIL() << "Expected exception was not thrown.";
+    }
 }

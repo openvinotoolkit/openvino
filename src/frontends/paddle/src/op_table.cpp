@@ -96,6 +96,7 @@ OP_CONVERTER(where);
 OP_CONVERTER(while_);
 OP_CONVERTER(write_to_array);
 OP_CONVERTER(yolo_box);
+OP_CONVERTER(generate_proposals_v2);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
@@ -135,6 +136,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"floor", op::floor},
             {"gather", op::gather},
             {"gelu", op::gelu},
+            {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
             {"hard_sigmoid", op::hard_sigmoid},

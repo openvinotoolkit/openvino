@@ -11,14 +11,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
 endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-set(OV_ONNX_NAMESPACE ngraph_onnx)
-
-if(ENABLE_TESTS)
-    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-    if (ENABLE_OV_ONNX_FRONTEND)
-        add_subdirectory(onnx_test_util)
-    endif()
-endif()
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
     message(STATUS "nGraph unit tests disabled")
@@ -135,6 +127,7 @@ set(SRC
     type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
+    type_prop/generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
     type_prop/strided_slice.cpp
@@ -145,6 +138,7 @@ set(SRC
     type_prop/extractimagepatches.cpp
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
+    type_prop/eye.cpp
     type_prop/fake_quantize.cpp
     type_prop/floor.cpp
     type_prop/floor_mod.cpp
@@ -237,6 +231,7 @@ set(SRC
     type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
+    type_prop/softsign.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
@@ -304,8 +299,10 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/generate_proposals.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
+    visitors/op/eye.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -401,6 +398,7 @@ set(SRC
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
+    visitors/op/softsign.cpp
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
@@ -501,30 +499,6 @@ set(OP_EVAL_TEST_SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp)
 
-if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND MULTI_TEST_SRC
-            onnx/onnx_import.in.cpp
-            onnx/onnx_import_com_microsoft.in.cpp
-            onnx/onnx_import_controlflow.in.cpp
-            onnx/onnx_import_const_folding.in.cpp
-            onnx/onnx_import_convpool.in.cpp
-            onnx/onnx_import_deprecated.in.cpp
-            onnx/onnx_import_dyn_shapes.in.cpp
-            onnx/onnx_import_external_data.in.cpp
-            onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_reshape.in.cpp
-            onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp
-            onnx/onnx_test_utils.in.cpp
-            onnx/onnx_import_with_editor.in.cpp)
-    list(APPEND SRC
-            onnx/onnx_import_exceptions.cpp
-            onnx/onnx_import_library.cpp
-            onnx/onnx_tensor_names.cpp
-            onnx/onnx_transformations.cpp
-            onnx/onnx_editor.cpp)
-endif()
-
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp
@@ -594,34 +568,12 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         openvino::conditional_compilation
                                         openvino::runtime::dev)
 
-# Protobuf-lite does not support parsing files from prototxt format
-# Since most of the onnx models are stored in this format it have to be disabled
 if (ENABLE_OV_ONNX_FRONTEND)
-    # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
-    # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(ov_core_unit_tests
-        SYSTEM PRIVATE
-            $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-            ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(ov_core_unit_tests
-        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
     target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
     target_compile_options(ov_core_unit_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
-endif()
-
-if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR openvino_onnx_frontend SOURCE_DIR)
-    target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE openvino_onnx_frontend onnx_test_util)
-    if (LINUX)
-        target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
-    elseif(APPLE)
-        target_link_options(ov_core_unit_tests PRIVATE -Wl,-dead_strip)
-    endif()
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
