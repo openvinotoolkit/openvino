@@ -582,13 +582,15 @@ ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char **friendly_
     return ov_status_e::OK;
 }
 
-void ov_output_nodes_free(ov_output_node_list_t *output_nodes) {
-    if (!output_nodes) {
-        return;
+void ov_output_node_list_free(ov_output_node_list_t *output_nodes) {
+    if (output_nodes) {
+        delete[] output_nodes->output_nodes;
+        output_nodes->output_nodes = nullptr;
     }
-    delete[] output_nodes->output_nodes;
-    delete output_nodes;
-    output_nodes = nullptr;
+}
+
+void ov_output_node_free(ov_output_node_t *output_node) {
+    delete output_node;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,

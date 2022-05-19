@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char* ov_partial_shape_t[4];
+typedef const char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
@@ -592,7 +592,13 @@ OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, 
  * @brief free ov_output_node_list_t
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
  */
-OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
+OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_nodes);
+
+/**
+ * @brief free ov_output_node_t
+ * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ */
+OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
 
 /**
  * @brief Create a ov_preprocess_t instance. 
