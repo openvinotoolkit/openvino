@@ -30,9 +30,6 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         case format::bfyx:
             output_format = format::get_default_format(dims_converted.size());
             break;
-        case format::b_fs_yx_fsv4:
-            // output_format = format::b_fs_zyx_fsv4;
-            break;
         case format::b_fs_yx_fsv16:
             output_format = format::b_fs_zyx_fsv16;
             break;
