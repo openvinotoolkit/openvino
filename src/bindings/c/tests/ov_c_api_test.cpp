@@ -653,7 +653,7 @@ TEST(ov_preprocess, ov_preprocess_get_output_info_by_name) {
     ASSERT_NE(nullptr, preprocess);
 
     ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_name(preprocess, "prob", &output_info));
+    OV_ASSERT_OK(ov_preprocess_get_output_info_by_name(preprocess, "fc_out", &output_info));
     ASSERT_NE(nullptr, output_info);
 
     ov_preprocess_output_info_free(output_info);
