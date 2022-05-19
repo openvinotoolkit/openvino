@@ -735,6 +735,7 @@ TEST_P(ov_infer_request, infer) {
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
+    ov_tensor_free(output_tensor);
     ov_tensor_free(input_tensor);
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
@@ -794,12 +795,19 @@ TEST_P(ov_infer_request, infer_ppp) {
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
-    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
-    ov_preprocess_input_info_free(preprocess_input_info);
-    ov_preprocess_free(preprocess);
+    void *output_buffer = nullptr;
+    OV_EXPECT_OK(ov_tensor_get_data(output_tensor, &output_buffer));
+    EXPECT_NE(nullptr, output_buffer);
+    float *output_data = (float*)output_buffer;
+    EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+
+    ov_tensor_free(output_tensor);
     ov_tensor_free(input_tensor);
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
+    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
+    ov_preprocess_input_info_free(preprocess_input_info);
+    ov_preprocess_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -837,14 +845,15 @@ TEST_P(ov_infer_request, infer_async) {
 
     OV_EXPECT_OK(ov_infer_request_start_async(infer_request));
 
+    ov_tensor_t *output_tensor = nullptr;
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
 
-        ov_tensor_t *output_tensor = nullptr;
         OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
 
+    ov_tensor_free(output_tensor);
     ov_tensor_free(input_tensor);
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
@@ -906,25 +915,32 @@ TEST_P(ov_infer_request, infer_async_ppp) {
 
         OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
+
+        void *output_buffer = nullptr;
+        OV_EXPECT_OK(ov_tensor_get_data(output_tensor, &output_buffer));
+        EXPECT_NE(nullptr, output_buffer);
+        float *output_data = (float*)output_buffer;
+        EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
     }
 
-    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
-    ov_preprocess_input_info_free(preprocess_input_info);
-    ov_preprocess_free(preprocess);
     ov_tensor_free(output_tensor);
     ov_tensor_free(input_tensor);
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
+    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
+    ov_preprocess_input_info_free(preprocess_input_info);
+    ov_preprocess_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-void infer_callback(void *args) {
+void infer_request_callback(void *args) {
     ov_infer_request_t *infer_request = (ov_infer_request_t *)args;
     ov_tensor_t *output_tensor = nullptr;
 
     printf("async infer callback...\n");
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
+    EXPECT_NE(nullptr, output_tensor);
 
     ov_tensor_free(output_tensor);
 
@@ -961,7 +977,7 @@ TEST_P(ov_infer_request, infer_request_set_callback) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
 
     ov_call_back_t callback;
-    callback.callback_func = infer_callback;
+    callback.callback_func = infer_request_callback;
     callback.args = infer_request;
 
     OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
@@ -976,6 +992,94 @@ TEST_P(ov_infer_request, infer_request_set_callback) {
     ov_tensor_free(input_tensor);
     ov_infer_request_free(infer_request);
     ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_infer_request, get_profiling_info) {
+    auto device_name = GetParam();
+    ov_core_t *core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t *model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_t *preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t *preprocess_input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_get_input_info_by_name(preprocess, "data", &preprocess_input_info));
+    EXPECT_NE(nullptr, preprocess_input_info);
+
+    ov_preprocess_input_tensor_info_t *preprocess_input_tensor_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_get_tensor_info(preprocess_input_info, &preprocess_input_tensor_info));
+    EXPECT_NE(nullptr, preprocess_input_tensor_info);
+
+    const ov_element_type_e element_type = U8;
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(preprocess_input_tensor_info, element_type));
+    
+    OV_ASSERT_OK(ov_preprocess_build(preprocess, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t *compiled_model = nullptr;
+    ov_property_t property = {};
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_infer_request_t *infer_request = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+    EXPECT_NE(nullptr, infer_request);
+
+    cv::Mat image = cv::imread(input_image);
+    ov_tensor_t *input_tensor = nullptr;
+
+    OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "data", &input_tensor));
+    EXPECT_NE(nullptr, input_tensor);
+    mat_2_tensor(image, input_tensor);
+
+    OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, "data", input_tensor));
+
+    OV_EXPECT_OK(ov_infer_request_infer(infer_request));
+
+    ov_tensor_t *output_tensor = nullptr;
+    OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, "fc_out", &output_tensor));
+    EXPECT_NE(nullptr, output_tensor);
+
+    void *output_buffer = nullptr;
+    OV_EXPECT_OK(ov_tensor_get_data(output_tensor, &output_buffer));
+    EXPECT_NE(nullptr, output_buffer);
+    float *output_data = (float*)output_buffer;
+    EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+
+    ov_profiling_info_list_t profiling_infos;
+    profiling_infos.num = 0;
+    profiling_infos.profiling_infos = nullptr;
+    OV_EXPECT_OK(ov_infer_request_get_profiling_info(infer_request, &profiling_infos));
+    EXPECT_NE(0, profiling_infos.num);
+    EXPECT_NE(nullptr, profiling_infos.profiling_infos);
+
+    std::cout << "profiling infor: " << profiling_infos.num << std::endl;
+    for (int i = 0; i < profiling_infos.num; i++) {
+        std::cout << "i " << i << std::endl;
+        std::cout << "status " << profiling_infos.profiling_infos[i].status << std::endl;
+        std::cout << "real_time " << profiling_infos.profiling_infos[i].real_time << std::endl;
+        std::cout << "cpu_time " << profiling_infos.profiling_infos[i].cpu_time << std::endl;
+        std::cout << "node_name " << profiling_infos.profiling_infos[i].node_name << std::endl;
+        std::cout << "exec_type " << profiling_infos.profiling_infos[i].exec_type << std::endl;
+        std::cout << "node_type " << profiling_infos.profiling_infos[i].node_type << std::endl;
+    }
+
+    ov_profiling_info_list_free(&profiling_infos);
+    ov_tensor_free(output_tensor);
+    ov_tensor_free(input_tensor);
+    ov_infer_request_free(infer_request);
+    ov_compiled_model_free(compiled_model);
+    ov_preprocess_input_tensor_info_free(preprocess_input_tensor_info);
+    ov_preprocess_input_info_free(preprocess_input_info);
+    ov_preprocess_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }

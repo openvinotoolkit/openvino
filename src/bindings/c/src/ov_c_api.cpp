@@ -1075,7 +1075,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
     }
 
     try {
-        auto func = [&](std::exception_ptr ex) {
+        auto func = [=](std::exception_ptr ex) {
             callback->callback_func(callback->args);
         };
         infer_request->object->set_callback(func);
