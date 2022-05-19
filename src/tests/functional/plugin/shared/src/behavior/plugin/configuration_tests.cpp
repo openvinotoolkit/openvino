@@ -186,4 +186,9 @@ TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     }
 }
 
+TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
+    ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
 } // namespace BehaviorTestsDefinitions

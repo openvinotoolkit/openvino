@@ -191,5 +191,6 @@ using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
+using ExclusiveAsyncReqTests = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions
