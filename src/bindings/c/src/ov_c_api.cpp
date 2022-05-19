@@ -546,14 +546,17 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     }
     try {
         std::vector<ngraph::Dimension> shape;
+        bool partial = false;
         for (int i = 0; i < 4; i++) {
             std::string dim = partial_shape[i];
             if (dim == "?" || dim == "-1") {
+                partial = true;
                 shape.push_back(ov::Dimension::dynamic());
             } else {
                 const std::string range_divider = "..";
                 size_t range_index = dim.find(range_divider);
                 if (range_index != std::string::npos) {
+                    partial = true;
                     std::string min = dim.substr(0, range_index);
                     std::string max = dim.substr(range_index + range_divider.length());
                     shape.emplace_back(min.empty() ? 0 : std::stoi(min),
@@ -562,6 +565,9 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
                     shape.emplace_back(std::stoi(dim));
                 }
             }
+        }
+        if (!partial) {
+            return ov_status_e::PARAMETER_MISMATCH;
         }
 
         std::map<std::string, ov::PartialShape> const_pshape;
