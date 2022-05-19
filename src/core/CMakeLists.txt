@@ -9,6 +9,7 @@ endif()
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(OV_FRONTEND_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../frontends/common/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -113,6 +114,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+				      PUBLIC $<BUILD_INTERFACE:${OV_FRONTEND_INCLUDE_PATH}>
                                       PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ngraph INTERFACE)

@@ -119,7 +119,7 @@ public:
     /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
 
-    std::shared_ptr<frontend::FrontEndManager> m_femrg;
+    std::shared_ptr<frontend::FrontEndManager> m_femgr;
 
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();

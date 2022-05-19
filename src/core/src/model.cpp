@@ -193,7 +193,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::prerequirements");
 
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
-    m_femrg = ov::frontend::get_frontend_manager();
+    m_femgr = ov::frontend::get_frontend_manager();
 
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
