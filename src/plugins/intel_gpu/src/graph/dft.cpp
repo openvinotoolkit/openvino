@@ -1,11 +1,11 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <dft_inst.h>
 #include <primitive_type_base.h>
 
-#include "lexical_cast.hpp"
+#include "json_object.h"
 
 namespace cldnn {
 
@@ -32,7 +32,9 @@ layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node) {
 std::string typed_primitive_inst<dft>::to_string(const dft_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    return lexical_cast(*node_info);
+    std::ostringstream os;
+    node_info->dump(os);
+    return os.str();
 }
 
 }  // namespace cldnn

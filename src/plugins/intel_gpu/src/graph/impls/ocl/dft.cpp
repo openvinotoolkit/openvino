@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         }
         auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
 
-        auto& kernel_selector = kernel_selector::dft_instance();
+        auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
         CLDNN_ERROR_BOOL(arg.id(),

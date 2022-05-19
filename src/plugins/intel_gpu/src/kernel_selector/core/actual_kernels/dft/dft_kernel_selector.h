@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,11 @@
 
 namespace kernel_selector {
 
-kernel_selector_base& dft_instance();
+class dft_kernel_selector : public kernel_selector_base {
+public:
+    dft_kernel_selector();
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    static dft_kernel_selector& Instance();
+};
 
 }  // namespace kernel_selector

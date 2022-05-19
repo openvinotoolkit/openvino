@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,22 +7,16 @@
 #include "dft_kernel_ref.h"
 
 namespace kernel_selector {
-namespace {
 
-class dft_kernel_selector : public kernel_selector_base {
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override {
-        return GetNaiveBestKernel(params, options, KernelType::DFT);
-    }
+dft_kernel_selector::dft_kernel_selector() {
+    Attach<DFTKernelRef>();
+}
 
-public:
-    dft_kernel_selector() {
-        Attach<DFTKernelRef>();
-    }
-};
+KernelsData dft_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::DFT);
+}
 
-}  // namespace
-
-kernel_selector_base& dft_instance() {
+dft_kernel_selector& dft_kernel_selector::Instance() {
     static dft_kernel_selector instance;
     return instance;
 }
