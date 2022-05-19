@@ -23,6 +23,7 @@
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/maximum.hpp>
@@ -33,6 +34,8 @@
 #include <ngraph/op/prelu.hpp>
 #include <ngraph/op/result.hpp>
 #include <common_test_utils/ngraph_test_utils.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/core/node_vector.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -750,8 +753,8 @@ TEST(CNNNGraphImplTests, ReadMeanImageFromCNNNetReader) {
     auto f = network.getFunction();
 
     std::shared_ptr<ngraph::Function> f_ref;
-    {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
+    {
         auto mean_image = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 22, 22}, {1});
         auto sub = std::make_shared<ngraph::opset1::Subtract>(data, mean_image);
         auto relu = std::make_shared<ngraph::opset1::Relu>(sub);
@@ -1946,6 +1949,50 @@ TEST(CNNNGraphImplTests, CheckNonUniqueNewResultName) {
     CNNNetwork cnnNet;
     ASSERT_NO_THROW(cnnNet = InferenceEngine::CNNNetwork{f});
     ASSERT_THROW(cnnNet.addOutput("nms", 1), InferenceEngine::Exception);
+}
+
+TEST(CNNNGraphImplTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
+    CNNNetwork network;
+
+    auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{}, 10);
+    auto condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{}, true);
+
+    auto a = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    auto ai = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    auto b = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{2});
+    auto b_broadcast = std::make_shared<ov::opset8::Broadcast>(b, ov::opset8::Constant::create(ngraph::element::i64, {2}, {0, 2}));
+    auto bi = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{0, 2});
+    {
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{ai, bi}, 0);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{condition, concat}, ov::ParameterVector{ai, bi});
+        auto loop = std::make_shared<ov::opset8::Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
+        loop->set_invariant_input(ai, a);
+        loop->set_invariant_input(bi, b_broadcast);
+
+        auto loop_res = std::make_shared<ov::opset8::Result>(loop->get_iter_value(concat));
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{loop_res}, ov::ParameterVector{a, b});
+
+        network = CNNNetwork(model);
+    }
+    {
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{ai}, 0);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{condition, concat}, ov::ParameterVector{ai});
+        auto loop = std::make_shared<ov::opset8::Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
+        loop->set_invariant_input(ai, a);
+
+        auto loop_res = std::make_shared<ov::opset8::Result>(loop->get_iter_value(concat));
+        auto model_ref = std::make_shared<ov::Model>(ov::OutputVector{loop_res}, ov::ParameterVector{a, b});
+
+        const auto fc = FunctionsComparator::with_default()
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::CONST_VALUES);
+        const auto res = fc.compare(network.getFunction(), model_ref);
+        EXPECT_TRUE(res.valid) << res.message;
+    }
 }
 
 IE_SUPPRESS_DEPRECATED_END
