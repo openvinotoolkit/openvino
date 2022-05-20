@@ -1,4 +1,4 @@
-# Integrate OpenVINO™ with Your Application {#openvino_docs_Integrate_OV_with_your_application}
+# Integrate OpenVINO™ with Your Application {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
 
 @sphinxdirective
 
@@ -6,13 +6,13 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_Runtime_UG_Model_Representation
-   openvino_docs_OV_Runtime_UG_Infer_request
-   openvino_docs_OV_Runtime_UG_Python_API_exclusives
+   openvino_docs_OV_UG_Model_Representation
+   openvino_docs_OV_UG_Infer_request
+   openvino_docs_OV_UG_Python_API_exclusives
 
 @endsphinxdirective
 
-> **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
+> **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. To do so, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
 > * [For Windows* 10](../install_guides/installing-openvino-windows.md)
 > * [For Linux*](../install_guides/installing-openvino-linux.md)
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
@@ -20,7 +20,7 @@
 
 ## Use OpenVINO™ Runtime API to Implement Inference Pipeline
 
-This section provides step-by-step instructions to implement a typical inference pipeline with the OpenVINO™ Runtime C++ API:
+This section provides step-by-step instructions to implement a typical inference pipeline with the OpenVINO™ Runtime C++ or Python API:
 
 ![ie_api_use_cpp]
 
@@ -64,7 +64,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 ### Step 2. Compile the Model
 
-`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index, this approach is aligned with the majority of frameworks.
+`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
 
 Compile the model for a specific device using `ov::Core::compile_model()`:
 
@@ -185,7 +185,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 ### Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
+OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate: instead of waiting for inference to complete, the app can keep working on the host while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
 @sphinxtabset
 
@@ -203,7 +203,7 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 @endsphinxtabset
 
-This section demonstrates a simple pipeline, to get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
+This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
 ### Step 6. Process the Inference Results 
 
@@ -253,16 +253,20 @@ cd build/
 cmake ../project
 cmake --build .
 ```
-It's allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
+You can also specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
 
 ## Run Your Application
 
 Congratulations, you have made your first application with OpenVINO™ toolkit, now you may run it.
 
-## See also
 
+## Additional Resources
+
+ - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
+ - [OpenVINO Samples](Samples_Overview.md)
+ - [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html)
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg

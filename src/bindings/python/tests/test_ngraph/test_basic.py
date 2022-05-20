@@ -9,12 +9,10 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import OVAny
-
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
-from openvino.runtime import Tensor
+from openvino.runtime import Tensor, OVAny
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
@@ -243,7 +241,7 @@ def test_bad_data_shape():
 
     value_a = np.array([[1, 2]], dtype=np.float32)
     value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-    with pytest.raises(UserInputError):
+    with pytest.raises(RuntimeError):
         computation(value_a, value_b)
 
 
@@ -325,6 +323,30 @@ def test_set_argument():
     node_add.set_arguments([node1, node2])
     output = computation()
     assert np.allclose(data1 + data2, output)
+
+
+def test_clone_model():
+    # Create an original model
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    # Make copies of it
+    model_copy1 = ov.utils.clone_model(model_original)
+    model_copy2 = model_original.clone()
+
+    # Make changes to the copied models' inputs
+    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
+    model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
+
+    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
+    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
+    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
+
+    assert original_model_shapes != model_copy1_shapes
+    assert original_model_shapes != model_copy2_shapes
+    assert model_copy1_shapes == model_copy2_shapes
 
 
 def test_result():

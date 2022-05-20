@@ -261,7 +261,6 @@ bool program::analyze_output_size_handling_need() {
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -282,7 +281,7 @@ bool program::analyze_output_size_handling_need() {
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
@@ -509,6 +508,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_primitive_fusing_through>();
+
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
@@ -877,13 +878,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node);
+        user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
 
@@ -967,7 +968,7 @@ bool program::remove_if_dangling(program_node& node) {
     return true;
 }
 
-bool program::extract_and_remove(program_node& node) {
+bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
@@ -1006,13 +1007,32 @@ bool program::extract_and_remove(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input);
-    else
-        remove_if_dangling(node);
+        replace_all_usages(node, input, false);
+
+    if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
+        processing_order.erase(&node);
 
     return true;
 }
 
+bool program::extract_and_remove(program_node& node) {
+    if (extract(node)) {
+        return remove_if_dangling(node);
+    }
+
+    return false;
+}
+
+bool program::move_node(program_node& node,
+                        program_node& new_prev,
+                        program_node& new_next) {
+    if (extract(node)) {
+        add_intermediate(node, new_next, new_prev);
+        return true;
+    }
+
+    return false;
+}
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,

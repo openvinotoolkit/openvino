@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
@@ -18,8 +19,6 @@
 #include "pyopenvino/graph/rt_map.hpp"
 
 namespace py = pybind11;
-
-static const char* CAPSULE_NAME = "openvino_function";
 
 using PyRTMap = ov::RTMap;
 
@@ -46,75 +45,75 @@ ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>&
 }
 
 void regclass_graph_Model(py::module m) {
-    py::class_<ov::Model, std::shared_ptr<ov::Model>> function(m, "Model", py::module_local());
-    function.doc() = "openvino.runtime.Model wraps ov::Model";
+    py::class_<ov::Model, std::shared_ptr<ov::Model>> model(m, "Model", py::module_local());
+    model.doc() = "openvino.runtime.Model wraps ov::Model";
 
-    function.def(py::init([](const ov::ResultVector& res,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& params,
-                             const std::string& name) {
-                     set_tensor_names(params);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(res, sinks, params, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("name"),
-                 R"(
+    model.def(py::init([](const ov::ResultVector& res,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& params,
+                          const std::string& name) {
+                  set_tensor_names(params);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(res, sinks, params, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name"),
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of results.
                     :type results: List[op.Result]
                     :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[Node]
+                    :type sinks: List[openvino.runtime.Node]
                     :param parameters: List of parameters.
                     :type parameters: List[op.Parameter]
-                    :param name: String to set as function's friendly name.
+                    :param name: String to set as model's friendly name.
                     :type name: str
                  )");
 
-    function.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param results: List of Nodes to be used as results.
-                    :type results: List[Node]
+                    :type results: List[openvino.runtime.Node]
                     :param parameters: List of parameters.
                     :type parameters:  List[op.Parameter]
-                    :param name: String to set as function's friendly name.
+                    :param name: String to set as model's friendly name.
                     :type name: str
                  )");
 
-    function.def(py::init([](const std::shared_ptr<ov::Node>& result,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(result, parameters, name);
-                 }),
-                 py::arg("result"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const std::shared_ptr<ov::Node>& result,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(result, parameters, name);
+              }),
+              py::arg("result"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
                     Create user-defined Model which is a representation of a model.
 
                     :param result: Node to be used as result.
-                    :type result: Node
+                    :type result: openvino.runtime.Node
                     :param parameters: List of parameters.
                     :type parameters: List[op.Parameter]
-                    :param name: String to set as function's friendly name.
+                    :param name: String to set as model's friendly name.
                     :type name: str
                  )");
 
-    function.def(
+    model.def(
         py::init([](const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name) {
             set_tensor_names(parameters);
             return std::make_shared<ov::Model>(results, parameters, name);
@@ -126,103 +125,103 @@ void regclass_graph_Model(py::module m) {
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[Output]
+            :type results: List[openvino.runtime.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
-            :param name: String to set as function's friendly name.
+            :param name: String to set as model's friendly name.
             :type name: str
         )");
 
-    function.def(py::init([](const ov::OutputVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const ov::OutputVector& results,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
-            :type results: List[Output]
+            :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[Node]
-            :param name: String to set as function's friendly name.
+            :type sinks: List[openvino.runtime.Node]
+            :param name: String to set as model's friendly name.
             :type name: str
             )");
-    function.def(py::init([](const ov::ResultVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const ov::ResultVector& results,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
             :type results: List[op.Result]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[Node]
+            :type sinks: List[openvino.runtime.Node]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
             :param variables: List of variables.
             :type variables: List[op.util.Variable]
-            :param name: String to set as function's friendly name.
+            :param name: String to set as model's friendly name.
             :type name: str
             )");
 
-    function.def(py::init([](const ov::OutputVector& results,
-                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     const auto sinks = cast_to_sink_vector(nodes);
-                     return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const ov::OutputVector& results,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[Output]
+            :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[Node]
+            :type sinks: List[openvino.runtime.Node]
             :param variables: List of variables.
             :type variables: List[op.util.Variable]
-            :param name: String to set as function's friendly name.
+            :param name: String to set as model's friendly name.
             :type name: str
         )");
 
-    function.def(py::init([](const ov::ResultVector& results,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -231,83 +230,105 @@ void regclass_graph_Model(py::module m) {
             :type parameters: List[op.Parameter]
             :param variables: List of variables.
             :type variables: List[op.util.Variable]
-            :param name: String to set as function's friendly name.
+            :param name: String to set as model's friendly name.
             :type name: str
         )");
 
-    function.def(py::init([](const ov::OutputVector& results,
-                             const ov::ParameterVector& parameters,
-                             const ov::op::util::VariableVector& variables,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Model>(results, parameters, variables, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("parameters"),
-                 py::arg("variables"),
-                 py::arg("name") = "",
-                 R"(
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
-            :type results: List[Output]
+            :type results: List[openvino.runtime.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
-            :param name: String to set as function's friendly name.
+            :param name: String to set as model's friendly name.
             :type name: str
         )");
 
-    function.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
+    model.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
 
-    function.def(
+    model.def(
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape) {
             self.reshape(partial_shape);
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
-                :type partial_shape: PartialShape
+                :type partial_shape: openvino.runtime.PartialShape
                 :return : void
              )");
 
-    function.def(
+    model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: list
                 :return : void
              )");
 
-    function.def(
+    model.def(
         "reshape",
         [](ov::Model& self, const py::tuple& partial_shape) {
-            self.reshape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+            py::gil_scoped_release release;
+            self.reshape(new_shape);
         },
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: tuple
                 :return : void
              )");
 
-    function.def(
+    model.def(
         "reshape",
         [](ov::Model& self, const std::string& partial_shape) {
             self.reshape(Common::partial_shape_from_str(partial_shape));
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
         R"(
+                Reshape model input.
+
+                GIL is released while running this function.
+
                 :param partial_shape: New shape.
                 :type partial_shape: str
                 :return : void
              )");
 
-    function.def(
+    model.def(
         "reshape",
         [](ov::Model& self, const py::dict& partial_shapes) {
             std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
@@ -338,6 +359,7 @@ void regclass_graph_Model(py::module m) {
                 }
                 new_shapes.insert(new_shape);
             }
+            py::gil_scoped_release release;
             self.reshape(new_shapes);
         },
         py::arg("partial_shapes"),
@@ -364,209 +386,209 @@ void regclass_graph_Model(py::module m) {
             (4) `-1` is a dynamic dimension without known bounds
             (4) `openvino.runtime.Dimension`
             (5) `str` using next syntax:
-                '?' - to define fully dinamic dimension
+                '?' - to define fully dynamic dimension
                 '1' - to define dimension which length is 1
                 '1..10' - to define bounded dimension
                 '..10' or '1..' to define dimension with only lower or only upper limit
+
+            Reshape model input.
+
+            GIL is released while running this function.
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]
         )");
 
-    function.def("get_output_size",
-                 &ov::Model::get_output_size,
-                 R"(
-                    Return the number of outputs for the function.
+    model.def("get_output_size",
+              &ov::Model::get_output_size,
+              R"(
+                    Return the number of outputs for the model.
 
                     :return: Number of outputs.
                     :rtype: int
                  )");
-    function.def("get_ops",
-                 &ov::Model::get_ops,
-                 R"(
-                    Return ops used in the function.
+    model.def("get_ops",
+              &ov::Model::get_ops,
+              R"(
+                    Return ops used in the model.
 
-                    :return: List of Nodes representing ops used in function.
-                    :rtype: List[Node]
+                    :return: List of Nodes representing ops used in model.
+                    :rtype: List[openvino.runtime.Node]
                  )");
-    function.def("get_ordered_ops",
-                 &ov::Model::get_ordered_ops,
-                 R"(
-                    Return ops used in the function in topological order.
+    model.def("get_ordered_ops",
+              &ov::Model::get_ordered_ops,
+              R"(
+                    Return ops used in the model in topological order.
 
-                    :return: List of sorted Nodes representing ops used in function.
-                    :rtype: List[Node]
+                    :return: List of sorted Nodes representing ops used in model.
+                    :rtype: List[openvino.runtime.Node]
                  )");
-    function.def("get_output_op",
-                 &ov::Model::get_output_op,
-                 py::arg("index"),
-                 R"(
+    model.def("get_output_op",
+              &ov::Model::get_output_op,
+              py::arg("index"),
+              R"(
                     Return the op that generates output i
 
                     :param index: output index
                     :type index: output index
                     :return: Node object that generates output i
-                    :rtype: Node
+                    :rtype: openvino.runtime.Node
                 )");
-    function.def("get_output_element_type",
-                 &ov::Model::get_output_element_type,
-                 py::arg("index"),
-                 R"(
+    model.def("get_output_element_type",
+              &ov::Model::get_output_element_type,
+              py::arg("index"),
+              R"(
                     Return the element type of output i
 
                     :param index: output index
                     :type index: int
                     :return: Type object of output i
-                    :rtype: Type
+                    :rtype: openvino.runtime.Type
                  )");
-    function.def("get_output_shape",
-                 &ov::Model::get_output_shape,
-                 py::arg("index"),
-                 R"(
+    model.def("get_output_shape",
+              &ov::Model::get_output_shape,
+              py::arg("index"),
+              R"(
                     Return the shape of element i
 
                     :param index: element index
                     :type index: int
                     :return: Shape object of element i
-                    :rtype: Shape
+                    :rtype: openvino.runtime.Shape
                  )");
-    function.def("get_output_partial_shape",
-                 &ov::Model::get_output_partial_shape,
-                 py::arg("index"),
-                 R"(
+    model.def("get_output_partial_shape",
+              &ov::Model::get_output_partial_shape,
+              py::arg("index"),
+              R"(
                     Return the partial shape of element i
 
                     :param index: element index
                     :type index: int
                     :return: PartialShape object of element i
-                    :rtype: PartialShape
+                    :rtype: openvino.runtime.PartialShape
                  )");
-    function.def("get_parameters",
-                 &ov::Model::get_parameters,
-                 R"(
-                    Return the function parameters.
+    model.def("get_parameters",
+              &ov::Model::get_parameters,
+              R"(
+                    Return the model parameters.
                     
-                    :return: ParameterVector containing function parameters.
+                    :return: ParameterVector containing model parameters.
                     :rtype: ParameterVector
                  )");
-    function.def("get_results",
-                 &ov::Model::get_results,
-                 R"(
-                    Return a list of function outputs.
+    model.def("get_results",
+              &ov::Model::get_results,
+              R"(
+                    Return a list of model outputs.
 
-                    :return: ResultVector containing function parameters.
+                    :return: ResultVector containing model parameters.
                     :rtype: ResultVector
                  )");
-    function.def("get_result",
-                 &ov::Model::get_result,
-                 R"(
+    model.def("get_result",
+              &ov::Model::get_result,
+              R"(
                     Return single result.
 
                     :return: Node object representing result.
-                    :rtype: Node
+                    :rtype: openvino.runtime.Node
                  )");
-    function.def("get_result_index",
-                 (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
-                 py::arg("value"),
-                 R"(
+    model.def("get_result_index",
+              (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
+              py::arg("value"),
+              R"(
                     Return index of result.
 
                     Return -1 if `value` not matched.
 
                     :param value: Output containing Node
-                    :type value: Output
+                    :type value: openvino.runtime.Output
                     :return: Index for value referencing it.
                     :rtype: int
                  )");
-    function.def("get_result_index",
-                 (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
-                 py::arg("value"),
-                 R"(
+    model.def("get_result_index",
+              (int64_t(ov::Model::*)(const ov::Output<const ov::Node>&) const) & ov::Model::get_result_index,
+              py::arg("value"),
+              R"(
                     Return index of result.
 
                     Return -1 if `value` not matched.
 
                     :param value: Output containing Node
-                    :type value: Output
+                    :type value: openvino.runtime.Output
                     :return: Index for value referencing it.
                     :rtype: int
                  )");
 
-    function.def("get_name",
-                 &ov::Model::get_name,
-                 R"(
-                    Get the unique name of the function.
+    model.def("get_name",
+              &ov::Model::get_name,
+              R"(
+                    Get the unique name of the model.
 
-                    :return: String with a name of the function.
+                    :return: String with a name of the model.
                     :rtype: str
                  )");
-    function.def("get_friendly_name",
-                 &ov::Model::get_friendly_name,
-                 R"(
-                    Gets the friendly name for a function. If no
+    model.def("get_friendly_name",
+              &ov::Model::get_friendly_name,
+              R"(
+                    Gets the friendly name for a model. If no
                     friendly name has been set via set_friendly_name
-                    then the function's unique name is returned.
+                    then the model's unique name is returned.
 
-                    :return: String with a friendly name of the function.
+                    :return: String with a friendly name of the model.
                     :rtype: str
                  )");
-    function.def("set_friendly_name",
-                 &ov::Model::set_friendly_name,
-                 py::arg("name"),
-                 R"(
-                    Sets a friendly name for a function. This does
-                    not overwrite the unique name of the function and
+    model.def("set_friendly_name",
+              &ov::Model::set_friendly_name,
+              py::arg("name"),
+              R"(
+                    Sets a friendly name for a model. This does
+                    not overwrite the unique name of the model and
                     is retrieved via get_friendly_name(). Used mainly
                     for debugging.
 
                     :param name: String to set as the friendly name.
                     :type name: str
                  )");
-    function.def("is_dynamic",
-                 &ov::Model::is_dynamic,
-                 R"(
-                    Returns true if any of the op's defined in the function
+    model.def("is_dynamic",
+              &ov::Model::is_dynamic,
+              R"(
+                    Returns true if any of the op's defined in the model
                     contains partial shape.
 
                     :rtype: bool
                  )");
-    function.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
+    model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
-    function.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
+    model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
 
-    function.def("input",
-                 (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
-                 py::arg("tensor_name"));
+    model.def("input",
+              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
+              py::arg("tensor_name"));
 
-    function.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
+    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
 
-    function.def("input",
-                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input,
-                 py::arg("index"));
+    model.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("index"));
 
-    function.def("input",
-                 (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
-                 py::arg("tensor_name"));
+    model.def("input",
+              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
+              py::arg("tensor_name"));
 
-    function.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
+    model.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
 
-    function.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
+    model.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
 
-    function.def("output",
-                 (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
-                 py::arg("tensor_name"));
+    model.def("output",
+              (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
+              py::arg("tensor_name"));
 
-    function.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
+    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
 
-    function.def("output",
-                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output,
-                 py::arg("index"));
+    model.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("index"));
 
-    function.def("output",
-                 (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
-                 py::arg("tensor_name"));
+    model.def("output",
+              (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
+              py::arg("tensor_name"));
 
-    function.def(
+    model.def(
         "add_outputs",
         [](ov::Model& self, py::handle& outputs) {
             int i = 0;
@@ -606,15 +628,15 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("outputs"));
 
-    function.def("replace_parameter",
-                 &ov::Model::replace_parameter,
-                 py::arg("parameter_index"),
-                 py::arg("parameter"),
-                 R"(
-                    Replace the `parameter_index` parameter of the function with `parameter`
+    model.def("replace_parameter",
+              &ov::Model::replace_parameter,
+              py::arg("parameter_index"),
+              py::arg("parameter"),
+              R"(
+                    Replace the `parameter_index` parameter of the model with `parameter`
 
                     All users of the `parameter_index` parameter are redirected to `parameter` , and the
-                    `parameter_index` entry in the function parameter list is replaced with `parameter`
+                    `parameter_index` entry in the model parameter list is replaced with `parameter`
 
                     :param parameter_index: The index of the parameter to replace.
                     :type parameter_index: int
@@ -622,7 +644,7 @@ void regclass_graph_Model(py::module m) {
                     :type parameter: op.Parameter
         )");
 
-    function.def(
+    model.def(
         "get_parameter_index",
         (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
@@ -637,7 +659,7 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
 
-    function.def(
+    model.def(
         "evaluate",
         [](ov::Model& self,
            ov::TensorVector& output_tensors,
@@ -649,20 +671,28 @@ void regclass_graph_Model(py::module m) {
         py::arg("input_tensors"),
         py::arg("evaluation_context") = PyRTMap(),
         R"(
-            Evaluate the function on inputs, putting results in outputs
+            Evaluate the model on inputs, putting results in outputs
 
             :param output_tensors: Tensors for the outputs to compute. One for each result
-            :type output_tensors: List[op.Tensor]
+            :type output_tensors: List[openvino.runtime.Tensor]
             :param input_tensors: Tensors for the inputs. One for each inputs.
-            :type input_tensors: List[op.Tensor]
+            :type input_tensors: List[openvino.runtime.Tensor]
             :param evaluation_context: Storage of additional settings and attributes that can be used
-                                       when evaluating the function. This additional information can be
+                                       when evaluating the model. This additional information can be
                                        shared across nodes.
-            :type evaluation_context: PyRTMap
+            :type evaluation_context: openvino.runtime.RTMap
             :rtype: bool
         )");
 
-    function.def("__repr__", [](const ov::Model& self) {
+    model.def("clone",
+              &ov::Model::clone,
+              R"(
+            Return a copy of self.
+            :return: A copy of self.
+            :rtype: openvino.runtime.Model
+        )");
+
+    model.def("__repr__", [](const ov::Model& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
 
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
@@ -672,42 +702,8 @@ void regclass_graph_Model(py::module m) {
                outputs_str + "\n]>";
     });
 
-    function.def_static("from_capsule", [](py::object* capsule) {
-        // get the underlying PyObject* which is a PyCapsule pointer
-        auto* pybind_capsule_ptr = capsule->ptr();
-        // extract the pointer stored in the PyCapsule under the name CAPSULE_NAME
-        auto* capsule_ptr = PyCapsule_GetPointer(pybind_capsule_ptr, CAPSULE_NAME);
-
-        auto* ngraph_function = static_cast<std::shared_ptr<ov::Model>*>(capsule_ptr);
-        if (ngraph_function && *ngraph_function) {
-            return *ngraph_function;
-        } else {
-            throw std::runtime_error("The provided capsule does not contain an ov::Model");
-        }
-    });
-    function.def_static("to_capsule", [](std::shared_ptr<ov::Model>& ngraph_function) {
-        // create a shared pointer on the heap before putting it in the capsule
-        // this secures the lifetime of the object transferred by the capsule
-        auto* sp_copy = new std::shared_ptr<ov::Model>(ngraph_function);
-
-        // a destructor callback that will delete the heap allocated shared_ptr
-        // when the capsule is destructed
-        auto sp_deleter = [](PyObject* capsule) {
-            auto* capsule_ptr = PyCapsule_GetPointer(capsule, CAPSULE_NAME);
-            auto* function_sp = static_cast<std::shared_ptr<ov::Model>*>(capsule_ptr);
-            if (function_sp) {
-                delete function_sp;
-            }
-        };
-
-        // put the shared_ptr in a new capsule under the same name as in "from_capsule"
-        auto pybind_capsule = py::capsule(sp_copy, CAPSULE_NAME, sp_deleter);
-
-        return pybind_capsule;
-    });
-
-    function.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
-    function.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
-    function.def_property_readonly("name", &ov::Model::get_name);
-    function.def_property("friendly_name", &ov::Model::get_friendly_name, &ov::Model::set_friendly_name);
+    model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
+    model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
+    model.def_property_readonly("name", &ov::Model::get_name);
+    model.def_property("friendly_name", &ov::Model::get_friendly_name, &ov::Model::set_friendly_name);
 }

@@ -9,6 +9,7 @@ namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
 OP_CONVERTER(argmax);
+OP_CONVERTER(assign);
 OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
@@ -55,6 +56,7 @@ OP_CONVERTER(logical_xor);
 OP_CONVERTER(matmul);
 OP_CONVERTER(matmul_v2);
 OP_CONVERTER(matrix_nms);
+OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
 OP_CONVERTER(pad3d);
@@ -71,6 +73,7 @@ OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
 OP_CONVERTER(rnn);
+OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(shape);
 OP_CONVERTER(slice);
@@ -80,14 +83,18 @@ OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
+OP_CONVERTER(strided_slice);
 OP_CONVERTER(tanh);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
+OP_CONVERTER(where);
 OP_CONVERTER(yolo_box);
+OP_CONVERTER(generate_proposals_v2);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
+            {"assign", op::assign},
             {"assign_value", op::assign_value},
             {"batch_norm", op::batch_norm},
             {"bicubic_interp_v2", op::bicubic_interp_v2},
@@ -140,6 +147,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"matmul_v2", op::matmul_v2},
             {"max_pool2d_with_index", op::pool2d},
             {"matrix_nms", op::matrix_nms},
+            {"meshgrid", op::meshgrid},
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
@@ -157,6 +165,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
             {"rnn", op::rnn},
+            {"roi_align", op::roi_align},
             {"scale", op::scale},
             {"shape", op::shape},
             {"slice", op::slice},
@@ -166,12 +175,15 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"split", op::split},
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
+            {"strided_slice", op::strided_slice},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
-            {"yolo_box", op::yolo_box}};
+            {"where", op::where},
+            {"yolo_box", op::yolo_box},
+            {"generate_proposals_v2", op::generate_proposals_v2}};
 };
 
 }  // namespace paddle

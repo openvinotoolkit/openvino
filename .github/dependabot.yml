@@ -7,7 +7,7 @@ updates:
     directory: "/src/bindings/python"
     schedule:
       interval: weekly
-      day: monday
+      day: sunday
       time: "13:00"
     open-pull-requests-limit: 0
     reviewers:
@@ -15,4 +15,3 @@ updates:
       - akuporos
     labels:
       - "category: dependencies"
-      

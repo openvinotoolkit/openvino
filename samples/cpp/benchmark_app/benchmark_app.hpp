@@ -38,6 +38,8 @@ static const char model_message[] =
 static const char hint_message[] =
     "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
     "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
+    "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
     "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
@@ -96,8 +98,8 @@ static const char enforce_bf16_message[] =
     "                                  'false' - disable bfloat16 regardless of platform support";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] =
-    "Required for CPU custom layers. Absolute path to a shared library with the kernels "
+static const char custom_extensions_library_message[] =
+    "Required for custom layers (extensions). Absolute path to a shared library with the kernels "
     "implementations.";
 
 /// @brief message for clDNN custom kernels desc
@@ -251,9 +253,9 @@ DEFINE_string(api, "async", api_message);
 /// @brief device the target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 
-/// @brief Absolute path to CPU library with user layers <br>
+/// @brief Absolute path to extensions library with user layers <br>
 /// It is a required parameter
-DEFINE_string(l, "", custom_cpu_library_message);
+DEFINE_string(extensions, "", custom_extensions_library_message);
 
 /// @brief Define parameter for clDNN custom kernels path <br>
 /// Default is ./lib
@@ -373,10 +375,10 @@ static void show_usage() {
     std::cout << "    -m \"<path>\"               " << model_message << std::endl;
     std::cout << "    -i \"<path>\"               " << input_message << std::endl;
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
-    std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
-    std::cout << "          Or" << std::endl;
+    std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+              << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;

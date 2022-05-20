@@ -68,13 +68,13 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     size_t getAxis() const { return axis; }
 
@@ -122,9 +122,9 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -168,7 +168,7 @@ private:
     void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
 
     size_t levels = 0;
 
@@ -195,14 +195,14 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    // mkldnn style post ops data representation
+    // onednn style post ops data representation
     bool isPostOpDataInitialized = false;
-    mkldnn::impl::shifts_t<float> cropLowData;
-    mkldnn::impl::shifts_t<float> cropHighData;
-    mkldnn::impl::scales_t inputScaleData;
-    mkldnn::impl::shifts_t<float> inputShiftData;
-    mkldnn::impl::scales_t outputScaleData;
-    mkldnn::impl::shifts_t<float> outputShiftData;
+    dnnl::impl::shifts_t<float> cropLowData;
+    dnnl::impl::shifts_t<float> cropHighData;
+    dnnl::impl::scales_t inputScaleData;
+    dnnl::impl::shifts_t<float> inputShiftData;
+    dnnl::impl::scales_t outputScaleData;
+    dnnl::impl::shifts_t<float> outputShiftData;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;

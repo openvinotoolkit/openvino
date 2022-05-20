@@ -35,8 +35,8 @@ static void genInputs(InferenceEngine::BlobMap inputMap) {
 
     // boxes generator
     auto genXY = [](int min, int max, int maxSize) {
-            int a = min + maxSize * (float(rand()) / RAND_MAX);
-            int b = a + maxSize * (float(rand()) / RAND_MAX) + 1;
+            int a = min + maxSize * (float(rand()) / float(RAND_MAX));
+            int b = a + maxSize * (float(rand()) / float(RAND_MAX)) + 1;
 
             if (b > max) {
                 const int d = b - max;
@@ -50,8 +50,8 @@ static void genInputs(InferenceEngine::BlobMap inputMap) {
     {
         const int minS = 200;
         const int maxS = 880;
-        const int W = minS + maxS * (float(rand()) / RAND_MAX);
-        const int H = minS + maxS * (float(rand()) / RAND_MAX);
+        const int W = minS + maxS * (float(rand()) / float(RAND_MAX));
+        const int H = minS + maxS * (float(rand()) / float(RAND_MAX));
 
         const int X0 = 0, X1 = W, SX = (X1 - X0 + 1) * 3 / 5;
         const int Y0 = 0, Y1 = H, SY = (Y1 - Y0 + 1) * 3 / 5;

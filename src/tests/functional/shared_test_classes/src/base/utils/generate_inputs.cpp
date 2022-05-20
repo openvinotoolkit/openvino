@@ -5,7 +5,7 @@
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
 
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "shared_test_classes/single_layer/roi_align.hpp"
 #include "shared_test_classes/single_layer/psroi_pooling.hpp"
@@ -113,8 +113,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutp
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
-    inGenData.range = 1;
     inGenData.start_from = 0;
+    inGenData.range = 1;
 
     switch (port) {
         case 1:
@@ -419,8 +419,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& 
         case 2:
         case 3: {
             InputGenerateData inGenData;
-            inGenData.range = maxBeamIndx;
             inGenData.start_from = maxBeamIndx / 2;
+            inGenData.range = maxBeamIndx;
             return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
         }
         default:
@@ -486,8 +486,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
-            unsigned long data_size = std::accumulate(begin(targetShape), end(targetShape), 1, std::multiplies<uint64_t>());
-            return create_and_fill_tensor(elemType, ov::Shape{data_size * 5}, 0, 10, 7235346);
+            auto data_size = shape_size(targetShape);
+            return create_and_fill_tensor(elemType, targetShape, data_size * 5, 0, 10, 7235346);
         }
         case 1: {
             return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
@@ -704,6 +704,7 @@ InputsMap getInputMap() {
 #include "ngraph/opsets/opset6_tbl.hpp"
 #include "ngraph/opsets/opset7_tbl.hpp"
 #include "ngraph/opsets/opset8_tbl.hpp"
+#include "ngraph/opsets/opset9_tbl.hpp"
 
 #undef NGRAPH_OP
     };

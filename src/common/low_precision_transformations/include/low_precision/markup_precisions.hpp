@@ -10,7 +10,7 @@
 
 #include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
-#include "low_precision/common/operation_precision_restriction.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -31,7 +31,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  *    3) precision preserved operations by PrecisionPreservedAttribute attribute.
  *
  * For more details about the transformation, refer to
- * [MarkupPrecisions](@ref openvino_docs_IE_DG_lpt_MarkupPrecisions) page
+ * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {
@@ -48,7 +48,7 @@ public:
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
-    explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {},
+    explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 

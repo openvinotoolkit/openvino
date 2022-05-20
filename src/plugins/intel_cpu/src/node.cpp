@@ -3,7 +3,6 @@
 //
 
 #include "node.h"
-#include "dnnl_debug.h"
 #include "edge.h"
 #include "extension_mngr.h"
 #include "itt.h"
@@ -47,14 +46,13 @@
 #include "nodes/reference.h"
 #include "nodes/fake_quantize.h"
 #include "dnnl_extension_utils.h"
-#include "mkldnn/iml_type_mapper.h"
 
 #include "nodes/common/cpu_memcpy.h"
-#include "mkldnn_debug.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
+#include <dnnl_debug.h>
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
@@ -62,7 +60,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
@@ -76,7 +74,7 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache)
+Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
           type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
@@ -148,7 +146,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -159,7 +157,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -169,7 +167,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache)
+Node::Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
           type(TypeFromName(type)), profiling(name) {
@@ -509,13 +507,13 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
-void Node::execute(mkldnn::stream strm) {
+void Node::execute(dnnl::stream strm) {
     if (prim) {
         (*prim).execute(strm, primArgs);
     }
 }
 
-void Node::executeDynamic(mkldnn::stream strm) {
+void Node::executeDynamic(dnnl::stream strm) {
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
@@ -607,7 +605,7 @@ void Node::initSupportedPrimitiveDescriptors() {
 
 void Node::filterSupportedPrimitiveDescriptors() {
     // Compare by format tag
-    auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
+    auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
                                                DnnlExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                                fmt);
@@ -720,7 +718,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void Node::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
+void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -1014,14 +1012,14 @@ bool Node::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-MemoryDescPtr Node::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
-MemoryDescPtr Node::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
@@ -1057,10 +1055,10 @@ void Node::setDynamicBatchLim(int lim) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
             auto oldMem = param->second;
-            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+            dnnl::memory::desc newMemDesc(oldMem.get_desc());
             newMemDesc.data.dims[0] = newBatch;
             newMemDesc.data.padded_dims[0] = newBatch;
-            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
             primArgs.at(argType) = newMem;
         }
     };
@@ -1074,14 +1072,14 @@ void Node::setDynamicBatchLim(int lim) {
     }
 }
 
-void Node::appendPostOpArgs(const mkldnn::primitive_attr& attr,
-                                  std::unordered_map<int, mkldnn::memory>& primArgs,
+void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
+                                  std::unordered_map<int, dnnl::memory>& primArgs,
                                   const std::vector<MemoryPtr>& postOpsArgs) {
     constexpr size_t maxPrimArgsCapacity = 32;
     auto post_ops = attr.get_post_ops();
     int idx = 0;
     for (int i = 0; i < post_ops.len(); i++) {
-        if (one_of(post_ops.kind(i), mkldnn::primitive::kind::binary, mkldnn::primitive::kind::depthwise, mkldnn::primitive::kind::quantization)) {
+        if (one_of(post_ops.kind(i), dnnl::primitive::kind::binary, dnnl::primitive::kind::depthwise, dnnl::primitive::kind::quantization)) {
             if (idx >= postOpsArgs.size()) {
                 IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
             }
@@ -1091,7 +1089,7 @@ void Node::appendPostOpArgs(const mkldnn::primitive_attr& attr,
             }
 
             primArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1] = postOpsArgs[idx++]->GetPrimitive();
-        } else if (post_ops.kind(i) == mkldnn::primitive::kind::convolution) {
+        } else if (post_ops.kind(i) == dnnl::primitive::kind::convolution) {
             if (idx + 1 >= postOpsArgs.size()) {
                 IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
             }
@@ -1132,15 +1130,15 @@ InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGro
     }
 }
 
-void Node::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void Node::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void Node::appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MemoryPtr>& binaryPostOpsMem) {
+void Node::appendBinPostOps(dnnl::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MemoryPtr>& binaryPostOpsMem) {
     IE_THROW() << "Binary fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
@@ -1183,7 +1181,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                              const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
@@ -1217,7 +1215,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 errorMessage += getExceptionDescWithoutStatus(ex);
             } else {
                 throw;
@@ -1231,7 +1229,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (dynamic_cast<const NotImplemented*>(&ex) != nullptr) {
+            if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
                 const auto currErrorMess = getExceptionDescWithoutStatus(ex);
                 if (!currErrorMess.empty())
                     errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
@@ -1242,7 +1240,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     }
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and mkldnn::eng.
+    //             including extManager, socket and dnnl::eng.
     if (newNode) {
         if (newNode->getType() == Type::TensorIterator) {
             if (auto ti = dynamic_cast<TensorIterator*>(newNode))
@@ -1269,7 +1267,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
-    const size_t channelAxis = parentNode->getFusingAxis();
+    const auto channelAxis = parentNode->getFusingAxis();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         Node *node = getParentEdgesAtPort(i)[0]->getParent().get();

@@ -15,11 +15,11 @@
 #include "edge.h"
 #include "dnnl_descriptor.h"
 #include "selective_build.h"
-#include "mkldnn/iml_type_mapper.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
-#include "mkldnn.hpp"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -99,7 +99,7 @@ public:
     Node(const Node &) = delete;
     Node & operator = (const Node &) = delete;
 
-    using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
+    using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
 
 public:
     template<typename T, int N>
@@ -164,7 +164,7 @@ public:
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
     }
 
-    const mkldnn::engine& getEngine() const {
+    const dnnl::engine& getEngine() const {
         return engine;
     }
 
@@ -177,12 +177,13 @@ public:
 
     bool isConstant();
 
-    virtual size_t getFusingAxis() const {
+    // return type int supports return -1 in overloading when channel axis doesn't exist
+    virtual int getFusingAxis() const {
         return 1;
     }
 
-    static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
-                                 std::unordered_map<int, mkldnn::memory>& primArgs,
+    static void appendPostOpArgs(const dnnl::primitive_attr& attr,
+                                 std::unordered_map<int, dnnl::memory>& primArgs,
                                  const std::vector<MemoryPtr>& postOpsArgs);
 
     bool isFusedWith(Type type) const;
@@ -329,8 +330,8 @@ public:
 
     void resolveInPlaceEdges();
 
-    virtual void execute(mkldnn::stream strm);
-    void executeDynamic(mkldnn::stream strm);
+    virtual void execute(dnnl::stream strm);
+    void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -363,7 +364,7 @@ public:
     virtual void init() {}
 
     template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
+    PD createPrimitiveDescriptor(const dnnl::primitive_attr &attr = dnnl::primitive_attr()) {
         auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
                                const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
@@ -562,10 +563,10 @@ public:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& postOpsMem);
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem);
+    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1);
+    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
 
-    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
+    virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
 
     void setRuntimeCache(MultiCachePtr cache) {
         rtParamsCache = cache;
@@ -583,12 +584,12 @@ protected:
 
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
-    typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
+    typedef std::function<DnnlMemoryDescPtr (dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
@@ -598,14 +599,14 @@ protected:
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
     std::vector <impl_desc_type> implPriorities;
-    std::vector <mkldnn::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector <mkldnn::memory::format_tag> outputMemoryFormatsFilter;
+    std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
+    std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache);
-    Node(const std::string& type, const std::string& name, const mkldnn::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -626,7 +627,7 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
-    std::unordered_map<int, mkldnn::memory> primArgs;
+    std::unordered_map<int, dnnl::memory> primArgs;
     std::vector<MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
@@ -647,7 +648,7 @@ protected:
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
-    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
+    virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
     int batchToProcess() const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
@@ -704,7 +705,7 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
-    void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
+    void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;
 
@@ -725,7 +726,7 @@ protected:
     std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
-    virtual void executeDynamicImpl(mkldnn::stream strm) {
+    virtual void executeDynamicImpl(dnnl::stream strm) {
         IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
     }
 
@@ -753,7 +754,7 @@ private:
 
     int fusingPort;
 
-    mkldnn::engine engine;
+    dnnl::engine engine;
 
     std::string name;
     std::string typeStr;
@@ -806,18 +807,18 @@ constexpr uint64_t PortMask(int n, T... rest) {
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
                                             Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  const mkldnn::engine &,
+                                                  const dnnl::engine &,
                                                   WeightsSharing::Ptr &)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+    Node* create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                  const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : NodeType(op, eng, cache) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
