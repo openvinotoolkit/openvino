@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.activation_ops import Abs, Acos, Asin, Atan, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, \
-    Sigmoid, Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish, Log
+from openvino.tools.mo.ops.activation_ops import Abs, Acos, Asin, Atan, Elu, Erf, Exp, \
+    ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, Sin, Sinh, Cos, Cosh, Tan, Tanh, \
+    Ceiling, Atanh, Acosh, Asinh, Mish, Log, SoftSign
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
@@ -247,4 +248,14 @@ class AtanExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Atan.update_node_stat(node)
+        return cls.enabled
+
+
+class SoftSignExtractor(FrontExtractorOp):
+    op = 'Softsign'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        SoftSign.update_node_stat(node, {})
         return cls.enabled
