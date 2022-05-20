@@ -21,7 +21,7 @@ cd mmdetection
 python3 tools/deployment/pytorch2onnx.py configs/cascade_rcnn/cascade_rcnn_r101_fpn_1x_coco.py cascade_rcnn_r101_fpn_1x_coco_20200317-0b6a2fbf.pth --output-file cascade_rcnn_r101_fpn_1x_coco.onnx
 ```
 
-The script generates ONNX model file *`cascade_rcnn_r101_fpn_1x_coco.onnx`* in the directory *`tools/deployment/`*. If required, specify the model name or output directory, using *`--output-file <path-to-dir>/<model-name>.onnx`*
+The script generates ONNX model file `cascade_rcnn_r101_fpn_1x_coco.onnx` in the directory `tools/deployment/`. If required, specify the model name or output directory, using `--output-file <path-to-dir>/<model-name>.onnx`.
 
 ## Converting an ONNX Cascade RCNN R-101 Model to IR
 
