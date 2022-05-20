@@ -14,10 +14,10 @@ The following models from the pretrained [XLNet model list](https://github.com/z
 
 Download and unzip an archive with the [XLNet-Base, Cased](https://storage.googleapis.com/xlnet/released_models/cased_L-12_H-768_A-12.zip).
 
-After the archive is unzipped, the directory *`cased_L-12_H-768_A-12`* is created and contains the following files:
-* TensorFlow checkpoint (*`xlnet_model.ckpt`*), containing the pretrained weights (which is actually 3 files)
-* sentence piece model (*`spiece.model`*) used for (de)tokenization
-* config file (*`xlnet_config.json`*), which specifies the hyperparameters of the model
+After the archive is unzipped, the directory `cased_L-12_H-768_A-12` is created and contains the following files:
+* TensorFlow checkpoint (`xlnet_model.ckpt`), containing the pretrained weights (which is actually 3 files)
+* sentence piece model (`spiece.model`) used for (de)tokenization
+* config file (`xlnet_config.json`), which specifies the hyperparameters of the model
 
 To get pb-file from the archive contents, you need to do the following.
 
@@ -35,7 +35,7 @@ To get pb-file from the archive contents, you need to do the following.
 
 
 
-2. Save and run the following Python script in *`~/XLNet-Base/xlnet`*:
+2. Save and run the following Python script in `~/XLNet-Base/xlnet`:
 
 > **NOTE**: The original model repository has been tested with TensorFlow 1.13.1 under Python2.
 
@@ -99,13 +99,13 @@ with tf.compat.v1.Session() as sess:
 
 Download and unzip an archive with the [XLNet-Large, Cased](https://storage.googleapis.com/xlnet/released_models/cased_L-24_H-1024_A-16.zip).
 
-After unzipping the archive, the directory *`cased_L-12_H-1024_A-16`* is created and contains the following files:
+After unzipping the archive, the directory `cased_L-12_H-1024_A-16` is created and contains the following files:
 
-* TensorFlow checkpoint (*`xlnet_model.ckpt`*) containing the pretrained weights (which is actually 3 files)
-* sentence piece model (*`spiece.model`*) used for (de)tokenization
-* config file (*`xlnet_config.json`*) which specifies the hyperparameters of the model
+* TensorFlow checkpoint (`xlnet_model.ckpt`) containing the pretrained weights (which is actually 3 files)
+* sentence piece model (`spiece.model`) used for (de)tokenization
+* config file (`xlnet_config.json`) which specifies the hyperparameters of the model
 
-To get *`pb-file`* from the archive contents, follow the instructions below:
+To get `pb-file` from the archive contents, follow the instructions below:
 
 1. Run commands
 
@@ -119,7 +119,7 @@ To get *`pb-file`* from the archive contents, follow the instructions below:
    mkdir try_save
 ```
 
-2. Save and run the following Python script in *`~/XLNet-Large/xlnet`*:
+2. Save and run the following Python script in `~/XLNet-Large/xlnet`:
 
 ```python
 from collections import namedtuple
@@ -176,7 +176,7 @@ with tf.compat.v1.Session() as sess:
         writer.flush()
 ```
 
-The script should save into *`~/XLNet-Large/xlnet`*.
+The script should save into `~/XLNet-Large/xlnet`.
 
 ## Converting a frozen TensorFlow XLNet Model to IR
 
