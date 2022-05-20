@@ -459,7 +459,6 @@ openvino/tools/mo/front/onnx/slice_ext.py
 openvino/tools/mo/front/onnx/softmax_ext.py
 openvino/tools/mo/front/onnx/softmaxONNX_to_softmax.py
 openvino/tools/mo/front/onnx/softplus_ext.py
-openvino/tools/mo/front/onnx/softsign_ext.py
 openvino/tools/mo/front/onnx/space_to_depth_ext.py
 openvino/tools/mo/front/onnx/split_ext.py
 openvino/tools/mo/front/onnx/squeeze_ext.py
@@ -630,7 +629,6 @@ openvino/tools/mo/front/tf/sign_ext.py
 openvino/tools/mo/front/tf/slice_ext.py
 openvino/tools/mo/front/tf/softmax_ext.py
 openvino/tools/mo/front/tf/softplus_ext.py
-openvino/tools/mo/front/tf/softsign_ext.py
 openvino/tools/mo/front/tf/space_to_batch.py
 openvino/tools/mo/front/tf/space_to_batch_ext.py
 openvino/tools/mo/front/tf/space_to_depth_ext.py
