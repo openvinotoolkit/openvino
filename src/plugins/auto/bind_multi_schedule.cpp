@@ -89,23 +89,27 @@ bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     WorkerInferRequest* workerRequestPtr = nullptr;
     WorkerInferRequest* headWorker = nullptr;
     bool flag = false;
-    while (idleWorkerRequests.try_pop(workerRequestPtr)) {
-        if (flag && workerRequestPtr == headWorker)
-            break;
-        if (!flag) {
-            headWorker = workerRequestPtr;
-            flag = true;
-        }
-        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
-        if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
-            _thisWorkerInferRequest = workerRequestPtr;
-            {
-                auto capturedTask = std::move(inferPipelineTask);
-                capturedTask();
+    if (_sharedRequest) {
+        while (idleWorkerRequests.try_pop(workerRequestPtr)) {
+            if (flag && workerRequestPtr == headWorker)
+                break;
+            if (!flag) {
+                headWorker = workerRequestPtr;
+                flag = true;
             }
-            idleGuard.Release();
-            return true;
+            IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+            if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
+                _thisWorkerInferRequest = workerRequestPtr;
+                {
+                    auto capturedTask = std::move(inferPipelineTask);
+                    capturedTask();
+                }
+                idleGuard.Release();
+                return true;
+            }
         }
+    } else {
+        //TBD
     }
     return false;
 }
@@ -128,7 +132,6 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     SoInfer request_to_share_blobs_with;
-    IE::RemoteContext::Ptr ctx = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
     for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
@@ -148,7 +151,6 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
     auto num = _numRequestsCreated++;
     SoInfer request_to_share_blobs_with;
     size_t sum = 0;
-    IE::RemoteContext::Ptr ctx = nullptr;
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
     for (const auto& device : _multiSContext->_devicePrioritiesInitial) {
