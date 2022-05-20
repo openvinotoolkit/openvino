@@ -22,8 +22,8 @@ quartznet.encoder.export('encoder_qn.onnx')
 quartznet.export('qn.onnx')
 ```
 
-This code produces 3 ONNX model files: *`encoder_qn.onnx`*, *`decoder_qn.onnx`*, *`qn.onnx`*.
-They are *`decoder`*, *`encoder`*, and a combined *`decoder(encoder(x))`* models, respectively.
+This code produces 3 ONNX model files: `encoder_qn.onnx`, `decoder_qn.onnx`, `qn.onnx`.
+They are `decoder`, `encoder`, and a combined `decoder(encoder(x))` models, respectively.
 
 ## Converting an ONNX QuartzNet model to IR
 
@@ -37,4 +37,4 @@ mo --input_model <MODEL_DIR>/encoder_qt.onnx --input_shape [B,64,X]
 mo --input_model <MODEL_DIR>/decoder_qt.onnx --input_shape [B,1024,Y]
 ```
 
-Where shape is determined by the audio file Mel-Spectrogram length: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually *`X / 2`*.
+Where shape is determined by the audio file Mel-Spectrogram length: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.
