@@ -6,7 +6,7 @@
 ## Converting an ONNX Model <a name="Convert_From_ONNX"></a>
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
-To convert an ONNX model, run Model Optimizer with the path to the input model *`.onnx`* file:
+To convert an ONNX model, run Model Optimizer with the path to the input model `.onnx` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.onnx
