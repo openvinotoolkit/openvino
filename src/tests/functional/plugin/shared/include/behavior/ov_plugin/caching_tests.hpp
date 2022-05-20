@@ -9,6 +9,10 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -24,7 +28,8 @@ using compileModelCacheParams = std::tuple<
         ovModelWithName,        // openvino model with friendly name
         ov::element::Type,      // element type
         size_t,                 // batch size
-        std::string             // device name
+        std::string,            // device name
+        ov::AnyMap              // device configuration
 >;
 
 class CompileModelCacheTestBase : public testing::WithParamInterface<compileModelCacheParams>,
@@ -46,6 +51,37 @@ public:
     static std::vector<ovModelWithName> getStandardFunctions();
 };
 
+using compileKernelsCacheParams = std::tuple<
+        std::string,            // device name
+        std::pair<ov::AnyMap, std::string>    // device and cache configuration
+>;
+class CompiledKernelsCacheTest : virtual public SubgraphBaseTest,
+                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
+protected:
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::shared_ptr<ngraph::Function> function;
+    std::string cache_path;
+    std::vector<std::string> m_extList;
+    void SetUp() override {
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        std::pair<ov::AnyMap, std::string> userConfig;
+        std::tie(targetDevice, userConfig) = GetParam();
+        configuration = userConfig.first;
+        std::string ext = userConfig.second;
+        std::string::size_type pos = 0;
+        if ((pos = ext.find(",", pos)) != std::string::npos) {
+            m_extList.push_back(ext.substr(0, pos));
+            m_extList.push_back(ext.substr(pos + 1));
+        } else {
+            m_extList.push_back(ext);
+        }
+        std::replace(test_name.begin(), test_name.end(), '/', '_');
+        std::replace(test_name.begin(), test_name.end(), '\\', '_');
+        cache_path = "compiledModel" + test_name + "_cache";
+    }
+};
 } // namespace behavior
 } // namespace test
 } // namespace ov

@@ -9,6 +9,10 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -20,7 +24,7 @@ using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
         ngraph::element::Type,  // precision
         std::size_t,            // batch size
-        std::string             // device name
+        std::string            // device name
         >;
 
 namespace LayerTestsDefinitions {
@@ -43,4 +47,35 @@ public:
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 
+using compileKernelsCacheParams = std::tuple<
+        std::string,            // device name
+        std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
+>;
+class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
+                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
+protected:
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::shared_ptr<ngraph::Function> function;
+    std::string cache_path;
+    std::vector<std::string> m_extList;
+    void SetUp() override {
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        std::pair<std::map<std::string, std::string>, std::string> userConfig;
+        std::tie(targetDevice, userConfig) = GetParam();
+        configuration = userConfig.first;
+        std::string ext = userConfig.second;
+        std::string::size_type pos = 0;
+        if ((pos = ext.find(",", pos)) != std::string::npos) {
+            m_extList.push_back(ext.substr(0, pos));
+            m_extList.push_back(ext.substr(pos + 1));
+        } else {
+            m_extList.push_back(ext);
+        }
+        std::replace(test_name.begin(), test_name.end(), '/', '_');
+        std::replace(test_name.begin(), test_name.end(), '\\', '_');
+        cache_path = "LoadNetwork" + test_name + "_cache";
+    }
+};
 } // namespace LayerTestsDefinitions
