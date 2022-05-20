@@ -543,6 +543,8 @@ OPENVINO_C_API(ov_status_e) ov_model_get_outputs(const ov_model_t* model, ov_out
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *input_nodes);
 
+OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name);
+
 /**
  * @brief Get the outputs of ov_model_t.
  * @param model A pointer to the ov_model_t.
@@ -588,11 +590,15 @@ OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model,
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, char **friendly_name);
 
+
+OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_nodes);
 /**
  * @brief free ov_output_node_list_t
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
  */
 OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
+
+OPENVINO_C_API(void) ov_char_free(char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 
@@ -884,6 +890,15 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(ov_infer_request_t* infe
                                 const char* tensor_name, const ov_tensor_t* tensor);
 
 /**
+ * @brief Sets an input tensor to infer on.
+ * @param infer_request A pointer to the ov_infer_request_t.
+ * @param tensor Reference to the tensor.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
+                                const ov_tensor_t* tensor);
+
+/**
  * @brief Gets an input/output tensor to infer on.
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor_name  Name of the input or output tensor.
@@ -892,6 +907,15 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(ov_infer_request_t* infe
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
                                 const char* tensor_name, ov_tensor_t **tensor);
+
+/**
+ * @brief Gets an output tensor to infer on.
+ * @param infer_request A pointer to the ov_infer_request_t.
+ * @param tensor Reference to the tensor.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request,
+                                ov_tensor_t **tensor);
 
 /**
  * @brief Infers specified input(s) in synchronous mode.
