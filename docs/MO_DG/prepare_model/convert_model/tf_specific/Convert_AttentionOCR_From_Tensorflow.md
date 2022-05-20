@@ -2,17 +2,17 @@
 
 This tutorial explains how to convert the Attention OCR (AOCR) model from the [TensorFlow Attention OCR repository](https://github.com/emedvedev/attention-ocr) to the Intermediate Representation (IR).
 
-## Extracting a Model from *`aocr`* Library
+## Extracting a Model from `aocr` Library
 
-To get an AOCR model, download *`aocr`* Python library:
+To get an AOCR model, download `aocr` Python library:
 ```
 pip install git+https://github.com/emedvedev/attention-ocr.git@master#egg=aocr
 ```
-This library contains a pretrained model and allows training and running AOCR, using the command line. After installation of *`aocr`*, extract the model:
+This library contains a pretrained model and allows training and running AOCR, using the command line. After installation of `aocr`, extract the model:
 ```
 aocr export --format=frozengraph model/path/
 ```
-Once extracted, the model can be found in *`model/path/`* folder.
+Once extracted, the model can be found in `model/path/` folder.
 
 ## Converting the TensorFlow AOCR Model to IR
 
@@ -20,7 +20,7 @@ The original AOCR model contains data preprocessing, done as follows:
 * Decoding input data to binary format where input data is an image represented as a string.
 * Resizing binary image to working resolution.
 
-After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding. The preprocessing part of the model should be cut off by using *`--input`* command line parameter.
+After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding. The preprocessing part of the model should be cut off by using `--input` command line parameter.
 ```sh
 mo \
 --input_model=model/path/frozen_graph.pb \
@@ -30,6 +30,6 @@ mo \
 ```
 
 Where:
-* *`map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]`* - name of node producing tensor after preprocessing.
-* *`transpose_1`* - name of the node producing tensor with predicted characters.
-* *`transpose_2`* - name of the node producing tensor with predicted characters probabilities.
+* `map/TensorArrayStack/TensorArrayGatherV3:0[1 32 86 1]` - name of node producing tensor after preprocessing.
+* `transpose_1` - name of the node producing tensor with predicted characters.
+* `transpose_2` - name of the node producing tensor with predicted characters probabilities.
