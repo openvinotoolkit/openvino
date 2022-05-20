@@ -6,12 +6,12 @@ Goal of this article is to present you with a step-by-step guide on how to conve
 
 To download a pretrained model or train the model yourself, refer
 to the [instructions](https://github.com/kamalkraj/BERT-NER/blob/dev/README.md) in the
-BERT-NER model repository. The model with configuration files is stored in the *`out_base`* directory.
+BERT-NER model repository. The model with configuration files is stored in the `out_base` directory.
 
 To convert the model to ONNX format, create and run the following script in the root
 directory of the model repository. If you download the pretrained model, you need
 to download [`bert.py`](https://github.com/kamalkraj/BERT-NER/blob/dev/bert.py) to run the script.
-The instructions were tested with the commit-SHA: *`e5be564156f194f1becb0d82aeaf6e762d9eb9ed`*.
+The instructions were tested with the commit-SHA: `e5be564156f194f1becb0d82aeaf6e762d9eb9ed`.
 
 ```python
 import torch
@@ -46,7 +46,7 @@ torch.onnx.export(ner_model,
                   )
 ```
 
-The script generates ONNX model file *`bert-ner.onnx`*.
+The script generates ONNX model file `bert-ner.onnx`.
 
 ## Converting an ONNX BERT-NER model to IR
 
@@ -54,4 +54,4 @@ The script generates ONNX model file *`bert-ner.onnx`*.
 mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
 ```
 
-where *`1`* is *`batch_size`* and *`128`* is *`sequence_length`*.
+where `1` is `batch_size` and `128` is `sequence_length`.
