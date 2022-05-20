@@ -6,6 +6,7 @@
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "memory.hpp"
+#include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -68,11 +69,7 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    // WA: should use MemoryInput store type to avoid buffer mismatch
-    auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
-    IE_ASSERT(inputMemoryNode != nullptr);
-    auto precision = inputMemoryNode->getOriginalInputPrecisionAtPort(0);
-
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
@@ -140,12 +137,17 @@ inline
 static void simple_copy(const Memory& dst, const Memory& src) {
     auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
     auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
-    auto srcSizeInByte = src.GetSize();
-    auto dstSizeInByte = dst.GetSize();
+    if (src.GetDataType() == dst.GetDataType()) {
+        auto srcSizeInByte = src.GetSize();
+        auto dstSizeInByte = dst.GetSize();
 
-    IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
+        IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
 
-    cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
+        cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
+    } else {
+        cpu_convert(srcPtr, dstPtr, src.getDesc().getPrecision(),
+            dst.getDesc().getPrecision(), src.getDesc().getShape().getElementsCount());
+    }
 }
 
 MemoryInput::~MemoryInput() {

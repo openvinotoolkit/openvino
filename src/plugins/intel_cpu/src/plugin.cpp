@@ -677,8 +677,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-            || engConfig.enforceBF16) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    bool enableBF16;
+    if (BF16Prop != config.end()) {
+        if (BF16Prop->second == PluginConfigParams::YES) {
+            enableBF16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+        } else {
+            enableBF16 = false;
+        }
+    } else {
+        enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    }
     const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
     const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
             || !engConfig.cache_dir.empty();
