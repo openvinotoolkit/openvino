@@ -215,9 +215,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
-            ASSERT_EQ(selectedType, primType);
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType;
         }
     }
+}
+
+bool CPUTestsBase::primTypeCheck(std::string primType) const {
+    return selectedType == primType;
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -256,6 +260,20 @@ std::string CPUTestsBase::getPrimitiveType() const {
         isaType = "jit_sse42";
     } else {
         isaType = "ref";
+    }
+    return isaType;
+}
+
+std::string CPUTestsBase::getISA() const {
+    std::string isaType;
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        isaType = "avx512";
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        isaType = "avx2";
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        isaType = "sse42";
+    } else {
+        isaType = "";
     }
     return isaType;
 }

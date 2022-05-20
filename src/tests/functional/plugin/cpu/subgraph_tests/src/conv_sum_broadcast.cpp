@@ -108,7 +108,7 @@ public:
 
         auto sum = addSum(conv, inputParams);
 
-        auto runtimeType = getNetType();
+        runtimeType = getNetType();
         if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
             PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
             runtimeType = ngraph::element::Type_t::bf16;
@@ -118,7 +118,7 @@ public:
             runtimeType = ngraph::element::i8;
         }
 
-        selectedType = makeSelectedTypeStr(getPrimitiveType(), runtimeType);
+        selectedType = "?";
 
         function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
@@ -126,6 +126,17 @@ public:
     }
 
 protected:
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA();
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return primType == makeSelectedTypeStr(std::string("jit_") + isaType, runtimeType)
+                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, runtimeType);
+    }
+
+protected:
+    ov::element::Type runtimeType;
     const InferenceEngine::SizeVector _kernel = {3, 3};
     const InferenceEngine::SizeVector _stride = {1, 1};
     const InferenceEngine::SizeVector _dilation = {1, 1};
@@ -322,14 +333,13 @@ InputShape secondInp = {
         }
 };
 
-//TODO lc: crash
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::Values(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(cpuFP32PluginConfig)),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          ConcatConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,

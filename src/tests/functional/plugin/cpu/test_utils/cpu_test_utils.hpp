@@ -152,8 +152,10 @@ protected:
                                                       ngraph::ParameterVector &params,
                                                       const std::shared_ptr<ngraph::Node> &lastNode);
 
+    virtual bool primTypeCheck(std::string primType) const;
 protected:
     std::string getPrimitiveType() const;
+    std::string getISA() const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
