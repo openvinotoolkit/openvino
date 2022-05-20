@@ -156,7 +156,7 @@ protected:
 
 protected:
     std::string getPrimitiveType() const;
-    std::string getISA() const;
+    std::string getISA(bool skip_amx) const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;

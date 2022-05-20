@@ -64,7 +64,7 @@ protected:
     }
 
     bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA();
+        auto isaType = getISA(true);
         if (isaType == "")
             return primType == "ref";
         else

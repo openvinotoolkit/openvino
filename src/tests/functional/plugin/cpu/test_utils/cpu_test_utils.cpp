@@ -264,9 +264,11 @@ std::string CPUTestsBase::getPrimitiveType() const {
     return isaType;
 }
 
-std::string CPUTestsBase::getISA() const {
+std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    if (!skip_amx && InferenceEngine::with_cpu_x86_avx512_core_amx()) {
+        isaType = "avx512_amx";
+    } else if (InferenceEngine::with_cpu_x86_avx512f()) {
         isaType = "avx512";
     } else if (InferenceEngine::with_cpu_x86_avx2()) {
         isaType = "avx2";

@@ -127,7 +127,7 @@ public:
 
 protected:
     bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA();
+        auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
         if (isaType == "")
             return primType == "ref";
         else
