@@ -153,6 +153,7 @@ protected:
                                                       const std::shared_ptr<ngraph::Node> &lastNode);
 
     virtual bool primTypeCheck(std::string primType) const;
+
 protected:
     std::string getPrimitiveType() const;
     std::string getISA() const;
