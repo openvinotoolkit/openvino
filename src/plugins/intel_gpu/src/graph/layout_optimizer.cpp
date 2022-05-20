@@ -214,11 +214,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
-    // // keep reorder(b_fs_zyx_fsv2) before first conv(shallow feature)
-    // auto& reorder_node = next.get_dependency(0);
-    // if ((reorder_node.get_output_layout().format == format::b_fs_zyx_fsv2) &&
-    //     (next.is_type<convolution>() && reorder_node.get_output_layout().feature() <= 4))
-    //     return false;
+    // keep reorder(b_fs_zyx_fsv2) before first conv(shallow feature)
+    if (prev.is_type<eltwise>() && next.is_type<convolution>()) {
+        auto reorder_layout = next.get_dependency(0).get_output_layout();
+        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
+            (reorder_layout.feature() <= 4)) {
+            return false;
+        }
+    }
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (next.is_type<resample>() &&
@@ -386,6 +389,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
     if (prev.is_type<reorder>())
         return true;
+
+
+    // fusing reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
+    if (prev.is_type<eltwise>() && next->is_type<convolution>()) {
+        auto reorder_layout = next->get_dependency(0).get_output_layout();
+        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
+            (reorder_layout.feature() <= 4)) {
+            return true;
+        }
+    }
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (prev.is_type<resample>() &&

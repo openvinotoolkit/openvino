@@ -199,8 +199,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                     out_fmt = format::b_fs_zyx_fsv16;
                 else if (input_layout.format == format::bs_fs_zyx_bsv32_fsv32)
                     out_fmt = format::bs_fs_zyx_bsv32_fsv16;
+                else if (input_layout.format == format::b_fs_zyx_fsv2)
+                    out_fmt = format::b_fs_zyx_fsv16;
                 else if (input_layout.format == format::bs_fs_zyx_bsv8_fsv2)
-                    out_fmt = input_layout.batch() >= 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+                    out_fmt = input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
             }
         }
     }

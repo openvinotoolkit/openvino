@@ -7,6 +7,8 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
 #include <algorithm>
 #include <string>
@@ -28,6 +30,13 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
 
     if (ofmt == format::any) {
         ofmt = ifmt;
+    }
+
+    if (node.is_valid_output_layout() && input_layout.feature() <= 4 && node.input().is_type<eltwise>() && node.get_users().front()->is_type<convolution>()) {
+        auto expected_fmt = node.get_output_layout().format;
+        if (expected_fmt == format::b_fs_zyx_fsv2 || expected_fmt == format::bs_fs_zyx_bsv8_fsv2) {
+            ofmt = expected_fmt;
+        }
     }
 
     if (ifmt.is_nv12()) {
