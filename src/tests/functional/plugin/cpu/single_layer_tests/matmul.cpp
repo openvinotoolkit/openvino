@@ -295,6 +295,14 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
         fusingFakeQuantizePerTensorRelu,
 };
 
+std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
+        emptyFusingSpec,
+        fusingBias,
+        fusingMultiplyPerChannel,
+        // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
+        // fusingFakeQuantizePerTensorRelu,
+};
+
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingRelu,
         fusingScaleShift, // EltwiseMulAdd fusing
@@ -554,7 +562,7 @@ const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::V
 
 const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_smoke),
+                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
                                              ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
