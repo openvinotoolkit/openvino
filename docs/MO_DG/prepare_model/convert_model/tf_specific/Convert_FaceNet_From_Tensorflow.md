@@ -4,8 +4,8 @@
 and inference part of graph. Switch between this two states is manageable with placeholder value.
 Intermediate Representation (IR) models are intended for inference, which means that train part is redundant.
 
-There are two inputs in this network: boolean *`phase_train`* which manages state of the graph (train/infer) and
-*`batch_size`* which is a part of batch joining pattern.
+There are two inputs in this network: boolean `phase_train` which manages state of the graph (train/infer) and
+`batch_size` which is a part of batch joining pattern.
 
 
 ![FaceNet model view](../../../img/FaceNet.png)
@@ -19,10 +19,10 @@ To generate FaceNet IR provide TensorFlow FaceNet model to Model Optimizer with 
 --freeze_placeholder_with_value "phase_train->False"
 ```
 
-Batch joining pattern transforms to placeholder with model default shape if *`--input_shape`* or *`--batch`*/*`-b`* were not
+Batch joining pattern transforms to placeholder with model default shape if `--input_shape` or `--batch`*/*`-b` were not
 provided. Otherwise, placeholder shape has custom parameters.
 
-* *`--freeze_placeholder_with_value "phase_train->False"`* to switch graph to inference mode
-* *`--batch`*/*`-b`* is applicable to override original network batch
-* *`--input_shape`* is applicable with or without *`--input`*
+* `--freeze_placeholder_with_value "phase_train->False"` to switch graph to inference mode
+* `--batch`*/*`-b` is applicable to override original network batch
+* `--input_shape` is applicable with or without `--input`
 * other options are applicable
