@@ -1209,7 +1209,7 @@ TEST(ov_model, ov_model_get_outputs) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     ov_output_node_list_t output_node_list;
@@ -1228,7 +1228,7 @@ TEST(ov_model, ov_model_get_inputs) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     ov_output_node_list_t input_node_list;
@@ -1247,7 +1247,7 @@ TEST(ov_model, ov_model_get_input_by_name) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     ov_output_node_t* input_node = nullptr;
@@ -1265,7 +1265,7 @@ TEST(ov_model, ov_model_get_input_by_id) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     ov_output_node_t* input_node = nullptr;
@@ -1283,7 +1283,7 @@ TEST(ov_model, ov_model_is_dynamic) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     ASSERT_FALSE(ov_model_is_dynamic(model));
@@ -1297,8 +1297,10 @@ TEST(ov_model, ov_model_reshape) {
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
+    std::string xml_reshape = TestDataHelpers::generate_model_path("test_model", "person-detection-retail-0013.xml");
+    auto tmp_xml = xml_reshape.c_str();
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, tmp_xml, nullptr, &model));
     ASSERT_NE(nullptr, model);
 
     ov_output_node_list_t input_node_list1;
@@ -1306,8 +1308,11 @@ TEST(ov_model, ov_model_reshape) {
     OV_ASSERT_OK(ov_model_get_inputs(model, &input_node_list1));
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
 
-    ov_partial_shape_t partial_shape = {"1","3","64","?"};
-    OV_ASSERT_OK(ov_model_reshape(model, "data", partial_shape));
+    char* tensor_name;
+    OV_ASSERT_OK(ov_model_get_tensor_name(input_node_list1.output_nodes, &tensor_name));
+
+    ov_partial_shape_t partial_shape = {"1","3","22","22"};
+    OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
 
     ov_output_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;
@@ -1316,6 +1321,7 @@ TEST(ov_model, ov_model_reshape) {
 
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
 
+    ov_char_free(tensor_name);
     ov_output_node_list_free(&input_node_list1);
     ov_output_node_list_free(&input_node_list2);
     ov_model_free(model);
@@ -1328,13 +1334,14 @@ TEST(ov_model, ov_model_get_friendly_name) {
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
     char* friendly_name = nullptr;
     OV_ASSERT_OK(ov_model_get_friendly_name(model, &friendly_name));
     ASSERT_NE(nullptr, friendly_name);
 
+    ov_char_free(friendly_name);
     ov_model_free(model);
     ov_core_free(core);
 }

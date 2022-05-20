@@ -502,6 +502,16 @@ ov_status_e ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *
     return ov_status_e::OK;
 }
 
+ov_status_e ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name) {
+    if (!node || !tensor_name) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor_name = str_to_char_array(node->object->get_any_name());
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
                                 const char* tensor_name,
                                 ov_output_node_t **input_node) {
@@ -546,17 +556,14 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     }
     try {
         std::vector<ngraph::Dimension> shape;
-        bool partial = false;
         for (int i = 0; i < 4; i++) {
             std::string dim = partial_shape[i];
             if (dim == "?" || dim == "-1") {
-                partial = true;
                 shape.push_back(ov::Dimension::dynamic());
             } else {
                 const std::string range_divider = "..";
                 size_t range_index = dim.find(range_divider);
                 if (range_index != std::string::npos) {
-                    partial = true;
                     std::string min = dim.substr(0, range_index);
                     std::string max = dim.substr(range_index + range_divider.length());
                     shape.emplace_back(min.empty() ? 0 : std::stoi(min),
@@ -565,9 +572,6 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
                     shape.emplace_back(std::stoi(dim));
                 }
             }
-        }
-        if (!partial) {
-            return ov_status_e::PARAMETER_MISMATCH;
         }
 
         std::map<std::string, ov::PartialShape> const_pshape;
@@ -597,6 +601,10 @@ void ov_output_node_list_free(ov_output_node_list_t *output_nodes) {
 
 void ov_output_node_free(ov_output_node_t *output_node) {
     delete output_node;
+}
+
+void ov_char_free(char *content) {
+    delete content;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,
