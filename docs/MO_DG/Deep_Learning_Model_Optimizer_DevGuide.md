@@ -53,20 +53,20 @@ To convert a model to IR, you can run Model Optimizer by using the following com
 mo --input_model INPUT_MODEL
 ```
 
-If the out-of-the-box conversion (only the *`--input_model`* parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
+If the out-of-the-box conversion (only the `--input_model` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
-- Model Optimizer provides two parameters to override original input shapes for model conversion: *`--input`* and *`--input_shape`*.
+- Model Optimizer provides two parameters to override original input shapes for model conversion: `--input` and `--input_shape`.
 For more information about these parameters, refer to the [Setting Input Shapes](prepare_model/convert_model/Converting_Model.md) guide.
 
 - To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
-use the *`--input`* and *`--output`* parameters to define new inputs and outputs of the converted model.
+use the `--input` and `--output` parameters to define new inputs and outputs of the converted model.
 For a more detailed description, refer to the [Cutting Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md) guide.
 
 You can also insert additional input pre-processing sub-graphs into the converted model by using
-the *`--mean_values`*, *`scales_values`*, *`--layout`*, and other parameters described
+the `--mean_values`, `scales_values`, `--layout`, and other parameters described
 in the [Embedding Preprocessing Computation](prepare_model/Additional_Optimizations.md) article.
 
-The *`--data_type`* compression parameter in Model Optimizer allows generating IR of the *`FP16`* data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
+The `--data_type` compression parameter in Model Optimizer allows generating IR of the `FP16` data type. For more details, refer to the [Compression of a Model to FP16](prepare_model/FP16_Compression.md) guide.
 
 To get the full list of conversion parameters available in Model Optimizer, run the following command:
 
