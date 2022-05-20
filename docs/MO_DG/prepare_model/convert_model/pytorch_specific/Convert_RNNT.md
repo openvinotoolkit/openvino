@@ -21,11 +21,11 @@ cd rnnt_for_openvino
 ```
 
 **Step 3**. Download pretrained weights for PyTorch implementation from [https://zenodo.org/record/3662521#.YG21DugzZaQ](https://zenodo.org/record/3662521#.YG21DugzZaQ).
-For UNIX-like systems, you can use *`wget`*:
+For UNIX-like systems, you can use `wget`:
 ```bash
 wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt
 ```
-The link was taken from *`setup.sh`* in the *`speech_recoginitin/rnnt`* subfolder. You will get exactly the same weights as
+The link was taken from `setup.sh` in the `speech_recoginitin/rnnt` subfolder. You will get exactly the same weights as
 if you were following the guide from [https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt](https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt).
 
 **Step 4**. Install required Python packages:
@@ -34,10 +34,10 @@ pip3 install torch toml
 ```
 
 **Step 5**. Export RNN-T model into ONNX, using the script below. Copy the code below into a file named
-*`export_rnnt_to_onnx.py`* and run it in the current directory *`rnnt_for_openvino`*:
+`export_rnnt_to_onnx.py` and run it in the current directory `rnnt_for_openvino`:
 
 > **NOTE**: If you already have a full clone of MLCommons inference repository, you need to
-> specify the *`mlcommons_inference_path`* variable.
+> specify the `mlcommons_inference_path` variable.
 
 ```python
 import toml
@@ -94,7 +94,7 @@ torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
 python3 export_rnnt_to_onnx.py
 ```
 
-After completing this step, the files *`rnnt_encoder.onnx`*, *`rnnt_prediction.onnx`*, and *`rnnt_joint.onnx`* will be saved in the current directory.
+After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory.
 
 **Step 6**. Run the conversion commands:
 
