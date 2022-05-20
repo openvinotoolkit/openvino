@@ -15,7 +15,7 @@ The instructions below are applicable **only** to the Mask R-CNN model converted
 --transformations_config front/onnx/mask_rcnn.json
 ```
 
-Be aware that the height and width specified with the *`input_shape`* command line parameter could be different. For more information about supported input image dimensions and required pre- and post-processing steps, refer to the [documentation](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn).
+Be aware that the height and width specified with the `input_shape` command line parameter could be different. For more information about supported input image dimensions and required pre- and post-processing steps, refer to the [documentation](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn).
 
 3. Interpret the outputs of the generated IR file: masks, class indices, probabilities and box coordinates.
    * masks.
@@ -23,4 +23,4 @@ Be aware that the height and width specified with the *`input_shape`* command li
    * probabilities.
    * box coordinates. 
 
-The first one is a layer with the name *`6849/sink_port_0`*, and rest are outputs from the *`DetectionOutput`* layer.
+The first one is a layer with the name `6849/sink_port_0`, and rest are outputs from the `DetectionOutput` layer.
