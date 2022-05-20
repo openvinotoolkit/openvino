@@ -60,7 +60,7 @@ struct ConstProperties {
 static void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props);
 
 static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
-    const auto& constDims = op->get_shape();
+    ngraph::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
     size_t numConstUsers = constUsers.size();
 
@@ -115,6 +115,14 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             handleConvWeights(outOp, consts, numConstUsers, false);
         } else if (ngraph::is_type<ngraph::op::v1::GroupConvolutionBackpropData>(outOp) && node.get_index() == 1) {
             handleConvWeights(outOp, consts, numConstUsers, true);
+        } else if (ngraph::is_type<ngraph::op::v0::PRelu>(outOp) && node.get_index() == 1) {
+            auto input_shape = outOp->get_input_shape(0);
+            if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
+                ngraph::Shape slope_shape(input_shape.size(), 1);
+                for (int j = 1; j <= constDims.size(); j++)
+                    slope_shape[slope_shape.size()-j] = constDims[constDims.size()-j];
+                constDims = slope_shape;
+            }
         }
     }
 
