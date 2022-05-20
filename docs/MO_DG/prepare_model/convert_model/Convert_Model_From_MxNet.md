@@ -32,7 +32,7 @@ MXNet-specific parameters:
 
 > **NOTE**: The Model Optimizer does not use the MXNet loader by default. It transforms the topology to another format, which is compatible with the latest
 > version of MXNet. Still, it is required for models trained with lower version of MXNet. If your model was trained with MXNet version lower than 1.0.0, specify the
-> *`--legacy_mxnet_model`* key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
+> `--legacy_mxnet_model` key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
 > recompile MXNet with custom layers and install it in your environment.
 
 ## Custom Layer Definition
