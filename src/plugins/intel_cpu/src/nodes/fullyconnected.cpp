@@ -386,7 +386,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     auto getBinPostOpShape = [&](){
         const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
         VectorDims binaryShape(binaryShapeRank, 1);
-        const size_t channelAxis = getFusingAxis();
+        const auto channelAxis = getFusingAxis();
         // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
         binaryShape[1] = dims[channelAxis];
 

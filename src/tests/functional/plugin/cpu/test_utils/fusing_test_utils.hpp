@@ -83,20 +83,44 @@ protected:
     bool checkFusingPosition = true;
 };
 
-static size_t getFusingAxis(const std::shared_ptr<ngraph::Node>& node) {
-    if (std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(node))
+static int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
+    int channelAxis = 1;
+    if (!keep_dims) {
+        for (auto axis : axes) {
+            if (axis == 1) {
+                // channel axis has been reduced and doesn't exist any more
+                channelAxis = -1;
+                break;
+            } else if (axis == 0) {
+                channelAxis = 0;
+            }
+        }
+    }
+    return channelAxis;
+}
+
+static int getFusingAxis(const std::shared_ptr<ngraph::Node>& node) {
+    if (std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(node)) {
         return node->get_output_partial_shape(0).size() - 1; // last dimension
-    else
+    } else if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(node)) {
+        return getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
+    } else if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(node)) {
+        return getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
+    } else {
         return 1; // second dimension
+    }
 }
 
 static ngraph::Shape generatePerChannelShape(const std::shared_ptr<ngraph::Node>& node) {
     const auto shape = node->get_output_partial_shape(0);
+    if (shape.size() == 0)
+        IE_THROW() << "If shape.size() == 0 then PerTensor fusing tests are N/A";
     if (shape.size() == 1)
         IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
     ngraph::Shape perChannelShape(shape.size(), 1);
     const auto channelAxis = getFusingAxis(node);
-    perChannelShape[channelAxis] = shape[channelAxis].get_length();
+    if (channelAxis >= 0)
+        perChannelShape[channelAxis] = shape[channelAxis].get_length();
 
     return perChannelShape;
 }

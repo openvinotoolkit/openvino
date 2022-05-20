@@ -33,7 +33,7 @@ public:
         return getOriginalInputsNumber();
     }
 
-    size_t getFusingAxis() const override {
+    int getFusingAxis() const override {
         return getOutputShapeAtPort(0).getRank() - 1;
     }
 
