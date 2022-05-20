@@ -8,10 +8,10 @@
    :maxdepth: 2
    :hidden:
  
-   Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
-   Configurations for NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
-   Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
-   Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>
+   For GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
+   For NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
+   For VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
+   For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
 @endsphinxdirective
 
