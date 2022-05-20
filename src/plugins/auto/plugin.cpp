@@ -333,7 +333,26 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "There is no device support the configure";
         }
-        auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+        auto supportDevices = supportDevicesByConfig;
+        CNNNetwork clonedNetwork;
+        std::string clonedModelPath = modelPath;
+        if (modelPath.empty()) {
+            // if network is valid
+            LOG_INFO("[AUTOPLUGIN]:load with CNN network");
+            supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
+            // clone the network, in case of reshape conflict
+            clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        } else {
+            // model path, enable model load with single device situation
+            if (supportDevices.size() > 1) {
+                clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
+                // do we really need to disable model path?
+                clonedModelPath = "";
+                LOG_INFO("[AUTOPLUGIN]:load with CNN network");
+            } else {
+                LOG_INFO("[AUTOPLUGIN]:load with model path");
+            }
+        }
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
         auto validConfigKey = PerfHintsConfig::SupportedKeys();
@@ -360,10 +379,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
              LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
-        // clone the network, in case of reshape conflict
-        CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, clonedNetwork, supportDevices, strDevices, this, context, context.needPerfCounters);
+        return std::make_shared<MultiDeviceExecutableNetwork>(clonedModelPath, clonedNetwork, supportDevices, strDevices,
+                                                            this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
