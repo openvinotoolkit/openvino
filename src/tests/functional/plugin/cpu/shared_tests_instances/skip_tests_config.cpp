@@ -83,8 +83,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
-        // Issue: 62846 Here shape[1] is not the channel dimension size
-        R"(.*smoke_Reduce.*KeepNoDims.*(_axes=\((0.*|.*1.*)).*Fused=.*PerChannel.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
         R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
