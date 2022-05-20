@@ -116,7 +116,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
-    _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
+    if (_autoSContext->_modelPath.empty())
+        _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
     if (isCumulative) {
         std::list<DeviceInformation> validDevices =
