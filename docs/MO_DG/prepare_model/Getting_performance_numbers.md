@@ -44,14 +44,14 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 -	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
 -	In situations when any user-side pre-processing should be tracked separately, consider [Image Pre-processing and Conversion](../../OV_Runtime_UG/preprocessing_overview.md).
 -  When applicable, leverage the [Dynamic Shapes support](../../OV_Runtime_UG/ov_dynamic_shapes.md)
--	If possible, demand the same accuracy. For example, TensorFlow allows *`FP16`* execution, so when comparing to that, make sure to test the OpenVINO Runtime with the *`FP16`* as well.
+-	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
 
 ## Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
 More detailed insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
-Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the *`benchmark_app`* support a *`-pc`* command-line parameter that outputs internal execution breakdown.
+Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` support a `-pc` command-line parameter that outputs internal execution breakdown.
 
 For example, below is the part of performance counters for quantized [TensorFlow implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model inference on [CPU Plugin](../../OV_Runtime_UG/supported_plugins/CPU.md).
-Keep in mind that since the device is CPU, the *`realTime`* wall clock and the *`cpu`* time layers are the same. Information about layer precision is also stored in the performance counters. 
+Keep in mind that since the device is CPU, the `realTime` wall clock and the `cpu` time layers are the same. Information about layer precision is also stored in the performance counters. 
 
 | layerName                                                 | execStatus | layerType    | execType             | realTime (ms) | cpuTime (ms) |
 | --------------------------------------------------------- | ---------- | ------------ | -------------------- | ------------- | ------------ |
@@ -65,18 +65,18 @@ Keep in mind that since the device is CPU, the *`realTime`* wall clock and the *
 | resnet\_model/add\_5/fq\_input\_1                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
 
 
-   The *`exeStatus`* column of the table includes possible values:
-   - The *`EXECUTED`* - layer was executed by standalone primitive.
-   - The *`NOT_RUN`* - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
+   The `exeStatus` column of the table includes possible values:
+   - The `EXECUTED` - layer was executed by standalone primitive.
+   - The `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
    
-   The *`execType`* column of the table includes inference primitives with specific suffixes. The layers have the following marks:
-   * Suffix *`I8`* - layers that had 8-bit data type input and were computed in 8-bit precision.
-   * Suffix *`FP32`* - layers computed in 32-bit precision.
+   The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
+   * Suffix `I8` - layers that had 8-bit data type input and were computed in 8-bit precision.
+   * Suffix `FP32` - layers computed in 32-bit precision.
 
-   All *`Convolution`* layers are executed in *`int8`* precision. Rest layers are fused into Convolutions using post operations optimization technique (for more details, see the [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md)).
+   All `Convolution` layers are executed in `int8` precision. Rest layers are fused into Convolutions using post operations optimization technique (for more details, see the [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md)).
    This contains name (as seen in IR) and type of the layer and execution statistics.
 
-Both *`benchmark_app`* versions also support *`exec_graph_path`* command-line option. It orders the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
+Both `benchmark_app` versions also support `exec_graph_path` command-line option. It orders the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
 
 Keep in mind that on some devices, the execution graphs/counters may be pretty intrusive overhead-wise. 
 Be aware, especially when performance-debugging the [latency case](../../optimization_guide/dldt_deployment_optimization_latency.md), that the counters do not reflect the time spent in the plugin/device/driver/etc queues. If the sum of the counters is too different from the latency of an inference request, consider testing with less inference requests. For example, running single [OpenVINO stream](../../optimization_guide/dldt_deployment_optimization_tput.md) with multiple requests would produce nearly identical counters as running single inference request, yet the actual latency can be quite different.
