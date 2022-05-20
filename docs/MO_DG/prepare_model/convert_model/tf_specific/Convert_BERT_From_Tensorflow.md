@@ -7,26 +7,26 @@ Pretrained models for BERT (Bidirectional Encoder Representations from Transform
 
 The following models from the pretrained [BERT model list](https://github.com/google-research/bert#pre-trained-models) are currently supported:
 
-* *`BERT-Base, Cased`*
-* *`BERT-Base, Uncased`*
-* *`BERT-Base, Multilingual Cased`*
-* *`BERT-Base, Multilingual Uncased`*
-* *`BERT-Base, Chinese`*
-* *`BERT-Large, Cased`*
-* *`BERT-Large, Uncased`*
+* `BERT-Base, Cased`
+* `BERT-Base, Uncased`
+* `BERT-Base, Multilingual Cased`
+* `BERT-Base, Multilingual Uncased`
+* `BERT-Base, Chinese`
+* `BERT-Large, Cased`
+* `BERT-Large, Uncased`
 
 ## Downloading the Pretrained BERT Model
 
 Download and unzip an archive with the [BERT-Base, Multilingual Uncased Model](https://storage.googleapis.com/bert_models/2018_11_03/multilingual_L-12_H-768_A-12.zip).
 
-After the archive is unzipped, the directory *`uncased_L-12_H-768_A-12`* is created and contains the following files:
-* *`bert_config.json`*
-* *`bert_model.ckpt.data-00000-of-00001`*
-* *`bert_model.ckpt.index`*
-* *`bert_model.ckpt.meta`*
-* *`vocab.txt`*
+After the archive is unzipped, the directory `uncased_L-12_H-768_A-12` is created and contains the following files:
+* `bert_config.json`
+* `bert_model.ckpt.data-00000-of-00001`
+* `bert_model.ckpt.index`
+* `bert_model.ckpt.meta`
+* `vocab.txt`
 
-Pretrained model meta-graph files are *`bert_model.ckpt.*`*.
+Pretrained model meta-graph files are `bert_model.ckpt.*`.
 
 ## Converting a TensorFlow BERT Model to IR
 
@@ -67,12 +67,12 @@ wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e
 ```sh
 python3 download_glue_data.py --tasks MRPC
 ```
-7. Open the file *`modeling.py`* in the text editor and delete lines 923-924. They should look like this:
+7. Open the file `modeling.py` in the text editor and delete lines 923-924. They should look like this:
 ```python
     if not non_static_indexes:
         return shape
 ```
-8. Open the file *`run_classifier.py`* and insert the following code after the line 645:
+8. Open the file `run_classifier.py` and insert the following code after the line 645:
 ```python
     import os, sys
     import tensorflow as tf
@@ -93,7 +93,7 @@ Lines before the inserted code should look like this:
         bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
         num_labels, use_one_hot_embeddings)
 ```
-9. Set environment variables *`BERT_BASE_DIR`*, *`BERT_REPO_DIR`* and run the script *`run_classifier.py`* to create *`inference_graph.pb`* file in the root of the cloned BERT repository.
+9. Set environment variables `BERT_BASE_DIR`, `BERT_REPO_DIR` and run the script `run_classifier.py` to create `inference_graph.pb` file in the root of the cloned BERT repository.
 ```sh
 export BERT_BASE_DIR=/path/to/bert/uncased_L-12_H-768_A-12
 export BERT_REPO_DIR=/current/working/directory
