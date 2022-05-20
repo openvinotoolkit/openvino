@@ -61,7 +61,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
 | _contrib_div_sqrt_dim |  |
-| _contrib_MultiBoxDetection | The *`force_suppress`* = 1 is not supported, non-default variances are not supported. |
+| _contrib_MultiBoxDetection | The `force_suppress` = 1 is not supported, non-default variances are not supported. |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
 | _copy | Not needed for inference |
@@ -100,7 +100,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | max |  |
 | minus_scalar |  |
 | null | Not needed for inference. |
-| LayerNorm | The *`output_mean_var`* = True is not supported. |
+| LayerNorm | The `output_mean_var` = True is not supported. |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |
@@ -117,11 +117,11 @@ In this article, you can find lists of supported framework layers, divided by fr
 | tile |  |
 | transpose |  |
 | zeros |  |
-| Activation | Supported *`act_type`* = *`relu`*, *`sigmoid`*, *`softrelu`* or *`tanh`*. |
+| Activation | Supported `act_type` = `relu`, `sigmoid`, `softrelu` or `tanh`. |
 | BatchNorm |  |
 | Concat |  |
 | Convolution |  |
-| Crop | The *`center_crop`* = 1 is not supported. |
+| Crop | The `center_crop` = 1 is not supported. |
 | Custom | [Custom Layers in Model Optimizer.](customize_model_optimizer/Customize_Model_Optimizer.md) |
 | Deconvolution |  |
 | DeformableConvolution |  |
@@ -134,7 +134,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | InstanceNorm |  |
 | L2Normalization | Only 4D input is supported. |
 | LRN |  |
-| LeakyReLU | Supported *`act_type`* = *`prelu`*, *`elu`*, *`leaky`*, *`gelu`*. |
+| LeakyReLU | Supported `act_type` = `prelu`, `elu`, `leaky`, `gelu`. |
 | ones_like |  |
 | Pad |  |
 | Pooling |  |
@@ -145,7 +145,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | SoftmaxActivation |  |
 | SoftmaxOutput |  |
 | SoftSign |  |
-| Take | The attribute *`mode`* is not supported. |
+| Take | The attribute `mode` is not supported. |
 | Tile |  |
 | UpSampling |  |
 | Where |  |
@@ -154,7 +154,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 
 ## TensorFlow Supported Operations
 
-Some of TensorFlow operations do not match any OpenVINO operations. Yet, they are still supported by Model Optimizer and can be used on constant propagation path. These layers are labeled *`Constant propagation`* in the table below:
+Some of TensorFlow operations do not match any OpenVINO operations. Yet, they are still supported by Model Optimizer and can be used on constant propagation path. These layers are labeled `Constant propagation` in the table below:
 
 
 | Operation Name in TensorFlow | Limitations|
@@ -173,7 +173,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | AssignSub | Not needed for inference. |
 | Atanh |  |
 | AvgPool |  |
-| AvgPoolV2 | Supported only for constant-foldable *`kernel_size`* and strides inputs. |
+| AvgPoolV2 | Supported only for constant-foldable `kernel_size` and strides inputs. |
 | AvgPool3D |  |
 | BatchMatMul |  |
 | BatchMatMulV2 |  |
@@ -194,7 +194,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Conv3DBackpropInputV2 |  |
 | Cos |  |
 | Cosh |  |
-| CropAndResize | The *`method`* = *`bilinear`* only. |
+| CropAndResize | The `method` = `bilinear` only. |
 | CTCGreedyDecoder | Supported only with decoded indices output in a dense format. |
 | CTCLoss | Supported only with decoded indices input in a dense format. |
 | CumSum |  |
@@ -252,7 +252,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | MatMul |  |
 | Max |  |
 | MaxPool |  |
-| MaxPoolV2 | Supported only for constant-foldable *`kernel_size`* and strides inputs. |
+| MaxPoolV2 | Supported only for constant-foldable `kernel_size` and strides inputs. |
 | MaxPool3D |  |
 | Maximum |  |
 | Mean |  |
@@ -323,10 +323,10 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Square |  |
 | SquaredDifference |  |
 | Square|  |
-| Squeeze | Cases in which *`squeeze`* axis is not specified are not supported. |
+| Squeeze | Cases in which `squeeze` axis is not specified are not supported. |
 | StatelessWhile |  |
 | StopGradient | Not needed for shape inference. |
-| StridedSlice | Supported only for constant-foldable *`begin`*, *`end`*, and *`strides`* inputs. |
+| StridedSlice | Supported only for constant-foldable `begin`, `end`, and `strides` inputs. |
 | Sub |  |
 | Sum |  |
 | Swish |  |
@@ -369,7 +369,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Bidirectional |  |
 | Concatenate |  |
 | Conv1D |  |
-| Conv1DTranspose | Not supported if *`dilation`* is not equal to 1. |
+| Conv1DTranspose | Not supported if `dilation` is not equal to 1. |
 | Conv2D |  |
 | Conv2DTranspose |  |
 | Conv3D |  |
@@ -670,18 +670,18 @@ paddlepaddle>=2.1
 
 | Operator Name in PaddlePaddle| Limitations|
 | :----------| :----------|
-| adpative_pool2d | The *`NHWC`* data_layout is not supported. |
-| arg_max | The *`int32'`* output data_type is not supported. |
+| adpative_pool2d | The `NHWC` data_layout is not supported. |
+| arg_max | The `int32` output data_type is not supported. |
 | assign_value |  |
 | batch_norm |  |
-| bilinear_interp | The *`NCW`*, *`NWC`*, *`NHWC`*, *`NCDHW`*, *`NDHWC`* data_layout are not supported. |
-| bilinear_interp_v2 | The *`NCW`*, *`NWC`*, *`NHWC`*, *`NCDHW`*, *`NDHWC`* data_layout are not supported. |
+| bilinear_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
+| bilinear_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | bmm |  |
 | cast |  |
 | clip |  |
 | concat |  |
-| conv2d | The *`NHWC`* data_layout is not supported. |
-| depthwise_conv2d | The *`NHWC`* data_layout is not supported. |
+| conv2d | `NHWC` data_layout is not supported. |
+| depthwise_conv2d | `NHWC` data_layout is not supported. |
 | deformable_conv |  |
 | elementwise_add |  |
 | elementwise_div |  |
@@ -708,21 +708,21 @@ paddlepaddle>=2.1
 | lookup_table_v2 |  |
 | matmul |  |
 | matmul_v2 |  |
-| matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: *`min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`*). |
+| matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | max_pool2d_with_index |  |
 | mul |  |
-| multiclass_nms3 | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: *`min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`*). |
-| nearest_interp | 'The *`NCW`*, *`NWC`*, *`NHWC`*, *`NCDHW`*, *`NDHWC`* data_layout are not supported. |
-| nearest_interp_v2 | The *`NCW`*, *`NWC`*, *`NHWC`*, *`NCDHW`*, *`NDHWC`* data_layout are not supported. |
-| pad3d | The *`Circular`* mode is not supported. |
+| multiclass_nms3 | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
+| nearest_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
+| nearest_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
+| pad3d | `Circular` mode is not supported. |
 | pow |  |
-| pool2d | The *`NHWC`* data_layout is not supported. |
+| pool2d | `NHWC` data_layout is not supported. |
 | prior_box |  |
 | range |  |
 | relu |  |
 | relu6 |  |
 | reshape2 |  |
-| rnn | The *`SimpleRNN`* and *`GRU`* modes are not supported. |
+| rnn | `SimpleRNN` and `GRU` modes are not supported. |
 | scale |  |
 | shape |  |
 | slice |  |
