@@ -344,6 +344,7 @@ openvino/tools/mo/front/mxnet/softmax.py
 openvino/tools/mo/front/mxnet/softmax_activation_ext.py
 openvino/tools/mo/front/mxnet/softmax_ext.py
 openvino/tools/mo/front/mxnet/softmax_output_ext.py
+openvino/tools/mo/front/mxnet/softsign_ext.py
 openvino/tools/mo/front/mxnet/squeeze_ext.py
 openvino/tools/mo/front/mxnet/ssd_anchor_reshape.py
 openvino/tools/mo/front/mxnet/ssd_detection_output_replacer.py
@@ -458,6 +459,7 @@ openvino/tools/mo/front/onnx/slice_ext.py
 openvino/tools/mo/front/onnx/softmax_ext.py
 openvino/tools/mo/front/onnx/softmaxONNX_to_softmax.py
 openvino/tools/mo/front/onnx/softplus_ext.py
+openvino/tools/mo/front/onnx/softsign_ext.py
 openvino/tools/mo/front/onnx/space_to_depth_ext.py
 openvino/tools/mo/front/onnx/split_ext.py
 openvino/tools/mo/front/onnx/squeeze_ext.py
@@ -481,7 +483,6 @@ openvino/tools/mo/front/RollWithEmptyAxesReplacer.py
 openvino/tools/mo/front/scatter_normalizer.py
 openvino/tools/mo/front/SizeReplacer.py
 openvino/tools/mo/front/softmax.py
-openvino/tools/mo/front/softsign_replacer.py
 openvino/tools/mo/front/split_normalizer.py
 openvino/tools/mo/front/SqueezeNormalize.py
 openvino/tools/mo/front/sub.py
@@ -629,6 +630,7 @@ openvino/tools/mo/front/tf/sign_ext.py
 openvino/tools/mo/front/tf/slice_ext.py
 openvino/tools/mo/front/tf/softmax_ext.py
 openvino/tools/mo/front/tf/softplus_ext.py
+openvino/tools/mo/front/tf/softsign_ext.py
 openvino/tools/mo/front/tf/space_to_batch.py
 openvino/tools/mo/front/tf/space_to_batch_ext.py
 openvino/tools/mo/front/tf/space_to_depth_ext.py
