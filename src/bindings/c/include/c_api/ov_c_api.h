@@ -335,6 +335,13 @@ typedef struct ov_property{
     ov_property* next;
 }ov_property_t;
 
+typedef struct{
+    char *name;
+    size_t shape_size;
+    ov_shape_t shape;
+    ov_element_type_e type;
+} ov_node_info_t;
+
 /**
  * @brief Get version of OpenVINO.
  * @param ov_version_t a pointer to the version
@@ -543,7 +550,21 @@ OPENVINO_C_API(ov_status_e) ov_model_get_outputs(const ov_model_t* model, ov_out
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *input_nodes);
 
-OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name);
+/**
+ * @brief Get the infomation of the ov_output_node_list_t[idx].
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the ov_output_node_t.
+ * @param node_info A pointer to the ov_node_info_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_model_get_nodes_info(ov_output_node_list_t* nodes, size_t idx, 
+                                                    ov_node_info_t** node_info);
+
+/**
+ * @brief free node_info
+ * @param node_info The pointer to the node_info to free.
+ */
+OPENVINO_C_API(void) ov_node_info_free(ov_node_info_t* node_info);
 
 /**
  * @brief Get the outputs of ov_model_t.
@@ -598,7 +619,11 @@ OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_node
  */
 OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
 
-OPENVINO_C_API(void) ov_char_free(char *content);
+/**
+ * @brief free char
+ * @param content The pointer to the tensor name to free.
+ */
+OPENVINO_C_API(void) ov_tensor_name_free(char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 
@@ -892,11 +917,12 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(ov_infer_request_t* infe
 /**
  * @brief Sets an input tensor to infer on.
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is thrown.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
-                                const ov_tensor_t* tensor);
+                                size_t idx, const ov_tensor_t* tensor);
 
 /**
  * @brief Gets an input/output tensor to infer on.
@@ -911,11 +937,12 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(const ov_infer_request_t
 /**
  * @brief Gets an output tensor to infer on.
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @param idx Index of the tensor to get.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request,
-                                ov_tensor_t **tensor);
+                                size_t idx, ov_tensor_t **tensor);
 
 /**
  * @brief Infers specified input(s) in synchronous mode.

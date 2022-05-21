@@ -502,16 +502,33 @@ ov_status_e ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name) {
-    if (!node || !tensor_name) {
+ov_status_e ov_model_get_nodes_info(ov_output_node_list_t* nodes, size_t idx,
+                                    ov_node_info_t** node_info) {
+    if (!nodes || !node_info || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
-        *tensor_name = str_to_char_array(node->object->get_any_name());
+        *node_info = new ov_node_info_t;
+        (*node_info)->name = str_to_char_array(nodes->output_nodes[idx].object->get_any_name());
+        auto shape = nodes->output_nodes[idx].object->get_shape();
+        if (shape.size() > 4) {
+            return ov_status_e::GENERAL_ERROR;
+        }
+        (*node_info)->shape_size = shape.size();
+        std::copy_n(shape.begin(), shape.size(), (*node_info)->shape);
+        auto type = (ov::element::Type_t)nodes->output_nodes[idx].object->get_element_type();
+        (*node_info)->type = (ov_element_type_e)type;
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
+}
+
+void ov_node_info_free(ov_node_info_t* node_info) {
+    if (node_info) {
+        delete node_info->name;
+    }
+    delete node_info;
 }
 
 ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
@@ -601,16 +618,11 @@ void ov_output_node_list_free(ov_output_node_list_t *output_nodes) {
     }
 }
 
-void ov_output_nodes_free(ov_output_node_list_t *output_nodes) {
-    if (!output_nodes) {
-        return;
-    }
-    delete[] output_nodes->output_nodes;
-    delete output_nodes;
-    output_nodes = nullptr;
+void ov_output_node_free(ov_output_node_t *output_node) {
+    delete output_node;
 }
 
-void ov_char_free(char *content) {
+void ov_tensor_name_free(char *content) {
     delete content;
 }
 
@@ -1043,13 +1055,13 @@ ov_status_e ov_infer_request_set_tensor(ov_infer_request_t *infer_request,
 }
 
 ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
-                                const ov_tensor_t* tensor) {
+                                size_t idx, const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
-        infer_request->object->set_input_tensor(*tensor->object);
+        infer_request->object->set_input_tensor(idx, *tensor->object);
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
@@ -1071,14 +1083,14 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
 }
 
 ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request,
-                                ov_tensor_t **tensor) {
+                                size_t idx, ov_tensor_t **tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
         *tensor = new ov_tensor_t;
-        ov::Tensor tensor_get = infer_request->object->get_output_tensor();
+        ov::Tensor tensor_get = infer_request->object->get_output_tensor(idx);
         (*tensor)->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
     } CATCH_OV_EXCEPTIONS
 
