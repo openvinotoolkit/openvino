@@ -232,7 +232,10 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
     m_femgr = ov::frontend::get_frontend_manager();
 }
 
-ov::op::v0::Constant::~Constant() = default;
+ov::op::v0::Constant::~Constant() {
+    m_data = nullptr;
+    m_femgr = nullptr;
+}
 
 string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     string rc;
