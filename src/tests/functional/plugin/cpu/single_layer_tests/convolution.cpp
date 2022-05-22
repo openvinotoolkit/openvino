@@ -88,6 +88,7 @@ public:
     }
 protected:
     bool isBias = false;
+    InferenceEngine::SizeVector kernel, dilation;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
@@ -185,7 +186,7 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector stride;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
@@ -210,6 +211,34 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         auto outChannels = function->get_output_partial_shape(0)[1].get_length();
         if ((inpChannels % 8) || (outChannels % 8)) {
             GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
+        }
+    }
+
+    // Skip tests for brgconv convolution where kernel size = 1x1
+    if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+        bool is_1x1 = true;
+        for (const auto &i : kernel) {
+            if (i != 1) {
+                is_1x1 = false;
+                break;
+            }
+        }
+        if (is_1x1) {
+            GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
+        }
+    }
+
+    // Skip tests for brgconv_amx convolution where dilation is not 1
+    if (priority[0].find("amx") != std::string::npos) {
+        bool dilation_is_1x1 = true;
+        for (const auto &i : dilation) {
+            if (i != 1) {
+                dilation_is_1x1 = false;
+                break;
+            }
+        }
+        if (!dilation_is_1x1) {
+            GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
         }
     }
 
@@ -759,7 +788,8 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D,
         conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
-        conv_avx512_1D_nspc
+        conv_avx512_1D_nspc,
+        conv_avx512_1D_nspc_brgconv
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_FP32, ConvolutionLayerCPUTest,
@@ -785,7 +815,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes1d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D})), // todo: [AV] what about conv_avx512_1D_nspc?
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D,
+                                        conv_avx512_1D_nspc_brgconv, conv_avx512_1D_nspc_brgconv_amx})), // todo: [AV] what about conv_avx512_1D_nspc?
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -865,7 +896,8 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D,
         conv_sse42_2D_nspc,
         conv_avx2_2D_nspc,
-        conv_avx512_2D_nspc
+        conv_avx512_2D_nspc,
+        conv_avx512_2D_nspc_brgconv
 };
 
 std::vector<InputShape> inputShapes2d_cache = {
@@ -945,7 +977,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc,
+                                        conv_avx512_2D_nspc_brgconv, conv_avx512_2D_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -987,7 +1020,8 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_BF16_dilated, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc,
+                                        conv_avx512_2D_nspc_brgconv, conv_avx512_2D_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1139,7 +1173,8 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx2_3D,
         conv_avx512_3D,
         conv_avx2_3D_nspc,
-        conv_avx512_3D_nspc
+        conv_avx512_3D_nspc,
+        conv_avx512_3D_nspc_brgconv
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
@@ -1179,7 +1214,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc,
+                                        conv_avx512_3D_nspc_brgconv, conv_avx512_3D_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1221,7 +1257,8 @@ INSTANTIATE_TEST_SUITE_P(Conv_3D_BF16_dilated, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc,
+                                        conv_avx512_3D_nspc_brgconv, conv_avx512_3D_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1319,7 +1356,8 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
         conv_avx512_1D_1x1,
         conv_sse42_1D_1x1_nspc,
         conv_avx2_1D_1x1_nspc,
-        conv_avx512_1D_1x1_nspc
+        conv_avx512_1D_1x1_nspc,
+        conv_avx512_1D_1x1_nspc_brgconv
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_FP32, ConvolutionLayerCPUTest,
@@ -1345,7 +1383,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes1d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D_1x1, conv_avx512_2D_1x1_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_1D_1x1, conv_avx512_2D_1x1_nspc,
+                                        conv_avx512_1D_1x1_nspc_brgconv, conv_avx512_1D_1x1_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1382,7 +1421,8 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
         conv_avx512_2D_1x1,
         conv_sse42_2D_1x1_nspc,
         conv_avx2_2D_1x1_nspc,
-        conv_avx512_2D_1x1_nspc
+        conv_avx512_2D_1x1_nspc,
+        conv_avx512_2D_1x1_nspc_brgconv
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_FP32, ConvolutionLayerCPUTest,
@@ -1408,7 +1448,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx512_2D_1x1_nspc})),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx512_2D_1x1_nspc,
+                                        conv_avx512_2D_1x1_nspc_brgconv, conv_avx512_2D_1x1_nspc_brgconv_amx})),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);

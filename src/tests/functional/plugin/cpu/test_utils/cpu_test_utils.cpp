@@ -395,6 +395,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificPar
             continue;
         if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
             continue;
+        if (selectedTypeStr.find("amx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512_core_amx())
+            continue;
 
         resCPUParams.push_back(param);
     }
