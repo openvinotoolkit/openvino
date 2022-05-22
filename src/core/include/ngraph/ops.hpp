@@ -66,6 +66,7 @@
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/op/gelu.hpp"
+#include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/greater_eq.hpp"
 #include "ngraph/op/grn.hpp"
