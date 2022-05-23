@@ -25,6 +25,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
 
+#include "transformations/einsum_decomposition.hpp"
+
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
@@ -124,6 +126,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<EinsumDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
@@ -442,7 +445,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         });
 
-        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, true);
+        bool reshapeIgnorePerTensorQuantizationCheck = false;
+        if (device_info.supports_immad) // Disable reshape transform until onednn i8 fc is optimized
+            reshapeIgnorePerTensorQuantizationCheck = true;
+        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, reshapeIgnorePerTensorQuantizationCheck);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
     }

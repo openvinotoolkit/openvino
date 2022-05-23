@@ -175,9 +175,56 @@ void regclass_AsyncInferQueue(py::module m) {
                 :rtype: openvino.runtime.AsyncInferQueue
             )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "start_async",
-        [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
+        [](AsyncInferQueue& self, const ov::Tensor& inputs, py::object userdata) {
+            // getIdleRequestId function has an intention to block InferQueue
+            // until there is at least one idle (free to use) InferRequest
+            auto handle = self.get_idle_request_id();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
+            // Set new inputs label/id from user
+            self._user_ids[handle] = userdata;
+            // Update inputs if there are any
+            self._requests[handle]._request.set_input_tensor(inputs);
+            // Now GIL can be released - we are NOT working with Python objects in this block
+            {
+                py::gil_scoped_release release;
+                self._requests[handle]._start_time = Time::now();
+                // Start InferRequest in asynchronus mode
+                self._requests[handle]._request.start_async();
+            }
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Run asynchronous inference using the next available InferRequest.
+
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
+
+            :param inputs: Data to set on single input tensor of next available InferRequest from
+            AsyncInferQueue's pool.
+            :type inputs: openvino.runtime.Tensor
+            :param userdata: Any data that will be passed to a callback
+            :type userdata: Any
+            :rtype: None
+
+            GIL is released while waiting for the next available InferRequest.
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
+    cls.def(
+        "start_async",
+        [](AsyncInferQueue& self, const py::dict& inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
