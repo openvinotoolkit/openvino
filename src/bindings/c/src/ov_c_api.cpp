@@ -615,7 +615,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char **friendly_name) {
+ov_status_e ov_model_get_friendly_name(const ov_model_t* model, ov_friendly_name_t *friendly_name) {
     if (!model || !friendly_name) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -639,6 +639,10 @@ void ov_output_node_free(ov_output_node_t *output_node) {
 
 void ov_name_free(char *content) {
     delete content;
+}
+
+void ov_friendly_name_free(ov_friendly_name_t friendly_name) {
+    delete [] friendly_name;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,

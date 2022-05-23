@@ -115,7 +115,6 @@ TEST(ov_c_api_version, api_version) {
     ov_version_t version;
     ov_get_version(&version);
     auto ver = ov::get_openvino_version();
-    std::string ver_str = ver.buildNumber;
 
     EXPECT_STREQ(version.buildNumber, ver.buildNumber);
     ov_version_free(&version);
