@@ -52,6 +52,18 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
+
+    struct VariableState {
+        using Ptr = std::shared_ptr<VariableState>;
+
+        cldnn::memory_ptr memory;
+        bool is_set;
+        VariableState(cldnn::memory_ptr mem = nullptr) :
+            memory { mem }, is_set { false } {
+        }
+    };
+    using variables_states_map = std::map<std::string, VariableState::Ptr>;
+
     explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
