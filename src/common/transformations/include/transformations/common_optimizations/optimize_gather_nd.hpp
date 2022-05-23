@@ -18,8 +18,7 @@ class TRANSFORMATIONS_API OptimizerGatherND;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief DivideFusion transformation replaces a sub-graph
- * Pow(y, -1) * x or x * Pow(y, -1) with Divide(x,y)
+ * @brief Optimizing GatherND by replacing it with Reshape and Gather
  */
 class ov::pass::OptimizerGatherND : public ngraph::pass::MatcherPass {
 public:
