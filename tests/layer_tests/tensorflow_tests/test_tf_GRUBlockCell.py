@@ -70,4 +70,4 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
             pytest.skip("Skip TF GRUBlockCell test on GPU")
         self._test(*self.create_tf_gru_block_cell(**params),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, api_2=api_2, **params)
+                   use_new_frontend=use_new_frontend, api_2=api_2, custom_eps=1e-3, **params)
