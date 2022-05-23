@@ -335,13 +335,6 @@ typedef struct ov_property{
     ov_property* next;
 }ov_property_t;
 
-typedef struct{
-    char *name;
-    size_t shape_size;
-    ov_shape_t shape;
-    ov_element_type_e type;
-} ov_node_info_t;
-
 /**
  * @brief Get version of OpenVINO.
  * @param ov_version_t a pointer to the version
@@ -551,20 +544,28 @@ OPENVINO_C_API(ov_status_e) ov_model_get_outputs(const ov_model_t* model, ov_out
 OPENVINO_C_API(ov_status_e) ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *input_nodes);
 
 /**
- * @brief Get the infomation of the ov_output_node_list_t[idx].
- * @param nodes A pointer to the ov_output_node_list_t.
- * @param idx Index of the ov_output_node_t.
- * @param node_info A pointer to the ov_node_info_t.
+ * @brief Get the tensor name of ov_output_node.
+ * @param node A pointer to the ov_output_node.
+ * @param tensor_name A pointer to the tensor name.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_nodes_info(ov_output_node_list_t* nodes, size_t idx, 
-                                                    ov_node_info_t** node_info);
+OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_list_t *nodes, size_t idx, char** tensor_name);
 
 /**
- * @brief free node_info
- * @param node_info The pointer to the node_info to free.
+ * @brief Get the tensor name of ov_output_node.
+ * @param node A pointer to the ov_output_node.
+ * @param tensor_shape tensor shape.
+ * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(void) ov_node_info_free(ov_node_info_t* node_info);
+OPENVINO_C_API(ov_status_e) ov_model_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t tensor_shape);
+
+/**
+ * @brief Get the tensor name of ov_output_node.
+ * @param node A pointer to the ov_output_node.
+ * @param tensor_type tensor type.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_model_get_tensor_type(ov_output_node_list_t *nodes, size_t idx, ov_element_type_e *tensor_type);
 
 /**
  * @brief Get the outputs of ov_model_t.
@@ -623,7 +624,7 @@ OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
  * @brief free char
  * @param content The pointer to the tensor name to free.
  */
-OPENVINO_C_API(void) ov_tensor_name_free(char *content);
+OPENVINO_C_API(void) ov_name_free(char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 

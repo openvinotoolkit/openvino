@@ -502,33 +502,48 @@ ov_status_e ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_get_nodes_info(ov_output_node_list_t* nodes, size_t idx,
-                                    ov_node_info_t** node_info) {
-    if (!nodes || !node_info || idx >= nodes->num) {
+ov_status_e ov_model_get_tensor_name(ov_output_node_list_t* nodes, size_t idx,
+                                    char** tensor_name) {
+    if (!nodes || !tensor_name || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
-        *node_info = new ov_node_info_t;
-        (*node_info)->name = str_to_char_array(nodes->output_nodes[idx].object->get_any_name());
-        auto shape = nodes->output_nodes[idx].object->get_shape();
-        if (shape.size() > 4) {
-            return ov_status_e::GENERAL_ERROR;
-        }
-        (*node_info)->shape_size = shape.size();
-        std::copy_n(shape.begin(), shape.size(), (*node_info)->shape);
-        auto type = (ov::element::Type_t)nodes->output_nodes[idx].object->get_element_type();
-        (*node_info)->type = (ov_element_type_e)type;
+        *tensor_name = str_to_char_array(nodes->output_nodes[idx].object->get_any_name());
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
 
-void ov_node_info_free(ov_node_info_t* node_info) {
-    if (node_info) {
-        delete node_info->name;
+ov_status_e ov_model_get_tensor_shape(ov_output_node_list_t* nodes, size_t idx,
+                                    ov_shape_t tensor_shape) {
+    if (!nodes || idx >= nodes->num) {
+        return ov_status_e::GENERAL_ERROR;
     }
-    delete node_info;
+
+    try {
+        auto shape = nodes->output_nodes[idx].object->get_shape();
+        if (shape.size() > 4) {
+            return ov_status_e::GENERAL_ERROR;
+        }
+        std::copy_n(shape.begin(), shape.size(), tensor_shape);
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_get_tensor_type(ov_output_node_list_t* nodes, size_t idx,
+                                    ov_element_type_e *tensor_type) {
+    if (!nodes || idx >= nodes->num) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto type = (ov::element::Type_t)nodes->output_nodes[idx].object->get_element_type();
+        *tensor_type = (ov_element_type_e)type;
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
 }
 
 ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
@@ -622,7 +637,7 @@ void ov_output_node_free(ov_output_node_t *output_node) {
     delete output_node;
 }
 
-void ov_tensor_name_free(char *content) {
+void ov_name_free(char *content) {
     delete content;
 }
 
