@@ -922,7 +922,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     // Need to reserve more memory otherwise the compiled model would not be
     // backward compatible with GNA 2.0
-    // GNA 2.0 produces more outputs from 1D pooling than latter GNA generations (including GNA 3.0)
+    // GNA 2.0 produces more outputs from 1D pooling than later GNA generations (including GNA 3.0)
     // When the model is compiled for some newer GNA generation (than GNA 2.0)
     // but it does not use any specific new GNA features it should be correct to import and run using previous GNA HW
     if (!is2DPooling) {

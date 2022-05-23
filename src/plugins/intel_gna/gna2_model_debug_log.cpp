@@ -432,8 +432,8 @@ void DumpGna2Model(const Gna2Model& gnaModel,
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
 
-    const auto& allGnaAllocations = allAllocations.GetAllocationsInExportOrder();
-    for (auto&& a : allGnaAllocations) {
+    const auto& allAllocationsSorted = allAllocations.GetAllocationsInExportOrder();
+    for (auto&& a : allAllocationsSorted) {
         dumpFile << "Allocation: ptr=" << a.ptr << "\tsizeRequested=" << a.sizeRequested << "\tsizeGranted=" << a.sizeGranted <<
             "\t tag=" << a.GetTagName() << "\n";
     }
@@ -458,12 +458,12 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             void * foundPtr = nullptr;
             std::string foundName = "AllocationNotFound";
             size_t offset = 0;
-            auto found = std::find_if(allGnaAllocations.begin(),
-                         allGnaAllocations.end(),
+            auto found = std::find_if(allAllocationsSorted.begin(),
+                                      allAllocationsSorted.end(),
                          [operand](const GnaAllocation& allocation) {
                              return allocation.getOffset(operand.Data).first;
                          });
-            if (found != allGnaAllocations.end()) {
+            if (found != allAllocationsSorted.end()) {
                 foundPtr = found->ptr;
                 foundName = found->GetTagName();
                 offset = found->getOffset(operand.Data).second;

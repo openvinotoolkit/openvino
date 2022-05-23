@@ -529,7 +529,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         writeBits(scale_factor, os);
     }
 
-    // once structure has been written lets push gna graph memory
+    // once structure has been written let's push gna graph memory
     for (const auto& a : allocationsOrdered) {
         os.write(reinterpret_cast<char*>(a.ptr), a.sizeForExport());
     }

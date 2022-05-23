@@ -13,15 +13,11 @@
 #include <layers/gna_layer_type.hpp>
 #include <layers/gna_layer_info.hpp>
 #include "gna_graph_tools.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 namespace GNAPluginNS {
 namespace GNALimitations {
 namespace Cnn2D {
-
-template<typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
 
 bool RangeLimit::isValid(const uint32_t val) const {
     return val >= min && val <= max;
@@ -171,7 +167,7 @@ bool Validator_30::ValidatePooling2D(std::string name,
 
 std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        return make_unique<Validator_30>();
+        return tools::make_unique<Validator_30>();
     }
     return nullptr;
 }

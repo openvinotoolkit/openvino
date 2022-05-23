@@ -61,12 +61,12 @@ protected:
 
  private:
     void initMemQueses() {
-        _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue()));
-        _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue()));
-        _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue()));
-        _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue()));
-        _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue()));
-        _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue()));
+        _mem_queues[REGION_RO] = tools::make_unique<GNAMemRequestsReadOnlyQueue>();
+        _mem_queues[REGION_INPUTS] = tools::make_unique <GNAMemRequestsInputsQueue>();
+        _mem_queues[REGION_OUTPUTS] = tools::make_unique <GNAMemRequestsOutputsQueue>();
+        _mem_queues[REGION_SCRATCH] = tools::make_unique <GNAMemRequestsScratchQueue>();
+        _mem_queues[REGION_STATES] = tools::make_unique <GNAMemRequestsStatesQueue>();
+        _mem_queues[REGION_AUTO] = tools::make_unique <GNAMemRequestsBindingsQueue>();
     }
 
  public:
