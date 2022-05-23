@@ -612,7 +612,7 @@ OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
  * @brief free char
  * @param output_node The pointer to the instance of the ov_output_node_t to free.
  */
-OPENVINO_C_API(void) ov_char_free (char *content);
+OPENVINO_C_API(void) ov_tensor_name_free (char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 

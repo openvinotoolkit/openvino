@@ -603,7 +603,7 @@ void ov_output_node_free(ov_output_node_t *output_node) {
     delete output_node;
 }
 
-void ov_char_free(char *content) {
+void ov_tensor_name_free(char *content) {
     delete content;
 }
 
