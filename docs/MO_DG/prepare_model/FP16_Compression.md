@@ -17,5 +17,5 @@ The resulting model will occupy about half of the previous space in the file sys
 For most models, the accuracy drop is negligible. 
 Refer to the [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) page for details on how plugins handle compressed `FP16` models.
 
-> **NOTE**: `FP16` compression is sometimes used as initial step for `INT8` quantization.
+> **NOTE**: `FP16` compression is sometimes used as the initial step for `INT8` quantization.
 > Refer to the [Post-training optimization](../../../tools/pot/docs/Introduction.md) guide for more information about that.
