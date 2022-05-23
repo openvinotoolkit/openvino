@@ -145,13 +145,13 @@ protected:
     const size_t _convOutChannels = 64;
 };
 
-// TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
-//     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//     GTEST_SKIP();
-//     run();
+TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-//     CheckPluginRelatedResults(compiledModel, "Convolution");
-// }
+    run();
+
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
 
 class ConcatConvSumInPlaceTestInt8 : public ConcatConvSumInPlaceTest {
 public:
@@ -211,13 +211,13 @@ public:
     }
 };
 
-// TEST_P(ConcatConvSumInPlaceTestInt8, CompareWithRefs) {
-//     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//     GTEST_SKIP();
-//     run();
+TEST_P(ConcatConvSumInPlaceTestInt8, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-//     CheckPluginRelatedResults(compiledModel, "Convolution");
-// }
+    run();
+
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
 
 namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
