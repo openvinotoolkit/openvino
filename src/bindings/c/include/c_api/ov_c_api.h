@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char* ov_partial_shape_t[4];
+typedef const char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
@@ -566,6 +566,14 @@ OPENVINO_C_API(ov_status_e) ov_model_get_input_by_id(const ov_model_t* model,
                                                     ov_output_node_t **input_node);
 
 /**
+ * @brief Get the tensor name of ov_output_node.
+ * @param node A pointer to the ov_output_node.
+ * @param tensor_name A pointer to the char.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)  ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name);
+
+/**
  * @brief Returns true if any of the op's defined in the model contains partial shape.
  * @param model A pointer to the ov_model_t. 
  */
@@ -592,7 +600,19 @@ OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, 
  * @brief free ov_output_node_list_t
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
  */
-OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
+OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_nodes);
+
+/**
+ * @brief free ov_output_node_t
+ * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ */
+OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
+
+/**
+ * @brief free char
+ * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ */
+OPENVINO_C_API(void) ov_tensor_name_free (char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 

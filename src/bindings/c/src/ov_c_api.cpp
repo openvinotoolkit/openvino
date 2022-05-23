@@ -502,6 +502,16 @@ ov_status_e ov_model_get_inputs(const ov_model_t* model, ov_output_node_list_t *
     return ov_status_e::OK;
 }
 
+ov_status_e ov_model_get_tensor_name(ov_output_node_t *node, char** tensor_name) {
+    if (!node || !tensor_name) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        *tensor_name = str_to_char_array(node->object->get_any_name());
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
                                 const char* tensor_name,
                                 ov_output_node_t **input_node) {
@@ -582,13 +592,19 @@ ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char **friendly_
     return ov_status_e::OK;
 }
 
-void ov_output_nodes_free(ov_output_node_list_t *output_nodes) {
-    if (!output_nodes) {
-        return;
+void ov_output_node_list_free(ov_output_node_list_t *output_nodes) {
+    if (output_nodes) {
+        delete[] output_nodes->output_nodes;
+        output_nodes->output_nodes = nullptr;
     }
-    delete[] output_nodes->output_nodes;
-    delete output_nodes;
-    output_nodes = nullptr;
+}
+
+void ov_output_node_free(ov_output_node_t *output_node) {
+    delete output_node;
+}
+
+void ov_tensor_name_free(char *content) {
+    delete content;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,
