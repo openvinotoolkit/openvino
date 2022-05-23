@@ -32,7 +32,7 @@ graph_edges_sizes = [
 
 
 @generator
-class TestONNXResize11Op(unittest.TestCase):
+class TestComplexOp(unittest.TestCase):
     @generate(*[
         ([1, 260, 100, 150], [1, 260, 100, 150, 2]),
         ([1, 260, 100], [1, 260, 100, 2]),
@@ -40,7 +40,7 @@ class TestONNXResize11Op(unittest.TestCase):
         ([1, 3, 260, 100, 150], [1, 3, 260, 100, 150, 2]),
         ([5, 14, 1000, 300, 40], [5, 14, 1000, 300, 40, 2])
     ])
-    def test_onnx_resize11_using_sizes(self, input_shape, output_shape):
+    def test_complex_op_shape_inference(self, input_shape, output_shape):
         graph = build_graph(nodes_attrs=graph_node_attrs_sizes,
                             edges=graph_edges_sizes,
                             update_attributes={

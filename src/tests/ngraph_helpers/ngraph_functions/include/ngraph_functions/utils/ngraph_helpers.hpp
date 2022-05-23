@@ -123,7 +123,8 @@ enum ActivationTypes {
     RoundHalfToEven,
     RoundHalfAwayFromZero,
     GeluErf,
-    GeluTanh
+    GeluTanh,
+    SoftSign
 };
 
 enum EltwiseTypes {
