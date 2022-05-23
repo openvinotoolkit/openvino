@@ -78,6 +78,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     dispatchData.lws[0] = min_lws;
     dispatchData.gws[0] = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
 
+    if (arg.inputs[0].GetDType() == Datatype::F16) {
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
+    }
+
     return dispatchData;
 }
 
