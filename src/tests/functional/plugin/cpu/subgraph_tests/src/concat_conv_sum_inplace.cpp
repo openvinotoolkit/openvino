@@ -36,7 +36,7 @@ namespace SubgraphTestsDefinitions {
  *                      Result
  */
 
-class ConcatConvSumInPlaceTest : virtual public LayerTestsUtils::LayerTestsCommon {
+class ReLuConcatConvSumInPlaceTest : virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     void SetUp() override {
         const std::vector<size_t> inputShape = {1, 64, 12, 12};
@@ -74,7 +74,7 @@ public:
 };
 
 namespace {
-    TEST_F(ConcatConvSumInPlaceTest, smoke_ConcatConvSumInPlace_CPU) {
+    TEST_F(ReLuConcatConvSumInPlaceTest, smoke_ReLuConcatConvSumInPlace_CPU) {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         Run();
