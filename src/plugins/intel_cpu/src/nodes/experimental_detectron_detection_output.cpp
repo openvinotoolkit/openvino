@@ -69,7 +69,7 @@ void refine_boxes(const float* boxes, const float* deltas, const float* weights,
         const float ctr_x = x0 + 0.5f * ww;
         const float ctr_y = y0 + 0.5f * hh;
 
-        for (int class_idx = 1; class_idx < classes_num; ++class_idx) {
+        for (int class_idx = 0; class_idx < classes_num; ++class_idx) {
             const float dx = deltas[delta_idx({roi_idx, class_idx, 0})] / weights[0];
             const float dy = deltas[delta_idx({roi_idx, class_idx, 1})] / weights[1];
             const float d_log_w = deltas[delta_idx({roi_idx, class_idx, 2})] / weights[2];
@@ -90,10 +90,10 @@ void refine_boxes(const float* boxes, const float* deltas, const float* weights,
             float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::max<float>(0.0f, x0_new);
-            y0_new = std::max<float>(0.0f, y0_new);
-            x1_new = std::max<float>(0.0f, x1_new);
-            y1_new = std::max<float>(0.0f, y1_new);
+            x0_new = std::min(std::max(0.0f, x0_new), img_W);
+            y0_new = std::min(std::max(0.0f, y0_new), img_H);
+            x1_new = std::min(std::max(0.0f, x1_new), img_W);
+            y1_new = std::min(std::max(0.0f, y1_new), img_H);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
@@ -310,7 +310,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     std::vector<int> detections_per_class(classes_num_, 0);
     int total_detections_num = 0;
 
-    for (int class_idx = 1; class_idx < classes_num_; ++class_idx) {
+    for (int class_idx = 0; class_idx < classes_num_; ++class_idx) {
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],
                &refined_boxes[refined_box_idx({class_idx, 0, 0})],
                &refined_boxes_areas[refined_score_idx({class_idx, 0})],
