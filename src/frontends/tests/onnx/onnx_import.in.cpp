@@ -79,7 +79,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_output_names_check) {
     std::size_t size = function->get_output_size();
     for (std::size_t i{0}; i < size; ++i) {
         std::shared_ptr<Node> node = function->get_output_op(i);
-        EXPECT_EQ(node->get_friendly_name(), "output_" + std::to_string(i + 1) + "/sink_port_" + std::to_string(i));
+        EXPECT_EQ(node->get_friendly_name(), "output_" + std::to_string(i + 1) + "/sink_port_0");
     }
 }
 
@@ -94,9 +94,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     });
 
     EXPECT_EQ(additions.size(), 2);
-    EXPECT_EQ(additions.at(0)->get_friendly_name(), "X");
+    EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
     EXPECT_EQ(additions.at(0)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"X"});
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
 }
 
