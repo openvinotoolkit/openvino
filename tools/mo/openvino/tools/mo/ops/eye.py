@@ -79,7 +79,7 @@ class Eye(Op):
                 batch_shape = [dynamic_dimension] * batch_shape_shape[0]
         else:
             batch_shape = []
-        
+
         output_shape = [*batch_shape, num_rows, num_columns]
         node.out_port(0).data.set_shape(output_shape)
 

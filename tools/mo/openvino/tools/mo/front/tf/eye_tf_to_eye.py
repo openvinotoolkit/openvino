@@ -28,20 +28,18 @@ class EyeTFToEye(FrontReplacementPattern):
             new_eye = Eye(graph, {'output_type': output_type}).create_node()
             rename_node(new_eye, original_name)
 
+            # num_rows
             tfeye.in_port(0).get_connection().set_destination(new_eye.in_port(0))
+            # num_columns
             if not tfeye.in_port(1).disconnected:
                 tfeye.in_port(1).get_connection().set_destination(new_eye.in_port(1))
-                diagonal_index = Const(graph, {'name': original_name + '/diagonal_index',
-                                               'value': 0}).create_node()
-                diagonal_index.out_port(0).connect(new_eye.in_port(2))
-            
+            # batch_shape
             if not tfeye.in_port(2).disconnected:
                 tfeye.in_port(2).get_connection().set_destination(new_eye.in_port(3))
-                if not new_eye.in_port(1).disconnected:
-                    tfeye.in_port(0).get_connection().set_destination(new_eye.in_port(1))
-                    diagonal_index = Const(graph, {'name': original_name + '/diagonal_index',
-                                                   'value': 0}).create_node()
-                    diagonal_index.out_port(0).connect(new_eye.in_port(2))
+
+            diagonal_index = Const(graph, {'name': original_name + '/diagonal_index',
+                                    'value': 0}).create_node()
+            diagonal_index.out_port(0).connect(new_eye.in_port(2))
 
             tfeye.out_port(0).get_connection().set_source(new_eye.out_port(0))
             graph.remove_node(tfeye.id)
