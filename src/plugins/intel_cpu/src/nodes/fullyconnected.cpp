@@ -450,7 +450,7 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
     const size_t simdWidth = 16;
     auto inputDims = getInputShapeAtPort(DATA_ID).getDims();
-    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims[1] % simdWidth == 0) {
+    if (inputDims[1] != Shape::UNDEFINED_DIM && inputDims[1] % simdWidth == 0) {
         priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
         priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
     }
