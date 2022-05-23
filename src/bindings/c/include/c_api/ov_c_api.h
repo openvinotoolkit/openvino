@@ -550,7 +550,7 @@ OPENVINO_C_API(ov_status_e) ov_model_get_inputs(const ov_model_t* model, ov_outp
  * @param tensor_name A pointer to the tensor name.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_list_t *nodes, size_t idx, char** tensor_name);
+OPENVINO_C_API(ov_status_e) ov_node_get_tensor_name(ov_output_node_list_t *nodes, size_t idx, char** tensor_name);
 
 /**
  * @brief Get the tensor shape of ov_output_node.
@@ -559,7 +559,7 @@ OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_list_t *node
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_node_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t tensor_shape);
 
 /**
  * @brief Get the tensor type of ov_output_node.
@@ -568,7 +568,7 @@ OPENVINO_C_API(ov_status_e) ov_model_get_tensor_shape(ov_output_node_list_t *nod
  * @param tensor_type tensor type.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_tensor_type(ov_output_node_list_t *nodes, size_t idx, ov_element_type_e *tensor_type);
+OPENVINO_C_API(ov_status_e) ov_node_get_tensor_type(ov_output_node_list_t *nodes, size_t idx, ov_element_type_e *tensor_type);
 
 /**
  * @brief Get the outputs of ov_model_t.

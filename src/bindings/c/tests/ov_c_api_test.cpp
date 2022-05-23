@@ -1091,11 +1091,11 @@ void get_tensor_info(ov_model_t *model, bool input, size_t idx,
     EXPECT_NE(nullptr, output_nodes.output_nodes);
     EXPECT_NE(0, output_nodes.num);
 
-    OV_EXPECT_OK(ov_model_get_tensor_name(&output_nodes, idx, name));
+    OV_EXPECT_OK(ov_node_get_tensor_name(&output_nodes, idx, name));
     EXPECT_NE(nullptr, *name);
     
-    OV_EXPECT_OK(ov_model_get_tensor_shape(&output_nodes, idx, shape));
-    OV_EXPECT_OK(ov_model_get_tensor_type(&output_nodes, idx, type));
+    OV_EXPECT_OK(ov_node_get_tensor_shape(&output_nodes, idx, shape));
+    OV_EXPECT_OK(ov_node_get_tensor_type(&output_nodes, idx, type));
 
     ov_output_node_list_free(&output_nodes);
 }
@@ -1150,7 +1150,6 @@ public:
     ov_tensor_t *input_tensor;
     ov_tensor_t *output_tensor;
 };
-INSTANTIATE_TEST_CASE_P(device_name, ov_infer_request, ::testing::Values("CPU"));
 
 class ov_infer_request_ppp :public::testing::TestWithParam<std::string>{
 protected:
@@ -1234,6 +1233,8 @@ public:
     ov_preprocess_input_process_steps_t* input_process;
     ov_preprocess_input_model_info_t* input_model;
 };
+
+INSTANTIATE_TEST_CASE_P(device_name, ov_infer_request, ::testing::Values("CPU"));
 INSTANTIATE_TEST_CASE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
 
 TEST_P(ov_infer_request, set_tensor) {
@@ -1599,7 +1600,7 @@ TEST(ov_model, ov_model_reshape) {
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
 
     char* tensor_name = nullptr;
-    OV_ASSERT_OK(ov_model_get_tensor_name(&input_node_list1, 0, &tensor_name));
+    OV_ASSERT_OK(ov_node_get_tensor_name(&input_node_list1, 0, &tensor_name));
 
     ov_partial_shape_t partial_shape = {"1","3","896","896"};
     OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
