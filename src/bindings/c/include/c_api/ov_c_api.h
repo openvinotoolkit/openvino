@@ -276,7 +276,7 @@ typedef size_t ov_shape_t[4];
 /**
  * @struct ov_PartialShape_t
  */
-typedef char* ov_partial_shape_t[4];
+typedef const char* ov_partial_shape_t[4];
 
 /**
  * @enum ov_performance_mode_e
@@ -545,23 +545,26 @@ OPENVINO_C_API(ov_status_e) ov_model_get_inputs(const ov_model_t* model, ov_outp
 
 /**
  * @brief Get the tensor name of ov_output_node.
- * @param node A pointer to the ov_output_node.
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the input tensor
  * @param tensor_name A pointer to the tensor name.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_tensor_name(ov_output_node_list_t *nodes, size_t idx, char** tensor_name);
 
 /**
- * @brief Get the tensor name of ov_output_node.
- * @param node A pointer to the ov_output_node.
+ * @brief Get the tensor shape of ov_output_node.
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the input tensor
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t tensor_shape);
 
 /**
- * @brief Get the tensor name of ov_output_node.
- * @param node A pointer to the ov_output_node.
+ * @brief Get the tensor type of ov_output_node.
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the input tensor
  * @param tensor_type tensor type.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -618,7 +621,13 @@ OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_node
  * @brief free ov_output_node_list_t
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
  */
-OPENVINO_C_API(void) ov_output_nodes_free(ov_output_node_list_t *output_nodes);
+OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_nodes);
+
+/**
+ * @brief free ov_output_node_t
+ * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ */
+OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
 
 /**
  * @brief free char
