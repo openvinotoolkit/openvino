@@ -13,7 +13,8 @@ To compress the model, use the `--data_type` option:
 > precision in the model. If the model was `FP16`, it will have `FP16` precision in IR as well.
 
 The resulting model will occupy about twice as less space in the file system, but it may have some accuracy drop.
-Still, degradation of accuracy is negligible for the majority of models. 
+The resulting model will occupy about half of the previous space in the file system, but lose some of its accuracy.
+For most models, the accuracy drop is negligible. 
 Refer to the [Working with devices](../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) page for details on how plugins handle compressed `FP16` models.
 
 > **NOTE**: `FP16` compression is sometimes used as initial step for `INT8` quantization.
