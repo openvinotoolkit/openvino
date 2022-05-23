@@ -512,17 +512,9 @@ void Convolution::getSupportedDescriptors() {
     }
 }
 
-void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
+void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights) {
     dnnl::post_ops ops;
 
-    //auto getBinPostOpShape = [&](){
-    //    const auto outShape = getOutputShapeAtPort(0).getStaticDims();
-    //    const auto outShapeRank = getOutputShapeAtPort(0).getRank();
-    //    const auto chIdx = getFusingAxis();
-    //    std::vector<size_t> binaryShape(outShapeRank, 1);
-    //    binaryShape[chIdx] = outShape[chIdx];
-    //    return binaryShape;
-    //};
     auto getBinPostOpShape = [&](){
         const auto outShapeRank = dims.size();
         const auto chIdx = getFusingAxis();
@@ -543,10 +535,10 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 }
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                    eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
+                if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
+                    eltwiseNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps]);
                 }
             }
             continue;
@@ -679,8 +671,12 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 }
             }
 
-            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs,
-                    node == fusedWith[fusedWith.size() - 1], outputDataType);
+            if (useLegacyPostOps) {
+                fakeQuantizeNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+            } else {
+                fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps],
+                        node == fusedWith[fusedWith.size() - 1], outputDataType);
+            }
 
             continue;
         }
@@ -688,8 +684,8 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         auto* convolutionNode = dynamic_cast<Convolution *>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                postOpsArgs.push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
-                postOpsArgs.push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
+                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
+                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
 
                 // todo: rewrite onto append_dw_k3s2p1
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
@@ -720,8 +716,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    dnnl::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
+    dnnl::primitive_attr attrs[2];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
 
     bool containJitImpl = false;
 
@@ -942,8 +939,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     }
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    dnnl::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
+    dnnl::primitive_attr attrs[2];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -954,7 +952,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (auto &attr : attrs) {
+        for (int n = 0; n < sizeof(attrs) / sizeof(attrs[0]); n++) {
+            auto &attr = attrs[n];
             addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -1008,6 +1007,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                         IE_THROW() << "Cannot get the original layer configuration!";
                     }
                     rightConfig = cfg;
+                    preferLegacyPostOps = n == 0;
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {
                     if (impl_type == selectedPD->getImplementationType()) {
@@ -1269,7 +1269,7 @@ void Convolution::prepareParams() {
     auto initPrimitiveAttr = [&]() {
         dnnl::primitive_attr attr;
         addZeroPoints(attr);
-        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), true);
+        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), preferLegacyPostOps, true);
 
         return std::make_shared<dnnl::primitive_attr>(std::move(attr));
     };
@@ -1409,7 +1409,7 @@ void Convolution::prepareParams() {
         }
 
         appendZeroPointsArgs();
-        Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
+        Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
