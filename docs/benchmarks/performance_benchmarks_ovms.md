@@ -55,7 +55,7 @@ feature improves overall performance on networks where the bandwidth constitutes
   - Sun rasters - `*.sr`, `*.ras`.
   - Windows bitmaps - `*.bmp`, `*.dib`.
 
-- Limited support (please see OpenCV documentation):
+- Limited support (refer to OpenCV documentation):
   - Raster and Vector geospatial data supported by GDAL.
   - JPEG files - `*.jpeg`, `*.jpg`, `*.jpe`.
   - Portable Network Graphics - `*.png`.
