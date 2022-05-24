@@ -6,7 +6,7 @@ OpenVINO™ Model Server is an open-source, production grade inference platform 
 
 ## Measurement Methodology
 
-OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected by ethernet network. The network bandwidth depends on the platforms as well as models under investigation, and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup is consists of four main parts:
+OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected by an ethernet network. The network bandwidth depends on the platforms as well as models under investigation, and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup consists of four main parts:
 
 ![OVMS Benchmark Setup Diagram](../img/performance_benchmarks_ovms_02.png)
 
