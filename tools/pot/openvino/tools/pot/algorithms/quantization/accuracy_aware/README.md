@@ -50,6 +50,6 @@ Example:
  * [Quantization of Object Detection model with control of accuracy](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/object_detection)
 
  A template and full specification for AccuracyAwareQuantization algorithm for POT command-line interface:
- * [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
+ * [Template](https://github.com/openvinotoolkit/testrepo/blob/master/tools/pot/configs/accuracy_aware_quantization_template.json)
  * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/accuracy_aware_quantization_spec.json)
 
