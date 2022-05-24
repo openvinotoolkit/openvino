@@ -26,7 +26,7 @@ Default value is `300`, and more samples it has the better ranking you have, pot
     - `"absolute"` - (default) absolute drop with respect to the results of the full-precision model.
     - `"relative"` - relative to the results of the full-precision model.
 - `"use_prev_if_drop_increase"` - whether to use network snapshot from the previous iteration of in case if drop 
-increases. Default value is `True`.
+increases. The default value is `True`.
 - `"base_algorithm"` - name of the algorithm that is used to quantize model at the beginning. Default value is 
     "DefaultQuantization".
 - `"convert_to_mixed_preset"` - whether to convert the model to "mixed" mode if the accuracy criteria for the model
