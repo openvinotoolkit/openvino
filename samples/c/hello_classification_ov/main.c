@@ -91,10 +91,10 @@ void print_infer_result(struct infer_result* results, size_t result_size, const 
 }
 
 void print_model_input_output_info(ov_model_t* model) {
-    ov_friendly_name_t friendly_name = NULL;
+    char* friendly_name = NULL;
     ov_model_get_friendly_name(model, &friendly_name);
     printf("[INFO] model name: %s \n", friendly_name);
-    ov_friendly_name_free(friendly_name);
+    ov_name_free(friendly_name);
 }
 
 #define CHECK_STATUS(return_status) if(return_status !=OK) {fprintf(stderr, "[ERROR] return status %d, line %d\n", return_status, __LINE__); goto err;}

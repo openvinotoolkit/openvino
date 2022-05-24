@@ -184,11 +184,6 @@ typedef struct{
 typedef struct ov_model ov_model_t;
 
 /**
- * @struct ov_friendly_name_t
- */
-typedef char* ov_friendly_name_t;
-
-/**
  * @struct ov_preprocess_t
  */
 typedef struct ov_preprocess ov_preprocess_t;
@@ -618,13 +613,7 @@ OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model,
  * @param model A pointer to the ov_model_t.
  * @param friendly_name the model's friendly name.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, ov_friendly_name_t *friendly_name);
-
-/**
- * @brief free ov_friendly_name_t
- * @param friendly_name The  instance of the ov_friendly_name_t to free.
- */
-OPENVINO_C_API(void) ov_friendly_name_free(ov_friendly_name_t friendly_name);
+OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name);
 
 /**
  * @brief free ov_output_node_list_t
