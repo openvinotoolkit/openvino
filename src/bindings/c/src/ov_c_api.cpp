@@ -641,10 +641,6 @@ void ov_name_free(char *content) {
     delete content;
 }
 
-// void ov_friendly_name_free(ov_friendly_name_t friendly_name) {
-//     delete [] friendly_name;
-// }
-
 ov_status_e ov_preprocess_create(const ov_model_t* model,
                             ov_preprocess_t **preprocess) {
     if (!model || !preprocess) {
