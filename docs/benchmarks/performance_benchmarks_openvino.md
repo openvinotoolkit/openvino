@@ -41,7 +41,7 @@ Measuring inference performance involves many variables and is extremely use cas
 
 Benchmark performance results below are based on testing as of March 17, 2022. They may not reflect all publicly available updates at the time of testing.
 <!-- See configuration disclosure for details. No product can be absolutely secure. -->
-Performance varies by use, configuration and other factors about which you can learn more [here](https://www.intel.com/PerformanceIndex). Used Intel optimizations (for Intel® compilers or other products) may not optimize to the same degree for non-Intel products.
+Performance varies by use, configuration and other factors, which are elaborated further in [here](https://www.intel.com/PerformanceIndex). Used Intel optimizations (for Intel® compilers or other products) may not optimize to the same degree for non-Intel products.
 
 ### bert-base-cased [124]
 
