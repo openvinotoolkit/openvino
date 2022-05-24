@@ -35,7 +35,7 @@ increases. The default value is `True`.
 - `"metrics"` - an optional list of metrics that are taken into account during optimization. It consists of tuples with the 
 following parameters:
     - `"name"` - name of the metric to optimize.
-    - `"baseline_value"` - (optional parameter) baseline metric value of the original model. The validations on
+    - `"baseline_value"` - (optional parameter) a baseline metric value of the original model. The validations on
     the whole validation will be initiated in the beginning if nothing specified.
 - `"metric_subset_ratio"` - part of the validation set that is used to compare original full-precision and 
 fully quantized models when creating ranking subset in case of predefined metric values of the original model.
