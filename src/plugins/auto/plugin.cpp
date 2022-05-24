@@ -408,6 +408,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::once_flag readNetworkFlag;
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
+            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            if (tmpiter != fullConfig.end())
+                p.config.insert({tmpiter->first, tmpiter->second});
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
