@@ -1,6 +1,6 @@
-# GridSample {#openvino_docs_ops_image_GridSample_1}
+# GridSample {#openvino_docs_ops_image_GridSample_9}
 
-**Versioned name**: *GridSample-1*
+**Versioned name**: *GridSample-9*
 
 **Category**: *Image processing*
 
@@ -41,13 +41,18 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor with data to be sampled. Any supported OV data type can be used. This input is expected to be a 4-dimensional tensor with NCHW layout. **Required.**
+*   **1**: `data` - Input tensor of type `T` with data to be sampled. This input is expected to be a 4-dimensional tensor with NCHW layout. **Required.**
 
-*   **2**: `grid` - A 4-dimensional tensor containing floating point values of normalized sampling coordinates(pairs of floats). The shape of this tensor is [N, H_out, W_out, 2] **Required.**
+*   **2**: `grid` - A 4-dimensional tensor containing normalized sampling coordinates(pairs of floats). The shape of this tensor is `[N, H_out, W_out, 2]` and the data type is `T1`. **Required.**
 
 **Outputs**
 
-*   **1**: A 4-dimensional tensor with [N, C, H_out, W_out] shape. This tensor's data type is equal to the data type of the `data` input tensor. It contains the interpolated values calculated by this operator.
+*   **1**: A 4-dimensional tensor of type `T` with `[N, C, H_out, W_out]` shape. It contains the interpolated values calculated by this operator.
+
+**Types**
+
+*   **T**: any type supported by OpenVINO.
+*   **T1**: any supported floating-point type.
 
 **Example**
 
