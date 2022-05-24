@@ -704,6 +704,7 @@ InputsMap getInputMap() {
 #include "ngraph/opsets/opset6_tbl.hpp"
 #include "ngraph/opsets/opset7_tbl.hpp"
 #include "ngraph/opsets/opset8_tbl.hpp"
+#include "ngraph/opsets/opset9_tbl.hpp"
 
 #undef NGRAPH_OP
     };

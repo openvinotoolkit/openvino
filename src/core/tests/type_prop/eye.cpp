@@ -270,18 +270,42 @@ TEST(type_prop, eye_invalid_diagonal_index_rank) {
     }
 }
 
-TEST(type_prop, eye_invalid_dynamic_batch_shape_rank) {
+TEST(type_prop, eye_dynamic_batch_shape_dyn_rank) {
     auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
-    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {2});
+    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {4});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape().dynamic());
+    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+
+    auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+
+    EXPECT_EQ(eye->get_output_element_type(0), element::i32);
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, eye_dynamic_batch_shape_1D) {
+    auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
+    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {4});
+    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
+    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+
+    auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+
+    EXPECT_EQ(eye->get_output_element_type(0), element::i32);
+    EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, eye_dynamic_batch_shape_invalid_rank) {
+    auto num_rows = op::v0::Constant::create(element::i32, Shape{}, {6});
+    auto num_columns = op::v0::Constant::create(element::i32, Shape{}, {4});
+    auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
+    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(2));
 
     try {
-        auto Eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
+        auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, batch_shape, element::i32);
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid 'batch_shape' value.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'batch_shape' should have static shape rank"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'batch_shape' input must be a 1D tensor."));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }

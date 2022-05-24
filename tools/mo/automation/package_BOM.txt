@@ -506,12 +506,14 @@ openvino/tools/mo/front/tf/Cast_ext.py
 openvino/tools/mo/front/tf/ClipByValue_ext.py
 openvino/tools/mo/front/tf/ClipByValueTFTransformation.py
 openvino/tools/mo/front/tf/common.py
+openvino/tools/mo/front/tf/complex_ext.py
 openvino/tools/mo/front/tf/ComplexAbs.py
 openvino/tools/mo/front/tf/ComplexAbsAfterComplex.py
 openvino/tools/mo/front/tf/concat.py
 openvino/tools/mo/front/tf/concat_ext.py
 openvino/tools/mo/front/tf/const_ext.py
 openvino/tools/mo/front/tf/conv_ext.py
+openvino/tools/mo/front/tf/CorrectPaddingsForPadAfterComplex.py
 openvino/tools/mo/front/tf/CorrectRollAxes.py
 openvino/tools/mo/front/tf/crop_and_resize_ext.py
 openvino/tools/mo/front/tf/CropAndResizeReplacement.py
@@ -621,6 +623,7 @@ openvino/tools/mo/front/tf/rfcn_support.json
 openvino/tools/mo/front/tf/rfcn_support_api_v1.10.json
 openvino/tools/mo/front/tf/rfcn_support_api_v1.13.json
 openvino/tools/mo/front/tf/rfcn_support_api_v1.14.json
+openvino/tools/mo/front/tf/RFFTRealImagToRFFTSplit.py
 openvino/tools/mo/front/tf/roll_ext.py
 openvino/tools/mo/front/tf/RollRealImagPack.py
 openvino/tools/mo/front/tf/scatter_nd_ext.py
@@ -647,7 +650,6 @@ openvino/tools/mo/front/tf/ssd_toolbox_detection_output.json
 openvino/tools/mo/front/tf/ssd_toolbox_multihead_detection_output.json
 openvino/tools/mo/front/tf/ssd_v2_support.json
 openvino/tools/mo/front/tf/SSDToolboxDetectionOutput.py
-openvino/tools/mo/front/tf/SSliceComplex.py
 openvino/tools/mo/front/tf/swap_deconv_inputs.py
 openvino/tools/mo/front/tf/swish_ext.py
 openvino/tools/mo/front/tf/SwitchMergeOptimization.py
@@ -813,6 +815,7 @@ openvino/tools/mo/middle/SliceLikeToStridedSlice.py
 openvino/tools/mo/middle/sparse_reshape.py
 openvino/tools/mo/middle/split_tdnn_memoryoffset.py
 openvino/tools/mo/middle/SplitConcatPairToInterpolate.py
+openvino/tools/mo/middle/SSliceComplex.py
 openvino/tools/mo/middle/StridedSliceNormalizer.py
 openvino/tools/mo/middle/SwapAxesMiddleReplacer.py
 openvino/tools/mo/middle/TensorIterator_utils.py
@@ -862,6 +865,7 @@ openvino/tools/mo/ops/bucketize.py
 openvino/tools/mo/ops/Cast.py
 openvino/tools/mo/ops/clamp.py
 openvino/tools/mo/ops/ClipByValueTF.py
+openvino/tools/mo/ops/Complex.py
 openvino/tools/mo/ops/concat.py
 openvino/tools/mo/ops/const.py
 openvino/tools/mo/ops/constant_fill.py
