@@ -173,6 +173,16 @@ protected:
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
+    if (inType == ElementType::bf16) {
+        if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
+            for (auto& postOp : fusedOps) {
+                if (postOp == "FakeQuantize") {
+                    GTEST_SKIP() << "Skip MatMul BF16 FakeQuantization Fusing test" << std::endl;
+                }
+            }
+        }
+    }
 
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
@@ -299,8 +309,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         emptyFusingSpec,
         fusingBias,
         fusingMultiplyPerChannel,
-        // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
-        // fusingFakeQuantizePerTensorRelu,
+        fusingFakeQuantizePerTensorRelu,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
