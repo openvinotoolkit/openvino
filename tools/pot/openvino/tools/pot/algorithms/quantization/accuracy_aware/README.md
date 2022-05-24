@@ -32,7 +32,7 @@ increases. The default value is `True`.
 - `"convert_to_mixed_preset"` - whether to convert the model to "mixed" mode if the accuracy criteria for the model
  quantized with "performance" preset are not satisfied. This option can help to reduce number of layers that are reverted
  to floating-point precision. Keep in mind that this is an **experimental** feature.
-- `"metrics"` - optional list of metrics that are taken into account during optimization. It consists of tuples with the 
+- `"metrics"` - an optional list of metrics that are taken into account during optimization. It consists of tuples with the 
 following parameters:
     - `"name"` - name of the metric to optimize.
     - `"baseline_value"` - (optional parameter) baseline metric value of the original model. The validations on
