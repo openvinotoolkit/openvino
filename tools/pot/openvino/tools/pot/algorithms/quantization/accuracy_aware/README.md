@@ -25,7 +25,7 @@ Default value is `300`, and more samples it has the better ranking you have, pot
 - `"drop_type"` - drop type of the accuracy metric: 
     - `"absolute"` - (default) absolute drop with respect to the results of the full-precision model.
     - `"relative"` - relative to the results of the full-precision model.
-- `"use_prev_if_drop_increase"` - whether to use network snapshot from the previous iteration of in case if drop 
+- `"use_prev_if_drop_increase"` - the use of network snapshot from the previous iteration when a drop 
 increases. The default value is `True`.
 - `"base_algorithm"` - name of the algorithm that is used to quantize model at the beginning. Default value is 
     "DefaultQuantization".
