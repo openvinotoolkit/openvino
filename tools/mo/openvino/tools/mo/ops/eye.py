@@ -76,7 +76,7 @@ class Eye(Op):
 
         if batch_shape_port in connected_in_ports:
             batch_shape_shape = node.in_port(batch_shape_port).data.get_shape()
-            assert len(diagonal_index_shape) == 1, \
+            assert len(batch_shape_shape) == 1, \
                 '"batch_shape" should be 1D tensor. Got: '.format(len(batch_shape_shape))
             batch_shape = node.in_port(batch_shape_port).data.get_value()
             if batch_shape is None:
