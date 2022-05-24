@@ -615,7 +615,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char **friendly_name) {
+ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name) {
     if (!model || !friendly_name) {
         return ov_status_e::GENERAL_ERROR;
     }

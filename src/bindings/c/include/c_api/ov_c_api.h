@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-
+#include <stdbool.h>
 #ifdef __cplusplus
     #define OPENVINO_C_API_EXTERN extern "C"
 #else
@@ -174,7 +174,7 @@ typedef struct ov_output_node ov_output_node_t;
  * @struct ov_output_node_list_t
  */
 typedef struct{
-    ov_output_node *output_nodes;
+    ov_output_node_t *output_nodes;
     size_t num;
 } ov_output_node_list_t;
 
@@ -218,11 +218,11 @@ typedef struct ov_preprocess_input_model_info ov_preprocess_input_model_info_t;
  */
 typedef struct ov_preprocess_input_process_steps ov_preprocess_input_process_steps_t;
 
-enum ov_preprocess_resize_algorithm_e {
+typedef enum {
     RESIZE_LINEAR,
     RESIZE_CUBIC,
     RESIZE_NEAREST
-};
+} ov_preprocess_resize_algorithm_e;
 
 /**
  * @struct ov_compiled_model_t
@@ -242,7 +242,7 @@ typedef struct ov_tensor ov_tensor_t;
 /**
  * @struct ov_element_type_e
  */
-enum ov_element_type_e {
+typedef enum {
     UNDEFINED = 0,  //!< Undefined element type
     DYNAMIC,    //!< Dynamic element type
     BOOLEAN,    //!< boolean element type
@@ -261,7 +261,7 @@ enum ov_element_type_e {
     U16,        //!< u16 element type
     U32,        //!< u32 element type
     U64         //!< u64 element type
-};
+} ov_element_type_e;
 
 /**
  * @struct ov_layout_t
@@ -283,12 +283,12 @@ typedef const char* ov_partial_shape_t[4];
  * @brief Enum to define possible performance mode hints
  * @brief This represents OpenVINO 2.0 ov::hint::PerformanceMode entity.
  */
-enum ov_performance_mode_e {
+typedef enum {
     UNDEFINED_MODE = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
-};
+} ov_performance_mode_e;
 
 /**
  * @struct ov_available_devices_t
@@ -332,7 +332,7 @@ typedef union {
 typedef struct ov_property{
     ov_property_key_e key;
     ov_property_value value;
-    ov_property* next;
+    struct ov_property* next;
 }ov_property_t;
 
 /**
@@ -613,10 +613,8 @@ OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model,
  * @param model A pointer to the ov_model_t.
  * @param friendly_name the model's friendly name.
  */
-OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, char **friendly_name);
+OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name);
 
-
-OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t *output_nodes);
 /**
  * @brief free ov_output_node_list_t
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
