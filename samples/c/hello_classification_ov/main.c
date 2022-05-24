@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "c_api/ov_c_api.h"
 #include <opencv_c_wrapper.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "c_api/ov_c_api.h"
 
 /**
  * @brief Struct to store infer results
@@ -49,14 +50,16 @@ void infer_result_sort(struct infer_result* results, size_t result_size) {
 struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size) {
     ov_shape_t output_shape = {-1, -1, -1, -1};
     ov_status_e status = ov_tensor_get_shape(tensor, &output_shape);
-    if (status != OK) return NULL;
+    if (status != OK)
+        return NULL;
 
     *result_size = output_shape[1];
 
     struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
-    if (!results) return NULL;
+    if (!results)
+        return NULL;
 
-    void *data = NULL;
+    void* data = NULL;
     status = ov_tensor_get_data(tensor, &data);
     if (status != OK) {
         free(results);
@@ -97,7 +100,11 @@ void print_model_input_output_info(ov_model_t* model) {
     ov_name_free(friendly_name);
 }
 
-#define CHECK_STATUS(return_status) if(return_status !=OK) {fprintf(stderr, "[ERROR] return status %d, line %d\n", return_status, __LINE__); goto err;}
+#define CHECK_STATUS(return_status)                                                      \
+    if (return_status != OK) {                                                           \
+        fprintf(stderr, "[ERROR] return status %d, line %d\n", return_status, __LINE__); \
+        goto err;                                                                        \
+    }
 
 int main(int argc, char** argv) {
     // -------- Check input parameters --------
@@ -142,7 +149,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
     }
-    
+
     // -------- Step 3. Set up input
     c_mat_t img;
     image_read(input_image_path, &img);
@@ -188,7 +195,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, &property));
 
     // -------- Step 6. Create an infer request --------
-    ov_infer_request_t *infer_request = NULL;
+    ov_infer_request_t* infer_request = NULL;
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
 
     // -------- Step 7. Prepare input --------
