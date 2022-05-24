@@ -24,18 +24,18 @@ class TestSoftsign(CommonTFLayerTest):
 
         import tensorflow as tf
 
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
 
             tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            input = tf.placeholder(tf.float32, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.nn.softsign(input)
 
-            tf.global_variables_initializer()
+            tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
         #
