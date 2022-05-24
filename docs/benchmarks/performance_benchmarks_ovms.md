@@ -10,7 +10,7 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 
 ![OVMS Benchmark Setup Diagram](../img/performance_benchmarks_ovms_02.png)
 
-- **OpenVINO™ Model Server** -- Launched as a docker container on the server platform and it listens (and answers on) requests from clients. It is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
+- **OpenVINO™ Model Server** -- It is launched as a docker container on the server platform and it listens (and answers on) requests from clients. It is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
 - **Clients** -- This part run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it will send a new next request. Clients also play role of the verification of responses.
 
