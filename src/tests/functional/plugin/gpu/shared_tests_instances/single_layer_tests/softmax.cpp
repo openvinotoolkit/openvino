@@ -12,6 +12,7 @@ using namespace ov::test::subgraph;
 namespace {
 
 const std::vector<ov::test::ElementType> netPrecisions = {
+    ov::element::f16,
     ov::element::f32,
 };
 
