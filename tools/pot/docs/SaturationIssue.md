@@ -31,7 +31,7 @@ Below is an example of the section in the POT configuration file with the *`satu
 
 It is recommended to try the option "all" during the model quantization. In case the accuracy problem still occurs after that, try using [Quantization-aware training from NNCF](https://github.com/openvinotoolkit/nncf) and fine-tuning the model.
 
-If legacy CPU HW are not planned to be used, you can use the option "no", which might also lead to slightly better accuracy.
+Use the "no" option when leaving out legacy CPU HW. It might also lead to slightly better accuracy.
 
 ## Additional Resources
 
