@@ -12,7 +12,7 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 
 - **OpenVINO™ Model Server** -- It is launched as a docker container on the server platform and it listens (and answers on) requests from clients. It is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
-- **Clients** -- This part run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it will send a new next request. Clients also play role of the verification of responses.
+- **Clients** -- They are run in a separated physical machine referred to as a client platform. Clients are implemented in Python3 programming language based on TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it sends a new request. Clients also play a role in the verification of responses.
 
 - **Load Balancer** -- It works on the client platform in a docker container by using a HAProxy. The main role of Load Balancer is counting the requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason for locating this part on the client site is to simulate a real life scenario that includes an impact of a physical network on reported metrics.
 
