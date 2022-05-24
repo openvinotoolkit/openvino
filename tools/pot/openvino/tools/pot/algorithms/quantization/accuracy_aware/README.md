@@ -29,7 +29,7 @@ Default value is `300`, and more samples it has the better ranking, potentially.
 increases. The default value is `True`.
 - `"base_algorithm"` - name of the algorithm that is used to quantize a model at the beginning. The default value is 
     "DefaultQuantization".
-- `"convert_to_mixed_preset"` - whether to convert the model to "mixed" mode if the accuracy criteria for the model
+- `"convert_to_mixed_preset"` - set to convert the model to "mixed" mode if the accuracy criteria for the model
  quantized with "performance" preset are not satisfied. This option can help to reduce number of layers that are reverted
  to floating-point precision. Keep in mind that this is an **experimental** feature.
 - `"metrics"` - an optional list of metrics that are taken into account during optimization. It consists of tuples with the 
