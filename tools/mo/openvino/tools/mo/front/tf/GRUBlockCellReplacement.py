@@ -32,7 +32,6 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             concat_w.add_input_port(0)
             concat_w.add_input_port(1)
 
-
             concat_b = Concat(graph, {'name': original_name + '/Concat_B',
                                                    'axis': 0}).create_node()
 
@@ -46,6 +45,7 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             tf_gru_block_cell.in_port(5).get_connection().set_destination(concat_b.in_port(1))
 
             # W (Weights)
+            # z - update, r - reset, h - hidden
             # Convert gate order "rzh" -> "zrh"
             split_rzh_w = AttributedSplit(graph, {'name': original_name + '/Split_rzh_W', 'axis': 1, 'num_splits': 3}).create_node()
 
@@ -68,6 +68,7 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             concat_w.out_port(0).connect(split_rzh_w.in_port(0))
 
             # B (Bias)
+            # z - update, r - reset, h - hidden
             # Convert gate order "rzh" -> "zrh"
             split_rzh_b = AttributedSplit(graph, {'name': original_name + '/Split_rzh_B', 'axis': 0, 'num_splits': 3}).create_node()
 

@@ -4,6 +4,7 @@
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.ops.GRUBlockCell import GRUBlockCell
 
+
 class GRUBlockCellExtractor(FrontExtractorOp):
     op = 'GRUBlockCell'
     enabled = True
