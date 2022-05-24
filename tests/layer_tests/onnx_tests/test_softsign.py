@@ -11,7 +11,7 @@ from unit_tests.utils.graph import build_graph
 class TestSoftsign(Caffe2OnnxLayerTest):
     def create_net(self, shape, ir_version):
         """
-            ONNX net                    IR net
+            ONNX net                        IR net
 
             Input->Softsign->Output   =>    Input->Softsign
 
@@ -70,7 +70,7 @@ class TestSoftsign(Caffe2OnnxLayerTest):
 
     def create_net_const(self, shape, precision, ir_version):
         """
-            ONNX net                                   IR net
+            ONNX net                                       IR net
 
             Input->Concat(+Softsign const)->Output   =>    Input->Concat(+const)
 
