@@ -116,7 +116,7 @@ def rdft(
 
     :param data: Tensor with data.
     :param axes: Tensor with axes to transform.
-    :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
     :return: The new node which performs RDFT operation on the input data tensor.
     """
     if signal_size is None:
@@ -137,7 +137,7 @@ def irdft(
 
     :param data: Tensor with data.
     :param axes: Tensor with axes to transform.
-    :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
     :return: The new node which performs IRDFT operation on the input data tensor.
     """
     if signal_size is None:
