@@ -89,15 +89,22 @@ static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const Infere
         return false;
     }
     const auto& cnn2dValidator = *cnn2dValidatorPtr;
-    return cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
+    const auto cnnIsValid = cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
         conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
         conv_data.filter_height, conv_data.filter_width, conv_data.filter_channel_count,
         conv_data.filter_stride_height, conv_data.filter_stride_width, conv_data.filter_dilation_height, conv_data.filter_dilation_width,
-        OvGnaTypeIntFromBytes(gnaPrecision.size()), false) &&
-        (!graph_data.max_pool || cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
+        OvGnaTypeIntFromBytes(gnaPrecision.size()), false);
+    if (!cnnIsValid) {
+        return false;
+    }
+    if (!graph_data.max_pool) {
+        return true;
+    }
+    const auto poolingValid = cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
             graph_data.max_pool->get_kernel()[0], graph_data.max_pool->get_kernel()[1],
             graph_data.max_pool->get_strides()[0], graph_data.max_pool->get_strides()[1],
-            false));
+            false);
+    return poolingValid;
 }
 
 static size_t CalculateConvCount(const ConvData& conv_data) {

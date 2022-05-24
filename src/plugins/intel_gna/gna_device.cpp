@@ -52,7 +52,7 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion tag) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     using GNAPluginNS::memory::rRegion;
-    std::map<rRegion, Gna2MemoryTag> tagMap {
+    static const std::map<rRegion, Gna2MemoryTag> tagMap {
         {rRegion::REGION_INPUTS, Gna2MemoryTagInput},
         {rRegion::REGION_OUTPUTS, Gna2MemoryTagOutput},
         {rRegion::REGION_SCRATCH, Gna2MemoryTagScratch},
@@ -74,10 +74,14 @@ void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::r
 }
 
 void GNADeviceHelper::free(void* ptr) {
-    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
-    const auto status = Gna2MemoryFree(ptr);
-    checkGna2Status(status, "Gna2MemoryFree");
-    const auto removeSuccess = allAllocations.Remove(ptr);
+    Gna2Status status;
+    bool removeSuccess;
+    {
+        std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
+        status = Gna2MemoryFree(ptr);
+        checkGna2Status(status, "Gna2MemoryFree");
+        removeSuccess = allAllocations.Remove(ptr);
+    }
     if (!removeSuccess) {
         gnawarn() << "Allocation not found when freeing memory\n";
     }
@@ -553,7 +557,7 @@ std::string GNADeviceHelper::getEffectiveGnaCompileTarget() const {
 }
 
 std::string GNADeviceHelper::GetCompileTarget() const {
-    const std::map<Gna2DeviceVersion, std::string> targetMap = {
+    static const std::map<Gna2DeviceVersion, std::string> targetMap = {
         {Gna2DeviceVersion2_0, InferenceEngine::GNAConfigParams::GNA_TARGET_2_0},
         {Gna2DeviceVersion3_0, InferenceEngine::GNAConfigParams::GNA_TARGET_3_0},
     };

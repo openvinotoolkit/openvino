@@ -742,7 +742,7 @@ void PrintTensors(std::ofstream& out, T tensors) {
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, std::string type, void* ptr) {
+void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* ptr) {
     const auto queue = memory->getQueue(ptr);
     std::string typeOfRegion = "UNKNOWN_QUEUE";
     auto offset = std::numeric_limits<uint32_t>::max();

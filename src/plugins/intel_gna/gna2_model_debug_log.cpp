@@ -54,7 +54,7 @@ std::string GetSimpleString(Gna2Shape shape) {
 }
 
 template <class MapType>
-uint32_t FindInMapOrReturnOne(MapType map, typename MapType::key_type key, size_t index = 0) {
+uint32_t FindInMapOrReturnOne(MapType map, typename MapType::key_type key) {
     auto value = map.find(key);
     if (value != map.end()) {
         return value->second;
@@ -81,7 +81,7 @@ uint32_t GetTypeByteSize(Gna2DataType type) {
     return FindInMapOrReturnOne(operandTypeMap, type);
 }
 
-uint32_t GetGnaShapeSize(Gna2Shape shape, uint32_t bytesPerElement) {
+uint32_t GetGnaShapeSize(const Gna2Shape& shape, const uint32_t bytesPerElement) {
     if (shape.NumberOfDimensions == 0) {
         return 0;
     }
@@ -419,10 +419,10 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
 } // namespace
 
 void DumpGna2Model(const Gna2Model& gnaModel,
-                   const std::string dumpFolderNameGNA,
+                   const std::string& dumpFolderNameGNA,
                    bool dumpData,
                    const GnaAllocations& allAllocations,
-                   std::string modeOfOperation) {
+                   const std::string& modeOfOperation) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);

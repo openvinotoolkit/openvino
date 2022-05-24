@@ -292,7 +292,7 @@ public:
 
     void WriteGraphWizModel(const char *filename);
 
-    void PrintOffset(std::ofstream& out, std::string type, void* ptr);
+    void PrintOffset(std::ofstream& out, const std::string& type, void* ptr);
 
     void WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision);
 
