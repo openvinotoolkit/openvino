@@ -76,10 +76,12 @@ enum class KernelType {
     LOOP,
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
     EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
-    RANDOM_UNIFORM
+    RANDOM_UNIFORM,
+    ADAPTIVE_POOLING
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
