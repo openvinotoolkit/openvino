@@ -57,6 +57,8 @@ class Eye(Op):
         num_rows = node.in_port(num_rows_port).data.get_value()
         if num_rows is None:
             num_rows = dynamic_dimension
+        else:
+            num_rows = np.array(num_rows).item()
 
         num_columns_shape = node.in_port(num_columns_port).data.get_shape()
         assert len(num_columns_shape) <= 1, \
@@ -64,6 +66,8 @@ class Eye(Op):
         num_columns = node.in_port(num_columns_port).data.get_value()
         if num_columns is None:
             num_columns = dynamic_dimension
+        else:
+            num_columns = np.array(num_columns).item()
 
         diagonal_index_shape = node.in_port(diagonal_index_port).data.get_shape()
         assert len(diagonal_index_shape) <= 1, \
