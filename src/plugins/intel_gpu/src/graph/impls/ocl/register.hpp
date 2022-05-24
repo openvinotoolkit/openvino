@@ -84,6 +84,7 @@ namespace detail {
     }
 
 REGISTER_OCL(activation);
+REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
