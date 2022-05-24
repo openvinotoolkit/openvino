@@ -113,7 +113,7 @@ Command-line example:
 * [Quantization of Image Classification model](https://docs.openvino.ai/latest/pot_configs_examples_README.html) 
 
 A template and full specification for DefaultQuantization algorithm for POT command-line inferface:
-* [Template](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_template.json)
+* [Template](https://github.com/openvinotoolkit/testrepo/blob/master/tools/pot/configs/default_quantization_template.json)
 * [Full specification](https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/default_quantization_spec.json)
 
 
