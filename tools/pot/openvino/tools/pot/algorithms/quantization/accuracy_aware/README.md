@@ -6,7 +6,7 @@ pre-defined range. In comparison to [DefaultQuantization](../default/README.md) 
 degradation in performance because some layers can be reverted back to the original precision.
 
 ## Parameters
-Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Below is an example of lthe definition of the `AccuracyAwareQuantization` method and its parameters:
+Since the [DefaultQuantization](../default/README.md) algorithm is used as an initialization, all its parameters are also valid and can be specified. Below is an example of the `AccuracyAwareQuantization` method and its parameters:
 ```json
 {
     "name": "AccuracyAwareQuantization", // the name of optimization algorithm 
