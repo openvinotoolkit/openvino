@@ -415,6 +415,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("RNN", 1, rnn);
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
     REGISTER_OPERATOR("RoiAlign", 16, roi_align);
+    REGISTER_OPERATOR("ROIAlign", 16, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
     REGISTER_OPERATOR("Scan", 1, scan);
     REGISTER_OPERATOR("Scan", 9, scan);
