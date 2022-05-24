@@ -20,7 +20,7 @@ Below are the descriptions of AccuracyAwareQuantization-specific parameters:
 - `"ranking_subset_size"` - size of a subset that is used to rank layers by their contribution to the accuracy drop. 
 Default value is `300`, and more samples it has the better ranking you have, potentially.
 - `"max_iter_num"` - maximum number of iterations of the algorithm. In other words, maximum number of layers that may
- be reverted back to floating-point precision. By default it is limited by the overall number of quantized layers.
+ be reverted back to floating-point precision. By default, it is limited by the overall number of quantized layers.
 - `"maximal_drop"` - the maximum accuracy drop which has to be achieved after the quantization. The default value is `0.01` (1%).
 - `"drop_type"` - a drop type of the accuracy metric: 
     - `"absolute"` - the (default) absolute drop with respect to the results of the full-precision model.
