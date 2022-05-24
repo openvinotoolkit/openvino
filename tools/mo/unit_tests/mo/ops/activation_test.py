@@ -167,8 +167,8 @@ class TestActivationOp(unittest.TestCase):
         activation_node = Node(graph, 'activation_node')
         SoftSign.infer(activation_node)
         exp_shape = np.array([4])
-        res_shape = graph.node['node_3']['shape']
-        res_value = graph.node['node_3']['value']
+        res_shape = graph.nodes['node_3']['shape']
+        res_value = graph.nodes['node_3']['value']
         exp_value = np.array([0.5, -0.5, 0.7777777777777, -0.85294117647])
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
