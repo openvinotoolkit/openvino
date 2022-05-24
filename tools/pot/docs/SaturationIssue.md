@@ -15,7 +15,7 @@ POT tool provides three options to deal with the saturation issue. The options c
 * "All" option -- apply for all layers in the model.
 * "No" option -- do not apply saturation fix at all.
 
-Below is an example of the section in the POT configuration file with the *`saturation_fix`* option:
+Below is an example of the section in the POT configuration file with the `saturation_fix` option:
 ```json
 "algorithms": [
     {
