@@ -22,7 +22,7 @@ Features and benefits of Intel® technologies depend on system configuration and
 
 @endsphinxdirective
 
-For more detailed configuration descriptions, see the [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html) document.
+For more specific information, refer to the [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html) document.
 
 ## Benchmark Setup Information
 
