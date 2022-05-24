@@ -73,7 +73,7 @@ mode on the existing HW:
     - `"range_estimator"` - this section describes parameters of range estimator that is used in MinMaxQuantization 
     method to get the quantization ranges and filter outliers based on the collected statistics. These are the parameters 
     that user can vary to get better accuracy results:
-        - `"preset"` - preset that defines the same estimator both for top and bottom borders of quantizing 
+        - `"preset"` - preset that defines the same estimator for both top and bottom borders of quantizing 
         floating-point range. Possible value is `"quantile"`.
         - `"max"` - parameters to estimate top border of quantizing floating-point range:
             - `"aggregator"` - type of the function used to aggregate statistics obtained with estimator 
