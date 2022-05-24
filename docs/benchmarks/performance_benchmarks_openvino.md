@@ -30,7 +30,7 @@ This benchmark setup includes a single machine on which both the benchmark appli
 
 The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). It measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second - FPS). For additional information on the benchmark application, refer to the entry 5 in the [FAQ section](performance_benchmarks_faq.md).
 
-Measuring inference performance involves many variables and is extremely use case and application dependent. Below four parameters for measurements our used for measurrment. They are key elements to consider for a successful deep learning inference application:
+Measuring inference performance involves many variables and is extremely use case and application dependent. Below are four parameters used for measurements, which are key elements to consider for a successful deep learning inference application:
 
 - **Throughput** - Measures the number of inferences delivered within a latency threshold (for example, number of FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
 - **Value** - While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value.
