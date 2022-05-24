@@ -1,5 +1,5 @@
 networkx~=2.5; python_version <= "3.6"
-networkx~=2.6; python_version > "3.6"
+networkx<2.8.1; python_version > "3.6"
 numpy>=1.16.6,<1.20
 protobuf>=3.15.6
 defusedxml>=0.7.1
