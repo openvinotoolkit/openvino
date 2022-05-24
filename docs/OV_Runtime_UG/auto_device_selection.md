@@ -24,6 +24,7 @@ The logic behind the choice is as follows:
 3. Select the highest-priority device capable of supporting the given model, as listed in the table below. 
 4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16. 
 
+@sphinxdirective
 +----------+------------------------------------------------------+-------------------------------------+
 | Device   || Supported                                           || Supported                          |
 | Priority || Device                                              || model precision                    |
@@ -40,6 +41,7 @@ The logic behind the choice is as follows:
 | 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
+@endsphinxdirective
 
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
 What is important, **AUTO always starts inference with the CPU**, as it provides very low latency and can start inference with no additional delays. 
@@ -53,26 +55,22 @@ Note that if you choose to exclude the CPU from the priority list, it will also 
 
 This mechanism can be easily observed in our Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
-@sphinxdirective
-.. code-block:: sh
+```sh
+benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
+```
 
-   ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
-@endsphinxdirective 
-
-@sphinxdirective
-.. code-block:: sh
-
-   ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
-@endsphinxdirective 
+```sh
+benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
+```
 
 
 @sphinxdirective
 .. note::
+
    The longer the process runs, the closer realtime performance will be to that of the best-suited device.
 @endsphinxdirective
 
-## Using the Auto-Device Plugin 
-
+## Using the Auto-Device Mode 
 
 Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
@@ -106,7 +104,8 @@ Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
 ### Device candidate list
-The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. 
+The device candidate list allows users to customize the priority and limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that OpenVINO™ Runtime lets you use “GPU” as an alias for “GPU.0” in function calls. More detail on enumerating devices can be found in [Working with devices](supported_plugins/Device_Plugins.md).
+
 The following commands are accepted by the API: 
 
 @sphinxdirective
@@ -128,19 +127,16 @@ The following commands are accepted by the API:
 To check what devices are present in the system, you can use Device API. For information on how to do it, check [Query device properties and configuration](supported_plugins/config_properties.md)
 
 For C++
-@sphinxdirective
-.. code-block:: sh
 
-   ov::runtime::Core::get_available_devices() (see Hello Query Device C++ Sample)
-@endsphinxdirective
+```sh
+ov::runtime::Core::get_available_devices() (see Hello Query Device C++ Sample)
+```
 
 For Python
-@sphinxdirective
-.. code-block:: sh
 
-   openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
-@endsphinxdirective
-
+```sh
+openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
+```
 
 ### Performance Hints
 The `ov::hint::performance_mode` property enables you to specify a performance mode for the plugin to be more efficient for particular use cases.
@@ -189,7 +185,9 @@ The property enables you to control the priorities of models in the Auto-Device 
 @endsphinxdirective
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
+
 Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad devices, uncapable of utilizing the Performance Hints option. 
+
 
 @sphinxdirective
 
@@ -212,18 +210,16 @@ Although the methods described above are currently the preferred way to execute 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
 For unlimited device choice:
-@sphinxdirective
-.. code-block:: sh
 
-   benchmark_app –d AUTO –m <model> -i <input> -niter 1000
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO –m <model> -i <input> -niter 1000
+```
 
 For limited device choice:
-@sphinxdirective
-.. code-block:: sh
 
-   benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
-@endsphinxdirective
+```sh
+benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
 

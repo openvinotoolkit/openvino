@@ -141,6 +141,7 @@ PYBIND11_MODULE(pyopenvino, m) {
             2. IR version 11:
 
             .. code-block:: python
+            
                 parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
                 parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
                 parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
