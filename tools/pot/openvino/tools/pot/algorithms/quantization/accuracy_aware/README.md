@@ -36,7 +36,7 @@ increases. The default value is `True`.
 following parameters:
     - `"name"` - name of the metric to optimize.
     - `"baseline_value"` - (optional parameter) a baseline metric value of the original model. The validations on
-    the whole validation will be initiated in the beginning if nothing specified.
+    The validation will be initiated entirely in the beginning if nothing specified.
 - `"metric_subset_ratio"` - part of the validation set that is used to compare original full-precision and 
 fully quantized models when creating ranking subset in case of predefined metric values of the original model.
 Default value is `0.5`.
