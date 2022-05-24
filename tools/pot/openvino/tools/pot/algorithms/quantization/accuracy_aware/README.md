@@ -23,7 +23,7 @@ Default value is `300`, and more samples it has the better ranking you have, pot
  be reverted back to floating-point precision. By default it is limited by the overall number of quantized layers.
 - `"maximal_drop"` - maximum accuracy drop which has to be achieved after the quantization. Default value is `0.01` (1%).
 - `"drop_type"` - drop type of the accuracy metric: 
-    - `"absolute"` - (default) absolute drop with respect to the results of the full-precision model.
+    - `"absolute"` - the (default) absolute drop with respect to the results of the full-precision model.
     - `"relative"` - relative to the results of the full-precision model.
 - `"use_prev_if_drop_increase"` - the use of network snapshot from the previous iteration when a drop 
 increases. The default value is `True`.
