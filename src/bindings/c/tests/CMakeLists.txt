@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "OpenVinoCAPITests")
+set(TARGET_NAME "InferenceEngineCAPITests")
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
@@ -11,13 +11,10 @@ if(NOT OpenCV_FOUND)
     return()
 endif()
 
-add_executable(${TARGET_NAME} ov_c_api_test.cpp test_model_repo.hpp)
+add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c2 ${OpenCV_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
                                              commonTestUtils gtest_main)
-
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE

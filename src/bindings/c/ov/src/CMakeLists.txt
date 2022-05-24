@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_c)
+set(TARGET_NAME openvino_ov_c)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
@@ -10,7 +10,7 @@ file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
 # create library
 
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
-add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
+add_library(openvino::runtime::ov ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino)
 
@@ -30,7 +30,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::ov)
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
