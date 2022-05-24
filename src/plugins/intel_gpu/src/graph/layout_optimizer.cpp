@@ -318,14 +318,16 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
         // Remove reorder to support blocked input for first convolution
         if (next.is_type<convolution>() && needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
-            ((prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() < 8 && (fmt_prev == format::b_fs_yx_fsv2 || fmt_prev == format::b_fs_zyx_fsv2)) ||
+            ((prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() < 8 &&
+                 (fmt_prev == format::b_fs_yx_fsv2 || fmt_prev == format::b_fs_zyx_fsv2)) ||
              (prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv2) ||
              (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() < 8 && fmt_prev == format::b_fs_yx_fsv4) ||
              (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv4)))
             return true;
 
         // Remove Reorder for Convolution if mixed layout.
-        if (next.is_type<convolution>() && !needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) && is_mixed_layout(prev, next)) {
+        if (next.is_type<convolution>() && !needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
+            is_mixed_layout(prev, next)) {
             auto& node = prev.get_users().front();
             // Avoid to fuse padding reorder to previous onednn convolution
             if (prev.get_preferred_impl_type() == impl_types::onednn &&
