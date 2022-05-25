@@ -419,7 +419,7 @@ The file for custom replacement configuration provided with the `--transformatio
 
 #### 70. What does the message "One of the custom replacements in the configuration file .. does not contain attribute 'id'" mean? <a name="question-70"></a>
 
-Every custom replacement should declare a set of mandatory attributes and their values. For more details, refer to the FAQ [#71](#question-71).
+Every custom replacement should declare a set of mandatory attributes and their values. For more details, refer to FAQ [#71](#question-71).
 
 #### 71. What does the message "File .. validation failed" mean? <a name="question-71"></a>
 
