@@ -40,7 +40,7 @@ python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file
 mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
 ```
 
-## <a name="yolov3-to-ir"></a>Converting YOLOv3 Model to the IR
+## <a name="yolov3-to-ir"></a>Converting YOLOv3 Model to the OpenVINO format
 
 There are several public versions of TensorFlow YOLOv3 model implementation available on GitHub. This section explains how to convert YOLOv3 model from
 the [repository](https://github.com/mystic123/tensorflow-yolo-v3) (commit ed60b90) to an IR , but the process is similar for other versions of TensorFlow YOLOv3 model.
@@ -66,7 +66,7 @@ cd tensorflow-yolo-v3
 git checkout ed60b90
 ```
 3. Download [coco.names](https://github.com/AlexeyAB/darknet/blob/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
-4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pretrained weights with the same structure.
+4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure.
 5. Install PIL, which is used by the conversion script in the repo:
 ```sh
 pip install pillow
@@ -91,7 +91,7 @@ If you have YOLOv3 weights trained for an input image with the size different fr
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3_608.weights --size 608
 ```
 
-### Converting a YOLOv3 TensorFlow Model to the IR
+### Converting a YOLOv3 TensorFlow Model to the OpenVINO format
 
 To solve the problems explained in the <a href="#yolov3-overview">YOLOv3 architecture overview</a> section, use the `yolo_v3.json` or `yolo_v3_tiny.json` (depending on a model) configuration file with custom operations located in the `<OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` repository.
 
@@ -156,7 +156,7 @@ Before converting, choose a YOLOv1 or YOLOv2 model version that best suits your 
 * From [DarkFlow repository](https://github.com/thtrieu/darkflow): configuration files are stored in the `cfg` directory, links to weight files are given in the `README.md` file. The files from this repository are adapted for conversion to TensorFlow using DarkFlow.
 * From DarkNet website and repository: configuration files are stored in the `cfg` directory of the [repository](https://github.com/pjreddie/darknet), links to weight files are given on the [YOLOv1](https://pjreddie.com/darknet/yolov1/) and [YOLOv2](https://pjreddie.com/darknet/yolov2/) websites.
 
-To convert DarkNet YOLOv1 and YOLOv2 models to the IR, follow these steps:
+To convert DarkNet YOLOv1 and YOLOv2 models to the OpenVINO format, follow these steps:
 
 1. <a href="#install-darkflow">Install DarkFlow </a>
 2. <a href="#yolov1-v2-to-tf">Convert DarkNet YOLOv1 or YOLOv2 model to TensorFlow</a> using DarkFlow
