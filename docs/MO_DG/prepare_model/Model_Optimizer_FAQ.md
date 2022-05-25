@@ -35,7 +35,7 @@ where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe.
 
 3.  Now, Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
-However, since your model has custom layers, you must register them. To learn more about it, refer to the [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md) section.
+However, since your model has custom layers, you must register them as custom. To learn more about it, refer to [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md).
 
 #### 2. How do I create a bare caffemodel, if I have only prototxt? <a name="question-2"></a>
 
