@@ -6,12 +6,12 @@ The Deployment Manager is a Python command-line tool that creates a deployment p
 
 * Intel® Distribution of OpenVINO™ Toolkit
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
-   * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md):
+   * **For Linux**, see the interesting for you sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md):
      * [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md)
      * [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
      * [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
      * [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
-   * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
+   * **For Windows**, see the interesting for you sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
      * [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md)
      * [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
    * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos.md):
@@ -75,17 +75,17 @@ Once the selection is accepted, the package generation dialog will appear:
   
 ![Deployment Manager configuration dialog](../img/configuration_dialog.png)
 
-The target devices selected in the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
+The target devices selected in the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings:
    
-* `o. Change output directory` (optional): A path to the output directory. By default, it is set to your home directory.
+* The `o. Change output directory` (optional) - a path to the output directory. By default, it is set to your home directory.
 
-* `u. Provide (or change) path to folder with user data` (optional): A path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it is set to `None`, which means copying the user data to the target system separately.
+* The `u. Provide (or change) path to folder with user data` (optional) - a path to a directory with user data (OpenVINO IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it is set to `None`, which means that copying the user data to the target system will be performed separately.
 
-* `t. Change archive name` (optional): A deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
+* The `t. Change archive name` (optional) - a deployment archive name without extension. By default, it is set to the `openvino_deployment_package`.
  
 Once all the parameters have been set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
-When the script is successful, the deployment package is generated in the specified output directory. 
+Once the script has successfully completed, the deployment package is generated in the specified output directory. 
 
 @sphinxdirective
 
@@ -107,7 +107,7 @@ When the script is successful, the deployment package is generated in the specif
 
 Alternatively, run the Deployment Manager tool in the standard CLI mode. In this mode, specify the target devices and other parameters as command-line arguments of the Deployment Manager Python script. This mode facilitates integrating the tool in an automation pipeline.
 
-To launch the Deployment Manager tool in the standard mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool command with the following syntax:
+To launch the Deployment Manager tool in the standard mode: open a new terminal window, go to the Deployment Manager tool directory and run the tool command with the following syntax:
 
 @sphinxdirective
 
