@@ -16,7 +16,7 @@ When evaluating the performance of a model with OpenVINO Runtime, it is required
 Performance conclusions should be build upon reproducible data. As for the performance measurements, they should be done with a large number of invocations of the same routine. Since the first iteration is almost always significantly slower than the subsequent ones, an aggregated value can be used for the execution time for final projections:
 
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
--	For time values that range too much, consider geomean.
+-	If the time values range too much, consider geomean.
 -  Be aware of the throttling and other power oddities. A device can exist in one of several different power states. When optimizing your model, consider fixing the device frequency for better performance data reproducibility. However, the end-to-end (application) benchmarking should also be performed under real operational conditions.
 
 ## Using benchmark_app to Measure Reference Performance Numbers 
