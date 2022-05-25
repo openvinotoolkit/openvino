@@ -232,6 +232,8 @@ These parameters can be changed after model compilation `ov::CompiledModel::set_
 
 ## Limitations
 
+Listed below are all plugin limitations:
+
 ### Models and Operations Limitations
 
 Due to the specification of hardware architecture, Intel® GNA supports a limited set of operations, their kinds and combinations.
