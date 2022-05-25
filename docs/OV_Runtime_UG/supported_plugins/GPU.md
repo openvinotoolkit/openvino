@@ -245,7 +245,7 @@ Still, since kernel compilation is a bottleneck in the model loading process, a 
 For more details, see the [Model caching overview](../Model_caching_overview.md).
 
 ### Extensibility
-See the [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU) page.
+For information on this subject, see the [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU).
 
 ### GPU Context and Memory Sharing via RemoteTensor API
 See the [RemoteTensor API of GPU Plugin](GPU_RemoteTensor_API.md).
