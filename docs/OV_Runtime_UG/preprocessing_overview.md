@@ -142,7 +142,7 @@ Perform the following:
 
 ### Integrating Steps into a Model
 
-Build it when the preprocessing has been finished. It is possible to print `PrePostProcessor` configuration on screen for debugging purposes:
+Model can be finally built, once the preprocessing steps have been finished. It is possible to print `PrePostProcessor` configuration on screen for debugging purposes:
 
 @sphinxtabset
 
