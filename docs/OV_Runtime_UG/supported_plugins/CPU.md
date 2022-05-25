@@ -5,7 +5,7 @@ For an in-depth description of CPU plugin, see:
 
 - [CPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs).
 
-- [OpenVINO Runtime CPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/)
+- [OpenVINO Runtime CPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/).
 
 
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit.
