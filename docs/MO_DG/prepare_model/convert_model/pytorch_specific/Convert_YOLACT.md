@@ -123,7 +123,7 @@ index d83703b..f8c787c 100644
 ```
 3. Save and close the file.
 
-## Converting a YOLACT Model to the IR format
+## Converting a YOLACT Model to the OpenVINO IR format
 
 **Step 1**. Clone the GitHub repository and check out the commit:
 
