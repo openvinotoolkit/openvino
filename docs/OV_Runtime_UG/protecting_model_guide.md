@@ -35,7 +35,7 @@ For more information, see the `ov::Core` Class Reference Documentation.
 
 @snippet snippets/protecting_model_guide.cpp part0
 
-Hardware-based protection such as Intel&reg; Software Guard Extensions
+Hardware-based protection such as Intel Software Guard Extensions
 (Intel&reg; SGX) can be used to protect decryption operation secrets and
 bind them to a device. For more information, check [Intel&reg; Software Guard
 Extensions](https://software.intel.com/en-us/sgx).
