@@ -115,23 +115,24 @@ TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
 
 TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     ModelQuantizer<QuantI16> q;
+    const float inputScaleFactorTest = 1000;
+    const float weightValueTest = 100;
 
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
-    fillWeights(weights, {100});
+    fillWeights(weights, { weightValueTest });
 
     Core ie;
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
-    auto newNet = q.quantize(network, 1000);
+    auto newNet = q.quantize(network, inputScaleFactorTest);
     InputsDataMap inputs = newNet.getInputsInfo();
     auto affineLayerPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second;
 
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
-
-    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), 100);
-    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), 100);
+    ASSERT_FLOAT_EQ(quantParams->_dst_quant.GetScale(), MAX_VAL_2B_WEIGHT / weightValueTest * inputScaleFactorTest);
+    ASSERT_FLOAT_EQ(quantParams->_weights_quant.GetScale(), MAX_VAL_2B_WEIGHT / weightValueTest);
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {

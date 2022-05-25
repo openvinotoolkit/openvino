@@ -16,7 +16,6 @@
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"
 #include "backend/dnn.hpp"
-#include "memory/polymorph_allocator.hpp"
 #include "memory/gna_memory.hpp"
 #include "layers/gna_memory_layer.hpp"
 #include "layers/gna_concat_layer.hpp"
@@ -50,7 +49,7 @@ private:
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
 
-    static const GNALimitations::Cnn2D::Validator cnn2dValidator;
+    std::unique_ptr<const GNALimitations::Cnn2D::AbstractValidator> cnn2dValidator;
 
 public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
@@ -68,6 +67,18 @@ public:
 
     void fillConcatConnections(InferenceEngine::CNNLayerPtr layer);
     void fillSplitConnections(InferenceEngine::CNNLayerPtr layer);
+
+
+    void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+        const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision,
+        const uint32_t dilH, const uint32_t dilW) const;
+
+    void ValidatePooling2D(std::string name,
+        const uint32_t windowH, const uint32_t windowW,
+        const uint32_t strideH, const uint32_t strideW) const;
+
+    void SetValidatorTarget(std::string target);
 
     /**
     * Connects either memory output, or generic output to a layer

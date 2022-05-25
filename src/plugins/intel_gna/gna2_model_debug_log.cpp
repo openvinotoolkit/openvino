@@ -9,6 +9,7 @@
 
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
+#include "gna_device.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -50,6 +51,55 @@ std::string GetSimpleString(Gna2Shape shape) {
         if (i + 1 < shape.NumberOfDimensions) out << 'x';
     }
     return out.str();
+}
+
+template <class MapType>
+uint32_t FindInMapOrReturnOne(MapType map, typename MapType::key_type key) {
+    auto value = map.find(key);
+    if (value != map.end()) {
+        return value->second;
+    }
+    return 1;
+}
+
+uint32_t GetTypeByteSize(Gna2DataType type) {
+    static const std::map<Gna2DataType, uint32_t> operandTypeMap = {
+        {Gna2DataTypeNone, 1},
+        {Gna2DataTypeBoolean, 1},
+        {Gna2DataTypeInt4, 1},
+        {Gna2DataTypeInt8, 1},
+        {Gna2DataTypeInt16, 2},
+        {Gna2DataTypeInt32, 4},
+        {Gna2DataTypeUint4, 1},
+        {Gna2DataTypeUint8, 1},
+        {Gna2DataTypeUint16, 2},
+        {Gna2DataTypeUint32, 4},
+        {Gna2DataTypeUint64, 8},
+        {Gna2DataTypeCompoundBias, 8},
+        {Gna2DataTypePwlSegment, 8},
+        {Gna2DataTypeWeightScaleFactor, 8}};
+    return FindInMapOrReturnOne(operandTypeMap, type);
+}
+
+uint32_t GetGnaShapeSize(const Gna2Shape& shape, const uint32_t bytesPerElement) {
+    if (shape.NumberOfDimensions == 0) {
+        return 0;
+    }
+    // to compute aligned filters (each filter begin is aligned to 16B)
+    // e.g., for 3x3 2B filter, its size is 18B, but the next filter will start at 32B offset
+    // filters are NHWC
+    uint32_t nAlignement = 1;
+    if (shape.NumberOfDimensions == 4 && shape.Dimensions[0] != 1) {
+        nAlignement = 16;
+    }
+    uint32_t total = 1;
+    for (uint32_t i = 1; i < shape.NumberOfDimensions; i++) {
+        total *= shape.Dimensions[i];
+    }
+    total *= bytesPerElement;
+    auto totalAligned = Gna2RoundUp(total, nAlignement);
+    totalAligned *= shape.Dimensions[0];
+    return totalAligned;
 }
 
 template <class T>
@@ -335,11 +385,11 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
         double a = static_cast<double>(segments[k].Slope) / factor;
         double b = static_cast<double>(segments[k].yBase) - ((static_cast<double>(B) * segments[k].Slope) / factor);
 
-        dumpFile << "\t\tBase value for input (B) : " << B << "\n";
-        dumpFile << "\t\tBase value for output (b) : " << segments[k].yBase << "\n";
-        dumpFile << "\t\tSegment slope (S): " << segments[k].Slope << "\n";
-        dumpFile << "\t\tShift (scale) : " << scale << "\n";
-        dumpFile << "\t\ty = ax + b:   a = " << a << ", b = " << b;
+        dumpFile << "\t\tBase input (B) : " << B << ", ";
+        dumpFile << "Base output (b) : " << segments[k].yBase << ", ";
+        dumpFile << "Slope (S): " << segments[k].Slope << ", ";
+        dumpFile << "Shift (scale) : " << scale << ", ";
+        dumpFile << "y = (" << a << ")x + (" << b << ")";
         if (segments[k].Slope != 0) {
             double x0 = static_cast<double>(B) - ((static_cast<double>(segments[k].yBase) * factor) / segments[k].Slope);
             dumpFile << ", x0 = " << x0;
@@ -366,17 +416,27 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
     }
     dumpFile << "\n";
 }
-
 } // namespace
 
-void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData) {
+void DumpGna2Model(const Gna2Model& gnaModel,
+                   const std::string& dumpFolderNameGNA,
+                   bool dumpData,
+                   const GnaAllocations& allAllocations,
+                   const std::string& modeOfOperation) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
 
-    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S");
+    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_"
+                 << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << modeOfOperation;
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
+
+    const auto& allAllocationsSorted = allAllocations.GetAllocationsInExportOrder();
+    for (auto&& a : allAllocationsSorted) {
+        dumpFile << "Allocation: ptr=" << a.ptr << "\tsizeRequested=" << a.sizeRequested << "\tsizeGranted=" << a.sizeGranted <<
+            "\t tag=" << a.GetTagName() << "\n";
+    }
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
 
@@ -395,10 +455,27 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                 continue;
             }
             const auto& operand = *operation.Operands[j];
+            void * foundPtr = nullptr;
+            std::string foundName = "AllocationNotFound";
+            size_t offset = 0;
+            auto found = std::find_if(allAllocationsSorted.begin(),
+                                      allAllocationsSorted.end(),
+                         [operand](const GnaAllocation& allocation) {
+                             return allocation.getOffset(operand.Data).first;
+                         });
+            if (found != allAllocationsSorted.end()) {
+                foundPtr = found->ptr;
+                foundName = found->GetTagName();
+                offset = found->getOffset(operand.Data).second;
+            }
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
+                " tag: " << foundName <<
+                " offset: " << offset <<
+                " size: " << Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type))) <<
                 " data: " << operand.Data <<
+                " baseAlloc: " << foundPtr <<
                 " layout: ";
 
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);

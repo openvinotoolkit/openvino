@@ -70,6 +70,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
+    std::string GetCompileTarget() const;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);

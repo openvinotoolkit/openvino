@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "gna_plugin_log.hpp"
+#include "gna_mem_regions.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -19,31 +20,8 @@ enum rType : uint8_t {
     REQUEST_BIND = 0x4,
     REQUEST_INITIALIZER = 0x8,
 };
-/**
- * @brief region of firmware data
- */
-enum rRegion {
-    REGION_RO,
-    REGION_RW,
-    REGION_AUTO,
-};
 
 #ifdef GNA_HEAP_PROFILER
-inline const char* rRegionToStr(uint8_t region) {
-   const char* strRegion = "UNKNOWN";
-   switch (region) {
-      case REGION_RO:
-        strRegion = "REGION_RO";
-        break;
-      case REGION_RW:
-        strRegion = "REGION_RW";
-        break;
-      case REGION_AUTO:
-        strRegion = "REGION_AUTO";
-        break;
-   }
-   return strRegion;
-}
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";
@@ -65,6 +43,7 @@ inline const char* rTypeToStr(uint8_t type) {
    }
    return strType;
 }
+
 #endif
 
 struct MemRequest {

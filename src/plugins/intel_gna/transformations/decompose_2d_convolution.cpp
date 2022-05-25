@@ -83,21 +83,28 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
 
 static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision,
     const GraphData& graph_data, const ConvData& conv_data) {
-    const GNALimitations::Cnn2D::Validator cnn2dValidator;
 
-    if (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 &&
-        cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
-            conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
-            conv_data.filter_height, conv_data.filter_width, conv_data.filter_channel_count,
-            conv_data.filter_stride_height, conv_data.filter_stride_width, conv_data.filter_dilation_height, conv_data.filter_dilation_width,
-            OvGnaTypeIntFromBytes(gnaPrecision.size()), false) &&
-        (!graph_data.max_pool || cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
+    const auto cnn2dValidatorPtr = GNALimitations::Cnn2D::AbstractValidator::Create(gnaCompileTarget);
+    if (!cnn2dValidatorPtr) {
+        return false;
+    }
+    const auto& cnn2dValidator = *cnn2dValidatorPtr;
+    const auto cnnIsValid = cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
+        conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
+        conv_data.filter_height, conv_data.filter_width, conv_data.filter_channel_count,
+        conv_data.filter_stride_height, conv_data.filter_stride_width, conv_data.filter_dilation_height, conv_data.filter_dilation_width,
+        OvGnaTypeIntFromBytes(gnaPrecision.size()), false);
+    if (!cnnIsValid) {
+        return false;
+    }
+    if (!graph_data.max_pool) {
+        return true;
+    }
+    const auto poolingValid = cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
             graph_data.max_pool->get_kernel()[0], graph_data.max_pool->get_kernel()[1],
             graph_data.max_pool->get_strides()[0], graph_data.max_pool->get_strides()[1],
-            false)))
-        return true;
-
-    return false;
+            false);
+    return poolingValid;
 }
 
 static size_t CalculateConvCount(const ConvData& conv_data) {

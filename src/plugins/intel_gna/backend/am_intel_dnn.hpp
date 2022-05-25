@@ -13,9 +13,10 @@
 #include "gna/gna_config.hpp"
 
 #include "gna_plugin_log.hpp"
-
+#include "memory/gna_memory.hpp"
 #include <gna2-model-api.h>
-#include <gna/gna_config.hpp>
+
+using GNAPluginNS::memory::GNAMemoryInterface;
 
 namespace GNAPluginNS {
 namespace backend {
@@ -38,15 +39,12 @@ public:
               ptr_sumgroup_sizes(NULL),
               num_sumgroup_sizes(0),
               ptr_priors(NULL),
-              ptr_dnn_memory_(NULL),
-              num_bytes_dnn_memory_(0),
               compute_precision_(kDnnNumNumberType) {
     }
 
     ~AMIntelDNN();
 
-    void Init(void *ptr_memory,
-            uint32_t num_memory_bytes,
+    void Init(GNAMemoryInterface * memoryInterface,
             intel_dnn_number_type_t compute_precision,
             float scale_factor);
 
@@ -294,6 +292,8 @@ public:
 
     void WriteGraphWizModel(const char *filename);
 
+    void PrintOffset(std::ofstream& out, const std::string& type, void* ptr);
+
     void WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision);
 
     void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
@@ -338,8 +338,7 @@ public:
     void BeginNewWrite(uint32_t index);
 
 private:
-    void *ptr_dnn_memory_;
-    uint32_t num_bytes_dnn_memory_;
+    GNAMemoryInterface* memory = nullptr;
     uint32_t *ptr_active_outputs_;
     uint32_t num_active_outputs_;
     intel_dnn_number_type_t compute_precision_;
