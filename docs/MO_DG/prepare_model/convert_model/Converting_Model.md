@@ -8,7 +8,7 @@ It is achieved with two parameters, used under certain conditions: `--input_shap
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
-This can be beneficial in terms of performance and memory consumption.
+Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
 To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
 The same functionality is also available in runtime via `reshape` method. For more information refer to the [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md) guide.
 To learn more about dynamic shapes in runtime, refer to the [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md) guide.
