@@ -113,7 +113,7 @@ Now, if the model input has `{1,3,224,224}` shape, preprocessing will be able to
 
 ### Preprocessing Steps
 
-Now, define sequence of preprocessing steps:
+Now, sequence of preprocessing steps can be defined:
 
 @sphinxtabset
 
