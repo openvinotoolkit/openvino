@@ -161,7 +161,7 @@ Model can be finally built, once the preprocessing steps have been finished. It 
 @endsphinxtabset
 
 
-After this, a `model` will accept `U8` input with `{1, 480, 640, 3}` shape, with `BGR` channels order. All conversion steps will be integrated into execution graph. Now, load the model on the device and pass the image to the model as is, without any data manipulation in the application.
+After this, a `model` will accept `U8` input with `{1, 480, 640, 3}` shape and `BGR` channels order. All conversion steps will be integrated into execution graph. Now, model can be loaded on the device and the image can be passed to the model without any data manipulation in the application.
 
 
 ## See Also
