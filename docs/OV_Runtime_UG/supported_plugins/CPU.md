@@ -55,7 +55,7 @@ See the [low-precision optimization guide](@ref openvino_docs_model_optimization
 
 Default floating-point precision of a CPU primitive is `f32`. To support `f16` OpenVINO IRs the plugin internally converts all the `f16` values to `f32` and all the calculations are performed using native `f32` precision.
 On platforms that natively support `bfloat16` calculations (have `AVX512_BF16` extension) `bf16` type is automatically used instead of `f32` to achieve better performance, thus no special steps are required to run a model with `bf16` precision.
-See the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf) for more details about bfloat16 format.
+For more details about `bfloat16` format, see the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf).
 
 Using bf16 precision provides the following performance benefits:
 
