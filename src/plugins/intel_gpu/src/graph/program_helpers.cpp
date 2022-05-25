@@ -103,10 +103,10 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 
     return layout(mem_layout.data_type,
                   mem_layout.format,
-                  {split * mem_layout.size.batch[0],
-                   mem_layout.size.feature[0],
-                   mem_layout.size.spatial[0],
-                   mem_layout.size.spatial[1]});
+                  {split * mem_layout.batch(),
+                   mem_layout.feature(),
+                   mem_layout.spatial(0),
+                   mem_layout.spatial(1)});
 }
 
 // pair.first tells whether l1 and l2 are absolutely identical
@@ -141,7 +141,8 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
                (l2.format == format && l1.format != format);
     };
 
-    if (check_format(format::b_fs_yx_fsv4) ||
+    if (check_format(format::b_fs_yx_fsv2) ||
+        check_format(format::b_fs_yx_fsv4) ||
         check_format(format::fs_b_yx_fsv32) ||
         check_format(format::b_fs_yx_fsv16) ||
         check_format(format::b_fs_yx_fsv32) ||

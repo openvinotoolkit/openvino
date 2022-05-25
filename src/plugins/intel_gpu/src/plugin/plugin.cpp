@@ -398,10 +398,14 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
     auto func = clonedNetwork.getFunction();
     auto ops = func->get_ordered_ops();
-    std::unordered_set<std::string> supported;
+
+    //Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
     std::unordered_set<std::string> unsupported;
 
-    std::unordered_set<std::string> constantsNames;
+    std::unordered_set<std::string> supportedNotOriginal;
+    std::unordered_set<std::string> unsupportedNotOriginal;
+
     std::vector<std::shared_ptr<ngraph::Node>> constants;
 
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -442,33 +446,45 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             return false;
         }
         if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
         }
-        return prog.IsOpSupported(network, node) &&
-               !ngraph::op::is_parameter(node) &&
-               !ngraph::op::is_output(node);
+        return prog.IsOpSupported(network, node) ||
+               ngraph::op::is_parameter(node) ||
+               ngraph::op::is_output(node);
     };
 
     // Get ops after transformations and check if it's supported
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
-    bool wasNodeAlreadyChecked = false;
-    bool isSupported = false;
     for (auto&& op : ops) {
-        wasNodeAlreadyChecked = false;
-        isSupported = false;
+        bool isSupported = layerIsSupported(op);
+        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
+            if (isSupported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        } else {
+            if (isSupported) {
+                supportedNotOriginal.emplace(op->get_friendly_name());
+            } else {
+                unsupportedNotOriginal.emplace(op->get_friendly_name());
+            }
+        }
+
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (!wasNodeAlreadyChecked) {
-                    isSupported = layerIsSupported(op);
-                    wasNodeAlreadyChecked = true;
-                }
                 if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
+                }
+            } else {
+                if (isSupported) {
+                    supportedNotOriginal.emplace(fusedLayerName);
+                } else {
+                    unsupportedNotOriginal.emplace(fusedLayerName);
                 }
             }
         }
@@ -481,22 +497,35 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
     unsupported.clear();
 
+    for (auto&& layerName : unsupportedNotOriginal) {
+        if (InferenceEngine::details::contains(supportedNotOriginal, layerName)) {
+            supportedNotOriginal.erase(layerName);
+        }
+    }
+    unsupportedNotOriginal.clear();
+
     // 1. Constants are marked as supported when all outputs can be offloaded to GPU
     for (const auto& op : constants) {
         bool is_supported = true;
+
         for (size_t i = 0; i < op->get_output_size(); i++) {
             auto outTensors = op->get_output_target_inputs(i);
             for (auto& t : outTensors) {
                 auto output = t.get_node();
                 const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(supportedNotOriginal, name)) {
                     is_supported = false;
                     break;
                 }
             }
         }
         if (is_supported) {
-            supported.emplace(op->get_friendly_name());
+            if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name()))
+                supported.emplace(op->get_friendly_name());
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op))
+                if (InferenceEngine::details::contains(originalOpNames, fusedLayerName))
+                    supported.emplace(fusedLayerName);
         }
     }
 

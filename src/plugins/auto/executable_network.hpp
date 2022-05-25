@@ -48,6 +48,7 @@ struct AutoContext {
     bool           needPerfCounters = {false};
     unsigned int   modelPriority = 0;
     bool           batchingDisabled = {false};
+    std::string    performanceHint;
 };
 
 struct AutoLoadContext {
@@ -165,6 +166,7 @@ private:
     unsigned int                                                        _cpuHelpInferCount = 0;
     double                                                              _cpuHelpFps = 0.0;
     Time                                                                _cpuHelpReleaseTime;
+    InferenceEngine::SoExecutableNetworkInternal                        _passthroughExeNet;
 };
 
 }  // namespace MultiDevicePlugin

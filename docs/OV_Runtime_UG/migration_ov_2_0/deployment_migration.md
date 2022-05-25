@@ -1,29 +1,33 @@
 # Installation & Deployment {#openvino_2_0_deployment}
 
-"Easy to use" is one of the main concepts for OpenVINO™ API 2.0. It includes not only simplifying the migration from frameworks to OpenVINO, but also how OpenVINO is organized, how the development tools are used, and how to develop and deploy OpenVINO-based applications.
+One of the main concepts for OpenVINO™ API 2.0 is being *"easy to use"*, which includes:
+* Simplification of migration from different frameworks to OpenVINO.
+* Organization of OpenVINO. 
+* Usage of development tools.
+* Development and deployment of OpenVINO-based applications.
 
-To accomplish that, we have made some changes on the installation and deployment of OpenVINO in the 2022.1 release. This guide will walk you through them.
+To accomplish that, the 2022.1 release OpenVINO introduced significant changes to the installation and deployment processes. This guide will walk you through these changes.
 
-## Installer Package Contains OpenVINO™ Runtime Only
+## The Installer Package Contains OpenVINO™ Runtime Only
 
-Starting from OpenVINO 2022.1, Model Optimizer, Post-Training Optimization tool and Python-based Development tools such as Open Model Zoo tools are distributed via [PyPI](https://pypi.org/project/openvino-dev/) only, and are no longer included in the OpenVINO installer package. This change has several benefits as it:
+Since OpenVINO 2022.1, development tools have been distributed only via [PyPI](https://pypi.org/project/openvino-dev/), and are no longer included in the OpenVINO installer package. For a list of these components, refer to the [installation overview](../../../install_guides/installing-openvino-overview.md) guide. Benefits of this approach include:
 
-* Simplifies the user experience. In previous versions, the installation and usage of OpenVINO Development Tools differ according to the distribution type (via an OpenVINO installer or PyPI). 
-* Ensures that dependencies are handled properly via the PIP package manager and support virtual environments of development tools.
+* simplification of the user experience - in previous versions, installation and usage of OpenVINO Development Tools differed from one distribution type to another (the OpenVINO installer vs. PyPI), 
+* ensuring that dependencies are handled properly via the PIP package manager, and support virtual environments of development tools.
 
-The structure of OpenVINO 2022.1 installer package has been organized as below:
+The structure of the OpenVINO 2022.1 installer package has been organized as follows:
 
 - The `runtime` folder includes headers, libraries and CMake interfaces.
-- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md) and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
+- The `tools` folder contains [the compile tool](../../../tools/compile_tool/README.md), [deployment manager](../../OV_Runtime_UG/deployment/deployment-manager-tool.md), and a set of `requirements.txt` files with links to the corresponding versions of the `openvino-dev` package.
 - The `python` folder contains the Python version for OpenVINO Runtime.
 
 ## Installing OpenVINO Development Tools via PyPI
 
-Since OpenVINO Development Tools is no longer in the installer package, the installation process has changed too. This section describes it through a comparison with previous versions.
+Since OpenVINO Development Tools is no longer in the installer package, the installation process has also changed. This section describes it through a comparison with previous versions.
 
 ### For Versions Prior to 2022.1
 
-In previous versions, OpenVINO Development Tools is a part of main package. After the package is installed, to convert models (for example, TensorFlow), you need to install additional dependencies by using the requirements files such as `requirements_tf.txt`, install Post-Training Optimization tool and Accuracy Checker tool via the `setup.py` scripts, and then use the `setupvars` scripts to make the tools available to the following command:
+In previous versions, OpenVINO Development Tools was a part of the main package. After the package was installed, to convert models (for example, TensorFlow), you needed to install additional dependencies by using the requirement files, such as `requirements_tf.txt`, install Post-Training Optimization tool and Accuracy Checker tool via the `setup.py` scripts, and then use the `setupvars` scripts to make the tools available to the following command:
 
 ```sh
 $ mo.py -h
@@ -31,13 +35,13 @@ $ mo.py -h
 
 ### For 2022.1 and After
 
-Starting from OpenVINO 2022.1, you can install the development tools from [PyPI](https://pypi.org/project/openvino-dev/) repository only, using the following command (taking TensorFlow as an example):
+In OpenVINO 2022.1 and later, you can install the development tools only from a [PyPI](https://pypi.org/project/openvino-dev/) repository, using the following command (taking TensorFlow as an example):
 
 ```sh
 $ python3 -m pip install -r <INSTALL_DIR>/tools/requirements_tf.txt 
 ```
 
-This will install all the development tools and additional necessary components to work with TensorFlow via the `openvino-dev` package (see **Step 4. Install the Package** on the [PyPI page](https://pypi.org/project/openvino-dev/) for parameters of other frameworks).
+This will install all the development tools and additional components necessary to work with TensorFlow via the `openvino-dev` package (see **Step 4. Install the Package** on the [PyPI page](https://pypi.org/project/openvino-dev/) for parameters of other frameworks).
 
 Then, the tools can be used by commands like:
 
@@ -46,15 +50,15 @@ $ mo -h
 $ pot -h
 ```
 
-You don't have to install any other dependencies. For more details on the installation steps, see [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
+Installation of any other dependencies is not required. For more details on the installation steps, see the [Install OpenVINO Development Tools](../../install_guides/installing-model-dev-tools.md).
 
 ## Interface Changes for Building C/C++ Applications
 
-The new OpenVINO Runtime with API 2.0 has also brought some changes for builiding your C/C++ applications.
+The new OpenVINO Runtime with its API 2.0 has also brought some changes for building C/C++ applications.
 
 ### CMake Interface
 
-The CMake interface has been changed as below:
+The CMake interface has been changed as follows:
 
 **With Inference Engine of previous versions**:
 
@@ -78,7 +82,7 @@ target_link_libraries(ov_c_app PRIVATE openvino::runtime::c)
 
 ### Native Interfaces
 
-To build applications without CMake interface, you can also use MSVC IDE, UNIX makefiles and any other interfaces, which have been changed as below:
+It is possible to build applications without the CMake interface by using: MSVC IDE, UNIX makefiles, and any other interface, which has been changed as shown here:
 
 **With Inference Engine of previous versions**:
 
@@ -153,19 +157,19 @@ To build applications without CMake interface, you can also use MSVC IDE, UNIX m
 
 ## Clearer Library Structure for Deployment
 
-OpenVINO 2022.1 has reorganized the libraries to make it easier for deployment. In previous versions, to perform deployment steps, you have to use several libraries. Now you can just use `openvino` or `openvino_c` based on your developing language plus necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable you to load OpenVINO IRs and perform inference on CPU device (see [Local distribution with OpenVINO](../deployment/local-distribution.md) for more details).
+OpenVINO 2022.1 introduced a reorganization of the libraries, to make deployment easier. In the previous versions, it was required to use several libraries to perform deployment steps. Now you can just use `openvino` or `openvino_c` based on your developing language,  with the necessary plugins to complete your task. For example, `openvino_intel_cpu_plugin` and `openvino_ir_frontend` plugins will enable loading OpenVINO IRs and performing inference on the CPU device (for more details, see the [Local distribution with OpenVINO](../deployment/local-distribution.md)).
 
-Here you can find some detailed comparisons on library structure between OpenVINO 2022.1 and previous versions:
+Below are detailed comparisons of the library structure between OpenVINO 2022.1 and the previous versions:
 
-* A single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used in 2022.1, instead of the previous core libraries which contain `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
-* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) is renamed as `openvino_gapi_preproc` and deprecated in 2022.1. See more details on [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
-* The libraries of plugins are renamed as below:
-   * `openvino_intel_cpu_plugin` is used for [CPU](../supported_plugins/CPU.md) device instead of `MKLDNNPlugin` in previous versions.
-   * `openvino_intel_gpu_plugin` is used for [GPU](../supported_plugins/GPU.md) device instead of `clDNNPlugin` in previous versions.
-   * `openvino_auto_plugin` is used for [Auto-Device Plugin](../auto_device_selection.md) in 2022.1.
-* The plugins for reading and converting models have been changed as below:
-   * `openvino_ir_frontend` is used to read IRs instead of `inference_engine_ir_reader` in previous versions.
-   * `openvino_onnx_frontend` is used to read ONNX models instead of `inference_engine_onnx_reader` (with its dependencies) in previous versions. 
+* Starting with 2022.1 release, a single core library with all the functionalities (`openvino` for C++ Runtime, `openvino_c` for Inference Engine API C interface) is used, instead of the previous core libraries which contained `inference_engine`, `ngraph`, `inference_engine_transformations` and `inference_engine_lp_transformations`.
+* The optional `inference_engine_preproc` preprocessing library (if `InferenceEngine::PreProcessInfo::setColorFormat` or `InferenceEngine::PreProcessInfo::setResizeAlgorithm` is used) has been renamed to `openvino_gapi_preproc` and deprecated in 2022.1. For more details, see the [Preprocessing capabilities of OpenVINO API 2.0](preprocessing.md).
+* The libraries of plugins have been renamed as follows:
+   * `openvino_intel_cpu_plugin` is used for [CPU](../supported_plugins/CPU.md) device instead of `MKLDNNPlugin`.
+   * `openvino_intel_gpu_plugin` is used for [GPU](../supported_plugins/GPU.md) device instead of `clDNNPlugin`.
+   * `openvino_auto_plugin` is used for [Auto-Device Plugin](../auto_device_selection.md).
+* The plugins for reading and converting models have been changed as follows:
+   * `openvino_ir_frontend` is used to read IRs instead of `inference_engine_ir_reader`.
+   * `openvino_onnx_frontend` is used to read ONNX models instead of `inference_engine_onnx_reader` (with its dependencies). 
    * `openvino_paddle_frontend` is added in 2022.1 to read PaddlePaddle models.
 
 <!-----

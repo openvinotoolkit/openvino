@@ -32,15 +32,13 @@ from openvino.pyopenvino import Coordinate
 from openvino.pyopenvino import Layout
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import layout_helpers
+from openvino.pyopenvino import OVAny
 from openvino.pyopenvino import RTMap
-
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
 from openvino.runtime.ie_api import AsyncInferQueue
-from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
-from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import Extension
 from openvino.pyopenvino import ProfilingInfo
@@ -58,25 +56,29 @@ from openvino.runtime import opset5
 from openvino.runtime import opset6
 from openvino.runtime import opset7
 from openvino.runtime import opset8
+from openvino.runtime import opset9
+
+# Import properties API
+from openvino.pyopenvino import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
 # Extend Node class to support binary operators
-Node.__add__ = opset8.add
-Node.__sub__ = opset8.subtract
-Node.__mul__ = opset8.multiply
-Node.__div__ = opset8.divide
-Node.__truediv__ = opset8.divide
-Node.__radd__ = lambda left, right: opset8.add(right, left)
-Node.__rsub__ = lambda left, right: opset8.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset8.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset8.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset8.divide(right, left)
-Node.__eq__ = opset8.equal
-Node.__ne__ = opset8.not_equal
-Node.__lt__ = opset8.less
-Node.__le__ = opset8.less_equal
-Node.__gt__ = opset8.greater
-Node.__ge__ = opset8.greater_equal
+Node.__add__ = opset9.add
+Node.__sub__ = opset9.subtract
+Node.__mul__ = opset9.multiply
+Node.__div__ = opset9.divide
+Node.__truediv__ = opset9.divide
+Node.__radd__ = lambda left, right: opset9.add(right, left)
+Node.__rsub__ = lambda left, right: opset9.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset9.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset9.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset9.divide(right, left)
+Node.__eq__ = opset9.equal
+Node.__ne__ = opset9.not_equal
+Node.__lt__ = opset9.less
+Node.__le__ = opset9.less_equal
+Node.__gt__ = opset9.greater
+Node.__ge__ = opset9.greater_equal

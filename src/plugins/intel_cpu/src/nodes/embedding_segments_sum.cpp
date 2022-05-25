@@ -27,7 +27,7 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -128,7 +128,7 @@ std::vector<VectorDims> EmbeddingSegmentsSum::shapeInfer() const {
     return Node::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
 }
 
-void EmbeddingSegmentsSum::executeDynamicImpl(mkldnn::stream strm) {
+void EmbeddingSegmentsSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -136,7 +136,7 @@ bool EmbeddingSegmentsSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingSegmentsSum::execute(mkldnn::stream strm) {
+void EmbeddingSegmentsSum::execute(dnnl::stream strm) {
     const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     const uint8_t* weightsData = nullptr;

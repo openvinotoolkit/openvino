@@ -91,6 +91,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
     }
+    if (_networksPerDevice.size() == 1)
+        _passthroughExeNet = _networksPerDevice.begin()->second;
 }
 
 void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
@@ -177,19 +179,39 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
     std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
+    bool isCumulative = (context.performanceHint == PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
 
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
-    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
-            _loadContext[ACTUALDEVICE].networkPrecision, _context.modelPriority);
+
+    if (isCumulative) {
+        std::list<DeviceInformation> validDevices =
+            _multiPlugin->GetValidDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+
+        std::string deviceName = "MULTI:";
+        for (auto& device : validDevices) {
+            deviceName += device.deviceName;
+            deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
+        }
+
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
+        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+            InferenceEngine::PluginConfigParams::THROUGHPUT;
+    } else {
+        _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
+                                                                           _loadContext[ACTUALDEVICE].networkPrecision,
+                                                                           _context.modelPriority);
+    }
+
     LOG_INFO("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
-    // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU) {
+
+    // if Actual device is CPU or hint is cumulative, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
+    if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
@@ -212,7 +234,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
          if (_loadContext[i].isEnabled) {
              _loadContext[i].future =  _loadContext[i].promise.get_future();
               auto* contextPtr = &_loadContext[i];
-             _loadContext[i].task = [this, contextPtr, modelPath, network]() mutable {
+             _loadContext[i].task = [this, contextPtr, modelPath, network, isCumulative]() mutable {
                       TryToLoadNetWork(*contextPtr, modelPath, network);
                       if (contextPtr->isLoadSuccess) {
                           if (contextPtr->workName.empty()) {
@@ -229,18 +251,25 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
-                          auto supported_config_keys =
-                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-                          DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys]{
-                              std::lock_guard<std::mutex> lock(_confMutex);
-                              for (const auto& cfg : supported_config_keys) {
-                                  try {
-                                      LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
-                                              cfg.c_str(), contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                                  } catch (...) {
+
+                          if (!isCumulative) {
+                              auto supported_config_keys =
+                                  _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
+                                      .as<std::vector<std::string>>();
+                              DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys] {
+                                  std::lock_guard<std::mutex> lock(_confMutex);
+                                  for (const auto& cfg : supported_config_keys) {
+                                      try {
+                                          LOG_DEBUG(
+                                              "[AUTOPLUGIN]:device:%s, GetConfig:%s=%s",
+                                              deviceName.c_str(),
+                                              cfg.c_str(),
+                                              contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                                      } catch (...) {
+                                      }
                                   }
-                              }
-                          });
+                              });
+                          }
                       }
                       contextPtr->promise.set_value();
                       // the first load network process finished
@@ -328,6 +357,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
+        _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
     }
     WaitFirstNetworkReady();
 }
@@ -641,7 +671,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n->GetContext();
-        } catch (const NotImplemented&) {}
+        } catch (const InferenceEngine::NotImplemented&) {}
     }
     IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
@@ -706,6 +736,11 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 }
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
+    if (_passthroughExeNet) {
+        auto res = _passthroughExeNet->CreateInferRequest();
+        res->setPointerToExecutableNetworkInternal(shared_from_this());
+        return res;
+    }
     IInferRequestInternal::Ptr syncRequestImpl;
     if (this->_plugin) {
         const auto& core = _plugin->GetCore();
