@@ -258,7 +258,6 @@ cmake --build .
 It is allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). For details, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
 
 
-Once you have made your first application with OpenVINO™ toolkit, you may run it.
 
 ## See Also
 
