@@ -23,7 +23,7 @@ python3 tools/deployment/pytorch2onnx.py configs/cascade_rcnn/cascade_rcnn_r101_
 
 The script generates ONNX model file `cascade_rcnn_r101_fpn_1x_coco.onnx` in the directory `tools/deployment/`. If required, specify the model name or output directory, using `--output-file <path-to-dir>/<model-name>.onnx`.
 
-## Converting an ONNX Cascade RCNN R-101 Model to IR
+## Converting an ONNX Cascade RCNN R-101 Model to OpenVINO IR
 
 ```bash
 mo --input_model cascade_rcnn_r101_fpn_1x_coco.onnx --mean_values [123.675,116.28,103.53] --scale_values [58.395,57.12,57.375]
