@@ -208,10 +208,13 @@ REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
+REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
+REGISTER_FACTORY(v7, IDFT);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);
@@ -224,6 +227,8 @@ REGISTER_FACTORY(v8, I420toRGB);
 REGISTER_FACTORY(v8, I420toBGR);
 REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
+REGISTER_FACTORY(v8, AdaptiveAvgPool);
+REGISTER_FACTORY(v8, AdaptiveMaxPool);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
