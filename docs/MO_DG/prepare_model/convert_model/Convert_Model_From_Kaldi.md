@@ -27,7 +27,7 @@ Kaldi-specific parameters:
    mo --input_model wsj_dnn5b_smbr.nnet
    ```
 
-* To launch the Model Optimizer for the *wsj_dnn5b_smbr* model with existing file that contains counts for the last layer with biases:
+* To launch Model Optimizer for the `wsj_dnn5b_smbr` model with the existing file that contains counts for the last layer with biases:
    ```sh
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
    ```
