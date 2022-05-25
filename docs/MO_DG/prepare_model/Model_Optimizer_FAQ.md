@@ -344,7 +344,7 @@ When extending Model Optimizer with new primitives, keep in mind that their name
 
 #### 55. What does the message "Both --input_shape and --batch were provided. Please, provide only one of them" mean? <a name="question-55"></a>
 
-You cannot specify the batch and the input shapes at the same time. You should specify a desired batch as the first value of the input shape.
+Specifying the batch and the input shapes at the same time is not supported. You must specify a desired batch as the first value of the input shape.
 
 #### 56. What does the message "Input shape .. cannot be parsed" mean? <a name="question-56"></a>
 
