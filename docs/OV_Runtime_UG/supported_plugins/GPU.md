@@ -178,7 +178,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
 
 @endsphinxtabset
 
-For more details, see the [Automatic batching page](../automatic_batching.md).
+For more details, see the [Automatic batching](../automatic_batching.md).
 
 ### Multi-stream Execution
 If either the `ov::num_streams(n_streams)` with `n_streams > 1` or the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for the GPU plugin,
