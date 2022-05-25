@@ -2,7 +2,7 @@
 
 ## Introduction
 
-OpenVINO Runtime CPU and GPU devices can infer models in the low precision. 
+OpenVINO Runtime CPU and GPU devices can infer models in low precision. 
 For more details, refer to the [Model Optimization Guide](@ref openvino_docs_model_optimization_guide).
 
 Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 
