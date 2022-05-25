@@ -17,7 +17,6 @@
 #include <functional>
 #include <memory>
 #include <vector>
-#include <mutex>
 #include <ie_precision.hpp>
 
 /**

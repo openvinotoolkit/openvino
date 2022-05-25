@@ -277,7 +277,7 @@ void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const Memor
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [&](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
         memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
     };
 
@@ -289,7 +289,7 @@ void Edge::allocate(DnnlMemoryMngrPtr memMngr) {
         IE_THROW(Unexpected) << "Memory manager ptr is NULL";
     }
 
-    auto allocateFunc = [&](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
         memoryPtr->Create(inputDesc, memMngr);
     };
 
