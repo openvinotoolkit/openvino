@@ -1,6 +1,6 @@
 # Cutting Off Parts of a Model  {#openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model}
 
-Sometimes, some parts of a model must be removed while the Model Optimizer converts models to the Intermediate Representation. This chapter describes methods of cutting off parts of a model using Model Optimizer command-line options. Model cutting applies mostly to TensorFlow models, but it is also useful for other frameworks. TensorFlow examples are used in this chapter for illustrative purposes.
+Sometimes, it is necessary to remove parts of a model when converting it to OpenVINO IR. This chapter describes how to do it, using Model Optimizer command-line options. Model cutting applies mostly to TensorFlow models, which is why TensorFlow will be used in this chapter's examples, but it may be also useful for other frameworks.
 
 ## Purpose of Model Cutting
 
