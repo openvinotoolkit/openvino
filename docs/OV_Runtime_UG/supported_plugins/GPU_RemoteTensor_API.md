@@ -14,7 +14,7 @@ handles and used to create the OpenVINO™ `ov::CompiledModel` or `ov::Tensor` o
 * The OpenCL context or buffer handles can be obtained from existing GPU plugin objects, and used in OpenCL processing on the application side.
 
 Class and function declarations for the API are defined in the following files:
-* Windows: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
+* Windows -- `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
 * Linux: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/va.hpp`
 
 The most common way to enable the interaction of your application with the Remote Tensor API is to use user-side utility classes
