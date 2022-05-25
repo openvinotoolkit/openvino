@@ -134,7 +134,7 @@ Now, sequence of preprocessing steps can be defined:
 Perform the following:
 
    1. Convert `U8` to `FP32` precision.
-   2. Convert current color format (`BGR`) to `RGB`.
+   2. Convert current color format from `BGR` to `RGB`.
    3. Resize to `height`/`width` of a model. Be aware that if a model accepts dynamic size, e.g. `{?, 3, ?, ?}`, `resize` will not know how to resize the picture. Therefore, in this case, target `height`/`width` should be specified. See also `ov::preprocess::PreProcessSteps::resize()`.
    4. Subtract mean from each channel. In this step, color format is RGB already, so `100.5` will be subtracted from each `Red` component, and `101.5` will be subtracted from `Blue` one.
    5. Divide each pixel data to appropriate scale value. In this example, each `Red` component will be divided by 50, `Green` by 51, `Blue` by 52 respectively.
