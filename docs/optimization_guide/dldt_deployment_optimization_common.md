@@ -1,6 +1,6 @@
 # General Optimizations {#openvino_docs_deployment_optimization_guide_common}
 
-This article covers application-level optimization techniques such as asynchronous execution to improve data pipelining, pre-processing acceleration and so on. 
+This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 
 @anchor inputs_pre_processing
