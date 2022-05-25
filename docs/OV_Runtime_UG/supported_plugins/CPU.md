@@ -131,7 +131,7 @@ Each stream is pinned to its own group of physical cores with respect to NUMA no
 For more details, see the [optimization](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) guide.
 
 > **NOTE**: When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads on data transfer between NUMA nodes.
-> In that case it is better to use the `ov::hint::PerformanceMode::LATENCY` performance hint. For more details see the [performance hints overview](@ref openvino_docs_OV_UG_Performance_Hints).
+> In that case it is better to use the `ov::hint::PerformanceMode::LATENCY` performance hint. For more details see the [performance hints](@ref openvino_docs_OV_UG_Performance_Hints) overview.
 
 ### Dynamic Shapes
 CPU plugin provides full functional support for models with dynamic shapes in terms of the opset coverage.
