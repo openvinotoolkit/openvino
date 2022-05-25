@@ -46,7 +46,7 @@ The main and most computationally expensive part of the model converts the prepr
 There are two specificities with the supported part of the model.
 
 The first is that the model contains an input with sequence length. So the model can be converted with
-a fixed input length shape, thus the model is not reshape-able.
+a fixed input length shape, thus the model is not reshapable.
 Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) guide.
 
 The second is that the frozen model still has two variables: `previous_state_c` and `previous_state_h`, figure
