@@ -110,7 +110,7 @@ The plugin supports the features listed below:
 ### Models Caching
 Due to import/export functionality support (see below), cache for GNA plugin may be enabled via common `ov::cache_dir` property of OpenVINO™.
 
-For more details, see the [Model caching overview page](@ref openvino_docs_OV_UG_Model_caching_overview).
+For more details, see the [Model caching overview](@ref openvino_docs_OV_UG_Model_caching_overview).
 
 ### Import/Export
 
