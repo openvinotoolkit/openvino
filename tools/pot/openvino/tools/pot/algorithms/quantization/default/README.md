@@ -85,7 +85,7 @@ mode on the existing HW:
                 - `"mean_no_outliers"` - aggregates mean value after removal of extreme quantiles.
                 - `"median_no_outliers"` - aggregates median value after removal of extreme quantiles.
                 - `"hl_estimator"` - Hodges-Lehmann filter based aggregator.
-            - `"type"` - type of the estimator:
+            - `"type"` - a type of the estimator:
                 - `"max"` (default) - estimates the maximum in the quantizing set of value.
                 - `"quantile"` - estimates the quantile in the quantizing set of value.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator.
