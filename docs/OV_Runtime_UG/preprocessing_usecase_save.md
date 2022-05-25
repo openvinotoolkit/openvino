@@ -1,6 +1,5 @@
 # Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_UG_Preprocess_Usecase_save}
 
-## Introduction
 
 Previous sections covered the topic of the [preprocessing steps](./preprocessing_details.md) and the overview of [Layout](./layout_overview.md) API.
 
