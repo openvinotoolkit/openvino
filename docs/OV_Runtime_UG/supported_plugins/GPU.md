@@ -117,6 +117,8 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 ## Supported Features
 
+The GPU plugin supports features listed below:
+
 ### Multi-device Execution
 If a system has multiple GPUs (for example, an integrated and a discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
 It is done by specifying `MULTI:GPU.1,GPU.0` as a target device.
