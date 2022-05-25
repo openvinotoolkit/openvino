@@ -165,8 +165,9 @@ To enable performance hints for your application, use the following code:
 
 @endsphinxdirective
 
-### ov::hint::model_priority
-The property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
+### Model Priority
+
+This property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
 
 @sphinxdirective
 
