@@ -40,7 +40,7 @@ Hardware-based protection such as Intel Software Guard Extensions
 bind them to a device. For more information, see the [Intel Software Guard
 Extensions](https://software.intel.com/en-us/sgx).
 
-Use `ov::Core::read_model` to set model representations and
+Use the `ov::Core::read_model` to set model representations and
 weights respectively.
 
 Currently there is no way to read external weights from memory for ONNX models.
