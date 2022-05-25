@@ -27,7 +27,7 @@ Additionally, the optimal batch size is selected for the GPU and the [automatic 
 (To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.)
 
 The resulting (device-specific) settings can be queried back from the instance of the `ov:Compiled_Model`.  
-Note that the `benchmark_app` outputs the actual settings for the THROUGHPUT hint. See the example of the output below:
+Be aware that the `benchmark_app` outputs the actual settings for the `THROUGHPUT` hint. See the example of the output below:
 
    ```
     $benchmark_app -hint tput -d CPU -m 'path to your favorite model'
