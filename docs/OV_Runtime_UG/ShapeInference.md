@@ -238,7 +238,7 @@ Dictionary values (representing new shapes) could be:
 
 @endsphinxdirective
 
-Find usage scenarios of the `reshape` feature in the [samples](Samples_Overview.md), starting with [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.md).
+Usage scenarios of the `reshape` feature can be found in the [samples section](Samples_Overview.md), starting with [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.md).
 
 In practice, some models are not ready to be reshaped. In such cases, a new input shape cannot be set with the Model Optimizer or the `Model.reshape` method.
 
