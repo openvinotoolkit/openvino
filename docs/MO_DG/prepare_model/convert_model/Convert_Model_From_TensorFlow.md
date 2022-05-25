@@ -24,7 +24,7 @@ To convert the model with the inference graph in `.pbtxt` format, run the `mo` s
 ```
 
 2. **MetaGraph**. In this case, a model consists of three or four files stored in the same directory: `model_name.meta`, `model_name.index`,
-`model_name.data-00000-of-00001` (number part may vary), and `checkpoint` (optional).
+`model_name.data-00000-of-00001` (the numbers may vary), and `checkpoint` (optional).
 To convert such TensorFlow model, run the `mo` script with a path to the MetaGraph `.meta` file:
 ```sh
  mo --input_meta_graph <INPUT_META_GRAPH>.meta
