@@ -51,7 +51,7 @@ should be called with `weights` passed as an empty `ov::Tensor`.
 
 ## Additional Resources
 
-- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- Intel® Distribution of OpenVINO™ toolkit [home page](https://software.intel.com/en-us/openvino-toolkit).
 - Model Optimizer Developer Guide: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [OpenVINO™ runTime User Guide](openvino_intro.md)
 - For more information on Sample Applications, check [OpenVINO Samples Overview](Samples_Overview.md)
