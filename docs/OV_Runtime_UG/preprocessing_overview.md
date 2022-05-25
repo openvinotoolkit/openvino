@@ -63,7 +63,7 @@ The `ov::preprocess::PrePostProcessor` class allows specifying preprocessing and
 
 ### Declare User's Data Format
 
-To address particular input of a model/preprocessor, use `ov::preprocess::PrePostProcessor::input(input_name)` method.
+To address particular input of a model/preprocessor, use the `ov::preprocess::PrePostProcessor::input(input_name)` method.
 
 @sphinxtabset
 
