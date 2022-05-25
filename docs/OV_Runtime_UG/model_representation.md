@@ -58,7 +58,7 @@ OpenVINO™ Runtime provides two types for shape representation:
 
 @endsphinxtabset
 
-However, in most cases before getting static shape using `get_shape()` method, you need to check that shape is static.
+However, in most cases before getting static shape using `get_shape()` method, you need to check if that shape is static.
 
 ## Operations
 
