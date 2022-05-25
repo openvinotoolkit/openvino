@@ -56,7 +56,7 @@ mode on the existing HW.
                 - `"quantile"` - estimates the quantile in the quantizing set of value.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator.
         - `"min"` - parameters to estimate bottom border of quantizing floating-point range:
-            - `"type"` - type of the estimator: 
+            - `"type"` - a type of the estimator: 
                 - `"min"` (default) - estimates the minimum in the quantizing set of value.
                 - `"quantile"` - estimates the quantile in the quantizing set of value.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator.
