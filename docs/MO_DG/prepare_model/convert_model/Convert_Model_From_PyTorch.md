@@ -2,8 +2,8 @@
 
 The PyTorch framework is supported through export to the ONNX format. In order to optimize and deploy a model that was trained with it:
 
-1. [Export PyTorch model to ONNX](#export-to-onnx).
-2. [Convert an ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
+1. [Export a PyTorch model to ONNX](#export-to-onnx).
+2. [Convert the ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
 
 ## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
 PyTorch models are defined in a Python code. Use `torch.onnx.export()` method to export such models. The code to
