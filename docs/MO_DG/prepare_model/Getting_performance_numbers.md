@@ -22,7 +22,7 @@ Performance conclusions should be build upon reproducible data. As for the perfo
 ## Using benchmark_app to Measure Reference Performance Numbers 
 
 To get performance numbers, use the dedicated [OpenVINO Benchmark app](../../../samples/cpp/benchmark_app/README.md) sample, which is the most-recommended solution to produce performance reference.
-It includes a lot of device-specific knobs, but the primary usage is as simple as: 
+It includes a lot of device-specific knobs, but the primary usage is as simple as in the following command to measure the performance of the model on GPU: 
 ```bash
 $ ./benchmark_app –d GPU –m <model> -i <input>
 ```
