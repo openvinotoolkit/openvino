@@ -206,7 +206,7 @@ The next time the model is compiled, the cached representation will be loaded to
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
 thereby reducing first inference latency (FIL).
 
-For more details, see the [model caching overview](@ref openvino_docs_OV_UG_Model_caching_overview).
+For more details, see the [model caching](@ref openvino_docs_OV_UG_Model_caching_overview) overview.
 
 ### Extensibility
 CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
