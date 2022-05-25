@@ -11,7 +11,7 @@
 
 @endsphinxdirective
 
-Once the [OpenVINO application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways how to achieve that:
+Once the [OpenVINO™ application development](../integrate_with_your_application.md) has been finished, application developers usually need to deploy their applications to end users. There are several ways how to achieve that:
 
 - Set a dependency on existing prebuilt packages (so called "centralized distribution"):
     - using Debian / RPM packages - a recommended way for distributions of Linux operating system;
