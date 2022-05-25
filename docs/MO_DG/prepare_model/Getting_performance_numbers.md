@@ -1,6 +1,6 @@
 # Getting Performance Numbers {#openvino_docs_MO_DG_Getting_Performance_Numbers}
 
-When evaluating performance of a model with the OpenVINO Runtime, it is required to measure the proper set of operations. To do so, consider the tips below: 
+This guide introduces things to notice and how to use the benchmark_app to get performance numbers. It also explains how the performance numbers are reflected through internal inference performance counters and execution graphs. In the last section, it includes information on using ITT and Intel® VTune™ Profiler to get performance insights.
 
 - Avoid including one-time costs, like model loading.
 
