@@ -248,7 +248,7 @@ When using the `PORT:NODE` notation for the `--input` command line argument and 
 
 #### 31. What does the message "No or multiple placeholders in the model, but only one shape is provided, cannot set it" mean? <a name="question-31"></a>
 
-Looks like you have provided only one shape for the placeholder, however there are none or multiple inputs in the model. Make sure you have provided correct data for placeholder nodes.
+You might have provided only one shape for the placeholder, while there are none or multiple inputs in the model. Make sure that you have provided the correct data for placeholder nodes.
 
 #### 32. What does the message "The amount of input nodes for port is not equal to 1" mean? <a name="question-32"></a>
 
