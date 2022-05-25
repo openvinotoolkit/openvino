@@ -61,7 +61,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
 | _contrib_div_sqrt_dim |  |
-| _contrib_MultiBoxDetection | The `force_suppress` = 1 is not supported, non-default variances are not supported. |
+| _contrib_MultiBoxDetection | `force_suppress` = 1 is not supported, non-default variances are not supported. |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
 | _copy | Not needed for inference |
@@ -100,7 +100,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | max |  |
 | minus_scalar |  |
 | null | Not needed for inference. |
-| LayerNorm | The `output_mean_var` = True is not supported. |
+| LayerNorm | `output_mean_var` = True is not supported. |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |
@@ -121,7 +121,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | BatchNorm |  |
 | Concat |  |
 | Convolution |  |
-| Crop | The `center_crop` = 1 is not supported. |
+| Crop | `center_crop` = 1 is not supported. |
 | Custom | See [Custom Layers in Model Optimizer].(customize_model_optimizer/Customize_Model_Optimizer.md) |
 | Deconvolution |  |
 | DeformableConvolution |  |
