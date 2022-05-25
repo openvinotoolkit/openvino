@@ -13,7 +13,7 @@ To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on 
 
 ## Supported Configuration Parameters
 
-See VPU common configuration parameters for the [VPU Plugins](VPU.md).
+For information on the VPU common configuration parameters, see the [VPU Plugins](VPU.md).
 When specifying key values as raw strings (when using the Python API), omit the `KEY_` prefix.
 
 In addition to common parameters, the MYRIAD plugin accepts the following options:
