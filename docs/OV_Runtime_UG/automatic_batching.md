@@ -1,5 +1,7 @@
 # Automatic Batching {#openvino_docs_OV_UG_Automatic_Batching}
 
+This article covers details in regards of Automatic Batching. Described here are general information alongside configuration and testing performance.
+
 ## (Automatic) Batching Execution
 
 The Automatic-Batching is a preview of the new functionality in the OpenVINO™ toolkit. It performs automatic batching on-the-fly (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user.
