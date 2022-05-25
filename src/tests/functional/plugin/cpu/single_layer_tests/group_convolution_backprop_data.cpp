@@ -490,6 +490,18 @@ const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
     }
 };
 
+const auto groupConvParams_ExplicitPadding_Blocked_2D_nightly = ::testing::Combine(
+        ::testing::ValuesIn(kernels2d),
+        ::testing::ValuesIn({strides2d[1]}),
+        ::testing::ValuesIn(padBegins2d),
+        ::testing::ValuesIn(padEnds2d),
+        ::testing::ValuesIn(dilations2d),
+        ::testing::ValuesIn(numOutChannels_Blocked),
+        ::testing::ValuesIn(numGroups_Blocked),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
+);
+
 const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
@@ -542,7 +554,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLa
 
 INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
-        groupConvParams_ExplicitPadding_Blocked_2D,
+        groupConvParams_ExplicitPadding_Blocked_2D_nightly,
         ::testing::ValuesIn(Blocked_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
@@ -552,7 +564,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32, GroupDeconvolution
 
 INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_BF16, GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(
-        groupConvParams_ExplicitPadding_Blocked_2D,
+        groupConvParams_ExplicitPadding_Blocked_2D_nightly,
         ::testing::ValuesIn(Blocked_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
