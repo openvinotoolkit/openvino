@@ -316,7 +316,7 @@ Postprocessing steps can be added to model outputs. As for preprocessing, these 
 
 Preprocessing uses the following flow:  **User tensor** -> **Steps** -> **Model input**.
 
-Postprocessing uses the reverse:  **Model output** -> **Steps** -> **User tensor**.
+Post-processing uses the reverse: **Model output** -> **Steps** -> **User tensor**.
 
 Compared to pre-processing, there are not so many operations needed for post-processing stage. Currently, only the following post-processing operations are supported:
  - Convert a [layout](./layout_overview.md).
