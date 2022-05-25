@@ -233,7 +233,7 @@ The GPU plugin has the following additional preprocessing options:
 
 With such preprocessing, GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
 
-For usage examples, refer to the [RemoteTensor API](./GPU_RemoteTensor_API.md) guide.
+For usage examples, refer to the [RemoteTensor API](./GPU_RemoteTensor_API.md).
 
 For more details, see the [preprocessing API guide](../preprocessing_overview.md).
 
