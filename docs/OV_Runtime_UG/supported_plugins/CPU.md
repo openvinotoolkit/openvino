@@ -174,7 +174,7 @@ Therefore, if the input data shape is not changed between inference calls, it is
 
 @endsphinxtabset
 
-For more details, see the [dynamic shapes guide](../ov_dynamic_shapes.md).
+For more details, see the [dynamic shapes](../ov_dynamic_shapes.md) guide.
 
 ### Preprocessing Acceleration
 CPU plugin supports a full set of the preprocessing operations, providing high performance implementations for them.
