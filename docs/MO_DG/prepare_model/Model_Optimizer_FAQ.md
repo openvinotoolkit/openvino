@@ -308,7 +308,7 @@ A path to the custom replacement configuration file was provided with the `--tra
 
 #### 46. What does the message "Extractors collection have case insensitive duplicates" mean? <a name="question-46"></a>
 
-When extending Model Optimizer with new primitives, keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
+When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 47. What does the message "Input model name is not in an expected format, cannot extract iteration number" mean? <a name="question-47"></a>
 
