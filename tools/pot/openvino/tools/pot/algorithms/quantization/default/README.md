@@ -76,7 +76,7 @@ mode on the existing HW:
         - `"preset"` - preset that defines the same estimator for both top and bottom borders of quantizing 
         floating-point range. Possible value is `"quantile"`.
         - `"max"` - parameters to estimate top border of quantizing floating-point range:
-            - `"aggregator"` - type of the function used to aggregate statistics obtained with estimator 
+            - `"aggregator"` - a type of the function used to aggregate statistics obtained with the estimator 
             over the calibration dataset to get a value of the top border:
                 - `"mean"` (default) - aggregates mean value.
                 - `"max"` - aggregates max value.
