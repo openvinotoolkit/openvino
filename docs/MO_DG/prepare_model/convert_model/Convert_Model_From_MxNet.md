@@ -7,7 +7,7 @@ To convert an MXNet model, run Model Optimizer with a path to the input model *`
  mo --input_model model-file-0000.params
 ```
 
-### Using MXNet-Specific Conversion Parameters <a name="mxnet_specific_conversion_params"></a>
+## Using MXNet-Specific Conversion Parameters <a name="mxnet_specific_conversion_params"></a>
 The following list provides the MXNet-specific parameters.
 
 ```
