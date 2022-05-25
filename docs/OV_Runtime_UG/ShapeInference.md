@@ -283,7 +283,7 @@ Since `Reshape` operator has `0` and `-1` as a specific values (see the meaning 
 
 * transform model during Model Optimizer conversion on the back phase. See the [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 * transform OpenVINO Model during the runtime. See the [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
-* modify the original model with the help of original framework
+* modify the original model with the help of original framework.
 
 ### Extensibility
 OpenVINO provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
