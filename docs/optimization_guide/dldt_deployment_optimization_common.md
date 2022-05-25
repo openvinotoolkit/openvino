@@ -53,7 +53,7 @@ Few important points on the callbacks:
 
 @anchor tensor_idiom
 ## The "get_tensor" Idiom
-Within the OpenVINO, each device may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code. 
+Each device within OpenVINO may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code. 
 As every `ov::InferRequest` is created by the particular instance of the `ov::CompiledModel`(that is already device-specific) the requirements are respected and the requests' input/output tensors are still device-friendly.
 To sum it up:
 * The `get_tensor` (that offers the `data()` method to get a system-memory pointer to the tensor's content), is a recommended way to populate the inference inputs (and read back the outputs) **from/to the host memory**:
