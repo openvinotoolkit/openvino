@@ -51,7 +51,7 @@ Kaldi-specific parameters:
    mo --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
    ```
 
-The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
+   The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
    > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
 
