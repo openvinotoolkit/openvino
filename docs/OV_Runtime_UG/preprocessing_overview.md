@@ -131,7 +131,7 @@ Now, sequence of preprocessing steps can be defined:
 
 @endsphinxtabset
 
-Perform as follows:
+Perform the following:
 
    1. Convert `U8` to `FP32` precision.
    2. Convert current color format (`BGR`) to `RGB`.
