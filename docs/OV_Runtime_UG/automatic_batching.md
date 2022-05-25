@@ -105,7 +105,7 @@ To achieve the best performance with the Automatic Batching, the application sho
 
 The following are limitations of the current implementations:
  - Although less critical for the throughput-oriented scenarios, the load-time with auto-batching increases by almost double.
- - Certain networks are not safely reshape-able by the "batching" dimension (specified as `N` in the layouts terms). Also, if the batching dimension is not zero-th, the auto-batching is not triggered "implicitly" by the throughput hint.
+ - Certain networks are not safely reshapable by the "batching" dimension (specified as `N` in the layouts terms). Also, if the batching dimension is not zeroth, the auto-batching is not triggered "implicitly" by the throughput hint.
  -  The "explicit" notion, for example, `BATCH:GPU`, uses the relaxed dimensions tracking, often making the auto-batching possible. For example, this method unlocks most **detection networks**.
  - - When *forcing* the auto-batching via the "explicit" device notion, make sure to validate the results for correctness.   
  - Performance improvements happen at the cost of the memory footprint growth. Yet, the auto-batching queries the available memory (especially for the dGPUs) and limits the selected batch size accordingly.
