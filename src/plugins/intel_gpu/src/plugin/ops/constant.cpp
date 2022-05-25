@@ -120,7 +120,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
                 ngraph::Shape slope_shape(input_shape.size(), 1);
                 for (int j = 1; j <= constDims.size(); j++)
-                    slope_shape[slope_shape.size()-j] = constDims[constDims.size()-j];
+                    slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
         }
