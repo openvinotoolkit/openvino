@@ -140,7 +140,7 @@ For more details, see the [Multi-device execution](../multi_device.md).
 ### Automatic Batching
 The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware 
 platform and model. Therefore, automatic batching is enabled by default when the `ov::optimal_batch_size` is `> 1` and the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
-Alternatively, it can be enabled explicitly via the device notion, e.g. `BATCH:GPU`.
+Alternatively, it can be enabled explicitly via the device notion, for example `BATCH:GPU`.
 
 @sphinxtabset
 
