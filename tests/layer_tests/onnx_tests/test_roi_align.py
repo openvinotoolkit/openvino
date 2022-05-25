@@ -32,7 +32,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         node_def = onnx.helper.make_node(
-            'ROIAlign',
+            'RoiAlign',
             inputs=['input', 'rois', 'indices'],
             outputs=['output'],
             **{'output_height': pooled_h, 'output_width': pooled_w, 'mode': mode,
@@ -106,6 +106,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
