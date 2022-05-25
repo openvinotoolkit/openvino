@@ -66,7 +66,7 @@ Model Optimizer provides command-line parameters to specify the values: `--mean_
 Using these parameters, Model Optimizer embeds the corresponding preprocessing block for mean-value normalization of the input data
 and optimizes this block so that the preprocessing takes negligible time for inference.
 
-For example, the following command runs the Model Optimizer for the PaddlePaddle UNet model and applies mean-scale normalization to the input data:
+For example, the following command runs Model Optimizer for the PaddlePaddle UNet model and applies mean-scale normalization to the input data:
 
 ```sh
 mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
