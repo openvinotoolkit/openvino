@@ -234,7 +234,7 @@ Outputs of the model:
 * `dynamic_seq2seq/decoder/decoder/GatherTree` tensor with shape `[max_sequence_length * 2, batch, beam_size]`,
   that contains `beam_size` best translations for every sentence from input (also decoded as indices of words in
   vocabulary).
-> **NOTE**: Shape of this tensor in TensorFlow can be different: instead of `max_sequence_length * 2`, it can be any value less than that, because OpenVINO&trade; does not support dynamic shapes of outputs, while TensorFlow can stop decoding iterations when `eos` symbol is generated.
+> **NOTE**: The shape of this tensor in TensorFlow can be different: instead of `max_sequence_length * 2`, it can be any value less than that, because OpenVINO&trade; does not support dynamic shapes of outputs, while TensorFlow can stop decoding iterations when `eos` symbol is generated.
 
 #### Running GNMT IR <a name="run_GNMT"></a>
 
