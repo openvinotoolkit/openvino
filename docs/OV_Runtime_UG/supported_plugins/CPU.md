@@ -97,7 +97,7 @@ To infer the model in `f32` precision instead of `bf16` on targets with native `
 The `Bfloat16` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, the `ov::hint::inference_precision` has to be explicitly set to `ov::element::bf16`.
 
-> **NOTE**: An exception is thrown in case of setting the `ov::hint::inference_precision` to `ov::element::bf16` on CPU without native bfloat16 support or bfloat16 simulation mode.
+> **NOTE**: An exception is thrown in case of setting the `ov::hint::inference_precision` to `ov::element::bf16` on CPU without native `bfloat16` support or `bfloat16` simulation mode.
 
 > **NOTE**: Due to the reduced mantissa size of the bfloat16 data type, the resulting bf16 inference accuracy may differ from the f32 inference, especially for models that were not trained using the bfloat16 data type. If the bf16 inference accuracy is not acceptable, it is recommended to switch to the f32 precision.
   
