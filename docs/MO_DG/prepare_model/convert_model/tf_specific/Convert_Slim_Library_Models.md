@@ -3,7 +3,7 @@
 <a href="https://github.com/tensorflow/models/tree/master/research/slim/README.md">TensorFlow-Slim Image Classification Model Library</a> is a library to define, train and evaluate classification models in TensorFlow. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow-Slim library model, complete the following steps:
 
 1. Download the TensorFlow-Slim models [git repository](https://github.com/tensorflow/models).
-2. Download the pretrained model [checkpoint](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models).
+2. Download the pre-trained model [checkpoint](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models).
 3. Export the inference graph.
 4. Convert the model using the Model Optimizer.
 
