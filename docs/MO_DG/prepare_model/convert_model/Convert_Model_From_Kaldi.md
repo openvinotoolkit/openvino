@@ -59,7 +59,7 @@ The Model Optimizer finds the last layer of the topology and removes this layer 
 
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option.
 It removes the Memory layers from the OpenVINO IR files. Additional inputs and outputs will appear in the IR files instead.
-The Model Optimizer outputs the mapping between inputs and outputs. For example:
+Model Optimizer will output the mapping between inputs and outputs. For example:
 ```sh
 [ WARNING ]  Add input/output mapped Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
 [ WARNING ]  Add input/output mapped Parameter_1_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
