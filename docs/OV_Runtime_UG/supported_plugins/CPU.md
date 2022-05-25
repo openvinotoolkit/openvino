@@ -57,7 +57,7 @@ Default floating-point precision of a CPU primitive is `f32`. To support `f16` O
 On platforms that natively support `bfloat16` calculations (have `AVX512_BF16` extension) `bf16` type is automatically used instead of `f32` to achieve better performance, thus no special steps are required to run a model with `bf16` precision.
 For more details about `bfloat16` format, see the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf).
 
-Using bf16 precision provides the following performance benefits:
+Using `bf16` precision provides the following performance benefits:
 
 - Faster multiplication of two bfloat16 numbers because of shorter mantissa of the bfloat16 data.
 - Reduced memory consumption since bfloat16 data size is two times less than 32-bit float. 
