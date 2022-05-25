@@ -211,7 +211,7 @@ For more details, see the [model caching](@ref openvino_docs_OV_UG_Model_caching
 ### Extensibility
 CPU plugin supports fallback on `ov::Op` reference implementation if the plugin do not have its own implementation for such operation.
 That means that [OpenVINO™ Extensibility Mechanism](@ref openvino_docs_Extensibility_UG_Intro) can be used for the plugin extension as well.
-To enable fallback on a custom operation implementation, one have to override `ov::Op::evaluate` method in the derived operation class (see [custom OpenVINO™ operations](@ref openvino_docs_Extensibility_UG_add_openvino_ops) for details).
+Enabling fallback on a custom operation implementation is possible by overriding the `ov::Op::evaluate` method in the derived operation class (see [custom OpenVINO™ operations](@ref openvino_docs_Extensibility_UG_add_openvino_ops) for details).
 
 > **NOTE**: At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined as a result of performing the operation) are not supported by the plugin.
 
