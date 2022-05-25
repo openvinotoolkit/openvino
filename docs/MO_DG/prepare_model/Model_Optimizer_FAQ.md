@@ -435,7 +435,7 @@ This error occurs when you try to make a sub-graph match. It is detected that be
 
 #### 74. What does the message "Sub-graph contains network input node .." mean? <a name="question-74"></a>
 
-Start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes. Then, it adds all input nodes to the sub-graph (and inputs of their inputs and so on) for these "internal" nodes. The error reports, that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) guide. 
+The start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes, and then adds all input nodes to the sub-graph (and the inputs of their inputs, etc.) for these "internal" nodes. This error reports that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the [Model Optimizer Extensibility](customize_model_optimizer/Customize_Model_Optimizer.md) guide. 
 
 #### 75. What does the message "... elements of ... were clipped to infinity while converting a blob for node [...] to ..." mean? <a name="question-75"></a>
 
