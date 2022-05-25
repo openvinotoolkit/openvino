@@ -248,7 +248,7 @@ For more details, see the [Model caching overview](../Model_caching_overview.md)
 For information on this subject, see the [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU).
 
 ### GPU Context and Memory Sharing via RemoteTensor API
-See the [RemoteTensor API of GPU Plugin](GPU_RemoteTensor_API.md).
+For information on this subject, see the [RemoteTensor API of GPU Plugin](GPU_RemoteTensor_API.md).
 
 
 ## Supported Properties
