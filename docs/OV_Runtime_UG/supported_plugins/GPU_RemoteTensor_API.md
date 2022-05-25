@@ -124,7 +124,7 @@ memory handles (which can be obtained from them at any time).
 To create a shared tensor from a native memory handle, use dedicated `create_tensor`or `create_tensor_nv12` methods
 of the `ov::RemoteContext` sub-classes.
 The `ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with the `ov::RemoteTensor`
-object or request plugin to allocate specific device memory. For more details, see the code snippets below.
+object or request plugin to allocate specific device memory. For more details, see the code snippets below:
 
 @sphinxtabset
 
