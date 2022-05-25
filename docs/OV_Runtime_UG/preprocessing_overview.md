@@ -36,7 +36,7 @@ Even though all these steps can be relatively easy to implement manually in the 
 
 Intuitively, preprocessing API consists of the following parts:
  1. 	**Tensor** -- It declares user data format, like shape, [layout](./layout_overview.md), precision, color format from actual user's data.
- 2. 	**Steps:** Describe sequence of preprocessing steps which need to be applied to user's data.
+ 2. 	**Steps** - It describes sequence of preprocessing steps which are needed to be applied to user data.
  3. 	**Model:** Specify Model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
 
 > **Note:** Graph modification of a model shall be performed after a model is read from a disk and **before** it is loaded on actual device.
