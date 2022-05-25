@@ -98,6 +98,12 @@ namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
     implementation_map<gather>::add(impl_types::ocl, gather_impl::create, {
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::i32, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),

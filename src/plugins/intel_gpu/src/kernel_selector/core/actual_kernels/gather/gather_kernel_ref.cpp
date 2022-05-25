@@ -47,6 +47,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
@@ -65,6 +66,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
 
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
@@ -138,6 +140,7 @@ static inline std::string GetOrderString(const std::vector<std::string>& order) 
 
     return order_str;
 }
+
 static inline std::vector<std::string> GetOrder(size_t size) {
     std::vector<std::string> idx_order;
     if (size <= 4) {
@@ -151,10 +154,9 @@ static inline std::vector<std::string> GetOrder(size_t size) {
 }
 
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
-    const std::string& input_axis_index_macro = "INPUT_AXIS_INDEX";
-    const std::string& zero_val = "0";
-
-    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
+    auto idx_order = GetOrder(params.outputs[0].GetDims().size());
+    auto input_axis_index_macro = "INPUT_AXIS_INDEX";
+    auto zero_val = "0";
 
     size_t dictionary_dims_num = GetNonEmptyDimsNumber(params.inputs[0]);
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.outputs[0]) - dictionary_dims_num + 1;
@@ -175,10 +177,9 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
     return GetOrderString(idx_order);
 }
 
-static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
-    const std::string& zero_val = "0";
-
+static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
+    auto zero_val = "0";
 
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
@@ -216,7 +217,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
+    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
     if (params.support_neg_ind)
         jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 

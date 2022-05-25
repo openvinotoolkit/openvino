@@ -18,7 +18,7 @@ std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
 }
 
 template <class T>
-int dim(const T& a) {
+int get_not_one_dim(const T& a) {
     int ret = a.size();
     while (ret - 1 >= 0 && a[ret - 1] == 1)
         ret--;
@@ -26,7 +26,7 @@ int dim(const T& a) {
 };
 
 template <class T>
-int mult(const T& a) {
+int get_linear_size(const T& a) {
     return std::accumulate(a.begin(), a.end(), 1, [](int x, int y) {
         return x * y;
     });
@@ -66,10 +66,10 @@ public:
             shape_out[i] = shape_in[0][i];
         for (int i = batch_dim; i < axis; i++)  // before axis = shape_in[0][..]
             shape_out[i] = shape_in[0][i];
-        for (int i = batch_dim; i < dim(shape_in[1]); i++)  // axis = shape_in[1]
+        for (int i = batch_dim; i < get_not_one_dim(shape_in[1]); i++)  // axis = shape_in[1]
             shape_out[axis + (i - batch_dim)] = shape_in[1][i];
-        for (int i = axis + 1; i < dim(shape_in[0]); i++) {  // after axis = shape_in[0][..]
-            shape_out[axis + dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
+        for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++) {  // after axis = shape_in[0][..]
+            shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
         }
         auto shape_out_end_iter = shape_out.end();
         while (shape_out_end_iter - shape_out.begin() > 4 && *std::prev(shape_out_end_iter) == 1)
@@ -77,11 +77,11 @@ public:
 
         auto& engine = get_test_engine();
 
-        auto dat = generate_random_1d<T_dat>(mult(shape_in[0]), -99, 99);
+        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0 = engine.allocate_memory(
             {T_dat_dt, format::bfyx, {shape_in[0][0], shape_in[0][1], shape_in[0][3], shape_in[0][2]}});  // Dictionary
 
-        auto ind = generate_random_1d<T_ind>(mult(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
+        auto ind = generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1 = engine.allocate_memory(
             {T_ind_dt, format::bfyx, {shape_in[1][0], shape_in[1][1], shape_in[1][3], shape_in[1][2]}});  // Indexes
 
@@ -127,7 +127,7 @@ public:
         auto planar_output = planar_network.execute().at("gather").get_memory();
         cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
 
-        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape_out) * sizeof(T_dat)));
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), get_linear_size(shape_out) * sizeof(T_dat)));
     }
 };
 
@@ -151,24 +151,24 @@ public:
             shape_out[i] = shape_in[0][i];
         for (int i = batch_dim; i < axis; i++)  // before axis = shape_in[0][..]
             shape_out[i] = shape_in[0][i];
-        for (int i = batch_dim; i < dim(shape_in[1]); i++)  // axis = shape_in[1]
+        for (int i = batch_dim; i < get_not_one_dim(shape_in[1]); i++)  // axis = shape_in[1]
             shape_out[axis + (i - batch_dim)] = shape_in[1][i];
-        for (int i = axis + 1; i < dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
+        for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             // batch_dim counted twice -> -batch_dim
-            shape_out[axis + dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
+            shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
         auto shape_out_end_iter = shape_out.end();
         while (shape_out_end_iter - shape_out.begin() > 5 && *std::prev(shape_out_end_iter) == 1)
             shape_out_end_iter--;
 
         auto& engine = get_test_engine();
 
-        auto dat = generate_random_1d<T_dat>(mult(shape_in[0]), -99, 99);
+        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0 = engine.allocate_memory(
             {T_dat_dt,
              format::bfzyx,
              {shape_in[0][0], shape_in[0][1], shape_in[0][4], shape_in[0][3], shape_in[0][2]}});  // Dictionary
 
-        auto ind = generate_random_1d<T_ind>(mult(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
+        auto ind = generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1 = engine.allocate_memory(
             {T_ind_dt,
              format::bfzyx,
@@ -216,7 +216,7 @@ public:
         auto planar_output = planar_network.execute().at("gather").get_memory();
         cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
 
-        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), mult(shape_out) * sizeof(T_dat)));
+        EXPECT_TRUE(!memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), get_linear_size(shape_out) * sizeof(T_dat)));
     }
 };
 
@@ -225,7 +225,7 @@ TEST_P(gather8_test_4d_f16i32, gather8_test_4d_f16i32) {}
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0),  //[batch_dim,dim(dict))
+                                          testing::Values(0),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
@@ -233,31 +233,31 @@ INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d2_i2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::array<int, 4>{8, 67, 1, 1}),
                                           testing::Values(std::array<int, 4>{4, 56, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32,
+INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 1, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(0, 1, 2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 77, 4, 1}),
                                           testing::Values(std::array<int, 4>{2, 66, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd1,
+INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd1,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(1, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(1, 2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 77, 44, 1}),
                                           testing::Values(std::array<int, 4>{3, 66, 55, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd2,
+INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd2,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(2),
-                                          testing::Values(2, 3),  //[batch_dim,dim(dict))
+                                          testing::Values(2, 3),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 4, 44, 6}),
@@ -265,7 +265,7 @@ INSTANTIATE_TEST_SUITE_P(gather8fs_b_yx_fsv32_bd2,
 INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv32),
                                           testing::Values(std::array<int, 4>{3, 77, 44, 1}),
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::array<int, 4>{3, 77, 44, 1}),
@@ -281,7 +281,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx_bd0_dim4_to_dim6,
                          gather8_test_4d_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,dim(dict))
+                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::array<int, 4>{3, 7, 4, 6}),
@@ -292,7 +292,7 @@ TEST_P(gather8_test_4d_f32i8, gather8_test_4d_f32i8) {}
 INSTANTIATE_TEST_SUITE_P(gather8_4d_bd0_d4_i1,
                          gather8_test_4d_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{5, 44, 7, 8}),
@@ -303,7 +303,7 @@ TEST_P(gather8_test_5d_f32i8, gather8_test_5d_f32i8) {}
 INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::array<int, 5>{8, 67, 3, 1, 1}),
@@ -311,7 +311,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_5d_bd0_d3_i3,
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                          gather8_test_5d_f32i8,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::b_fs_zyx_fsv32),
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::array<int, 5>{8, 66, 3, 1, 1}),
@@ -322,17 +322,25 @@ TEST_P(gather8_test_4d_i32i32, gather8_test_4d_i32i32) {}
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
                          gather8_test_4d_i32i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,dim(dict))
+                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::array<int, 4>{4, 3, 2, 1}),
                                           testing::Values(std::array<int, 4>{5, 6, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8_bfsyx4,
+INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                          gather8_test_4d_i32i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(2),  //[batch_dim,dim(dict))
+                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv4),
+                                          testing::Values(std::array<int, 4>{4, 6, 2, 1}),
+                                          testing::Values(std::array<int, 4>{3, 5, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_byxf,
+                         gather8_test_4d_i32i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(format::type::byxf),
+                                          testing::Values(format::type::byxf),
                                           testing::Values(std::array<int, 4>{4, 6, 2, 1}),
                                           testing::Values(std::array<int, 4>{3, 5, 1, 1})));
 
