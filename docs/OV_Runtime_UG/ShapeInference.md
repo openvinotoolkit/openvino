@@ -127,7 +127,7 @@ Since `Reshape` operator has `0` and `-1` as a specific values (see the meaning 
 
 ![batch_relaxed](./img/batch_relaxation.png)
 
-* transform model during Model Optimizer conversion on the back phase. See the [Model Optimizer extension article](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
+* transform model during Model Optimizer conversion on the back phase. For more information, see the [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 * transform OpenVINO Model during the runtime. See the [OpenVINO Runtime Transformations article](../Extensibility_UG/ov_transformations.md)
 * modify the original model with the help of original framework
 
