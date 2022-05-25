@@ -1,6 +1,5 @@
 # Query Device Properties - Configuration {#openvino_docs_OV_UG_query_api}
 
-## Query Device Properties and Devices Configuration
 
 The OpenVINO™ toolkit supports inferring with several types of devices (processors or accelerators).
 This section provides a high-level description of the process of querying of different device properties and configuration values at runtime.
