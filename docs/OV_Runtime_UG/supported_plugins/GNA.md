@@ -152,7 +152,7 @@ Import model:
 
 @endsphinxtabset
 
-[Compile Tool](@ref openvino_inference_engine_tools_compile_tool_README) or [Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README) can be used to compile model.
+To compile a model, use either [compile Tool](@ref openvino_inference_engine_tools_compile_tool_README) or [Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README).
 
 ### Stateful Models
 GNA plugin natively supports stateful models.
