@@ -6,7 +6,7 @@ Sometimes, it is necessary to remove parts of a model when converting it to Open
 
 The following examples are the situations when model cutting is useful or even required:
 
-*   model has pre- or post-processing parts that cannot be translated to existing OpenVINO operations.
+*   A model has pre- or post-processing parts that cannot be translated to existing OpenVINO operations.
 *   model has a training part that is convenient to be kept in the model but not used during inference.
 *   model is too complex (contains a lot of unsupported operations that cannot be easily implemented as custom layers), so the complete model cannot be converted in one go.
 *   problem with model conversion in Model Optimizer or inference in the OpenVINO™ Runtime occurred. To identify the issue, limit the scope for conversion by iterative search for problematic areas in the model.
