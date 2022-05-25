@@ -13,7 +13,7 @@ To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
 The same functionality is also available in runtime via `reshape` method. For more information refer to the [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md) guide.
 To learn more about dynamic shapes in runtime, refer to the [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md) guide.
 
-OpenVINO Runtime API can have limitations to infer models with undefined dimensions on some hardware (see the [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference).
+The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. See the [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference.
 In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help resolve undefined dimensions.
 
 Sometimes, Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
