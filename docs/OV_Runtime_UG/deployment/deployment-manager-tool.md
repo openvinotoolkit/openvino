@@ -139,13 +139,13 @@ The following options are available:
 * The `<--targets>` (required) - a list of target devices to run inference. To specify more than one target, separate them with spaces, for example `--targets cpu gpu vpu`. 
 To get a list of currently available targets, run the program with the `-h` option.
 
-* `[--output_dir]` (optional): A path to the output directory. By default, it is set to your home directory.
+* The `[--output_dir]` (optional) - a path to the output directory. By default, it is set to your home directory.
 
-* `[--archive_name]` (optional): A deployment archive name without extension. By default, it is set to `openvino_deployment_package`.
+* The `[--archive_name]` (optional) - a deployment archive name without extension. By default, it is set to the `openvino_deployment_package`.
 
-* `[--user_data]` (optional): A path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it is set to `None`, which means copying the user data to the target system separately.
+* The `[--user_data]` (optional) - a path to a directory with user data (OpenVINO IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it is set to `None`, which means copying the user data to the target system will be performed separately.
 
-When the script is successful, the deployment package is generated in the output directory specified.
+Once the script has successfully completed, the deployment package is generated in the output directory specified.
 
 @sphinxdirective
 
