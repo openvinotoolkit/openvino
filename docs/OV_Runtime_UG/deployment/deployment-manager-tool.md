@@ -136,7 +136,7 @@ To launch the Deployment Manager tool in the standard mode: open a new terminal 
 
 The following options are available:
 
-* `<--targets>` (required): A list of target devices to run inference. To specify more than one target, separate them with spaces. For example: `--targets cpu gpu vpu`. 
+* The `<--targets>` (required) - a list of target devices to run inference. To specify more than one target, separate them with spaces, for example `--targets cpu gpu vpu`. 
 To get a list of currently available targets, run the program with the `-h` option.
 
 * `[--output_dir]` (optional): A path to the output directory. By default, it is set to your home directory.
