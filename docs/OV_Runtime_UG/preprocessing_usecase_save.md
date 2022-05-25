@@ -10,7 +10,7 @@ Most of existing preprocessing steps can also be performed via command-line opti
 ## Code example - Saving Model with Preprocessing to OpenVINO IR
 
 When some preprocessing steps cannot be integrated into execution graph using Model Optimizer command-line options (for example, `YUV`->`RGB` color space conversion, `Resize`, etc.), it is possible to write a simple code which:
- - Reads the original model (IR, ONNX, Paddle).
+ - Reads the original model (OpenVINO IR, ONNX, Paddle).
  - Adds the preprocessing/postprocessing steps.
  - Saves resulting model as IR (`.xml`/`.bin`).
 
