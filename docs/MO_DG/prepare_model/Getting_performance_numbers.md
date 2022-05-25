@@ -2,7 +2,10 @@
 
 This guide introduces things to notice and how to use the benchmark_app to get performance numbers. It also explains how the performance numbers are reflected through internal inference performance counters and execution graphs. In the last section, it includes information on using ITT and Intel® VTune™ Profiler to get performance insights.
 
-- Avoid including one-time costs, like model loading.
+## Tip 1: Select Proper Set of Operations to Measure
+
+When evaluating the performance of a model with OpenVINO Runtime, it is required to measure proper set of operations. Remember the following tips:
+- Avoid including one-time costs such as model loading.
 
 - Track operations which occur outside of the OpenVINO Runtime (like video decoding) separately. 
 
