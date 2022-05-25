@@ -242,7 +242,7 @@ Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` 
 so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option. 
 Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the `ov::cache_dir` property enabled.
 
-For more details, see the [Model caching overview page](../Model_caching_overview.md).
+For more details, see the [Model caching overview](../Model_caching_overview.md).
 
 ### Extensibility
 See the [GPU Extensibility](@ref openvino_docs_Extensibility_UG_GPU) page.
