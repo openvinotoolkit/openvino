@@ -18,7 +18,7 @@ To see the list of supported networks for the HDDL plugin, refer to the list on 
 
 ## Supported Configuration Parameters
 
-See VPU common configuration parameters for [VPU Plugins](VPU.md).
+For information on VPU common configuration parameters, see the [VPU Plugins](VPU.md).
 When specifying key values as raw strings (when using the Python API), omit the `KEY_` prefix.
 
 In addition to common parameters for both VPU plugins, the HDDL plugin accepts the following options:
