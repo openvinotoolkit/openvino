@@ -37,7 +37,7 @@ For more information, see the `ov::Core` Class Reference Documentation.
 
 Hardware-based protection such as Intel Software Guard Extensions
 (Intel SGX) can be used to protect decryption operation secrets and
-bind them to a device. For more information, check [Intel&reg; Software Guard
+bind them to a device. For more information, see the [Intel Software Guard
 Extensions](https://software.intel.com/en-us/sgx).
 
 Use `ov::Core::read_model` to set model representations and
