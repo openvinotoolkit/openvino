@@ -38,7 +38,7 @@ While these settings provide really low-level control and allow leveraging the o
  - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
  - benchmark_app **-hint latency** -d 'device' -m 'path to your model'
 
-## Comparing Performance with Native/Framework Code 
+## Notes for Comparing Performance with Native/Framework Code 
 
 When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
