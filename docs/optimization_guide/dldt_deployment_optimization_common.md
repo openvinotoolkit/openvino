@@ -48,7 +48,7 @@ Keep in mind that the `ov::InferRequest::wait()` of the Async API waits for the 
 This is a more event-driven approach.
 
 Few important points on the callbacks:
-- It is the application responsibility to ensure that any callback function is thread-safe.
+- It is the job of the application to ensure that any callback function is thread-safe.
 - Although executed asynchronously by a dedicated threads, the callbacks should NOT include heavy operations (e.g. I/O) and/or blocking calls. Work done by any callback should be kept to a minimum.
 
 @anchor tensor_idiom
