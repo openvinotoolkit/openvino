@@ -49,7 +49,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 -  When applicable, leverage the [Dynamic Shapes support](../../OV_Runtime_UG/ov_dynamic_shapes.md).
 -	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
 
-## Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
+## Data from Internal Inference Performance Counters and Execution Graphs <a name="performance-counters"></a>
 More detailed insights into inference performance breakdown can be achieved with device-specific performance counters and/or execution graphs.
 Both [C++](../../../samples/cpp/benchmark_app/README.md) and [Python](../../../tools/benchmark_tool/README.md) versions of the `benchmark_app` support a `-pc` command-line parameter that outputs internal execution breakdown.
 
