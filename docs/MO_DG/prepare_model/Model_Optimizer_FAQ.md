@@ -20,7 +20,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
       ...
       optional CustomReshapeParameter custom_reshape_param = 546; // 546 - ID is any number not present in caffe.proto.
     }
-    // These lines to end of the file - describing contents of this parameter.
+    // The lines from here to the end of the file are describing contents of this parameter.
     message CustomReshapeParameter {
       optional BlobShape shape = 1; // Just use the same parameter type as some other Caffe layers.
     }
