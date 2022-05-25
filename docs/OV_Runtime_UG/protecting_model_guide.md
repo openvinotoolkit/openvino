@@ -31,7 +31,7 @@ by the OpenVINO Runtime.
 The OpenVINO Runtime requires model decryption before loading. Allocate
 a temporary memory block for model decryption and use the 
 `ov::Core::read_model` method to load the model from a memory buffer.
-For more information, check `ov::Core` Class Reference Documentation.
+For more information, see the `ov::Core` Class Reference Documentation.
 
 @snippet snippets/protecting_model_guide.cpp part0
 
