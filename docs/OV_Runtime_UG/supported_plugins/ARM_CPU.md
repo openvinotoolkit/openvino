@@ -47,7 +47,7 @@ For more details, see the [preprocessing API guide](../preprocessing_overview.md
 ## Supported Properties
 The plugin supports the properties listed below.
 
-### Read-write Properties
+**Read-write Properties**
 In order to take effect, all parameters must be set before calling `ov::Core::compile_model()` or passed as additional argument to `ov::Core::compile_model()`
 
 - ov::enable_profiling
