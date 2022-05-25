@@ -301,7 +301,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 - Try to group individual infer jobs by using [automatic batching](../automatic_batching.md).
 -	Consider [caching](../Model_caching_overview.md) to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. [CPU configuration options](./CPU.md) can be used to limit the number of inference threads for the CPU plugin.
--	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Be wary that this option may increase inference latency, so consider combining with multiple GPU streams or [throughput performance hints](../performance_hints.md).
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Be wary that this option may increase inference latency, so consider combining it with multiple GPU streams or [throughput performance hints](../performance_hints.md).
 - When operating media inputs, consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
 
 
