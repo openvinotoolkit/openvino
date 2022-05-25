@@ -62,7 +62,7 @@ Using `bf16` precision provides the following performance benefits:
 - Faster multiplication of two `bfloat16` numbers because of shorter mantissa of the `bfloat16` data.
 - Reduced memory consumption since `bfloat16` data size is two times less than 32-bit float. 
 
-To check if the CPU device can support the bfloat16 data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
+To check if the CPU device can support the `bfloat16` data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
 
 @sphinxtabset
 
