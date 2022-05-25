@@ -52,7 +52,7 @@ In this document, you learned:
 
 * Basic information about how the Model Optimizer works with MXNet\* models
 * Which MXNet models are supported
-* How to convert a trained MXNet model using the Model Optimizer with both framework-agnostic and MXNet-specific command-line options
+* How to convert a trained MXNet model by using the Model Optimizer with both framework-agnostic and MXNet-specific command-line options.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)
