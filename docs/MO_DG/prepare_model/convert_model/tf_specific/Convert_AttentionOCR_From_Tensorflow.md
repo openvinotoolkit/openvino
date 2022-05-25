@@ -16,7 +16,7 @@ Once extracted, the model can be found in `model/path/` folder.
 
 ## Converting the TensorFlow AOCR Model to IR
 
-The original AOCR model contains data preprocessing, done as follows:
+The original AOCR model includes the preprocessing data, which contains:
 * Decoding input data to binary format where input data is an image represented as a string.
 * Resizing binary image to working resolution.
 
