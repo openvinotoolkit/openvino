@@ -105,6 +105,8 @@ For POT quantized model, the `ov::hint::inference_precision` property has no eff
 
 ## Supported Features
 
+The plugin supports the features listed below:
+
 ### Models Caching
 Due to import/export functionality support (see below), cache for GNA plugin may be enabled via common `ov::cache_dir` property of OpenVINO™.
 
