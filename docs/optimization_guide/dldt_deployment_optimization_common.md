@@ -45,7 +45,7 @@ Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_c
 
 ### Notes on Callbacks
 Keep in mind that the `ov::InferRequest::wait()` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify you of the results (or errors). 
-This is more event-driven approach.
+This is a more event-driven approach.
 
 Few important points on the callbacks:
 - It is the application responsibility to ensure that any callback function is thread-safe.
