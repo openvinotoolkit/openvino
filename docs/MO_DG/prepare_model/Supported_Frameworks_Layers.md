@@ -122,7 +122,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | Concat |  |
 | Convolution |  |
 | Crop | The `center_crop` = 1 is not supported. |
-| Custom | [Custom Layers in Model Optimizer.](customize_model_optimizer/Customize_Model_Optimizer.md) |
+| Custom | See [Custom Layers in Model Optimizer].(customize_model_optimizer/Customize_Model_Optimizer.md) |
 | Deconvolution |  |
 | DeformableConvolution |  |
 | DeformablePSROIPooling |  |
