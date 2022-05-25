@@ -37,12 +37,12 @@ following parameters:
     - `"name"` - name of the metric to optimize.
     - `"baseline_value"` - (optional parameter) a baseline metric value of the original model. The validations on
     The validation will be initiated entirely in the beginning if nothing specified.
-- `"metric_subset_ratio"` - part of the validation set that is used to compare original full-precision and 
-fully quantized models when creating ranking subset in case of predefined metric values of the original model.
-Default value is `0.5`.
-- `"tune_hyperparams"` - enables quantization parameters tuning as a preliminary step before reverting layers back
-to the floating-point precision. It can bring additional performance and accuracy boost but increase overall 
-quantization time. Default value is `False`.
+- `"metric_subset_ratio"` - a part of the validation set that is used to compare original full-precision and 
+fully quantized models when creating a ranking subset in case of predefined metric values of the original model.
+The default value is `0.5`.
+- `"tune_hyperparams"` - enables tuning of quantization parameters as a preliminary step before reverting layers back
+to the floating-point precision. It can bring an additional boost in performance and accuracy, at the cost of increased overall 
+quantization time. The default value is `False`.
 
 ## Additional Resources
 

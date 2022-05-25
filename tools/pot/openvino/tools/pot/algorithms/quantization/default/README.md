@@ -4,7 +4,7 @@
 DefaultQuantization Algorithm was designed to perform fast and (in many cases) accurate quantization. It does not have any control of accuracy metric but provides a lot of options that can be used to improve it.
 
 ## Parameters
-DefaultQuantization Algorithm has mandatory and optional parameters. For more details on how to use these parameters, refer to [Best Practices](@ref pot_docs_BestPractices) article. Below is an example of the DefualtQuantization method definition and its parameters:
+DefaultQuantization Algorithm has mandatory and optional parameters. For more details on how to use these parameters, refer to [Best Practices](@ref pot_docs_BestPractices) article. Below is an example of the DefaultQuantization method and its parameters:
 ```python
 {
     "name": "DefaultQuantization", # the name of optimization algorithm 
@@ -15,35 +15,35 @@ DefaultQuantization Algorithm has mandatory and optional parameters. For more de
 ```
 
 ### Mandatory parameters
-- `"preset"` - preset which controls the quantization mode (symmetric and asymmetric). It can take two values:
+- `"preset"` - a preset which controls the quantization mode (symmetric and asymmetric). It can take two values:
     - `"performance"` (default) - stands for symmetric quantization of weights and activations. This is the most 
     efficient across all the HW.
     - `"mixed"` - symmetric quantization of weights and asymmetric quantization of activations. This mode can be useful
     for quantization of NN, which has both negative and positive input values in quantizing operations, for example 
     non-ReLU based CNN.  
-- `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset 
-is used if no parameter specified. It is recommended to use not less than 300 samples.
+- `"stat_subset_size"` - size of a subset to calculate activations statistics used for quantization. The whole dataset 
+is used if no parameter is specified. It is recommended to use not less than 300 samples.
 
 
 ### Optional parameters
-All other options should be considered as an advanced and require deep knowledge of the quantization process. Below
+All other options should be considered as an advanced mode and require deep knowledge of the quantization process. Below
 is an overall description of all possible parameters:
 - `"model type"` - an optional parameter, required for additional patterns in the model. The default value is "None" ("Transformer" is only other supported value now).
 - `"inplace_statistic"` - an optional parameter, required for change of collect statistics method. This parameter reduces the amount of memory consumed, but increases the calibration time.
 - `"ignored"` - NN subgraphs which should be excluded from the optimization process: 
-    - `"scope"` - list of particular nodes to exclude.
-    - `"operations"` - list of operation types to exclude (expressed in OpenVINO IR notation). This list consists of
+    - `"scope"` - a list of particular nodes to exclude.
+    - `"operations"` - a list of operation types to exclude (expressed in OpenVINO IR notation). This list consists of
     the following tuples:
-        - `"type"` - type of ignored operation.
-        - `"attributes"` - if attributes are defined they will be considered during the ignorance. They are defined by
+        - `"type"` - a type of ignored operation.
+        - `"attributes"` - if attributes are defined, they will be considered during the ignorance. They are defined by
         a dictionary of `"<NAME>": "<VALUE>"` pairs.
-- `"weights"` - this section manually defines quantization scheme for weights and the way to estimate the 
+- `"weights"` - this section describes quantization scheme for weights and the way to estimate the 
 quantization range for that. It is worth noting that changing the quantization scheme may lead to inability to infer such
 mode on the existing HW.
-    - `"bits"` - bit-width, default is "8".
-    - `"mode"` - quantization mode (symmetric or asymmetric).
-    - `"level_low"` - minimum level in the integer range to quantize. The default is "0" for unsigned range, and for signed "-2^(bit-1)". 
-    - `"level_high"` - maximum level in the integer range to quantize. The default is "2^bits-1" for unsigned range, and for signed "2^(bit-1)-1".
+    - `"bits"` - bit-width, the default value is "8".
+    - `"mode"` - a quantization mode (symmetric or asymmetric).
+    - `"level_low"` - the minimum level in the integer range to quantize. The default is "0" for an unsigned range, and "-2^(bit-1)" for a signed one . 
+    - `"level_high"` - the maximum level in the integer range to quantize. The default is "2^bits-1" for an unsigned range, and "2^(bit-1)-1" for a signed one.
     - `"granularity"` - quantization scale granularity. It can take the following values:
         - `"pertensor"` (default) - per-tensor quantization with one scale factor and zero-point.
         - `"perchannel"` - per-channel quantization with per-channel scale factor and zero-point.
