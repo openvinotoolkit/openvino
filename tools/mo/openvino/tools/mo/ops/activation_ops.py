@@ -127,7 +127,7 @@ class Erf(Activation):
 
 class Floor(Activation):
     op = 'Floor'
-    operation = staticmethod(lambda x: np.ma.floor(x))
+    operation = staticmethod(lambda x: x if np.issubdtype(x.dtype, np.integer) else np.ma.floor(x))
 
 
 class Ceiling(Activation):
