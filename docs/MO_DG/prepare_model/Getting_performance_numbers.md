@@ -86,4 +86,6 @@ Especially when performance-debugging the [latency](../../optimization_guide/dld
 
 Lastly, the performance statistics with both performance counters and execution graphs are averaged, so such data for the [inputs of dynamic shapes](../../OV_Runtime_UG/ov_dynamic_shapes.md) should be measured carefully, preferably by isolating the specific shape and executing multiple times in a loop, to gather the reliable data.
 
-In general, OpenVINO and its individual plugins are heavily instrumented with Intel® instrumentation and tracing technology (ITT). Another option is to compile the OpenVINO from the source code with the ITT enabled and using tools like [Intel® VTune™ Profiler](https://software.intel.com/en-us/vtune) to get detailed inference performance breakdown and additional insights in the application-level performance on the timeline view.
+## Using ITT to Get Performance Insights
+
+In general, OpenVINO and its individual plugins are heavily instrumented with Intel® Instrumentation and Tracing Technology (ITT). Therefore, you can also compile OpenVINO from the source code with ITT enabled and use tools like [Intel® VTune™ Profiler](https://software.intel.com/en-us/vtune) to get detailed inference performance breakdown and additional insights in the application-level performance on the timeline view.
