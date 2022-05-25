@@ -15,7 +15,7 @@ handles and used to create the OpenVINO™ `ov::CompiledModel` or `ov::Tensor` o
 
 Class and function declarations for the API are defined in the following files:
 * Windows -- `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
-* Linux: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/va.hpp`
+* Linux -- `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/va.hpp`
 
 The most common way to enable the interaction of your application with the Remote Tensor API is to use user-side utility classes
 and functions that consume or produce native handles directly.
