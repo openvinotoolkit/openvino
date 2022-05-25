@@ -204,11 +204,32 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-    dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                   {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                   {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+
+    // int rank = cldnn::format(out_layout.).dimension();
+    int rank = params.outputs[0].Dimentions();
+    if (rank == 4) {
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else if (rank == 5) {
+        dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else if (rank == 6) {
+        dispatchData.gws = {output.X().v * output.Y().v,
+                            output.Z().v * output.W().v,
+                            output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else {
+        IE_THROW() << "Unknown rank: rank=" << rank;
+    }
+
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
