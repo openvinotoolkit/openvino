@@ -38,7 +38,7 @@ OpenVINO™ Runtime model representation uses special classes to work with model
 
 OpenVINO™ Runtime provides two types for shape representation: 
 
-* `ov::Shape` - Represents static (fully defined) shapes.
+* The `ov::Shape` - Represents fully defined (static) shapes.
 
 * The `ov::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (dimension defines an interval or undefined). The `ov::PartialShape` can be converted to the `ov::Shape`, using the `get_shape()` method if all dimensions are static. Otherwise, the conversion throws an exception.
 
