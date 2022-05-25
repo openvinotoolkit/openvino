@@ -131,5 +131,5 @@ The `benchmark_app`, that exists in both [C++](../../samples/cpp/benchmark_app/R
 
 The last example also applies to the CPU or any other device that generally supports the batched execution.  
 
-### See Also
+### Additional Resources
 [Supported Devices](supported_plugins/Supported_Devices.md)
