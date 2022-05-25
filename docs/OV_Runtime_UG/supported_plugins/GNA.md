@@ -50,7 +50,7 @@ For details, see a description of the `ov::intel_gna::execution_mode` property.
 ## Recovery from Interruption by High-Priority Windows Audio Processes
 
 GNA is designed for real-time workloads i.e., noise reduction.
-For such workloads, processing should be time constrained. Otherwise, extra delays may cause undesired effects, such as
+For such workloads, processing should be time constrained. Otherwise, extra delays may cause undesired effects such as
 *audio glitches*. The GNA driver provides a Quality of Service (QoS) mechanism to ensure that processing can satisfy real-time requirements. 
 The mechanism interrupts requests that might cause high-priority Windows audio processes to miss
 the schedule. As a result, long running GNA tasks terminate early.
