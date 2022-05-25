@@ -81,7 +81,7 @@ def build_model_columns():
   return wide_columns, deep_columns
 ```
 
-After that, start training by the following command:
+After that, start training with the following command:
 
 ```sh
 python census_main.py
