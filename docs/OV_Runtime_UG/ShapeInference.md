@@ -12,7 +12,7 @@ This guide presents information about operating on Input Shapes, divided into C+
 
 OpenVINO™ provides capabilities to change model input shape during the runtime.
 It may be useful when you want to feed model an input that has different size than model input shape. 
-In case you need to do this only once [prepare a model with updated shapes via Model Optimizer](@ref when_to_specify_input_shapes). For all the other cases, follow further instructions.
+In case you need to do this only once prepare a model with updated shapes via [Model Optimizer](@ref when_to_specify_input_shapes). For all the other cases, follow further instructions.
 
 ### Set a New Input Shape with Reshape Method
 
