@@ -214,7 +214,7 @@ One of the layers in the specified topology might not have inputs or values. Mak
 
 #### 23. What does the message "Part of the nodes was not translated to IE. Stopped" mean? <a name="question-23"></a>
 
-Some of the operations are not supported by the OpenVINO Runtime and cannot be translated to an Intermediate Representation. You can extend Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
+Some of the operations are not supported by OpenVINO Runtime and cannot be translated to OpenVINO Intermediate Representation. You can extend Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the [OpenVINO Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 24. What does the message "While creating an edge from .. to .. : node name is undefined in the graph. Check correctness of the input model" mean? <a name="question-24"></a>
 
