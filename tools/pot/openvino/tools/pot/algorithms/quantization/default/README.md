@@ -19,7 +19,7 @@ DefaultQuantization Algorithm has mandatory and optional parameters. For more de
     - `"performance"` (default) - stands for symmetric quantization of weights and activations. This is the most 
     efficient across all the HW.
     - `"mixed"` - symmetric quantization of weights and asymmetric quantization of activations. This mode can be useful
-    for quantization of NN, which has both negative and positive input values in quantizing operations, e.g. 
+    for quantization of NN, which has both negative and positive input values in quantizing operations, for example 
     non-ReLU based CNN.  
 - `"stat_subset_size"` - size of subset to calculate activations statistics used for quantization. The whole dataset 
 is used if no parameter specified. It is recommended to use not less than 300 samples.
