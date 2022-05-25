@@ -236,7 +236,7 @@ Listed below are all plugin limitations:
 
 ### Models and Operations Limitations
 
-Due to the specification of hardware architecture, Intel® GNA supports a limited set of operations, their kinds and combinations.
+Due to the specification of hardware architecture, Intel® GNA supports a limited set of operations (including their kinds and combinations).
 For example, GNA Plugin should not be expected to run computer vision models because the plugin does not fully support 2D convolutions. The exception are the models specifically adapted for the GNA Plugin.
 
 Limitations include:
