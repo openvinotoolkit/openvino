@@ -194,7 +194,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Conv3DBackpropInputV2 |  |
 | Cos |  |
 | Cosh |  |
-| CropAndResize | The `method` = `bilinear` only. |
+| CropAndResize |  `method` = `bilinear` only. |
 | CTCGreedyDecoder | Supported only with decoded indices output in a dense format. |
 | CTCLoss | Supported only with decoded indices input in a dense format. |
 | CumSum |  |
