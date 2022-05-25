@@ -24,7 +24,7 @@ The Arm® CPU plugin supports the following data types as inference precision of
 
 ## Supported Features
 
-### Preprocessing Acceleration
+**Preprocessing Acceleration**
 The Arm® CPU plugin supports the following accelerated preprocessing operations:
 - Precision conversion:
     - u8  -> u16, s16, s32
