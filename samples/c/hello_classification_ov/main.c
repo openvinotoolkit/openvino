@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
 
     // -------- Step 5. Loading a model to the device --------
     ov_compiled_model_t* compiled_model = NULL;
-    ov_property_t property = {};
+    ov_property_t property;
     CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, &property));
 
     // -------- Step 6. Create an infer request --------
