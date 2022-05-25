@@ -8,7 +8,7 @@ In order to best serve multiple inference requests executed simultaneously, the 
 This provides much better performance for the networks than batching, especially for the many-core machines:
 ![](../img/cpu_streams_explained_1.png)
 
-Compared with the batching, the parallelism is somewhat transposed (i.e., performed over inputs with much less synchronization within CNN ops):
+Compared to the batching, the parallelism is somewhat transposed (i.e., performed over inputs with much less synchronization within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
 Keep in mind that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allows the implementation to select the optimal number of the streams, _depending on the model compute demands_ and CPU capabilities (including [int8 inference](@ref openvino_docs_model_optimization_guide) hardware acceleration, number of cores, etc).
