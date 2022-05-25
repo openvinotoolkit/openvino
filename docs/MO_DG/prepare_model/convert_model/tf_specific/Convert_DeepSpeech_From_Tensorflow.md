@@ -57,7 +57,7 @@ with the frozen *.pb model is below. It means that the model keeps training thes
 At the first inference the variables are initialized with zero tensors. After executing, the results of the `BlockLSTM*
 are assigned to cell state and hidden state, which are these two variables.
 
-## Converting the Main Part of DeepSpeech Model into the IR
+## Converting the Main Part of DeepSpeech Model into OpenVINO IR
 
 Model Optimizer assumes that the output model is for inference only. That is why you should cut `previous_state_c`
 and `previous_state_h` variables off and resolve keeping cell and hidden states on the application level.
