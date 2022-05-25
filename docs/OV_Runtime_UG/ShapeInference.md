@@ -209,7 +209,7 @@ To do the opposite - resize input image to the input shapes of the model, use th
 Dictionary keys could be:
 * The `str` specifies input by its name.
 * The `int` specifies input by its index.
-* `openvino.runtime.Output` specifies input by passing actual input object
+* The `openvino.runtime.Output` specifies input by passing actual input object.
 
 Dictionary values (representing new shapes) could be:
 * `list`
