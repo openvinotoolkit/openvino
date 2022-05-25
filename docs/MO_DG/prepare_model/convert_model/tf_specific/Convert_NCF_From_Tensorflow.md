@@ -22,7 +22,7 @@ graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
 where `rating/BiasAdd` is an output node.
 
- 3. Convert the model to IR. If you look at your frozen model, you can see that
+ 3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
 it has one input that is split into four `ResourceGather` layers. (Click image to zoom in.)
 
 ![NCF model beginning](../../../img/NCF_start.png)
