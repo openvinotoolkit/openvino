@@ -44,7 +44,7 @@ Caffe-specific parameters:
                         attributes without flattening nested parameters.
 ```
 
-## Command-Line Interface (CLI) Examples Using Caffe-Specific Parameters
+### CLI Examples Using Caffe-Specific Parameters
 
 * Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only a path to the input `model.caffemodel` file.
    ```sh
