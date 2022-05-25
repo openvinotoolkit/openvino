@@ -166,6 +166,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        // enable after other plugins support nms9 as setup with nms5 in
+        // tests/functional/shared_test_classes/include/shared_test_classes/single_layer/non_max_suppression.hpp
+        // is shared across plugins
+        // passed local test and cpu has specific test cases with nms9 to cover
+        R"(smoke_NmsLayerTest.*)",
     };
 
 #define FIX_62820 0

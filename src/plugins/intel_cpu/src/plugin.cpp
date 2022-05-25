@@ -67,8 +67,8 @@
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
-#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
@@ -231,10 +231,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     manager.register_pass<ngraph::pass::GRUCellDecomposition>();
     manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
+    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS9>();
+    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
+    manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
+    manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
     manager.register_pass<ngraph::pass::TransposeMatMul>();
@@ -378,7 +379,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                return true;
                            };
 
-        pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(nmsCallback);
+        pass_config->set_callback<ngraph::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
         pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
         pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
     }
