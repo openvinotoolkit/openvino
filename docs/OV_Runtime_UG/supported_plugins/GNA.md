@@ -33,7 +33,7 @@ When a model is run, using the GNA plugin, it is compiled internally for the spe
 
 > **NOTE**: In most cases, network compiled for GNA 2.0 runs as expected on GNA 3.0. However, the performance may be worse compared to when a network is compiled specifically for the latter. The exception is a network with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-operations-limitations">Models and Operations Limitations</a> section).
 
-For optimal work with POT quantized models, which includes 2D convolutions on GNA 3.0 hardware, the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
+For optimal work with POT quantized models (which includes 2D convolutions on GNA 3.0 hardware) the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
 
 Choose a compile target with regard to the priority: cross-platform execution, performance, memory, or power optimization.
 
