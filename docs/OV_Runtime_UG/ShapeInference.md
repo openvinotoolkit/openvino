@@ -212,7 +212,7 @@ Dictionary keys could be:
 * The `openvino.runtime.Output` specifies input by passing actual input object.
 
 Dictionary values (representing new shapes) could be:
-* `list`
+* The `list`.
 * `tuple`
 * `PartialShape`
 
