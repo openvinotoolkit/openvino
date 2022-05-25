@@ -80,5 +80,5 @@ After this, the application code can load a saved file and stop preprocessing. I
 * [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
 * [Model Caching Overview](./Model_caching_overview.md)
 * The `ov::preprocess::PrePostProcessor` C++ class documentation
-* `ov::pass::Serialize` - pass to serialize model to XML/BIN
+* The `ov::pass::Serialize` - pass to serialize model to XML/BIN
 * `ov::set_batch` - update batch dimension for a given model
