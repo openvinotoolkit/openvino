@@ -332,7 +332,7 @@ To convert MXNet models with Model Optimizer, MXNet 1.0.0 must be installed. For
 
 #### 52. What does the message "The following error happened while loading MXNet model .." mean? <a name="question-52"></a>
 
-Most likely, there is a problem with loading of the MXNet model. Make sure the specified path is correct, the model exists, it is not corrupted, and you have sufficient permissions to work with it.
+Most likely, there is a problem with loading of the MXNet model. Make sure the specified path is correct, the model exists and is not corrupted, and you have sufficient permissions to work with it.
 
 #### 53. What does the message "The following error happened while processing input shapes: .." mean? <a name="question-53"></a>
 
