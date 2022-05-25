@@ -64,7 +64,7 @@ After the call to `wait_all`, jobs and their data can be safely accessed. Acquir
 
 #### Setting Callbacks
 
-Another feature of `AsyncInferQueue` is ability of setting callbacks. When callback is set, any job that ends inference, calls upon Python function. Callback function must have two arguments. First is the request that calls the callback, it provides `InferRequest` API. Second one being called "userdata", provides possibility of passing runtime values, which can be of any Python type and later used inside callback function.
+Another feature of `AsyncInferQueue` is ability to setting callbacks. When callback is set, then any job that ends inference calls upon Python function. Callback function must have two arguments. First is the request that calls the callback, it provides `InferRequest` API. Second one, being called "userdata", provides possibility of passing runtime values. Those values can be of any Python type and later used inside callback function.
 
 The callback of `AsyncInferQueue` is uniform for every job. When executed, GIL is acquired to ensure safety of data manipulation inside the function.
 
