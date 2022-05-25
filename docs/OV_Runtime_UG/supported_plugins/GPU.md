@@ -305,7 +305,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 - When operating media inputs, consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
 
 
-## See Also
+## Additional Resources
 * [Supported Devices](Supported_Devices.md)
 * [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
 * [GPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDevelopersDocs)
