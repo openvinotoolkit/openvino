@@ -136,9 +136,11 @@ DnnlMemoryDescPtr Memory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
 }
 
 void Memory::setDataHandle(void *data) {
-    mgrHandle = DnnlMemMngrHandle(
-        std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())),
-        this);
+    if (!mgrHandle->hasExtBuffer()) {
+        mgrHandle = DnnlMemMngrHandle(
+            std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())),
+            this);
+    }
 
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
