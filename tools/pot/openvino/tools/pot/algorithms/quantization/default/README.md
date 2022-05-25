@@ -66,7 +66,7 @@ mode on the existing HW:
     - `"bits"` - bit-width, default is "8".
     - `"mode"` - quantization mode (symmetric or asymmetric).
     - `"level_low"` - minimum level in the integer range to quantize. The default is "0" for unsigned range, and for signed "-2^(bit-1)".
-    - `"level_high"` - maximum level in the integer range to quantize. The default is "2^bits-1" for unsigned range, and for signed "2^(bit-1)-1". 
+    - `"level_high"` - the maximum level in the integer range to quantize. The default is "2^bits-1" for an unsigned range, and "2^(bit-1)-1" for a signed one. 
     - `"granularity"` - quantization scale granularity. It can take the following values:
         - `"pertensor"` (default) - per-tensor quantization with one scale factor and zero-point.
         - `"perchannel"` - per-channel quantization with per-channel scale factor and zero-point.
