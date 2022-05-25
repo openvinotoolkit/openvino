@@ -18,7 +18,8 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_p
                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                  const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
                                                  InferenceEngine::RemoteContext::Ptr ctx)
-        : IInferRequestInternal(inputs, outputs) {
+        : IInferRequestInternal(inputs, outputs),
+          _sharedRequest(request_to_share_blobs_with)  {
     CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
@@ -26,7 +27,8 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
                                                  const OutputsDataMap&  networkOutputs,
                                                  const SoIInferRequestInternal & request_to_share_blobs_with,
                                                  InferenceEngine::RemoteContext::Ptr ctx)
-        : IInferRequestInternal(networkInputs, networkOutputs) {
+        : IInferRequestInternal(networkInputs, networkOutputs),
+          _sharedRequest(request_to_share_blobs_with) {
     CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
@@ -87,7 +89,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
-    IE_THROW(NotImplemented);
+    return _perfMap;
 }
 
 void MultiDeviceInferRequest::InferImpl() {
