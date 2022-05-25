@@ -85,7 +85,7 @@ Some functions in Python API release the Global Lock Interpreter (GIL) while run
 
 @snippet docs/snippets/ov_python_exclusives.py releasing_gil
 
-> **NOTE**: While GIL is released, functions can still modify and/or operate on Python objects in C++. Thus, there is no reference counting. User is responsible for thread safety if sharing of these objects with another thread occurs. It can affect your code only if multiple threads are spawned in Python.:
+> **NOTE**: While GIL is released, functions can still modify and/or operate on Python objects in C++. Hence, there is no reference counting. User is responsible for thread safety in case sharing of these objects with another thread occurs. It can affect code only if multiple threads are spawned in Python.
 
 #### List of Functions that Release the GIL
 - openvino.runtime.AsyncInferQueue.start_async
