@@ -273,7 +273,7 @@ If you want to avoid the dependency, you still can directly use the `ov::Core::c
 `ov::RemoteContext::create_tensor()`, and `ov::RemoteContext::get_params()` methods.
 On this level, native handles are re-interpreted as void pointers and all arguments are passed
 using `ov::AnyMap` containers that are filled with `std::string, ov::Any` pairs.
-Two types of map entries are possible: descriptor and container. The first map entry is a
+Two types of map entries are possible: descriptor and container.
 descriptor, which sets the expected structure and possible parameter values of the map.
 
 For possible low-level properties and their description, refer to the `openvino/runtime/intel_gpu/remote_properties.hpp` header file .
