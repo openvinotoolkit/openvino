@@ -272,7 +272,7 @@ Most likely, you tried to extend Model Optimizer with a new primitive, but you d
 
 #### 37. What does the message "Stopped shape/value propagation at node" mean? <a name="question-37"></a>
 
-Model Optimizer cannot infer shapes or values for the specified node. It can happen because of a bug in the custom shape infer function or the node inputs have incorrect values/shapes, or the input shapes are incorrect.
+Model Optimizer cannot infer shapes or values for the specified node. It can happen because of the following reasons: a bug exists in the custom shape infer function, the node inputs have incorrect values/shapes, or the input shapes are incorrect.
 
 #### 38. What does the message "The input with shape .. does not have the batch dimension" mean? <a name="question-38"></a>
 
