@@ -7,7 +7,7 @@ The YOLACT++ model is not supported, because it uses deformable convolutional la
 ## Creating a Patch File <a name="patch-file"></a>
 
 Before converting the model, create a patch file for the repository.
-The patch modifies the framework code by adding a special command-line argument to the framework options, that enables inference graph dumping:
+The patch modifies the framework code by adding a special command-line argument to the framework options. The argument enables inference graph dumping:
 
 1. Go to a writable directory and create a `YOLACT_onnx_export.patch` file.
 2. Copy the following diff code to the file:
