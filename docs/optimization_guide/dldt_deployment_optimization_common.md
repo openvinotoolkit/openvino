@@ -6,7 +6,7 @@ While the techniques (e.g. pre-processing) can be specific to end-user applicati
 @anchor inputs_pre_processing
 ## Inputs Pre-Processing with OpenVINO
 
-In many cases network expects a pre-processed image. It is advised to do not perform unnecessary steps in code:
+In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 - Model Optimizer can efficiently combine the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).
 - Let the OpenVINO accelerate other means of [Image Pre-processing and Conversion](../OV_Runtime_UG/preprocessing_overview.md).
 - Data which already are in the _on-device_ memory can be directly input by using the [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
