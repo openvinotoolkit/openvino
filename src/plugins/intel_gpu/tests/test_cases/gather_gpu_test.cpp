@@ -247,6 +247,34 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_byxf,
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
                                           testing::Values(std::vector<int>{3, 5, 1, 1})));
 
+#define FORMAT4D format::type::bfyx, format::type::b_fs_yx_fsv16, format::type::bs_fs_yx_bsv16_fsv16
+#define FORMAT5D format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::bs_fs_zyx_bsv16_fsv16
+#define FORMAT6D format::type::bfwzyx
+INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_4d_f16i32,
+                         gather8_test_f16i32,
+                         testing::Combine(testing::Values(0, 1),  // bdim in [0,get_not_one_dim(dict))
+                                          testing::Values(1, 2),  // axis in [batch_dim,get_not_one_dim(dict))
+                                          testing::Values(FORMAT4D),
+                                          testing::Values(FORMAT4D),
+                                          testing::Values(std::vector<int>{3, 6, 2, 1}),
+                                          testing::Values(std::vector<int>{3, 5, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_5d_f16i32,
+                         gather8_test_f16i32,
+                         testing::Combine(testing::Values(0, 1),
+                                          testing::Values(1, 2, 3),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(FORMAT5D),
+                                          testing::Values(FORMAT5D),
+                                          testing::Values(std::vector<int>{3, 6, 2, 7, 1}),
+                                          testing::Values(std::vector<int>{3, 5, 1, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_6d_f16i32,
+                         gather8_test_f16i32,
+                         testing::Combine(testing::Values(0, 1),
+                                          testing::Values(1, 2, 3),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(FORMAT6D),
+                                          testing::Values(FORMAT6D),
+                                          testing::Values(std::vector<int>{3, 6, 2, 7, 1, 1}),
+                                          testing::Values(std::vector<int>{3, 5, 4, 1, 1, 1})));
+
 TEST(gather8_gpu_fp16, d323_axisY_bdim_m1) {
     //  Dictionary : 3x2x3x4x2
     //  Indexes : 3x2x3x1
