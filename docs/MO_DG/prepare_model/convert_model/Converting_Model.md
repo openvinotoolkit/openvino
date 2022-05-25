@@ -6,7 +6,7 @@ It is achieved with two parameters, used under certain conditions: `--input_shap
 @anchor when_to_specify_input_shapes
 ## Specifying --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
-However, if the shape of data is not going to change from one inference to another,
+However, if the shape of data is not going to change from one inference request to another,
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
 This can be beneficial in terms of performance and memory consumption.
 To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
