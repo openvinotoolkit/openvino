@@ -1,7 +1,7 @@
 # Using Encrypted Models with OpenVINO  {#openvino_docs_OV_UG_protecting_model_guide}
 
 Deploying deep-learning capabilities to edge devices can present security
-challenges, likes of: ensuring inference integrity or providing copyright
+challenges like ensuring inference integrity, or providing copyright
 protection of your deep-learning models.
 
 One possible solution is to use cryptography to protect models as they are
