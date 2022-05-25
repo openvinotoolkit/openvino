@@ -202,7 +202,7 @@ For more details, see [preprocessing API guide](../preprocessing_overview.md).
 ### Models Caching
 CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO™ `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
 This cached blob contains some intermediate representation of the network that it has after common runtime optimizations and low precision transformations.
-The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial IR, so the aforementioned transformation steps will be skipped.
+The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial OpenVINO IR, so the aforementioned transformation steps will be skipped.
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
 thereby reducing first inference latency (FIL).
 
