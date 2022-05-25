@@ -16,7 +16,7 @@ For an in-depth description of the GPU plugin, see:
 - [OpenVINO Runtime GPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/)
 - [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
 
-It is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the [GPU configuration page](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
+The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the [GPU configuration](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
 ## Device Naming Convention
 * Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}`. Only Intel® GPU devices are considered.
