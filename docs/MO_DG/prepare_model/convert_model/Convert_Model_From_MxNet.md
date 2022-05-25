@@ -51,7 +51,7 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 In this document, you learned:
 
 * Basic information about how the Model Optimizer works with MXNet\* models
-* Which MXNet models are supported
+* Which MXNet models are supported.
 * How to convert a trained MXNet model by using the Model Optimizer with both framework-agnostic and MXNet-specific command-line options.
 
 ## See Also
