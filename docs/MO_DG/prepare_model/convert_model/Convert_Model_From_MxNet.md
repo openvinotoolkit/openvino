@@ -1,7 +1,7 @@
 # Converting an MXNet Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
 ## Converting an MXNet Model <a name="ConvertMxNet"></a>
-To convert an MXNet model, run Model Optimizer with a path to the input model *`.params`* file:
+<a name="ConvertMxNet"></a>To convert an MXNet model, run Model Optimizer with the path to the *`.params`* file of the input model:
 
 ```sh
  mo --input_model model-file-0000.params
