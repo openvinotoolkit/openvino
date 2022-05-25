@@ -486,7 +486,7 @@ For more information, refer to the [Converting an MXNet Model](convert_model/Con
 #### 84. What does the message "Unsupported Input model file type ... Model Optimizer support only .params and .nd files format" mean? <a name="question-84"></a>
 
 Model Optimizer for MXNet supports only `.params` and `.nd` files formats. Most likely, you specified some unsupported file format in `--input_model`.
-For more information, refer to the [Converting an MXNet Model](convert_model/Convert_Model_From_MxNet.md).
+For more information, refer to [Converting an MXNet Model](convert_model/Convert_Model_From_MxNet.md).
 
 #### 85. What does the message "Operation ... not supported. Please register it as custom op" mean? <a name="question-85"></a>
 
