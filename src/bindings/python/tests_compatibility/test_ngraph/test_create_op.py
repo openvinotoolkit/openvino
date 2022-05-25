@@ -2072,3 +2072,27 @@ def test_softsign():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == input_shape
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_rdft():
+    param = ng.parameter([5, 3, 4], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.rdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "RDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4, 2]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_irdft():
+    param = ng.parameter([5, 3, 4, 2], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.irdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "IRDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4]
+    assert node.get_output_element_type(0) == Type.f32
