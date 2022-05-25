@@ -264,7 +264,7 @@ on waiting for the completion of inference. The pseudo-code may look as follows:
    as internally it waits for a partial or full network completion.
    Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
  - Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
- - Throughput mode is not available when queue sharing is used, i.e. only a single stream can be used for each compiled model.
+ - Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
 
 ## Low-Level Methods for RemoteContext and RemoteTensor Creation
 
