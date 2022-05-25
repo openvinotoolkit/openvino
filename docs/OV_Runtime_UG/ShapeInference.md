@@ -207,7 +207,7 @@ To do the opposite - resize input image to the input shapes of the model, use th
 
 2) Otherwise, you can express reshape plan via dictionary mapping input and its new shape:
 Dictionary keys could be:
-* `str` specifies input by its name
+* The `str` specifies input by its name.
 * `int` specifies input by its index
 * `openvino.runtime.Output` specifies input by passing actual input object
 
