@@ -22,7 +22,7 @@ For more information on conducting performance measurements with the `benchmark_
 
 ## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.
-For example the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
+For example, the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
 Additionally, the optimal batch size is selected for the GPU and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible. To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.
 (To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.)
 
