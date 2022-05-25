@@ -214,7 +214,7 @@ Dictionary keys could be:
 Dictionary values (representing new shapes) could be:
 * The `list`.
 * The `tuple`.
-* `PartialShape`
+* The `PartialShape`.
 
 @sphinxdirective
 
