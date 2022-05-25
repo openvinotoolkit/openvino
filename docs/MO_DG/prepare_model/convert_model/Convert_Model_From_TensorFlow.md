@@ -59,7 +59,7 @@ Where:
 * `sess` is the instance of the TensorFlow Session object where the network topology is defined.
 * `["name_of_the_output_node"]` is the list of output node names in the graph; `frozen` graph will
     include only those nodes from the original `sess.graph_def` that are directly or indirectly used
-    to compute given output nodes. The `'name_of_the_output_node'` is an example of possible output
+    to compute given output nodes. The `'name_of_the_output_node'` is an example of a possible output
     node name. You should derive the names based on your own graph.
 * `./` is the directory where the inference graph file should be generated.
 * `inference_graph.pb` is the name of the generated inference graph file.
