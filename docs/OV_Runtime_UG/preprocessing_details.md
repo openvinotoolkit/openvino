@@ -318,7 +318,7 @@ Preprocessing uses the following flow:  **User tensor** -> **Steps** -> **Model 
 
 Postprocessing uses the reverse:  **Model output** -> **Steps** -> **User tensor**.
 
-Compared to preprocessing, there are not so many operations needed for post-processing stage. Currently, only the following postprocessing operations are supported:
+Compared to pre-processing, there are not so many operations needed for post-processing stage. Currently, only the following post-processing operations are supported:
  - Convert a [layout](./layout_overview.md).
  - Convert an element type.
  - Customize operations.
