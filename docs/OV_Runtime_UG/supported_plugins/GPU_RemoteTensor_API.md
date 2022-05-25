@@ -238,7 +238,7 @@ the plugin for further execution of inference primitives. Sharing the queue chan
 method to guarantee that submission of inference primitives into the given queue is finished before
 returning control back to the calling thread.
 
-This sharing mechanism allows doing pipeline synchronization on the app side and avoiding blocking the host thread
+This sharing mechanism allows performing pipeline synchronization on the app side and avoiding blocking the host thread
 on waiting for the completion of inference. The pseudo-code may look as follows:
 
 @sphinxdirective
