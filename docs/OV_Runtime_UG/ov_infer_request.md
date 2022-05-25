@@ -222,7 +222,9 @@ The `ov::InferRequest` allows you to get input/output tensors by tensor name, in
 
     @endsphinxtabset
 
-## Examples of InferRequest Usages
+## Examples of Infer Request Usages
+
+Presented below are examples of what the Infer Request can be used for.
 
 ### Cascade of Models
 
