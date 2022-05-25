@@ -33,7 +33,7 @@ For Inception_V1, there is one `Placeholder`: input. If the model is viewed in t
 
 The `Reshape` is the only output operation, which is enclosed in a nested name scope `InceptionV1/Logits/Predictions`, under full name of `InceptionV1/Logits/Predictions/Reshape_1`.
 
-In the TensorBoard, along with some of its predecessors, it looks as follows:
+In TensorBoard, along with some of its predecessors, it looks as follows:
 
 ![TensorBoard with predecessors](../../img/inception_v1_std_output.png)
 
