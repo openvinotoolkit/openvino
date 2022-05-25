@@ -105,3 +105,45 @@ def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
     :return: New node with SoftSign operation applied on each element of it.
     """
     return _get_node_factory_opset9().create("SoftSign", [as_node(node)], {})
+
+
+@nameable_op
+def rdft(
+        data: NodeInput,
+        axes: NodeInput,
+        signal_size: Optional[NodeInput] = None,
+) -> Node:
+    """Return a node which performs RDFT operation.
+
+    :param data: Tensor with data.
+    :param axes: Tensor with axes to transform.
+    :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
+    :return: The new node which performs RDFT operation on the input data tensor.
+    """
+    if signal_size is None:
+        inputs = as_nodes(data, axes)
+    else:
+        inputs = as_nodes(data, axes, signal_size)
+
+    return _get_node_factory_opset9().create("RDFT", inputs)
+
+
+@nameable_op
+def irdft(
+        data: NodeInput,
+        axes: NodeInput,
+        signal_size: Optional[NodeInput] = None,
+) -> Node:
+    """Return a node which performs IRDFT operation.
+
+    :param data: Tensor with data.
+    :param axes: Tensor with axes to transform.
+    :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
+    :return: The new node which performs IRDFT operation on the input data tensor.
+    """
+    if signal_size is None:
+        inputs = as_nodes(data, axes)
+    else:
+        inputs = as_nodes(data, axes, signal_size)
+
+    return _get_node_factory_opset9().create("IRDFT", inputs)
