@@ -28,7 +28,7 @@ Consider the following standard example: deep learning model expects input with 
 ![](img/preprocess_not_fit.png)
 
 
-Even though all these steps can be relatively easy to implement manually in the application code before actual inference, it is possible to do it with Preprocessing API. Reasons to use this API are:
+Even though all these steps can be relatively easy to implement manually in the application code before actual inference, it is possible to do it with Preprocessing API. Advantages of using this API are:
  - Preprocessing API is easy to use.
  - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
