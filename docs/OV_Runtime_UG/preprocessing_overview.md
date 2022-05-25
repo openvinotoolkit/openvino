@@ -109,7 +109,7 @@ Model input already has information about precision and shape. Preprocessing API
 @endsphinxtabset
 
 
-Now, if model input has the `{1,3,224,224}` shape, preprocessing will be able to identify the `height=224`, `width=224`, and `channels=3` of that model. The `height`/`width` information is necessary for `resize`, and `channels` is needed for mean/scale normalization.
+Now, if the model input has `{1,3,224,224}` shape, preprocessing will be able to identify the `height=224`, `width=224`, and `channels=3` of that model. The `height`/`width` information is necessary for `resize`, and `channels` is needed for mean/scale normalization.
 
 ### Preprocessing Steps
 
