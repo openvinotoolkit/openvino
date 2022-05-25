@@ -40,7 +40,7 @@ To generate the BERT Intermediate Representation (IR) of the model, run Model Op
 
 Pretrained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
 
-# Converting a Reshape-able TensorFlow BERT Model to IR
+# Converting a Reshapable TensorFlow BERT Model to OpenVINO IR
 
 Follow these steps to make a pretrained TensorFlow BERT model reshape-able over batch dimension:
 1. Download a pretrained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
