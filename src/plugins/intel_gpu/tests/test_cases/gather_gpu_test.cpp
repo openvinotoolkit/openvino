@@ -47,31 +47,30 @@ public:
     std::vector<int> shape_out;
 
     void SetUp() override {
+        auto& engine = get_test_engine();
+
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1]) = GetParam();
         fmt[2] = fmt[0];
 
         // refer: src/core/shape_inference/include/gather_shape_inference.hpp
-        shape_out =
-            std::vector<int>(std::max<int>(shape_in[0].size(),
-                                           get_not_one_dim(shape_in[0]) - 1 + get_not_one_dim(shape_in[1]) - batch_dim),
-                             1);
+        size_t out_dim = get_not_one_dim(shape_in[0]) - 1 + get_not_one_dim(shape_in[1]) - batch_dim;
+        shape_out = std::vector<int>(std::max(shape_in[0].size(), out_dim), 1);
         for (int i = 0; i < batch_dim; i++)  // batch_dim
             shape_out[i] = shape_in[0][i];
         for (int i = batch_dim; i < axis; i++)  // before axis = shape_in[0][..]
             shape_out[i] = shape_in[0][i];
         for (int i = batch_dim; i < get_not_one_dim(shape_in[1]); i++)  // axis = shape_in[1]
             shape_out[axis + (i - batch_dim)] = shape_in[1][i];
-        for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++) {  // after axis = shape_in[0][..]
+        for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
-        }
 
-        auto& engine = get_test_engine();
-
-        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
+        auto dat =
+            generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0 =
             engine.allocate_memory(layout(T_dat_dt,
                                           format::get_default_format(shape_in[0].size()),
                                           tensor(format::get_default_format(shape_in[0].size()), shape_in[0])));
+        set_values(input0, dat);
 
         auto ind =
             generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
@@ -79,8 +78,6 @@ public:
             engine.allocate_memory(layout(T_ind_dt,
                                           format::get_default_format(shape_in[1].size()),
                                           tensor(format::get_default_format(shape_in[1].size()), shape_in[1])));
-
-        set_values(input0, dat);
         set_values(input1, ind);
 
         topology reorder_topo;
@@ -96,11 +93,9 @@ public:
                                 batch_dim,
                                 true));
         reorder_topo.add(reorder("reorder2", "gather", format::type::bfwzyx, T_dat_dt));
-
         network reorder_network(engine, reorder_topo);
         reorder_network.set_input_data("input0", input0);
         reorder_network.set_input_data("input1", input1);
-
         auto reorder_output = reorder_network.execute().at("reorder2").get_memory();
         cldnn::mem_lock<T_dat> reorder_output_ptr(reorder_output, get_test_stream());
 
@@ -109,11 +104,9 @@ public:
         planar_topo.add(input_layout("input1", input1->get_layout()));
         planar_topo.add(
             gather("gather", "input0", "input1", axis, ov::Shape(shape_out.begin(), shape_out.end()), batch_dim, true));
-
         network planar_network(engine, planar_topo);
         planar_network.set_input_data("input0", input0);
         planar_network.set_input_data("input1", input1);
-
         auto planar_output = planar_network.execute().at("gather").get_memory();
         cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
 
