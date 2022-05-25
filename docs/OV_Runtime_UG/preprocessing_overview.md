@@ -39,7 +39,7 @@ Intuitively, preprocessing API consists of the following parts:
  2. 	**Steps** - It describes sequence of preprocessing steps which need to be applied to user data.
  3. 	**Model** - It specifies model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
 
-> **Note:** Graph modification of a model shall be performed after a model is read from a disk and **before** it is loaded on actual device.
+> **NOTE**: Graph modifications of a model shall be performed after a model is read from a disk and **before** it is loaded on actual device.
 
 ### PrePostProcessor Object
 
