@@ -50,7 +50,7 @@ You can use the `ov::InferRequest::infer`, which blocks the application executio
 
 ### Asynchronous Mode
 
-Asynchronous mode can improve overall application frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use the `ov::InferRequest::start_async` to infer a model in the asynchronous mode:
+Asynchronous mode can improve overall application frame-rate. It is possible, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. The `ov::InferRequest::start_async` can be used to infer a model in the asynchronous mode:
 
 @sphinxtabset
 
