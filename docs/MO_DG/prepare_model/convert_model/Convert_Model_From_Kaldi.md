@@ -53,7 +53,7 @@ Kaldi-specific parameters:
 
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-  > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
+   > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
 
   > **NOTE**: You can use the OpenVINO Speech Recognition sample application for sample inference of Kaldi models. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.
 
