@@ -1,6 +1,6 @@
 # Converting a Kaldi Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
-> **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
+> **NOTE**: Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. The support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
  
 To convert a Kaldi model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file:
 
