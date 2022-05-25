@@ -91,7 +91,7 @@ Intel® GNA essentially operates in the low-precision mode which represents a mi
 
 GNA plugin users are encouraged to use the [Post-Training Optimization Tool](@ref pot_introduction) to get a model with quantization hints based on statistics for the provided dataset.
 
-Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time. Thus, a model can be run without calibration. However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics, the efficiency of which depends on the model and dynamic range of input data. This mode is going to be deprecated soon.
+Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time. Therefore, a model can be run without calibration. However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics, the efficiency of which depends on the model and dynamic range of input data. This mode is going to be deprecated soon.
 
 GNA plugin supports the `i16` and `i8` quantized data types as inference precision of internal primitives.
 
