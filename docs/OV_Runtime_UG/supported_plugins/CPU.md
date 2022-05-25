@@ -48,7 +48,7 @@ The `u1/u8/i8` data types are used for quantized operations only, i.e., those ar
 
 See the [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
 
-> **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue", which in some cases leads to reduced computational accuracy for u8/i8 precision calculations.
+> **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue", which in some cases leads to reduced computational accuracy for `u8/i8` precision calculations.
 > See the [saturation (overflow) issue section](@ref pot_saturation_issue) to get more information on how to detect such issues and possible workarounds.
 
 ### Floating Point Data Types Specifics
