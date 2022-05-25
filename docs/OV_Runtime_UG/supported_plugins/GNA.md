@@ -155,7 +155,7 @@ Import model:
 To compile a model, use either [compile Tool](@ref openvino_inference_engine_tools_compile_tool_README) or [Speech C++ Sample](@ref openvino_inference_engine_samples_speech_sample_README).
 
 ### Stateful Models
-GNA plugin natively supports stateful models.
+GNA plugin natively supports stateful models. For more details on such models, refer to the [Stateful models] (@ref openvino_docs_OV_UG_network_state_intro).
 
 For more details on such models, refer to the [Stateful models] (@ref openvino_docs_OV_UG_network_state_intro).
 
