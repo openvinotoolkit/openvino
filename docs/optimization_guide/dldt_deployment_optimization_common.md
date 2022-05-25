@@ -26,7 +26,7 @@ In the example below, inference is applied to the results of the video decoding.
 
 Below are example-codes for the regular and async-based approaches to compare:
 
--	In the regular way, the frame is captured with OpenCV and then immediately processed:<br>
+-	Normally, the frame is captured with OpenCV and then immediately processed:<br>
 
 @snippet snippets/dldt_optimization_guide8.cpp part8
 
