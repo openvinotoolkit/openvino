@@ -11,7 +11,7 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
 
 OpenVINO™ Runtime allows to use different approaches to work with model inputs/outputs:
- - `ov::Model::inputs()`/`ov::Model::outputs()` methods allow to get vector of all input/output ports.
+ - The `ov::Model::inputs()`/`ov::Model::outputs()` methods allow to get vector of all input/output ports.
  - For a model which has only one input or output you can use methods `ov::Model::input()` or `ov::Model::output()` without arguments to get input or output port respectively.
  - Methods `ov::Model::input()` and `ov::Model::output()` can be used with index of input or output from the framework model to get specific port by index.
  - You can use tensor name of input or output from the original framework model together with methods `ov::Model::input()` or `ov::Model::output()` to get specific port. It means that you do not need to have any additional mapping of names from framework to OpenVINO, as it was before, OpenVINO™ Runtime allows using native framework tensor names.
