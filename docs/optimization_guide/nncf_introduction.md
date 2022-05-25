@@ -1,12 +1,12 @@
 # Neural Network Compression Framework {#docs_nncf_introduction}
 
-This article describes the Neural Network Compression Framework (NNCF). It is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc., to the original framework model. NNCF provides in-training optimization capabilities which means that optimization methods require model fine-tuning or even re-training. NNCF is distributed as a separate tool but is highly aligned with OpenVINO in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf). The diagram below shows the model optimization workflow using NNCF.
+This article describes the Neural Network Compression Framework (NNCF). It is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc. to the original framework model. NNCF provides in-training optimization capabilities which means that optimization methods require model fine-tuning or even re-training. NNCF is distributed as a separate tool but is highly aligned with OpenVINO in terms of the supported optimization features and models. It is open source and available on [GitHub](https://github.com/openvinotoolkit/nncf). The diagram below shows the model optimization workflow, using NNCF.
 
 ![](../img/nncf_workflow.png)
 
 ### Features
-- Support optimization of PyTorch and TensorFlow 2.x models.
-- Support of various optimization algorithms, applied during a model fine-tuning process to achieve a better performance-accuracy trade-off:
+- Support of optimization of PyTorch and TensorFlow 2.x models.
+- Support of various optimization algorithms, applied during a model fine-tuning process to achieve a better trade-off between performance and accuracy:
   
  |Compression algorithm|PyTorch|TensorFlow 2.x|
  | :--- | :---: | :---: |
@@ -19,15 +19,15 @@ This article describes the Neural Network Compression Framework (NNCF). It is ai
 - Stacking of optimization methods, for example: 8-bit quaNtization + Filter Pruning.
 - Support for [Accuracy-Aware model training](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#accuracy-aware-model-training) pipelines via the [Adaptive Compression Level Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/AdaptiveCompressionLevelTraining.md) and [Early Exit Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/EarlyExitTrainig.md).
 - Automatic, configurable model graph transformation to obtain the compressed model.
-  > **NOTE**: Only the models created, using Sequential or Keras Functional API, are supported. Support for TensorFlow models is limited. 
-- GPU-accelerated layers for the faster compressed model fine-tuning.
+  > **NOTE**: Only models created using Sequential or Keras Functional API are supported. Support for TensorFlow models is limited. 
+- GPU-accelerated layers for faster compressed model fine-tuning.
 - Distributed training support.
 - Configuration of file examples for each supported compression algorithm.
 - Exporting PyTorch compressed models to ONNX checkpoints and TensorFlow compressed models to SavedModel or Frozen Graph format, ready to use with [OpenVINO toolkit](https://github.com/openvinotoolkit/).
-- Git patches for prominent third-party repositories ([huggingface-transformers](https://github.com/huggingface/transformers)) demonstrating the process of integrating NNCF into custom training pipelines
+- Git patches for prominent third-party repositories ([huggingface-transformers](https://github.com/huggingface/transformers)) demonstrating the process of integrating NNCF into custom training pipelines.
 
 ## Installation
-NNCF provides the packages available for installation through the PyPI repository. To install the latest version via pip manager run the following command:
+NNCF provides the packages available for installation through the PyPI repository. To install the latest version via pip manager, run the following command:
 ```
 pip install nncf
 ```

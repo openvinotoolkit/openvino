@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
- Model optimization is an optional offline step of improving final model performance by applying special optimization methods like quantization, pruning, preprocessing optimization, etc. OpenVINO provides several tools to optimize models at different steps of model development:
+ Model optimization is an optional offline step of improving final model performance by applying special optimization methods, such as quantization, pruning, preprocessing optimization, etc. OpenVINO provides several tools to optimize models at different steps of model development:
 
 - **Model Optimizer** implements most of the optimization parameters to a model by default. Yet, you are free to configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed up preprocess of a model ([Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)) .
 
@@ -25,13 +25,13 @@
 
 ![](../img/DEVELOPMENT_FLOW_V3_crunch.svg)
 
-Below diagram was prepared to help you undertstand, which development optimization tool you need to use: 
+The diagram below will help you understand, which development optimization tool you need to use: 
 
 ![](../img/WHAT_TO_USE.svg)
 
-Post-training methods are limited in terms of achievable accuracy. For challenging use cases accuracy might degrade. In that case, training-time optimization with NNCF is an option.
+Post-training methods are limited in terms of achievable accuracy. For challenging use cases, accuracy might degrade. When it happens, training-time optimization with NNCF is an option.
 
-Once the model is optimized using the aforementioned tools it can be used for inference using the regular OpenVINO inference workflow. No changes to the code are required.
+Once the model has been optimized using the aforementioned tools, it can be used for inference using the regular OpenVINO inference workflow. No changes to the code are required.
 
 If you are not familiar with model optimization methods, it is recommended to start with [post-training methods](@ref pot_introduction).
 
