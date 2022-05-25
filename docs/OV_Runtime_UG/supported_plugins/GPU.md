@@ -235,7 +235,7 @@ With such preprocessing, GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTe
 
 For usage examples, refer to the [RemoteTensor API](./GPU_RemoteTensor_API.md).
 
-For more details, see the [preprocessing API guide](../preprocessing_overview.md).
+For more details, see the [preprocessing API](../preprocessing_overview.md).
 
 ### Model Caching
 Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels,
