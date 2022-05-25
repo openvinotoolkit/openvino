@@ -17,7 +17,7 @@ In case you need to do this only once prepare a model with updated shapes via [M
 ### Set a New Input Shape with Reshape Method
 
 The `ov::Model::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers.
-Example: Changing the batch size and spatial dimensions of input of a model with an image input:
+For example, changing the batch size and spatial dimensions of input of a model with an image input:
 
 ![shape_inference_explained](./img/original_vs_reshaped_model.png)
 
