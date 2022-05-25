@@ -148,6 +148,7 @@ set(SRC
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/gelu.cpp
+    type_prop/grid_sample.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
