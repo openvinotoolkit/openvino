@@ -377,7 +377,7 @@ Different behavior occurs when `--input_shape` is also used as an attempt to ove
 ```sh
 mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 ```
-An error occurs (for more information, see the <a href="MO_FAQ.html#FAQ30">FAQ #30</a>):
+An error occurs (for more information, see the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md#FAQ30)):
 ```sh
 [ ERROR ]  Node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution has more than 1 input and input shapes were provided.
 Try not to provide input shapes or specify input port with PORT:NODE notation, where PORT is an integer.
