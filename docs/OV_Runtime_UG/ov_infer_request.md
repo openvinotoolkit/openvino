@@ -269,7 +269,7 @@ It is possible to re-use shared input by several models. You do not need to allo
 
 ### Using of Remote Tensors
 
-You can create a remote tensor to work with remote device memory. The `ov::RemoteContext` allows creating remote tensor.
+By using the `ov::RemoteContext` you can create a remote tensor to work with remote device memory.
 
 @sphinxtabset
 
