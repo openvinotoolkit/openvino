@@ -125,7 +125,7 @@ When you are running several inference requests in parallel, a device can proces
 
 
 > **NOTE**: Use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>`, etc.) in the callback. It is necessary to avoid cyclic references.
-For more details, see the [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md) guide.
+For more details, see the [Classification Async Sample](../../samples/cpp/classification_sample_async/README.md).
 
 You can use the `ov::InferRequest::cancel` method if you want to abort execution of the current inference request:
 
