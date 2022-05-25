@@ -1,6 +1,6 @@
 # Converting a Caffe Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
 
-To convert a Caffe model, run Model Optimizer with the path to the input model *`.caffemodel`* file:
+<a name="Convert_From_Caffe"></a>To convert a Caffe model, run Model Optimizer with the path to the input model `.caffemodel` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.caffemodel
