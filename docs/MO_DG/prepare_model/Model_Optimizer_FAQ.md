@@ -491,7 +491,7 @@ For more information, refer to [Converting an MXNet Model](convert_model/Convert
 #### 85. What does the message "Operation ... not supported. Please register it as custom op" mean? <a name="question-85"></a>
 
 Model Optimizer tried to load the model that contains some unsupported operations.
-If you want to convert model that contains unsupported operations you need to prepare extension for all such operations.
+If you want to convert model that contains unsupported operations, you need to prepare extension for all such operations.
 For more information, refer to the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 86. What does the message "Can not register Op ... Please, call function 'register_caffe_python_extractor' with parameter 'name'" mean? <a name="question-86"></a>
@@ -499,7 +499,7 @@ For more information, refer to the [OpenVINO&trade; Extensibility Mechanism](../
 This error appears if the class of implementation of `Op` for Python Caffe layer could not be used by Model Optimizer. Python layers should be handled differently compared to ordinary Caffe layers.
 
 In particular, you need to call the function `register_caffe_python_extractor` and pass `name` as the second argument of the function.
-The name should be the compilation of the layer name and the module name separated by a dot.
+The name should be the compilation of the layer name with the module name separated by a dot.
 
 For example, your topology contains this layer with type `Python`:
 
@@ -534,7 +534,7 @@ register_caffe_python_extractor(ProposalPythonExampleOp, 'rpn.proposal_layer.Pro
 Op.excluded_classes.append(ProposalPythonExampleOp)
 ```
 
-> **NOTE**: The first call <code>register_caffe_python_extractor(ProposalPythonExampleOp, 'rpn.proposal_layer.ProposalLayer')</code> registers an extension of the layer in Model Optimizer, that will be found by the specific name (mandatory to join module name and layer name): <code>rpn.proposal_layer.ProposalLayer</code>.
+Note that the first call <code>register_caffe_python_extractor(ProposalPythonExampleOp, 'rpn.proposal_layer.ProposalLayer')</code> registers an extension of the layer in Model Optimizer, which will be found by the specific name (mandatory to join module name and layer name): <code>rpn.proposal_layer.ProposalLayer</code>.
 
 The second call prevents Model Optimizer from using this extension as if it is an extension for
 a layer with type `Proposal`. Otherwise, this layer can be chosen as an implementation of extension that can lead to potential issues.
@@ -548,31 +548,31 @@ This is a known limitation.
 
 #### 88. What do the messages "File ...  does not appear to be a Kaldi file (magic number does not match)", "Kaldi model should start with <Nnet> tag" mean? <a name="question-88"></a>
 
-These error messages mean that Model Optimizer does not support your Kaldi model, because checksum of the model is not
+These error messages mean that Model Optimizer does not support your Kaldi model, because the `checksum` of the model is not
 16896 (the model should start with this number) or model file does not contain tag `<Net>` as a starting one.
-Double check that you provide a path to a true Kaldi model and try again.
+Make sure that you provide a path to a true Kaldi model and try again.
 
 #### 89. What do the messages "Expect counts file to be one-line file." or "Expect counts file to contain list of integers" mean? <a name="question-89"></a>
 
-These messages mean that you passed the file counts containing not one line. The count file should start with
+These messages mean that the file counts you passed contain not one line. The count file should start with
 `[`* and end with  *`]`,  and integer values should be separated by space between those brackets.
 
 #### 90. What does the message "Model Optimizer is not able to read Kaldi model .." mean? <a name="question-90"></a>
 
-There are multiple reasons why Model Optimizer does not accept a Kaldi topology:
-file is not available or does not exist. Refer to the FAQ [#88](#question-88).
+There are multiple reasons why Model Optimizer does not accept a Kaldi topology, including: 
+the file is not available or does not exist. Refer to FAQ [#88](#question-88).
 
 #### 91. What does the message "Model Optimizer is not able to read counts file  .." mean? <a name="question-91"></a>
 
-There are multiple reasons why Model Optimizer does not accept a counts file:
-file is not available or does not exist. Refer to the FAQ [#89](#question-89).
+There are multiple reasons why Model Optimizer does not accept a counts file, including: 
+the file is not available or does not exist. Refer to FAQ [#89](#question-89).
 
 #### 92. What does the message "For legacy MXNet models Model Optimizer does not support conversion of old MXNet models (trained with 1.0.0 version of MXNet and lower) with custom layers." mean? <a name="question-92"></a>
 
-This message means that if you have model with custom layers and its json file has been generated with MXNet version
+This message means that if you have a model with custom layers and its JSON file has been generated with MXNet version
 lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it, you have to rebuild
-MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. You also need to implement
-OpenVINO extension for used custom layers.
+MXNet with unsupported layers or generate a new JSON file with MXNet version 1.0.0 or higher. You also need to implement
+OpenVINO extension to use custom layers.
 For more information, refer to the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 93. What does the message "Graph contains a cycle. Can not proceed .." mean?  <a name="question-93"></a>
@@ -586,23 +586,23 @@ For Tensorflow:
 
 For all frameworks:
 1. [Replace cycle containing Sub-graph in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md)
-2. [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md)
+2. See [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md)
 
 or
-* Edit model in original framework to exclude cycle.
+* Edit the model in its original framework to exclude cycle.
 
 #### 94. What does the message "Can not transpose attribute '..' with value .. for node '..' .." mean?  <a name="question-94"></a>
 
-This message means that model is not supported. It may be caused by using shapes larger than 4-D.
+This message means that the model is not supported. It may be caused by using shapes larger than 4-D.
 There are two ways to avoid such message:
 
-1. [Cut Off Parts of a Model](convert_model/Cutting_Model.md).
-2. Edit network in original framework to exclude such layers.
+* [Cut off parts of the model](convert_model/Cutting_Model.md).
+* Edit the network in its original framework to exclude such layers.
 
 #### 95. What does the message "Expected token `</ParallelComponent>`, has `...`" mean?  <a name="question-95"></a>
 
 This error messages mean that Model Optimizer does not support your Kaldi model, because the Net contains `ParallelComponent` that does not end with `</ParallelComponent>` tag.
-Double check that you provide a path to a true Kaldi model and try again.
+Make sure that you provide a path to a true Kaldi model and try again.
 
 #### 96. What does the message "Interp layer shape inference function may be wrong, please, try to update layer shape inference function in the file (extensions/ops/interp.op at the line ...)." mean?  <a name="question-96"></a>
 
@@ -627,8 +627,8 @@ If a `*.caffemodel` file exists and it is correct, the error possibly occurred d
 The issue "SyntaxError: `yield` inside list comprehension" might occur during converting MXNet models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows platform with Python 3.8 environment. This issue is caused by API changes for `yield expression` in Python 3.8.
 The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet models on Windows
-2. Update MXNet: pip install mxnet=1.7.0.post2
-Note that you might have conflicts between previously installed PyPI dependencies.
+2. Update MXNet by using `pip install mxnet=1.7.0.post2`
+Note that it might have conflicts with previously installed PyPI dependencies.
 
 #### 101. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-101"></a>
 
