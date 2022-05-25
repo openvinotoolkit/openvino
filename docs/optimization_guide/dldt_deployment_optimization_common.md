@@ -15,7 +15,7 @@ In many cases, a network expects a pre-processed image. It is advised not to per
 ## Prefer OpenVINO Async API
 The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer()` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the `infer()` into `ov::InferRequest::start_async()` and `ov::InferRequest::wait()`. For more information, see the [API examples](../OV_Runtime_UG/ov_infer_request.md).
 
-A typical use-case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, results parsing and associated logic) is kept serial within the thread.
+A typical use case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, parsing the results, and associated logic) is kept serial within the thread.
 In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion when really needed. So one reason for using asynchronous code is _efficiency_.
 
 > **NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code it is prefered to use the Asynchronous (callbacks-based, below) API. The reason for that is that it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
