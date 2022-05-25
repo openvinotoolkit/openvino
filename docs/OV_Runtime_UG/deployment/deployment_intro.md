@@ -35,7 +35,7 @@ The table below shows which distribution type can be used, depending on a target
 | [Local distribution](local-distribution.md) | All operating systems |
 | [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
 
-Depending on the distribution type, the granularity of OpenVINO packages may vary. For example, PyPi distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local distribution](local-distribution.md) is a more configurable type, thus providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
+Depending on the distribution type, the granularity of OpenVINO packages may vary. For example, PyPi distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local distribution](local-distribution.md) is a more configurable type - providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
 ![deployment_simplified]
 
