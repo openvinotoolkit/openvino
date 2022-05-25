@@ -63,7 +63,7 @@ mode on the existing HW.
 - `"activations"` - this section manually defines quantization scheme for activations and the way to estimate the 
 quantization range for that. As before, changing the quantization scheme may lead to inability to infer such
 mode on the existing HW:
-    - `"bits"` - bit-width, default is "8".
+    - `"bits"` - bit-width, the default value is "8".
     - `"mode"` - a quantization mode (symmetric or asymmetric).
     - `"level_low"` - the minimum level in the integer range to quantize. The default is "0" for an unsigned range, and "-2^(bit-1)" for a signed one.
     - `"level_high"` - the maximum level in the integer range to quantize. The default is "2^bits-1" for an unsigned range, and "2^(bit-1)-1" for a signed one. 
