@@ -296,7 +296,7 @@ Below is a list of such operations:
 The behavior depends on specific parameters of the operations and hardware configuration.
 
 ## GPU Performance Checklist: Summary <a name="gpu-checklist"></a>
-Since OpenVINO relies on the OpenCL&trade; kernels for the GPU implementation, many general OpenCL tips apply:
+Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 -	Prefer `FP16` inference precision over `FP32`, as Model Optimizer can generate both variants, and the `FP32` is the default. Also, consider using the [Post-training Optimization Tool](https://docs.openvino.ai/latest/pot_introduction.html).
 - Try to group individual infer jobs by using [automatic batching](../automatic_batching.md).
 -	Consider [caching](../Model_caching_overview.md) to minimize model load time.
