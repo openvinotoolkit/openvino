@@ -35,7 +35,7 @@ When a model is run, using the GNA plugin, it is compiled internally for the spe
 
 For optimal work with POT quantized models (which includes 2D convolutions on GNA 3.0 hardware) the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
 
-Choose a compile target with regard to the priority: cross-platform execution, performance, memory, or power optimization.
+Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 
 Use the following properties to check interoperability in your application: `ov::intel_gna::execution_target` and `ov::intel_gna::compile_target`.
 
