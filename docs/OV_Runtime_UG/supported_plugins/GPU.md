@@ -22,7 +22,7 @@ The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For
 * Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}` (only Intel® GPU devices are considered).
 * If the system has an integrated GPU, its `id` is always 0 (`GPU.0`).
 * Order of other GPUs is not predefined and depends on the GPU driver.
-* `GPU` is an alias for `GPU.0`
+* The `GPU` is an alias for `GPU.0`.
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as `GPU.X.Y`, where `X,Y={0, 1, 2,...}`, `X` - id of the GPU device, `Y` - id of the tile within device `X`
 
