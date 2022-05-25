@@ -7,7 +7,7 @@ For many applications, it is also important to minimize read/load time of a mode
 
 Most of existing preprocessing steps can also be performed via command-line options, using Model Optimizer tool. For details on such command-line options, refer to the [Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md).
 
-## Code example - Saving Model with Preprocessing to IR
+## Code example - Saving Model with Preprocessing to OpenVINO IR
 
 When some preprocessing steps cannot be integrated into execution graph using Model Optimizer command-line options (e.g. `YUV`->`RGB` color space conversion, `Resize`, etc.), it is possible to write a simple code which:
  - Reads the original model (IR, ONNX, Paddle).
