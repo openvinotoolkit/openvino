@@ -18,13 +18,12 @@ A special `ov::hint::PerformanceMode::UNDEFINED` hint acts the same as specifyin
 
 For more information on conducting performance measurements with the `benchmark_app`, refer to the last section in this document.
 
-> **NOTE:** A typical model may take significantly more time to load with `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to `ov::hint::PerformanceMode::LATENCY`.
+Keep in mind that a typical model may take significantly more time to load with the `ov::hint::PerformanceMode::THROUGHPUT` and consume much more memory, compared to the `ov::hint::PerformanceMode::LATENCY`.
 
 ## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.
 For example, the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
 Additionally, the optimal batch size is selected for the GPU and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible. To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.
-(To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.)
 
 The resulting (device-specific) settings can be queried back from the instance of the `ov:Compiled_Model`.  
 Be aware that the `benchmark_app` outputs the actual settings for the `THROUGHPUT` hint. See the example of the output below:

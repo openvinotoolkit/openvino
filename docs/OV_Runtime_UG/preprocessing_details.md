@@ -1,12 +1,14 @@
-# Preprocessing API - Details {#openvino_docs_OV_UG_Preprocessing_Details}
+Pre-processing API - Details {#openvino_docs_OV_UG_Preprocessing_Details}
 
 The purpose of this article is to present details on preprocessing API, such as its capabilities and post-processing.
 
-## Preprocessing Capabilities
+## Pre-processing Capabilities
+
+Below is a full list of pre-processing API capabilities:
 
 ### Addressing Particular Input/Output
 
-If the model has only one input, then simple `ov::preprocess::PrePostProcessor::input()` will get a reference to preprocessing builder for this input (a tensor, the steps, a model):
+If the model has only one input, then simple `ov::preprocess::PrePostProcessor::input()` will get a reference to pre-processing builder for this input (a tensor, the steps, a model):
 
 @sphinxtabset
 
@@ -68,7 +70,7 @@ C++ references:
   * `ov::preprocess::PrePostProcessor`
 
 
-### Supported Preprocessing Operations
+### Supported Pre-processing Operations
 
 C++ references:
 * `ov::preprocess::PreProcessSteps`
@@ -120,7 +122,7 @@ C++ references:
 
 In Computer Vision, image is represented by an array of unsigned 8-but integer values (for each color), but model accepts floating point tensors.
 
-To integrate precision conversion into an execution graph as a preprocessing step, simply do the following:
+To integrate precision conversion into an execution graph as a pre-processing step, simply do the following:
 
 @sphinxtabset
 
@@ -194,7 +196,7 @@ C++ references:
 
 #### Resizing Image
 
-Resizing of an image is a typical preprocessing step for computer vision tasks. With preprocessing API, this step can also be integrated into execution graph and performed on a target device.
+Resizing of an image is a typical pre-processing step for computer vision tasks. With pre-processing API, this step can also be integrated into execution graph and performed on a target device.
 
 To resize the input image, it is needed to define `H` and `W` dimensions of the [layout](./layout_overview.md)
 
@@ -239,7 +241,7 @@ C++ references:
 
 #### Color Conversion
 
-Typical use case is to reverse color channels from `RGB` to `BGR` and vice versa. To do this, specify source color format in `tensor` section and perform `convert_color` preprocessing operation. In the example below, a `BGR` image needs to be converted to `RGB` as required for the model input.
+Typical use case is to reverse color channels from `RGB` to `BGR` and vice versa. To do this, specify source color format in `tensor` section and perform `convert_color` pre-processing operation. In the example below, a `BGR` image needs to be converted to `RGB` as required for the model input.
 
 @sphinxtabset
 
@@ -258,8 +260,8 @@ Typical use case is to reverse color channels from `RGB` to `BGR` and vice versa
 @endsphinxtabset
 
 #### Color Conversion - NV12/I420
-Preprocessing also supports YUV-family source color formats, i.e. NV12 and I420.
-In advanced cases, such YUV images can be split into separate planes, e.g. for NV12 images Y-component may come from one source and UV-component from another one. Concatenating such components in user's application manually is not a perfect solution from performance and device utilization perspectives. However, there is a way to use Preprocessing API. For such cases there are `NV12_TWO_PLANES` and `I420_THREE_PLANES` source color formats, which will split the original `input` into 2 or 3 inputs.
+Pre-processing also supports YUV-family source color formats, i.e. NV12 and I420.
+In advanced cases, such YUV images can be split into separate planes, e.g., for NV12 images Y-component may come from one source and UV-component from another one. Concatenating such components in user's application manually is not a perfect solution from performance and device utilization perspectives. However, there is a way to use Pre-processing API. For such cases there are `NV12_TWO_PLANES` and `I420_THREE_PLANES` source color formats, which will split the original `input` into 2 or 3 inputs.
 
 @sphinxtabset
 
@@ -286,11 +288,11 @@ C++ references:
 
 ### Custom Operations
 
-Preprocessing API also allows adding custom preprocessing steps into execution graph. Custom step is a function, which accepts current `input` node and returns new node after adding preprocessing step.
+Pre-processing API also allows adding custom preprocessing steps into execution graph. Custom step is a function, which accepts current `input` node and returns new node after adding preprocessing step.
 
-> **Note:** Custom preprocessing function should only insert node(s) after the input, it will be done during model compilation. This function will NOT be called during execution phase. This may seem serious and require some knowledge of [OpenVINO™ operations](../ops/opset.md).
+> **Note:** Custom pre-processing function should only insert node(s) after the input, it will be done during model compilation. This function will NOT be called during execution phase. This may seem serious and require some knowledge of [OpenVINO™ operations](../ops/opset.md).
 
-If there is a need to insert some additional operations to the execution graph right after the input, like some specific crops and/or resizes - Preprocessing API can be a good choice to implement this.
+If there is a need to insert some additional operations to the execution graph right after the input, like some specific crops and/or resizes - Pre-processing API can be a good choice to implement this.
 
 @sphinxtabset
 
@@ -312,7 +314,7 @@ C++ references:
 * `ov::preprocess::PreProcessSteps::custom()`
 * [Available Operations Sets](../ops/opset.md)
 
-## Postprocessing
+## Post-processing
 
 Post-processing steps can be added to model outputs. As for pre-processing, these steps will be also integrated into a graph and executed on a selected device.
 
