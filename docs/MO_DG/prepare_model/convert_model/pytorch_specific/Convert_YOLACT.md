@@ -169,7 +169,7 @@ mo --input_model /path/to/yolact.onnx
 
 To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following options of the Model Optimizer (MO):
 
-* If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command-line:
+* If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 ```sh
 mo \
     --input_model /path/to/yolact.onnx \
