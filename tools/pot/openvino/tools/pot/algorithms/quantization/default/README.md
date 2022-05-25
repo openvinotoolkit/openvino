@@ -72,7 +72,7 @@ mode on the existing HW:
         - `"perchannel"` - per-channel quantization with per-channel scale factor and zero-point.
     - `"range_estimator"` - this section describes parameters of range estimator that is used in MinMaxQuantization 
     method to get the quantization ranges and filter outliers based on the collected statistics. These are the parameters 
-    that user can vary to get better accuracy results:
+    that can be modified to get better accuracy results:
         - `"preset"` - preset that defines the same estimator for both top and bottom borders of quantizing 
         floating-point range. Possible value is `"quantile"`.
         - `"max"` - parameters to estimate top border of quantizing floating-point range:
