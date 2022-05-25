@@ -431,7 +431,7 @@ The custom replacement configuration file provided with the `--tensorflow_custom
 
 #### 73. What does the message "End node .. is not reachable from start nodes: .." mean? <a name="question-73"></a>
 
-This error occurs when you try to make a sub-graph match. It is detected that between the start and end nodes, specified as inputs/outputs of the subgraph to find, there are nodes that are marked as outputs but there is no path from them to the input nodes. Make sure the subgraph you want to match does actually contain all the specified output nodes.
+This error occurs when you try to make a sub-graph match. It is detected that between the start and end nodes that were specified as inputs/outputs for the subgraph to find, there are nodes marked as outputs but there is no path from them to the input nodes. Make sure the subgraph you want to match does actually contain all the specified output nodes.
 
 #### 74. What does the message "Sub-graph contains network input node .." mean? <a name="question-74"></a>
 
