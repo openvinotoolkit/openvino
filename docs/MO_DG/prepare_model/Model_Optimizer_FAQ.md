@@ -54,7 +54,7 @@ absent in the [list of supported layers](Supported_Frameworks_Layers.md) for the
 
 #### 4. What does the message "Input image of shape is larger than mean image from file" mean? <a name="question-4"></a>
 
-Your model input shapes must be smaller than or equal to the shapes of the mean image file you provide. The idea behind the mean file is to subtract its values from the input image in an element-wise manner. When the mean file is smaller than the input image, there are not enough values to perform element-wise subtraction. Also, make sure you use the mean file that was used during the network training phase. Note that the mean file is dataset dependent.
+Your model input shapes must be smaller than or equal to the shapes of the mean image file you provide. The idea behind the mean file is to subtract its values from the input image in an element-wise manner. When the mean file is smaller than the input image, there are not enough values to perform element-wise subtraction. Also, make sure you use the mean file that was used during the network training phase. Note that the mean file is dependent on dataset.
 
 #### 5. What does the message "Mean file is empty" mean? <a name="question-5"></a>
 
