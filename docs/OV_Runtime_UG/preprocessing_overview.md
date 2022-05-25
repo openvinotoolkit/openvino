@@ -138,7 +138,7 @@ Perform the following:
    3. Resize to `height`/`width` of a model. Be aware that if a model accepts dynamic size e.g., `{?, 3, ?, ?}`, `resize` will not know how to resize the picture. Therefore, in this case, target `height`/`width` should be specified. For more details, see also the `ov::preprocess::PreProcessSteps::resize()`.
    4. Subtract mean from each channel. In this step, color format is already `RGB`, so `100.5` will be subtracted from each `Red` component, and `101.5` will be subtracted from each `Blue` one.
    5. Divide each pixel data to appropriate scale value. In this example, each `Red` component will be divided by 50, `Green` by 51, and `Blue` by 52 respectively.
-   6. Note that the last `convert_layout` step is commented out as it is not necessary to specify the last layout conversion. PrePostProcessor will do such conversion automatically.
+   6. Keep in mind that the last `convert_layout` step is commented out as it is not necessary to specify the last layout conversion. The `PrePostProcessor` will do such conversion automatically.
 
 ### Integrating Steps into a Model
 
