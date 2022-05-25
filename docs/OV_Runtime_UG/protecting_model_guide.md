@@ -15,7 +15,7 @@ This guide presents how to use OpenVINO securely with protected models.
 ## Secure Model Deployment
 
 After a model is optimized by the OpenVINO Model Optimizer, it's deployed
-to target devices in the Intermediate Representation (IR) format. An optimized
+to target devices in the OpenVINO Intermediate Representation (OpenVINO IR) format. An optimized
 model is stored on edge device and is executed by the OpenVINO Runtime. 
 (ONNX, PDPD models can also be read natively by the OpenVINO Runtime.)
 
