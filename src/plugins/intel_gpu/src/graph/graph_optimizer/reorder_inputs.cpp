@@ -631,8 +631,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         std::vector<std::tuple<__data_type, format, format>> errata = {
             {__data_type::i8_u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32},
             {__data_type::i8_u8, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv32},
+            {__data_type::i8_u8, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv32},
+            {__data_type::i8_u8, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv32},
             {__data_type::floating_point, format::b_fs_yx_fsv32, format::b_fs_yx_fsv16},
-            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16}};
+            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16},
+            {__data_type::floating_point, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv16},
+            {__data_type::floating_point, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16}};
         for (auto &e : errata) {
             auto prev_node = conv_node.get_dependencies().front();
             auto prev_layout = prev_node->get_output_layout();
