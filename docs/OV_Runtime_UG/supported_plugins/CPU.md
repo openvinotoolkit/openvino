@@ -157,7 +157,7 @@ You can reduce memory consumption through memory reuse, and as a result achieve 
 @endsphinxtabset
 
 > **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
-> If the memory consumption is unacceptable but dynamic shapes are still required, one can reshape the model using shapes with defined upper bound to reduce memory footprint.
+> If the memory consumption is unacceptable but dynamic shapes are still required, the model can be reshaped using shapes with defined upper bound to reduce memory footprint.
 
 Some runtime optimizations works better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
