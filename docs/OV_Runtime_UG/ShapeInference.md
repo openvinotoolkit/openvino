@@ -1,5 +1,7 @@
 # Changing Input Shapes {#openvino_docs_OV_UG_ShapeInference}
 
+This guide presents information about operating on Input Shapes, divided into C++ and Python sections.
+
 ## Introduction (C++)
 
 @sphinxdirective
