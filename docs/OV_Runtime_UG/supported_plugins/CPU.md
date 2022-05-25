@@ -44,7 +44,7 @@ CPU plugin supports the following data types as inference precision of internal 
 ### Quantized Data Types Specifics
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
-u1/u8/i8 data types are used for quantized operations only, i.e., those are not selected automatically for non-quantized operations.
+The `u1/u8/i8` data types are used for quantized operations only, i.e., those are not selected automatically for non-quantized operations.
 
 See the [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
 
