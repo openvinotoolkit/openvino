@@ -323,7 +323,7 @@ Compared to pre-processing, there are not so many operations needed for post-pro
  - Convert an element type.
  - Customize operations.
 
-Usage of these operations is similar to Preprocessing. Below is an example:
+Usage of these operations is similar to pre-processing. Below is an example:
 
 @sphinxtabset
 
