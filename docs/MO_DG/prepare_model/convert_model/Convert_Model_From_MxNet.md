@@ -30,7 +30,7 @@ MXNet-specific parameters:
             Use only if your topology is one of ssd gluoncv topologies
 ```
 
-> **NOTE**: The Model Optimizer does not use the MXNet loader by default. It transforms the topology to another format, which is compatible with the latest
+> **NOTE**: By default, Model Optimizer does not use the MXNet loader. It transforms the topology to another format which is compatible with the latest
 > version of MXNet. However, the MXNet loader is required for models trained with lower version of MXNet. If your model was trained with an MXNet version lower than 1.0.0, specify the
 > `--legacy_mxnet_model` key to enable the MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually
 > recompile MXNet with custom layers and install it in your environment.
