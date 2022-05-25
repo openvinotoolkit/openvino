@@ -32,16 +32,12 @@ int get_linear_size(const T& a) {
     });
 };
 
-using gather8_test_param = std::tuple<int,                // batch_dim
-                                      int,                // axis
+using gather8_test_param = std::tuple<int,                // batch_dim, value in [0,get_not_one_dim(dict))
+                                      int,                // axis, value in [batch_dim,get_not_one_dim(dict))
                                       format::type,       // format of input0
                                       format::type,       // format of input1
-                                      std::vector<int>,   // bfyx0
-                                      std::vector<int>>;  // bfyx1
-
-// index 0 is input0
-// index 1 is input1
-// index 2 is output
+                                      std::vector<int>,   // shape of input0, order = default_format
+                                      std::vector<int>>;  // shape of input1, order = default_format
 template <class T_dat, class T_ind, data_types T_dat_dt, data_types T_ind_dt>
 class gather8_test : public ::testing::TestWithParam<gather8_test_param> {
 public:
@@ -125,13 +121,18 @@ public:
             !memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), get_linear_size(shape_out) * sizeof(T_dat)));
     }
 };
-
 using gather8_test_f16i32 = gather8_test<FLOAT16, int, data_types::f16, data_types::i32>;
+using gather8_test_f32i8 = gather8_test<float, char, data_types::f32, data_types::i8>;
+using gather8_test_i32i32 = gather8_test<int, int, data_types::i32, data_types::i32>;
 TEST_P(gather8_test_f16i32, gather8_test_f16i32) {}
+TEST_P(gather8_test_f32i8, gather8_test_f32i8) {}
+TEST_P(gather8_test_i32i32, gather8_test_i32i32) {}
+
+// Important testcases
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
                          gather8_test_f16i32,
-                         testing::Combine(testing::Values(0),
-                                          testing::Values(0),  //[batch_dim,get_not_one_dim(dict))
+                         testing::Combine(testing::Values(0),  // bdim in [0,get_not_one_dim(dict))
+                                          testing::Values(0),  // axis in [batch_dim,get_not_one_dim(dict))
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::vector<int>{5, 44, 7, 8}),
@@ -139,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d2_i2,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::vector<int>{8, 67, 1, 1}),
@@ -147,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d2_i2,
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 1, 2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(0, 1, 2),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 4, 1}),
@@ -155,7 +156,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32,
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd1,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(1, 2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1, 2),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
@@ -163,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd1,
 INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd2,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(2),
-                                          testing::Values(2, 3),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(2, 3),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(format::type::fs_b_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 4, 44, 6}),
@@ -171,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_bd2,
 INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(0, 2),
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv32),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
@@ -179,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bs_fs_yx_bsv16_fsv16_bd0_dim4_to_dim5,
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(0, 2),
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{3, 77, 44, 1}),
@@ -187,18 +188,15 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv16_bd0_dim4_to_dim5,
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx_bd0_dim4_to_dim6,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(0, 2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(0, 2),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{3, 7, 4, 6}),
                                           testing::Values(std::vector<int>{3, 6, 5, 1})));
-
-using gather8_test_f32i8 = gather8_test<float, char, data_types::f32, data_types::i8>;
-TEST_P(gather8_test_f32i8, gather8_test_f32i8) {}
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(2),
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::vector<int>{5, 44, 7, 8}),
@@ -206,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d4_i1,
 INSTANTIATE_TEST_SUITE_P(gather8_bd0_d3_i3,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1),
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(format::type::bfzyx),
                                           testing::Values(std::vector<int>{8, 67, 3, 1, 1}),
@@ -214,18 +212,15 @@ INSTANTIATE_TEST_SUITE_P(gather8_bd0_d3_i3,
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                          gather8_test_f32i8,
                          testing::Combine(testing::Values(1),
-                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(2),
                                           testing::Values(format::type::b_fs_zyx_fsv32),
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::vector<int>{8, 66, 3, 1, 1}),
                                           testing::Values(std::vector<int>{8, 56, 9, 1, 1})));
-
-using gather8_test_i32i32 = gather8_test<int, int, data_types::i32, data_types::i32>;
-TEST_P(gather8_test_i32i32, gather8_test_i32i32) {}
 INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(1),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(format::type::bfyx),
                                           testing::Values(std::vector<int>{4, 3, 2, 1}),
@@ -233,7 +228,7 @@ INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(2),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
@@ -241,19 +236,21 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_byxf,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
-                                          testing::Values(2),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(2),
                                           testing::Values(format::type::byxf),
                                           testing::Values(format::type::byxf),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
                                           testing::Values(std::vector<int>{3, 5, 1, 1})));
 
+// Disabled tests for faster CI
+// Remove DISABLED_ prefix to test these cases
 #define FORMAT4D format::type::bfyx, format::type::b_fs_yx_fsv16, format::type::bs_fs_yx_bsv16_fsv16
 #define FORMAT5D format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::bs_fs_zyx_bsv16_fsv16
 #define FORMAT6D format::type::bfwzyx
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_4d_f16i32,
                          gather8_test_f16i32,
-                         testing::Combine(testing::Values(0, 1),  // bdim in [0,get_not_one_dim(dict))
-                                          testing::Values(1, 2),  // axis in [batch_dim,get_not_one_dim(dict))
+                         testing::Combine(testing::Values(0, 1),
+                                          testing::Values(1, 2),
                                           testing::Values(FORMAT4D),
                                           testing::Values(FORMAT4D),
                                           testing::Values(std::vector<int>{3, 6, 2, 1}),
@@ -261,7 +258,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_4d_f16i32,
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_5d_f16i32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0, 1),
-                                          testing::Values(1, 2, 3),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1, 2, 3),
                                           testing::Values(FORMAT5D),
                                           testing::Values(FORMAT5D),
                                           testing::Values(std::vector<int>{3, 6, 2, 7, 1}),
@@ -269,7 +266,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_5d_f16i32,
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_6d_f16i32,
                          gather8_test_f16i32,
                          testing::Combine(testing::Values(0, 1),
-                                          testing::Values(1, 2, 3),  //[batch_dim,get_not_one_dim(dict))
+                                          testing::Values(1, 2, 3),
                                           testing::Values(FORMAT6D),
                                           testing::Values(FORMAT6D),
                                           testing::Values(std::vector<int>{3, 6, 2, 7, 1, 1}),
