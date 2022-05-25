@@ -4,7 +4,7 @@ OpenVINO™ Runtime Python API offers additional features and helpers to enhance
 
 ## Easier Model Compilation 
 
-`CompiledModel` can be easily created with the helper method. It hides `Core` creation and applies `AUTO` device by default.
+The `CompiledModel` can be easily created with use of the helper. It hides `Core` creation and applies `AUTO` device by default.
 
 @snippet docs/snippets/ov_python_exclusives.py auto_compilation
 
