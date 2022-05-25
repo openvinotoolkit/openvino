@@ -4,7 +4,7 @@ This tutorial explains how to convert a CRNN model to Intermediate Representatio
 
 There are several public versions of TensorFlow CRNN model implementation available on GitHub. This tutorial explains how to convert the model from
 the [https://github.com/MaybeShewill-CV/CRNN_Tensorflow](https://github.com/MaybeShewill-CV/CRNN_Tensorflow) repository to IR. 
-If you have another implementation of CRNN model, it can be converted to the IR in similar way. You need to get inference graph and run Model Optimizer on it.
+If you have another implementation of CRNN model, it can be converted to OpenVINO IR in a similar way. You need to get inference graph and run Model Optimizer on it.
 
 **To convert this model to the IR:**
 
