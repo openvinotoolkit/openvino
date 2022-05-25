@@ -3,7 +3,7 @@
 
 Previous sections covered the topic of the [preprocessing steps](./preprocessing_details.md) and the overview of [Layout](./layout_overview.md) API.
 
-For many applications, it is also important to minimize read/load time of a model. Therefore, performing integration of preprocessing steps every time on application startup, after `ov::runtime::Core::read_model`, may seem inconvenient. In such cases, once Pre- and Post-processing steps have been added, it can be useful to store new execution model to Intermediate Representation (IR, `.xml` format).
+For many applications, it is also important to minimize read/load time of a model. Therefore, performing integration of preprocessing steps every time on application startup, after `ov::runtime::Core::read_model`, may seem inconvenient. In such cases, once pre and postprocessing steps have been added, it can be useful to store new execution model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
 Most of existing preprocessing steps can also be performed via command-line options, using Model Optimizer tool. For details on such command-line options, refer to the [Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
 
