@@ -130,4 +130,4 @@ The model contains operations unsupported by the OpenVINO&trade; toolkit such as
 The pruning is specified through `--input` option. The prunings for `IteratorGetNext:*` nodes correspond to numeric features.
 The pruning for each categorical feature consists of three prunings for the following nodes: `*/to_sparse_input/indices:0`, `*/hash_table_Lookup/LookupTableFindV2:0`, and `*/to_sparse_input/dense_shape:0`.
 
-The above command line generates the IR for a batch of two objects, with total number of actual categorical feature values equal to 10 and maximum size of sparse categorical feature for one object equal to 50.
+The above command line generates an OpenVINO model for a batch of two objects, with the total number of actual categorical feature values equal to 10 and maximum size of a sparse categorical feature for one object equal to 50.
