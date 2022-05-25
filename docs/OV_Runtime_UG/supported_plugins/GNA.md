@@ -254,7 +254,7 @@ The Intel® GNA 1.0 and 2.0 hardware natively supports only 1D convolutions. How
 
 Initially, a limited subset of Intel® GNA 3.0 features are added to the previous feature set including the following:
 
-* **2D VALID Convolution With Small 2D Kernels:**  Two-dimensional convolutions with the following kernel dimensions [H,W] are supported: [1,1], [2,2], [3,3], [2,1], [3,1], [4,1], [5,1], [6,1], [7,1], [1,2], or [1,3]. Input tensor dimensions are limited to [1,8,16,16] <= [N,C,H,W] <= [1,120,384,240]. Up to 384 channels *C* may be used with a subset of kernel sizes (see the table below).  Up to 256 kernels (output channels) are supported. Pooling is limited to pool shapes of [1,1], [2,2], or [3,3]. Not all combinations of kernel shape and input tensor shape are supported (see the tables below for exact limitations).
+* **2D VALID Convolution With Small 2D Kernels:**  Two-dimensional convolutions with the following kernel dimensions [H,W] are supported: [1,1], [2,2], [3,3], [2,1], [3,1], [4,1], [5,1], [6,1], [7,1], [1,2], or [1,3]. Input tensor dimensions are limited to [1,8,16,16] <= [N,C,H,W] <= [1,120,384,240]. Up to 384 channels *C* may be used with a subset of kernel sizes (see the table below). Up to 256 kernels (output channels) are supported. Pooling is limited to pool shapes of [1,1], [2,2], or [3,3]. Not all combinations of kernel shape and input tensor shape are supported (see the tables below for exact limitations).
 
 The tables below show that the exact limitation on the input tensor width W depends on the number of input channels *C* (indicated as Ci below) and the kernel shape.  There is much more freedom to choose the input tensor height and number of output channels.
 
