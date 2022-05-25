@@ -11,7 +11,7 @@ When evaluating the performance of a model with OpenVINO Runtime, it is required
 
 > **NOTE**: Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly. For more information, refer to [Embedding the Pre-processing](Additional_Optimizations.md) and [General Runtime Optimizations](../../optimization_guide/dldt_deployment_optimization_common).
 
-## Getting Credible Performance Numbers 
+## Tip 2: Try to Get Credible Data
 
 Performance conclusions should be build upon reproducible data. As for the performance measurements, they should be done with a large number of invocations of the same routine. Since the first iteration is almost always significantly slower than the subsequent ones, an aggregated value can be used for the execution time for final projections:
 
