@@ -80,7 +80,7 @@ If the model was converted to `bf16`, the `ov::hint::inference_precision` is set
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To infer the model in f32 precision instead of bf16 on targets with native bf16 support, set the `ov::hint::inference_precision` to `ov::element::f32`.
+To infer the model in `f32` precision instead of `bf16` on targets with native `bf16` support, set the `ov::hint::inference_precision` to `ov::element::f32`.
 
 @sphinxtabset
 
