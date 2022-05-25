@@ -44,7 +44,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 
 -	Wrap the exact inference execution (refer to the [Benchmark app](../../../samples/cpp/benchmark_app/README.md) for examples).
 -	Do not include model loading time.
--	Ensure the inputs are identical for the OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
+-	Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
 -	In situations when any user-side pre-processing should be tracked separately, consider [Image Pre-processing and Conversion](../../OV_Runtime_UG/preprocessing_overview.md).
 -  When applicable, leverage the [Dynamic Shapes support](../../OV_Runtime_UG/ov_dynamic_shapes.md)
 -	If possible, demand the same accuracy. For example, TensorFlow allows `FP16` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the `FP16` as well.
