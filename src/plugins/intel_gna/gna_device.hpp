@@ -12,8 +12,11 @@
 #include <set>
 #include <vector>
 #include <thread>
+#include <list>
 
 #include <ie_common.h>
+
+#include "memory/gna_mem_requests.hpp"
 
 #include "gna2-common-api.h"
 #include "gna2-inference-api.h"
@@ -21,7 +24,10 @@
 
 #include "gna2-memory-api.h"
 #include "gna2-model-api.h"
+#include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
+
+#include "gna_device_allocation.hpp"
 
 enum GnaWaitStatus : int {
     GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
@@ -38,6 +44,9 @@ class GNADeviceHelper {
         static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion() };
         return gnaLibraryVersion;
     }
+
+    std::string modeOfOperation = "default";
+    GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
     bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
@@ -45,8 +54,6 @@ class GNADeviceHelper {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
-    bool isGnaLibVersion2_1 = false;
-    bool isGnaLibVersion3_0 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -80,12 +87,6 @@ public:
 
         // check GNA Library version
         const auto gnaLibVersion = GetGnaLibraryVersion();
-        if (gnaLibVersion.rfind("2.1", 0) == 0) {
-            isGnaLibVersion2_1 = true;
-        }
-        if (gnaLibVersion.rfind("3.0", 0) == 0) {
-            isGnaLibVersion3_0 = true;
-        }
     }
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
@@ -97,6 +98,7 @@ public:
     }
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
+    void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
     void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
@@ -133,6 +135,10 @@ public:
         std::ostream & outStream,
         Gna2DeviceVersion targetDeviceVersion);
 
+    void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
+        uint32_t input_size, uint32_t output_size,
+        float inSF, float outSF);
+
     void free(void * ptr);
 
     void updateGnaPerfCounters();
@@ -140,6 +146,11 @@ public:
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
     std::string getEffectiveGnaCompileTarget() const;
+    std::string GetCompileTarget() const;
+
+    const GnaAllocations& getAllAllocations() const {
+        return allAllocations;
+    }
 
  private:
     void open();
@@ -158,7 +169,7 @@ public:
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
-    void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose = "");
+    void createVirtualDevice(Gna2DeviceVersion devVersion);
     void updateGnaDeviceVersion();
 
     void initGnaPerfCounters() {
