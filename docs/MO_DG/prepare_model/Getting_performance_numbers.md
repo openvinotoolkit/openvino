@@ -69,19 +69,18 @@ Keep in mind that since the device is CPU, the `realTime` wall clock and the `cp
 
 
    The `exeStatus` column of the table includes possible values:
-   - The `EXECUTED` - layer was executed by standalone primitive.
-   - The `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
+   - `EXECUTED` - the layer was executed by standalone primitive.
+   - `NOT_RUN` - the layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
    
-   The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
-   * Suffix `I8` - layers that had 8-bit data type input and were computed in 8-bit precision.
-   * Suffix `FP32` - layers computed in 32-bit precision.
+   The `execType` column of the table includes inference primitives with specific suffixes. The layers could have the following marks:
+   * The `I8` suffix is for layers that had 8-bit data type input and were computed in 8-bit precision.
+   * The `FP32` suffix is for layers computed in 32-bit precision.
 
-   All `Convolution` layers are executed in `int8` precision. Rest layers are fused into Convolutions using post operations optimization technique (for more details, see the [Internal CPU Plugin Optimizations](../../OV_Runtime_UG/supported_plugins/CPU.md)).
+   All `Convolution` layers are executed in `int8` precision. The rest of the layers are fused into Convolutions using post-operation optimization, as described in [CPU Device](../../OV_Runtime_UG/supported_plugins/CPU.md).
    This contains layer names (as seen in OpenVINO IR), type of the layer, and execution statistics.
 
-Both `benchmark_app` versions also support `exec_graph_path` command-line option. It orders the OpenVINO to output the same per-layer execution statistics, but in the form of the plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
+Both `benchmark_app` versions also support the `exec_graph_path` command-line option. It requires OpenVINO to output the same execution statistics per layer, but in the form of plugin-specific [Netron-viewable](https://netron.app/) graph to the specified file.
 
-Keep in mind that on some devices, the execution graphs/counters may have high overhead. 
 Especially when performance-debugging the [latency](../../optimization_guide/dldt_deployment_optimization_latency.md), note that the counters do not reflect the time spent in the `plugin/device/driver/etc` queues. If the sum of the counters is too different from the latency of an inference request, consider testing with less inference requests. For example, running single [OpenVINO stream](../../optimization_guide/dldt_deployment_optimization_tput.md) with multiple requests would produce nearly identical counters as running a single inference request, while the actual latency can be quite different.
 
 Lastly, the performance statistics with both performance counters and execution graphs are averaged, so such data for the [inputs of dynamic shapes](../../OV_Runtime_UG/ov_dynamic_shapes.md) should be measured carefully, preferably by isolating the specific shape and executing multiple times in a loop, to gather the reliable data.
