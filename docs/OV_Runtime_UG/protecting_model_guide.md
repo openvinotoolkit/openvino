@@ -55,5 +55,5 @@ should be called with `weights` passed as an empty `ov::Tensor`.
 - Model Optimizer [Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [OpenVINO™ Runtime User Guide](openvino_intro.md).
 - For more information on Sample Applications, see the [OpenVINO Samples Overview](Samples_Overview.md)
-- For information on a set of pre-trained models, check [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
+- For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel).
 - For IoT Libraries and Code Samples, check [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
