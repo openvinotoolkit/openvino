@@ -34,7 +34,7 @@ Consider the example, where an original `ONNX` model takes one `float32` input w
 
 @endsphinxtabset
 
-- Preprocessing & Saving to IR code.
+- Preprocessing & Saving to the OpenVINO IR code.
 
 @sphinxtabset
 
