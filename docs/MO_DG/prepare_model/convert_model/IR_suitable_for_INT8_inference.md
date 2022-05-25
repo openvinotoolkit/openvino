@@ -18,7 +18,7 @@ To execute the `Convolution` operation in INT8 on CPU, both data and weight inpu
 ![](../../img/expanded_int8_Convolution_weights.png)
 
 Low precision IR is also suitable for FP32 and FP16 inference if a chosen plugin supports all operations of the IR. The only difference between a Low Precision IR and FP16 or FP32 IR is the existence of `FakeQuantize` in the Low Precision IR. 
-Plugins with Low Precision Inference support recognize these sub-graphs and quantize them during the inference time. 
+Plugins that support Low Precision Inference recognize these sub-graphs and quantize them during inference. 
 These without execute all operations, including `FakeQuantize`, as is in the FP32 or FP16 precision.   
 
 Accordingly, the presence of `FakeQuantize` operations in the IR is a recommendation for a plugin on how to quantize particular operations in the model. 
