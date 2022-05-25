@@ -135,7 +135,7 @@ It is done by specifying `MULTI:GPU.1,GPU.0` as a target device.
 
 @endsphinxtabset
 
-For more details, see [Multi-device execution page](../multi_device.md).
+For more details, see the [Multi-device execution](../multi_device.md).
 
 ### Automatic Batching
 The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware 
