@@ -85,4 +85,4 @@ In order to take effect, all parameters must be set before calling `ov::Core::co
 
 ## Additional Resources
 * [How to run YOLOv4 model inference using OpenVINO™ and OpenCV on Arm®](https://opencv.org/how-to-run-yolov4-using-openvino-and-opencv-on-arm/).
-* [Face recognition on Android™ using OpenVINO™ toolkit with Arm® plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/)
+* [Face recognition on Android™ using OpenVINO™ toolkit with Arm® plugin](https://opencv.org/face-recognition-on-android-using-openvino-toolkit-with-arm-plugin/).
