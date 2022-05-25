@@ -58,7 +58,7 @@ The Model Optimizer finds the last layer of the topology and removes this layer 
   > **NOTE**: You can use the OpenVINO Speech Recognition sample application for sample inference of Kaldi models. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.
 
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option.
-It removes Memory layers from the IR. Instead of them, additional inputs and outputs appear in the IR.
+It removes the Memory layers from the OpenVINO IR files. Additional inputs and outputs will appear in the IR files instead.
 The Model Optimizer outputs the mapping between inputs and outputs. For example:
 ```sh
 [ WARNING ]  Add input/output mapped Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
