@@ -31,6 +31,7 @@ void register_implementations() {
     REGISTER_OCL(dft);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
+    REGISTER_OCL(experimental_detectron_prior_grid_generator);
     REGISTER_OCL(experimental_detectron_roi_feature_extractor);
     REGISTER_OCL(experimental_detectron_topk_rois);
     REGISTER_OCL(eltwise);
