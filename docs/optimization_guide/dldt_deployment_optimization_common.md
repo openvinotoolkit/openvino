@@ -18,7 +18,7 @@ The API of the inference requests offers Sync and Async execution. While the `ov
 A typical use case for the `ov::InferRequest::infer()` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, parsing the results, and associated logic) is kept serial within the thread.
 In contrast, the `ov::InferRequest::start_async()` and `ov::InferRequest::wait()` allow the application to continue its activities and poll or wait for the inference completion when really needed. Therefore, one reason for using an asynchronous code is "efficiency".
 
-> **NOTE**: Although the Synchronous API can be somewhat easier to start with, in the production code it is prefered to use the Asynchronous (callbacks-based, below) API. The reason for that is that it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
+> **NOTE**: Although the Synchronous API can be somewhat easier to start with, prefer to use the Asynchronous (callbacks-based, below) API in the production code. The reason is that it is the most general and scalable way to implement the flow control for any possible number of requests (and hence both latency and throughput scenarios).
 
 The key advantage of the Async approach is a fac that device is busy with the inference, so the application can do other things in parallel (e.g. populating inputs or scheduling other requests) rather than wait for the current inference to complete first.
 
