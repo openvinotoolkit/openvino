@@ -470,7 +470,7 @@ For more information, refer to the [Converting an MXNet Model](convert_model/Con
 
 #### 81. What does the message "You should specify input for mean/scale values" mean? <a name="question-81"></a>
 
-When the model has multiple inputs and you want to provide mean/scale values, you need to pass those values for each input. More specifically, a number of passed values should be the same as the number of inputs of the model.
+When the model has multiple inputs and you want to provide mean/scale values, you need to pass those values for each input. More specifically, the number of passed values should be the same as the number of inputs of the model.
 For more information, refer to the [Converting a Model to Intermediate Representation](convert_model/Converting_Model.md) guide.
 
 #### 82. What does the message "Input with name ... not found!" mean? <a name="question-82"></a>
