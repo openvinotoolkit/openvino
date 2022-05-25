@@ -19,7 +19,7 @@ For an in-depth description of the GPU plugin, see:
 The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the [GPU configuration](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
 ## Device Naming Convention
-* Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}`. Only Intel® GPU devices are considered.
+* Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}` (only Intel® GPU devices are considered).
 * If the system has an integrated GPU, its `id` is always 0 (`GPU.0`).
 * Order of other GPUs is not predefined and depends on the GPU driver.
 * `GPU` is an alias for `GPU.0`
