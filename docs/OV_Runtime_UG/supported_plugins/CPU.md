@@ -121,7 +121,7 @@ This can be achieved by specifying `MULTI:CPU,GPU.0` as a target device in case 
 
 @endsphinxtabset
 
-For more details, see the [Multi-device execution page](../multi_device.md).
+For more details, see the [Multi-device execution](../multi_device.md) article.
 
 ### Multi-stream Execution
 If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for CPU plugin,
