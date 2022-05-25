@@ -314,7 +314,7 @@ C++ references:
 
 ## Postprocessing
 
-Postprocessing steps can be added to model outputs. As for preprocessing, these steps will be also integrated into a graph and executed on a selected device.
+Post-processing steps can be added to model outputs. As for pre-processing, these steps will be also integrated into a graph and executed on a selected device.
 
 Pre-processing uses the following flow: **User tensor** -> **Steps** -> **Model input**.
 
