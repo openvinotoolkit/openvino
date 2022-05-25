@@ -82,7 +82,7 @@ To do the opposite - resize input image to the input shapes of the model, use th
 
 @endsphinxdirective
 
-Find usage scenarios of the `reshape` feature in the [samples](Samples_Overview.md), starting with the [Hello Reshape Sample](../../samples/cpp/hello_reshape_ssd/README.md).
+Usage scenarios of the `reshape` feature can be found in the [samples section](Samples_Overview.md), starting with the [Hello Reshape Sample](../../samples/cpp/hello_reshape_ssd/README.md).
 
 In practice, some models are not ready to be reshaped. In such cases, a new input shape cannot be set with the Model Optimizer or the `ov::Model::reshape` method.
 
