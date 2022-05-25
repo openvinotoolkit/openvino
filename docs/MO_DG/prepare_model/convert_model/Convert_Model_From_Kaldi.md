@@ -65,7 +65,7 @@ The Model Optimizer outputs the mapping between inputs and outputs. For example:
 [ WARNING ]  Add input/output mapped Parameter_1_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
 [ WARNING ]  Add input/output mapped Parameter_0_for_iteration_Offset_fastlstm3.c_trunc__3390 -> Result_for_iteration_Offset_fastlstm3.c_trunc__3390
 ```
- Based on this mapping, connect inputs and outputs in your application manually:
+Based on this mapping, link inputs and outputs in your application manually as follows:
 
 1. Initialize inputs from the mapping as zeros in the first frame of an utterance.
 2. Copy output blobs from the mapping to the corresponding inputs. For example, data from `Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`
