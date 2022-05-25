@@ -154,7 +154,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 
 ## TensorFlow Supported Operations
 
-Some of TensorFlow operations do not match any OpenVINO operations. Yet, they are still supported by Model Optimizer and can be used on constant propagation path. These layers are labeled `Constant propagation` in the table below:
+Some of TensorFlow operations do not match any OpenVINO operations. Yet, they are still supported by Model Optimizer and can be used on constant propagation path. These layers are labeled with `Constant propagation` in the table below:
 
 
 | Operation Name in TensorFlow | Limitations|
