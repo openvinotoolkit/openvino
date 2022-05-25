@@ -264,7 +264,7 @@ While using configuration file to implement a TensorFlow front replacement exten
 
 #### 35. What does the message "Cannot write an event file for the TensorBoard to directory" mean? <a name="question-35"></a>
 
-Model Optimizer tried to write an event file in the specified directory but failed to do that. That could happen because the specified directory does not exist or you do not have permissions to write in it.
+Model Optimizer tried to write an event file in the specified directory but failed to do that. That could happen when the specified directory does not exist or you do not have permissions to write in it.
 
 #### 36. What does the message "There is no registered 'infer' function for node  with op = .. . Please implement this function in the extensions" mean? <a name="question-36"></a>
 
