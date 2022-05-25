@@ -124,7 +124,7 @@ The `benchmark_app`, that exists in both [C++](../../samples/cpp/benchmark_app/R
  -  The most straightforward way is the performance hints:
     - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'.
  -  Overriding the strict rules of implicit reshaping by the batch dimension via the "explicit" device notion:
-    - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
+    - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'.
  -  Finally, overriding the automatically-deduced batch size as well:
     - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
     - note that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. -d "BATCH:GPU(16)"
