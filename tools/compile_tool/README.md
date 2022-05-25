@@ -1,7 +1,7 @@
 # Compile Tool {#openvino_inference_engine_tools_compile_tool_README}
 
 Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
-With use of this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that doesn't have the physical device connected, and then transfer a generated file to any machine with the target inference device available. To learn which device support import / export functionality, see the [Features support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md).
+With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, and then transfer a generated file to any machine with the target inference device available. To learn which device supports import / export functionality, see the [Features support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md).
 
 The tool compiles networks for the following target devices using corresponding OpenVINO Runtime plugin: Intel® Neural Compute Stick 2 (MYRIAD plugin).
 
@@ -12,9 +12,9 @@ The tool is delivered as an executable file that can be run on both Linux and Wi
 First, the application reads command-line parameters and loads a model to the OpenVINO Runtime device. After that, the application exports a blob with the compiled model and writes it to the output file.
 
 Also, the Compile tool supports the following capabilities:
-- Embedding [layout](../../docs/OV_Runtime_UG/layout_overview.md) and precision conversions (for more details, see the [Optimize Preprocessing](../../docs/OV_Runtime_UG/preprocessing_overview.md)). To compile the model with advanced preprocessing capabilities, refer to the [Use Case - Integrate and Save Preprocessing Steps Into IR](../../docs/OV_Runtime_UG/preprocessing_usecase_save.md), which shows how to have all the preprocessing in the compiled blob.
-- Compile blobs for OpenVINO Runtime API 2.0 by default or for Inference Engine API with explicit option `-ov_api_1_0`.
-- Accepts device specific options for customizing the compilation process.
+- Embedding [layout](../../docs/OV_Runtime_UG/layout_overview.md) and precision conversions (for more details, see the [Optimize Preprocessing](../../docs/OV_Runtime_UG/preprocessing_overview.md)). To compile the model with advanced preprocessing capabilities, refer to the [Use Case - Integrate and Save Preprocessing Steps Into OpenVINO IR](../../docs/OV_Runtime_UG/preprocessing_usecase_save.md), which shows how to have all the preprocessing in the compiled blob.
+- Compiling blobs for OpenVINO Runtime API 2.0 by default or for Inference Engine API with explicit option `-ov_api_1_0`.
+- Accepting device specific options for customizing the compilation process.
 
 ## Running the Compile Tool
 
