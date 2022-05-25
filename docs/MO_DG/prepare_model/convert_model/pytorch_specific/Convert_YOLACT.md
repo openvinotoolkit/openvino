@@ -178,7 +178,7 @@ mo \
     --scale_values "[58.40, 57.12, 57.38]"
 ```
 
-* If the backbone of the model is Darknet53-FPN, use the following MO command-line:
+* If the backbone of the model is Darknet53-FPN, use the following MO command line:
 ```sh
 mo \
     --input_model /path/to/yolact.onnx \
