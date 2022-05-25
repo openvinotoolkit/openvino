@@ -72,6 +72,7 @@ declared in `namespace opset9`.
 * [GenerateProposals](detection/GenerateProposals_9.md)
 * [Greater](comparison/Greater_1.md)
 * [GreaterEqual](comparison/GreaterEqual_1.md)
+* [GridSample](image/GridSample_9.md)
 * [GRN](normalization/GRN_1.md)
 * [GroupConvolution](convolution/GroupConvolution_1.md)
 * [GroupConvolutionBackpropData](convolution/GroupConvolutionBackpropData_1.md)

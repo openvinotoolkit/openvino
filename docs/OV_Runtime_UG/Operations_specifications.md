@@ -64,6 +64,7 @@
    FakeQuantize-1 <openvino_docs_ops_quantization_FakeQuantize_1>
    FloorMod-1 <openvino_docs_ops_arithmetic_FloorMod_1>
    Floor-1 <openvino_docs_ops_arithmetic_Floor_1>
+   GridSample-9 <openvino_docs_ops_image_GridSample_9>
    GRN-1 <openvino_docs_ops_normalization_GRN_1>
    GRUCell-3 <openvino_docs_ops_sequence_GRUCell_3>
    GRUSequence-5 <openvino_docs_ops_sequence_GRUSequence_5>
