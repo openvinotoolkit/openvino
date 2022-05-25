@@ -19,7 +19,7 @@ To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to Model O
 --freeze_placeholder_with_value "phase_train->False"
 ```
 
-Batch joining pattern transforms to placeholder with model default shape if `--input_shape` or `--batch`*/*`-b` were not
+The batch joining pattern transforms to a placeholder with the model default shape if `--input_shape` or `--batch`*/*`-b` are not
 provided. Otherwise, the placeholder shape has custom parameters.
 
 * `--freeze_placeholder_with_value "phase_train->False"` to switch graph to inference mode
