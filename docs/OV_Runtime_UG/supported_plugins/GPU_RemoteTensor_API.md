@@ -194,7 +194,7 @@ object or request plugin to allocate specific device memory. For more details, s
 @endsphinxtabset
 
 The `ov::intel_gpu::ocl::D3DContext` and `ov::intel_gpu::ocl::VAContext` classes are derived from the `ov::intel_gpu::ocl::ClContext`.
-thus they provide the functionality described above and extend it
+Therefore, they provide the functionality described above and extend it
 to allow creation of `ov::RemoteTensor` objects from `ID3D11Buffer`, `ID3D11Texture2D` pointers or the `VASurfaceID` handle respectively.
 
 ## Direct NV12 Video Surface Input
