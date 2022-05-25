@@ -44,7 +44,7 @@ For the list of supported standard layers, refer to the [Supported Framework Lay
 
 ## Frequently Asked Questions (FAQ)
 
-The Model Optimizer provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to [Model Optimizer FAQ](../Model_Optimizer_FAQ.md) which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
 
 ## Summary
 
