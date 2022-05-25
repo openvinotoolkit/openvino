@@ -300,6 +300,7 @@ set(SRC
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/generate_proposals.cpp
+    visitors/op/grid_sample.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/eye.cpp
