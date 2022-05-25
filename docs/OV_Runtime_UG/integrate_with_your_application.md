@@ -259,7 +259,7 @@ It is allowed to specify additional build options (e.g. to build CMake project o
 
 
 
-## See Also
+## Additional Resources
 
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
