@@ -294,3 +294,9 @@ class Swish(Op):
         input_value = node.in_port(0).data.get_value()
         if input_value is not None and beta is not None:
             node.out_port(0).data.set_value(input_value / (1.0 + np.exp(-input_value * beta)))
+
+
+class SoftSign(Activation):
+    op = "SoftSign"
+    version = "opset9"
+    operation = staticmethod(lambda x: x / (np.ma.abs(x) + 1))
