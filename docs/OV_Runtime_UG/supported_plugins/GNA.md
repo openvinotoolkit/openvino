@@ -13,7 +13,7 @@ For more details on how to configure a machine to use GNA plugin, see the [GNA c
 
 ## Intel® GNA Generational Differences
 
-The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered functionally equivalent.  Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0. Starting with 12th Generation Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
+The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered functionally equivalent. Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0. Starting with 12th Generation Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
 
 In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, and the term "GNA 3.0" refers to GNA hardware delivered on 12th generation Intel® Core™ processors.
 
