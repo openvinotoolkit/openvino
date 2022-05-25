@@ -217,7 +217,7 @@ For more details, see the [dynamic shapes guide](../ov_dynamic_shapes.md).
 
 ### Preprocessing Acceleration
 The GPU plugin has the following additional preprocessing options:
-- `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for the `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+- The `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for the `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 @sphinxtabset
 
