@@ -7,7 +7,7 @@ This guide introduces things to notice and how to use the benchmark_app to get p
 When evaluating the performance of a model with OpenVINO Runtime, it is required to measure proper set of operations. Remember the following tips:
 - Avoid including one-time costs such as model loading.
 
-- Track operations which occur outside of the OpenVINO Runtime (like video decoding) separately. 
+- Track operations that occur outside OpenVINO Runtime (such as video decoding) separately. 
 
 > **NOTE**: Some image pre-processing can be baked into the IR and accelerated accordingly. For more information, refer to the [Embedding the Preprocessing ](Additional_Optimizations.md) guide. Additional information is also present in the [Runtime Optimizations of the Preprocessing](../../optimization_guide/dldt_deployment_optimization_common) guide.
 
