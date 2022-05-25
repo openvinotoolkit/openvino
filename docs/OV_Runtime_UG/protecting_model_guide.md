@@ -8,7 +8,7 @@ One possible solution is to use cryptography to protect models as they are
 deployed and stored on edge devices. Model encryption, decryption and
 authentication are not provided by OpenVINO but can be implemented with
 third-party tools (i.e., OpenSSL). While implementing encryption, ensure that 
-latest versions of tools is used and follow cryptography best practices.
+the latest versions of tools are used and follow cryptography best practices.
 
 This guide presents how to use OpenVINO securely with protected models.
 
