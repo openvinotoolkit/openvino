@@ -5,7 +5,7 @@
 OpenVINO Runtime CPU and GPU devices can infer models in low precision. 
 For more details, refer to the [Model Optimization Guide](@ref openvino_docs_model_optimization_guide).
 
-Intermediate Representation (IR) should be specifically formed to be suitable for low precision inference. 
+Intermediate Representation should be specifically formed to be suitable for low precision inference. 
 Such an IR is called a Low Precision IR and can be generated in two ways:
 - By [quantize regular IR with the Post-Training Optimization tool](@ref pot_introduction)
 - Using the Model Optimizer for a model pretrained for Low Precision inference: TensorFlow pre-TFLite models (`.pb` model file with `FakeQuantize*` operations) and ONNX quantized models.
