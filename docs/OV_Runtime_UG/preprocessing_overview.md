@@ -17,7 +17,7 @@
 When the input data does not fit to Neural Network model input tensor perfectly, this means that additional operations/steps are needed to transform the data to format expected by a model. These operations are known as "preprocessing".
 
 ### Example
-Consider the following standard example: deep learning model expects input with the `{1, 3, 224, 224}` shape, `FP32` precision, `RGB` color channels order, and it requires data normalization (subtract mean and divide by scale factor). However, there is just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means some operations to be performed:
+Consider the following standard example: deep learning model expects input with the `{1, 3, 224, 224}` shape, `FP32` precision, `RGB` color channels order, and it requires data normalization (subtract mean and divide by scale factor). However, there is just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means that operations below must be performed:
  - Convert `U8` buffer to `FP32`.
  - Transform to `planar` format: from `{1, 480, 640, 3}` to `{1, 3, 480, 640}`.
  - Resize image from 640x480 to 224x224.
