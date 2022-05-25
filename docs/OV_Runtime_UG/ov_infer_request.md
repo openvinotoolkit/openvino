@@ -228,7 +228,7 @@ Presented below are examples of what the Infer Request can be used for.
 
 ### Cascade of Models
 
-The `ov::InferRequest` can be used to organize cascade of models. You need to have infer requests for each model.
+The `ov::InferRequest` can be used to organize cascade of models. Infer Requests are required for each model.
 In this case you can get output tensor from the first request, using the `ov::InferRequest::get_tensor` and set it as input for the second request, using the `ov::InferRequest::set_tensor`. Keep in mind that shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
 @sphinxtabset
