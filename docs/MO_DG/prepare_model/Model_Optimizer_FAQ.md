@@ -340,7 +340,7 @@ Make sure inputs are defined and have correct shapes. You can use `--input_shape
 
 #### 54. What does the message "Attempt to register of custom name for the second time as class. Note that custom names are case-insensitive" mean? <a name="question-54"></a>
 
-When extending Model Optimizer with new primitives, keep in mind that their names are case insensitive. Most likely, another operation with the same name is already defined. For more information, see the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
+When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 55. What does the message "Both --input_shape and --batch were provided. Please, provide only one of them" mean? <a name="question-55"></a>
 
