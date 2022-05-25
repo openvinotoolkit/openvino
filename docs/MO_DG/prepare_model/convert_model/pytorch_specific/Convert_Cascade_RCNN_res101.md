@@ -1,6 +1,6 @@
 # Converting a PyTorch Cascade RCNN R-101 Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Cascade_RCNN_res101}
 
-Goal of this article is to present you with a step-by-step guide on how to convert PyTorch PyTorch Cascade RCNN R-101 model to IR. First of all, it is required to download and convert the model to ONNX.
+The goal of this article is to present a step-by-step guide on how to convert a PyTorch Cascade RCNN R-101 model to OpenVINO IR. First, you need to download the model and convert it to ONNX.
 
 ## Downloading and Converting Model to ONNX
 
