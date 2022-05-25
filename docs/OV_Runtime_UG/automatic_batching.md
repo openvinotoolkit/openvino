@@ -50,7 +50,7 @@ Batching is a straightforward way of leveraging the compute power of GPU and sav
 
 
 Alternatively, to enable the Auto-Batching in the legacy apps not akin to the notion of the performance hints, you may need to use the **explicit** device notion, such as `BATCH:GPU`. In both cases (the *throughput* hint or explicit BATCH device), the optimal batch size selection happens automatically (the implementation queries the `ov::optimal_batch_size` property from the device, passing the model graph as the parameter). The actual value depends on the model and device specifics, for example, on-device memory for the dGPUs.
-Auto-Batching support is not limited to the GPUs, but if a device does not support the `ov::optimal_batch_size` yet, it can work with the auto-batching only when an explicit batch size is specified, for example, "BATCH:<device>(16)".
+Auto-Batching support is not limited to the GPUs, but if a device does not support the `ov::optimal_batch_size` yet, it can work with the auto-batching only when an explicit batch size is specified (i.e., `BATCH:<device>(16)`).
 
 This "automatic batch size selection" works on the presumption that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
 
