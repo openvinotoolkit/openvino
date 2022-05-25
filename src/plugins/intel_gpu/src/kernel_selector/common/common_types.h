@@ -17,6 +17,7 @@ enum class KernelType {
     AVERAGE_UNPOOLING,
     CONVOLUTION,
     DECONVOLUTION,
+    DFT,
     LRN,
     NORMALIZE,
     POOLING,
