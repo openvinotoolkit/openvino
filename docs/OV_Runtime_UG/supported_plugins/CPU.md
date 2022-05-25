@@ -128,7 +128,7 @@ If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::perfor
 then multiple streams are created for the model. In case of CPU plugin, each stream has its own host thread, which means that incoming infer requests can be processed simultaneously.
 Each stream is pinned to its own group of physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide).
+For more details, see the [optimization](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) guide.
 
 > **NOTE**: When it comes to latency, one needs to keep in mind that running only one stream on multi-socket platform may introduce additional overheads on data transfer between NUMA nodes.
 > In that case it is better to use the `ov::hint::PerformanceMode::LATENCY` performance hint. For more details see the [performance hints overview](@ref openvino_docs_OV_UG_Performance_Hints).
