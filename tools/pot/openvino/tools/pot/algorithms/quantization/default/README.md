@@ -60,7 +60,7 @@ mode on the existing HW.
                 - `"min"` (default) - estimates the minimum in the quantizing set of value.
                 - `"quantile"` - estimates the quantile in the quantizing set of value.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator.
-- `"activations"` - this section manually defines quantization scheme for activations and the way to estimate the 
+- `"activations"` - this section describes quantization scheme for activations and the way to estimate the 
 quantization range for that. As before, changing the quantization scheme may lead to inability to infer such
 mode on the existing HW:
     - `"bits"` - bit-width, the default value is "8".
