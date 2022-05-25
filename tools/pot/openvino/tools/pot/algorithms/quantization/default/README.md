@@ -51,7 +51,7 @@ mode on the existing HW.
     method to get the quantization ranges and filter outliers based on the collected statistics. Below are the parameters 
     that can be modified to get better accuracy results:
         - `"max"` - parameters to estimate top border of quantizing floating-point range:
-            - `"type"` - type of the estimator: 
+            - `"type"` - a type of the estimator: 
                 - `"max"` (default) - estimates the maximum in the quantizing set of value.
                 - `"quantile"` - estimates the quantile in the quantizing set of value.
             - `"outlier_prob"` - outlier probability used in the "quantile" estimator.
