@@ -52,7 +52,7 @@ In order to take effect, all parameters must be set before calling `ov::Core::co
 
 - ov::enable_profiling
 
-### Read-only Properties
+**Read-only Properties**
 - ov::supported_properties
 - ov::available_devices
 - ov::range_for_async_infer_requests
