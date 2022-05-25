@@ -154,7 +154,7 @@ input_dim: 3
 input_dim: 500
 ```
 
-However, if your model contains more than one input, Model Optimizer is able to convert the model with inputs specified in a form of 1, 2, 3 of the list above. The last form is not supported for multi-input topologies.
+However, if your model contains more than one input, Model Optimizer is able to convert the model with inputs specified in one of the first three forms in the above list. The 4th form is not supported for multi-input topologies.
 
 #### 9. What does the message "Mean file for topologies with multiple inputs is not supported" mean? <a name="question-9"></a>
 
