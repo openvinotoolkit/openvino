@@ -42,7 +42,7 @@ Pretrained models are not suitable for batch reshaping out-of-the-box because of
 
 # Converting a Reshapable TensorFlow BERT Model to OpenVINO IR
 
-Follow these steps to make a pretrained TensorFlow BERT model reshape-able over batch dimension:
+Follow these steps to make a pretrained TensorFlow BERT model reshapable over batch dimension:
 1. Download a pretrained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
 2. Clone google-research/bert git repository:
 ```sh
