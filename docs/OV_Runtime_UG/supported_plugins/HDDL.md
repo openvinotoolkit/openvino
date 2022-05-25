@@ -32,7 +32,7 @@ In addition to common parameters for both VPU plugins, the HDDL plugin accepts t
 | `KEY_VPU_HDDL_BIND_DEVICE`              | `YES`/`NO`           | `NO`           | Enables the network to be bound to a device. Refer to the 'vpu_plugin_config.hpp' file.    |
 | `KEY_VPU_HDDL_RUNTIME_PRIORITY`         | signed int       | 0            | Specifies the runtime priority of a device among all devices running the same network. Refer to the `vpu_plugin_config.hpp` file. |
 
-## See Also
+## Additional Resources
 
 * [Supported Devices](Supported_Devices.md)
 * [VPU Plugins](VPU.md)
