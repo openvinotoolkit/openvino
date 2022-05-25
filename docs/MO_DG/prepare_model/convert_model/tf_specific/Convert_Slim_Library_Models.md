@@ -66,9 +66,9 @@ For the information on why `--mean_values` and `--scale` command-line parameters
 ## Mean and Scale Values for TensorFlow-Slim Models <a name="tf_slim_mean_scale_values"></a>
 The TensorFlow-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to the Model Optimizer so they are embedded into the generated IR in order to get correct classification results.
 
-The file [preprocessing_factory.py](https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/preprocessing_factory.py) contains a dictionary variable `preprocessing_fn_map` defining mapping between the model type and preprocessing function to be used. The function code should be analyzed to figure out the mean/scale values.
+The file [preprocessing_factory.py](https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/preprocessing_factory.py) contains a dictionary variable `preprocessing_fn_map` defining mapping between the model type and pre-processing function to be used. The function code should be analyzed to figure out the mean/scale values.
 
-The [inception_preprocessing.py](https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py) file defines the preprocessing function for the Inception models. The `preprocess_for_eval` function contains the following code:
+The [inception_preprocessing.py](https://github.com/tensorflow/models/blob/master/research/slim/preprocessing/inception_preprocessing.py) file defines the pre-processing function for the Inception models. The `preprocess_for_eval` function contains the following code:
 
 ```python3
     ...
