@@ -103,7 +103,7 @@ Having the input of the shape [N, C, H, W], Global Pooling returns the output of
 Model architects usually express Global Pooling with the help of the `Pooling` operation with the fixed kernel size [H, W].
 During spatial reshape, having the input of the shape [N, C, H1, W1], Pooling with the fixed kernel size [H, W] returns the output of the shape [N, C, H2, W2], where H2 and W2 are commonly not equal to `1`.
 It breaks the classification model structure.
-For example, [publicly available Inception family models from TensorFlow](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
+For example, publicly available [Inception family models from TensorFlow](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
 
 - Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
