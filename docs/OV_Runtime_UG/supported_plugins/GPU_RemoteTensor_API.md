@@ -233,7 +233,7 @@ I420 color format can be processed in a similar way
 ## Context & Queue Sharing
 
 The GPU plugin supports creation of shared context from the `cl_command_queue` handle. In that case,
-opencl context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
+`opencl` context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
 the plugin for further execution of inference primitives. Sharing the queue changes the behavior of the `ov::InferRequest::start_async()`
 method to guarantee that submission of inference primitives into the given queue is finished before
 returning control back to the calling thread.
