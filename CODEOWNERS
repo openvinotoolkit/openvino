@@ -30,7 +30,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
-/src/common/transformations/  @GlebKazantaev @ilyachur
+/src/common/transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
 /src/common/  @openvinotoolkit/openvino-ie-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
