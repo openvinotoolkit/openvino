@@ -111,7 +111,7 @@ For more details on how to get a quantized model, refer to the [Model Optimizati
 
 Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR except [compressed f16 OpenVINO IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in the `f16` precision.
 
-> **NOTE**: Hardware acceleration for `i8`/`u8` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via the `ov::device::capabilities` property.
+> **NOTE**: Hardware acceleration for `i8`/`u8` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. Hardware support of `u8`/`i8` acceleration can be queried via the `ov::device::capabilities` property.
 
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out the supported data types for all detected devices.
 
