@@ -117,7 +117,7 @@ Following the OpenVINO naming convention, the *batching* device is assigned the 
 | Parameter name     | Parameter description      | Default            |             Examples                                                      |
 | :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
 | `AUTO_BATCH_DEVICE` | A device name to apply the automatic batching and optional batch size in brackets. | N/A | `BATCH:GPU` which triggers the automatic batch size selection. Another example is the device name (to apply the batching) with directly specified batch size `BATCH:GPU(4)`.     |
-| `AUTO_BATCH_TIMEOUT` | timeout value, in ms | 1000 |  To reduce the timeout value (to avoid performance penalty when the data arrives too non-evenly), e.g. pass the "100" or in contrast, e.g. make it large enough to accommodate inputs preparation (e.g. when it is a serial process)     |
+| `AUTO_BATCH_TIMEOUT` | timeout value, in ms | 1000 |  To reduce the timeout value (to avoid performance penalty when the data arrives too non-evenly), for example, pass the "100" or in contrast, i.e., make it large enough to accommodate inputs preparation (e.g. when it is a serial process).     |
 
 ### Testing Automatic Batching Performance with the Benchmark_App
 The `benchmark_app`, that exists in both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of the Automatic Batching:
