@@ -11,7 +11,7 @@ Therefore, the model can be reshaped for some predefined big sequence length onc
 This approach is called *padding*.
 
 However, padding is not applicable to every model and every use case.
-Be aware of the internals of the model to apply padding. Otherwise, if the model is not designed to handle dummy element gracefully in a padding area,
+Be aware of the internals of the model before you apply padding. Otherwise, if the model is not designed to handle dummy element gracefully in a padding area,
 then the results of inference may be totally scrambled, or accuracy is significantly affected.
 The model can even crash during inference.
 
