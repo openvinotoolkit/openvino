@@ -6,7 +6,7 @@ The OpenVINO™ toolkit supports inferring with several types of devices (proces
 This section provides a high-level description of the process of querying of different device properties and configuration values at runtime.
 
 OpenVINO runtime has two types of properties:
-- Read only properties which provide information about the devices (such as device name, termal, execution capabilities, etc.) and information about `ov::CompiledModel` to understand what configuration values were used to compile the model with.
+- Read only properties which provide information about the devices (such as device name, termal, execution capabilities, etc.) and information about the `ov::CompiledModel` to understand what configuration values were used to compile the model with.
 - Mutable properties which are primarily used to configure `ov::Core::compile_model` process and affect final inference on the specific set of devices. Such properties can be set globally per device via the `ov::Core::set_property` or locally for particular model in the `ov::Core::compile_model` and the `ov::Core::query_model` calls.
 
 OpenVINO property is represented as a named constexpr variable with a given string name and type. The example below:
