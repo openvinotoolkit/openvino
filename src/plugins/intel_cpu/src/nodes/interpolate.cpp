@@ -92,8 +92,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         }
-        if (isa == cpu::x64::avx512_common)
-            uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         switch (jcp_.mode) {
             case InterpolateMode::nearest: {
