@@ -1,6 +1,6 @@
 # CPU Device {#openvino_docs_OV_UG_supported_plugins_CPU}
 
-The CPU plugin is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
 For an in-depth description of CPU plugin, see:
 
 - [CPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)
