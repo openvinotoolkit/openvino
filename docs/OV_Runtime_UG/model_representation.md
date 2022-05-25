@@ -3,7 +3,7 @@
 In OpenVINO™ Runtime a model is represented by the `ov::Model` class.
 
 The `ov::Model` object stores shared pointers to `ov::op::v0::Parameter`, `ov::op::v0::Result` and `ov::op::Sink` operations that are inputs, outputs and sinks of the graph.
-Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If an operation has no consumers and it is not the `Result` or `Sink` operation
+Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which child operation holds its parent (hard link). If an operation has no consumers and it is not the `Result` or `Sink` operation
 (shared pointer counter is zero), then it will be destructed and will not be accessible anymore. 
 
 Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
