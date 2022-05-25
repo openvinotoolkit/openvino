@@ -8,7 +8,6 @@ For an in-depth description of CPU plugin, see:
 - [OpenVINO Runtime CPU plugin source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/).
 
 
-The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit.
 
 ## Device Name
 For the CPU plugin `CPU` device name is used, and even though there can be more than one socket on a platform, from the perspective of a plugin, there is only one `CPU` device.
