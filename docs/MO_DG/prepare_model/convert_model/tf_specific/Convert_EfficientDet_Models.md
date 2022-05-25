@@ -6,7 +6,7 @@ This tutorial explains how to convert EfficientDet public object detection model
 
 There are several public versions of EfficientDet model implementation available on GitHub. This tutorial explains how to
 convert models from the [repository](https://github.com/google/automl/tree/master/efficientdet)
- (commit 96e1fee) to the IR.
+ (commit 96e1fee) to the OpenVINO format.
 
 ### Getting a Frozen TensorFlow Model
 
