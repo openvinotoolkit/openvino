@@ -2,7 +2,7 @@
 
 > **NOTE**: Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. The support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
  
-To convert a Kaldi model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file:
+<a name="Convert_From_Kaldi"></a>To convert a Kaldi model, run Model Optimizer with the path to the input model `.nnet` or `.mdl` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.nnet
@@ -22,7 +22,7 @@ Kaldi-specific parameters:
 
 ## Examples of CLI Commands
 
-* To launch the Model Optimizer for the *wsj_dnn5b_smbr* model with the specified `.nnet` file:
+* To launch Model Optimizer for the `wsj_dnn5b_smbr` model with the specified `.nnet` file:
    ```sh
    mo --input_model wsj_dnn5b_smbr.nnet
    ```
@@ -43,7 +43,7 @@ Kaldi-specific parameters:
 	\f$|C|\f$ - number of elements in the counts array;
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
 
-  > **NOTE**: Model Optimizer will show warning if a model contains counts values inside and `--counts` option is not used.
+     > **NOTE**: Model Optimizer will show a warning if a model contains values of counts and the `--counts` option is not used.
 
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag:
@@ -55,7 +55,7 @@ Kaldi-specific parameters:
 
    > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
 
-  > **NOTE**: You can use the OpenVINO Speech Recognition sample application for sample inference of Kaldi models. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.
+* You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the `--output` option.
 
 ## Converting a Model for Intel® Movidius™ Myriad™ VPU
 

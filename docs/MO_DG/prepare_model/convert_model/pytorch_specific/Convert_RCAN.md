@@ -21,7 +21,7 @@ net.eval()
 dummy_input = torch.randn(1, 3, 360, 640)
 torch.onnx.export(net, dummy_input, 'RCAN.onnx')
 ```
-The script generates the ONNX model file `RCAN.onnx`. More information about model parameters (`n_resblocks`, `n_resgroups`, and others) and different values of them can be found in the model repository. The model conversion was tested with the commit-SHA: `3339ebc59519c3bb2b5719b87dd36515ec7f3ba7`.
+The script generates the ONNX model file `RCAN.onnx`. More information about model parameters (`n_resblocks`, `n_resgroups`, and others) and their different values can be found in the model repository. The model conversion was tested with the commit-SHA: `3339ebc59519c3bb2b5719b87dd36515ec7f3ba7`.
 
 ## Converting an ONNX RCAN Model to IR
 

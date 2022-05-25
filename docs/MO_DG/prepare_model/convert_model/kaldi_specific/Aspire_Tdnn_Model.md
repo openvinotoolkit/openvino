@@ -31,7 +31,7 @@ Once everything has been prepared, you can start a proper run:
 
 ### Preparing Data
 
-If you have a `.wav` data file, convert it to `.ark` format using the following command:
+If you have a `.wav` data file, convert it to the `.ark` format using the following command:
 ```sh
 <path_to_kaldi_repo>/src/featbin/compute-mfcc-feats --config=<path_to_kaldi_repo>/egs/aspire/s5/conf/mfcc_hires.conf scp:./wav.scp ark,scp:feats.ark,feats.scp
 ```

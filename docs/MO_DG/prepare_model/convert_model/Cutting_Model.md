@@ -19,19 +19,19 @@ Model Optimizer provides command line options `--input` and `--output` to specif
 *   `--input` option accepts a comma-separated list of layer names of the input model that should be treated as new entry points to the model.
 *   `--output` option accepts a comma-separated list of layer names of the input model that should be treated as new exit points from the model.
 
-The `--input` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and `--input_shape` or `--mean_values` options are used, use the `--input` option. It specifies the order of input nodes for correct mapping between multiple items provided in `--input_shape` and `--mean_values` and the inputs in the model. Details on these options are out of scope for this document, which focuses on model cutting.
+The `--input` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and `--input_shape` or `--mean_values` options are used, the `--input` option specifies the order of input nodes for correct mapping between multiple items provided in `--input_shape` and `--mean_values` and the inputs in the model. 
 
-Model cutting is illustrated with Inception V1. This model is in `models/research/slim` repository. [This section](Converting_Model.md) describes pre-work to prepare the model for Model Optimizer to be ready to proceed with this chapter.
+Model cutting is illustrated with the Inception V1 model, found in the `models/research/slim` repository. To proceed with this chapter, make sure you do the necessary steps to [prepare the model for Model Optimizer](Converting_Model.md).
 
 ## Default Behavior without --input and --output
 
 The input model is converted as a whole if neither `--input` nor `--output` command line options are used. All `Placeholder` operations in a TensorFlow graph are automatically identified as entry points. The `Input` layer type is generated for each of them. All nodes that have no consumers are automatically identified as exit points.
 
-For Inception_V1, there is one `Placeholder`: input. If the model is viewed in the TensorBoard, the input operation is easy to find:
+For Inception_V1, there is one `Placeholder`: input. If the model is viewed in TensorBoard, the input operation is easy to find:
  
 ![Placeholder in Inception V1](../../img/inception_v1_std_input.png)
 
-The `Reshape` is the only output operation, which is enclosed in a nested name scope `InceptionV1/Logits/Predictions`, under full name of `InceptionV1/Logits/Predictions/Reshape_1`.
+`Reshape` is the only output operation, which is enclosed in a nested name scope of `InceptionV1/Logits/Predictions`, under the full name of `InceptionV1/Logits/Predictions/Reshape_1`.
 
 In TensorBoard, along with some of its predecessors, it looks as follows:
 
@@ -41,7 +41,7 @@ Convert this model and put the results in a writable output directory:
 ```sh
 mo --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
-(The other examples on this page assume that you first `cd` to the `model_optimizer` directory and add the `--output_dir` argument with a directory where you have read/write permissions.)
+(The other examples on this page assume that you first go to the `model_optimizer` directory and add the `--output_dir` argument with a directory where you have read/write permissions.)
 
 The output `.xml` file with an Intermediate Representation contains the `Input` layer among other layers in the model:
 ```xml
@@ -138,7 +138,7 @@ If you want to cut your model at the end, you have the following options:
 	</edges>
 </net>
 ```
-   As shown in the TensorBoard picture, the original model has more nodes than Intermediate Representation. Model Optimizer has fused batch normalization `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm` to the convolution `InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`, and it is not present in the final Intermediate Representation. This is not an effect of the `--output` option, it is usual behavior of Model Optimizer for batch normalizations and convolutions. The effect of the `--output` is that the `ReLU` layer becomes the last one in the converted model.
+   As shown in the TensorBoard picture, the original model has more nodes than its Intermediate Representation. Model Optimizer has fused batch normalization `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm` with convolution `InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution`, which is why it is not present in the final model. This is not an effect of the `--output` option, it is the typical behavior of Model Optimizer for batch normalizations and convolutions. The effect of the `--output` is that the `ReLU` layer becomes the last one in the converted model.
 
 2. The following command cuts the edge that comes from 0 output port of the `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` and the rest of the model, making this node the last one in the model:
    ```sh
@@ -253,8 +253,8 @@ If you want to go further and cut the beginning of the model, leaving only the `
    `Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer. It produces such Intermediate Representation to make the node the first executable node in the final Intermediate Representation. Therefore, Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
 Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow model to the point, at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
-2. Cut edge incoming to layer by port number. To specify incoming port, use notation `--input=port:input_node`. 
-To cut everything before `ReLU` layer, cut edge incoming in port 0 of `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` node:
+2. Cut the edge incoming to layer by port number. To specify the incoming port, use the following notation `--input=port:input_node`. 
+To cut everything before `ReLU` layer, cut the edge incoming to port 0 of `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` node:
    ```sh
    mo --input_model inception_v1.pb -b 1 --input 0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>
    ```
@@ -285,7 +285,7 @@ To cut everything before `ReLU` layer, cut edge incoming in port 0 of `Inception
    `Input` layer is automatically created to feed the layer that is converted from the node specified in `--input`, which is `InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu` in this case. Model Optimizer does not replace the `ReLU` node by the `Input` layer, it produces such Intermediate Representation to make the node be the first executable node in the final Intermediate Representation. Therefore, Model Optimizer creates enough `Inputs` to feed all input ports of the node that is passed in `--input`.<br>
 Even though `--input_shape` is not specified in the command line, the shapes for layers are inferred from the beginning of the original TensorFlow model to the point, at which the new input is defined. It has the same shape [1,64,112,112] as the model converted as a whole or without cutting off the beginning.
 
-3. Cut edge outcoming from layer by port number. To specify outcoming port, use notation `--input=input_node:port`.
+3. Cut edge outcoming from layer by port number. To specify the outcoming port, use the following notation `--input=input_node:port`.
 To cut everything before `ReLU` layer, cut edge from `InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1` node to `ReLU`:
    ```sh
    mo --input_model inception_v1.pb -b 1 --input InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0 --output InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu --output_dir <OUTPUT_MODEL_DIR>

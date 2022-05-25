@@ -1,7 +1,6 @@
 # Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-Model Optimizer provides the option of making models more efficient by providing additional shape definition.
-It is achieved with two parameters, used under certain conditions: `--input_shape` and `--static_shape`.
+With Model Optimizer you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `--input_shape` and `--static_shape`.
 
 @anchor when_to_specify_input_shapes
 ## Specifying --input_shape Command-line Parameter
@@ -10,18 +9,18 @@ However, if the shape of data is not going to change from one inference request 
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
 Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
 To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
-The same functionality is also available in runtime via `reshape` method. For more information refer to the [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md) guide.
+For more information on input shapes under runtime, refer to the [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md) guide.
 To learn more about dynamic shapes in runtime, refer to the [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md) guide.
 
 The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. See the [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference.
-In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help resolve undefined dimensions.
+In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help to resolve undefined dimensions.
 
 Sometimes, Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
 Such problem can relate to models with inputs of undefined ranks and a case of cutting off parts of a model.
-In this case, input shapes must be specified explicitly by `--input_shape` parameter.
+In this case, input shapes must be specified explicitly with the `--input_shape` parameter.
 
 For example, run Model Optimizer for the TensorFlow MobileNet model with the single input
-and specify input shape `[2,300,300,3]`:
+and specify the input shape of `[2,300,300,3]`:
 
 ```sh
 mo --input_model MobileNet.pb --input_shape [2,300,300,3]
@@ -67,7 +66,7 @@ For more information about shape follow the [inference troubleshooting](@ref tro
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
 and folding shape computing sub-graphs into constants. The resulting IR may be more compact in size and the loading time for such IR may decrease.
 However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.
-Be aware that the `--input_shape` parameter does not affect reshape-ability of the model.
+It is worth noting that the `--input_shape` parameter does not affect reshapeability of the model.
 
 For example, launch Model Optimizer for the ONNX OCR model using `--static_shape`:
 

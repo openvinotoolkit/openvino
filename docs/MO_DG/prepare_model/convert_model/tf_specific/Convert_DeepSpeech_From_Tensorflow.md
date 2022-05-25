@@ -54,7 +54,7 @@ with the frozen *.pb model is below. It means that the model keeps training thes
 
 ![DeepSpeech model view](../../../img/DeepSpeech-0.8.2.png)
 
-At the first inference the variables are initialized with zero tensors. After executing, the results of the `BlockLSTM*
+At the first inference, the variables are initialized with zero tensors. After execution, the results of the `BlockLSTM'
 are assigned to cell state and hidden state, which are these two variables.
 
 ## Converting the Main Part of DeepSpeech Model into OpenVINO IR

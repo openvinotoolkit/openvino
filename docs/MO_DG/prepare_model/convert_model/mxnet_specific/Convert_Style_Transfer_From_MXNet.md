@@ -29,7 +29,7 @@ pip3 install --user scikit-image
 cd ./fast_mrf_cnn
 ```
 
-2. Open the `symbol.py` file and modify the `decoder_symbol()` function. You should see below code there:
+2. Open the `symbol.py` file and modify the `decoder_symbol()` function. You should see the following code there:
 ```py
 def decoder_symbol():
     data = mx.sym.Variable('data')

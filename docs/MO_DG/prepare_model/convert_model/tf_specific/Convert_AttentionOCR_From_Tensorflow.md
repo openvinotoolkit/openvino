@@ -20,7 +20,7 @@ The original AOCR model includes the preprocessing data, which contains:
 * Decoding input data to binary format where input data is an image represented as a string.
 * Resizing binary image to working resolution.
 
-After that, the resized image is sent to the convolution neural network (CNN). The Model Optimizer does not support image decoding. The preprocessing part of the model should be cut off by using `--input` command line parameter.
+The resized image is sent to the convolution neural network (CNN). Because Model Optimizer does not support image decoding, the preprocessing part of the model should be cut off, using the `--input` command-line parameter.
 ```sh
 mo \
 --input_model=model/path/frozen_graph.pb \
