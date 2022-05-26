@@ -7,6 +7,7 @@
 import numpy as np
 from save_model import saveModel
 import paddle
+import ops
 import sys
 
 
@@ -34,7 +35,7 @@ def make_rois(batch_size, width, height, pooled_width, pooled_height, spatial_sc
     return rois, rois_num
 
 
-def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled_width, spatial_scale, sampling_ratio):
+def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled_width, spatial_scale, sampling_ratio, aligned):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -44,14 +45,13 @@ def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled
             name='rois', shape=rois_data.shape, dtype=rois_data.dtype)
         rois_num = paddle.static.data(
             name='rois_num', shape=rois_num_data.shape, dtype=rois_num_data.dtype)
-        # TODO: 'aligned' attribute is not supported by Paddle 2.1
-        out = paddle.fluid.layers.roi_align(input=x,
-                                            rois=rois,
-                                            pooled_height=pooled_height,
-                                            pooled_width=pooled_width,
-                                            spatial_scale=spatial_scale,
-                                            sampling_ratio=sampling_ratio,
-                                            rois_num=rois_num)
+        out = ops.roi_align(input=x,
+                            rois=rois,
+                            output_size=(pooled_height, pooled_width),
+                            spatial_scale=spatial_scale,
+                            sampling_ratio=sampling_ratio,
+                            rois_num=rois_num,
+                            aligned=aligned)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -81,13 +81,14 @@ def main():
     pooled_height = 2
     pooled_width = 2
     sampling_ratio = -1
+    aligned = False
 
     roi_per_batch = 1
     rois, rois_num = make_rois(batch_size, width, height, pooled_width,
                                pooled_height, spatial_scale, roi_per_batch)
 
     roi_align("roi_align_test", x, rois, rois_num, pooled_height,
-              pooled_width, spatial_scale, sampling_ratio)
+              pooled_width, spatial_scale, sampling_ratio, aligned)
 
     batch_size = 1
     channels = 3
@@ -101,13 +102,14 @@ def main():
     pooled_height = 2
     pooled_width = 2
     sampling_ratio = 2
+    aligned = True
 
     roi_per_batch = 2
     rois, rois_num = make_rois(batch_size, width, height, pooled_width,
                                pooled_height, spatial_scale, roi_per_batch)
 
     roi_align("roi_align_test2", x, rois, rois_num, pooled_height,
-              pooled_width, spatial_scale, sampling_ratio)
+              pooled_width, spatial_scale, sampling_ratio, aligned)
 
 
 if __name__ == "__main__":
