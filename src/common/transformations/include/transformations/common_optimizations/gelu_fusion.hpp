@@ -76,5 +76,6 @@ public:
         add_matcher<ngraph::pass::GeluFusionWithErfOne>();
         add_matcher<ngraph::pass::GeluFusionWithErfTwo>();
         add_matcher<ngraph::pass::GeluFusionWithErfThree>();
+        add_matcher<ngraph::pass::GeluFusionWithTanh>();
     }
 };
