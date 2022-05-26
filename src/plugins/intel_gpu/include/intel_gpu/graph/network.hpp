@@ -206,6 +206,12 @@ public:
         return *_memory_pool;
     }
 
+    /// Assigns memory state locations
+    void assign_variables_memories(variables_states_map &&variables_memories);
+
+    /// Returns memory state @p variable_id of stateful network
+    VariableState& get_variable_memory(const std::string &variable_id);
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -221,6 +227,8 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
+    variables_states_map _variables_states;
+    std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
