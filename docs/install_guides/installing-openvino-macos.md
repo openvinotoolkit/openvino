@@ -7,7 +7,7 @@
 ## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: Operating System
 
   macOS 10.15
 
@@ -32,9 +32,7 @@
 
 @endsphinxdirective
 
-## Overview
-
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit for macOS. The following steps will be covered:
+## Installation Flow
 
 1. <a href="#install-core">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
 2. <a href="#set-the-environment-variables">Configure the Environment</a>
@@ -50,7 +48,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 3. Double-click the `m_openvino_toolkit_p_<version>.dmg` file to mount. The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and automatically opens in a separate window.
 
-4. Run the installation wizard application `bootstrapper.app`. You should see the following dialog box open up:
+4. Once you run the installation wizard application `bootstrapper.app`, the following dialog box should appear:
 
    @sphinxdirective
 
@@ -61,7 +59,9 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    @endsphinxdirective
 
 5. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue.
+
    ![](../img/openvino-install-macos-run-boostrapper-script.gif)
+   
    Click on the image to see the details.
 
    By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
@@ -76,15 +76,15 @@ The core components are now installed. Continue to the next section to configure
 
 ## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO™ applications. Set environment variables as follows:
+You must update several environment variables before you compile and run OpenVINO™ applications. Set environment variables as follows:
 
 ```sh
 source <INSTALL_DIR>/setupvars.sh
 ```
 
-If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
+If you have more than one OpenVINO™ version on your machine, you may easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You may also run this script every time you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
@@ -115,28 +115,28 @@ If you want to run inference on Intel® Neural Compute Stick 2 use the following
 
 ## <a name="get-started"></a>Step 5: What's next?
 
-Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
+Now you are ready to try out the toolkit. You may use the following tutorials to write your applications using Python and C++.
 
-Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+@sphinxdirective
 
-Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+.. tab:: Developing in Python
+
+      * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+      * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
+      * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+
+.. tab:: Developing in C++
+
+      * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+      * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
+      * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+
+
+@endsphinxdirective
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
 
 @sphinxdirective
 
