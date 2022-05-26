@@ -788,7 +788,7 @@ void Graph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::CreatePrimitives");
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
-        VERBOSE_LOG("#", node->getExecIndex(), " ",node->getName(), " ",node->getOriginalLayers());
+        VERBOSE_LOG("#", node->getExecIndex(), " ", node->getName(), " ", node->getOriginalLayers());
         node->createPrimitive();
     }
 }
