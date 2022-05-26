@@ -35,6 +35,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::ValuesIn(return_all_possible_device_combination())),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace
