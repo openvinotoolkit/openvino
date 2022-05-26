@@ -144,6 +144,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     {
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::FixRtInfo>();
+        m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork
@@ -449,8 +451,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
-                manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-                manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
                 manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
