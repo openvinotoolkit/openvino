@@ -21,10 +21,10 @@ KERNEL(softmax)(
     const uint other2 = 0;
 #endif
     const uint other1 = get_global_id(1);
-    const uint batch  = get_global_id(2);
+    const uint other3  = get_global_id(2);
 
-    const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
-    const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
+    const uint in_depth_offset  = other3*INPUT0_OTHER3_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
+    const uint out_depth_offset = other3*OUTPUT_OTHER3_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
 
     ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
     ACCUMULATOR_TYPE data[INPUT0_CLASS_NUM];

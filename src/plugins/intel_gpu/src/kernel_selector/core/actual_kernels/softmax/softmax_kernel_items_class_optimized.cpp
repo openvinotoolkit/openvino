@@ -25,6 +25,9 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
         case SoftmaxDim::FEATURE:
             item_class_count = input.Feature().v;
             break;
+        case SoftmaxDim::BATCH:
+            item_class_count = input.Batch().v;
+            break;
         default:
             break;
     }

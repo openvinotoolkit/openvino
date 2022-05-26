@@ -28,8 +28,8 @@ const std::vector<ov::test::InputShape> inputDynamicShape2D = {
         {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()}, {{1, 10}, {2, 10}, {10, 10}}}
 };
 
-const std::vector<size_t> axis2D = {
-    0, 1
+const std::vector<int64_t> axis2D = {
+    0, 1, -1
 };
 
 const auto params2D_static = testing::Combine(
@@ -54,16 +54,16 @@ const auto params2D_dynamic = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D_static,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_static,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D_dynamic,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_dynamic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 const std::vector<ov::Shape> inputStaticShape4D = {
@@ -78,7 +78,7 @@ const std::vector<ov::test::InputShape> inputDynamicShape4D = {
          {{1, 100, 1, 1}, {50, 100, 4, 1}, {2, 100, 10, 1}}},
 };
 
-const std::vector<size_t> axis4D = {0, 1, 2, 3};
+const std::vector<int64_t> axis4D = {0, 1, 2, 3, -1, -2, -3};
 
 const auto params4Dstatic = testing::Combine(
     testing::ValuesIn(netPrecisions),
@@ -102,16 +102,16 @@ const auto params4Ddynamic = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D_static,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_static,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D_dynamic,
-        SoftMaxLayerTest,
+        SoftMax8LayerTest,
         params2D_dynamic,
-        SoftMaxLayerTest::getTestCaseName
+        SoftMax8LayerTest::getTestCaseName
 );
 
 }  // namespace

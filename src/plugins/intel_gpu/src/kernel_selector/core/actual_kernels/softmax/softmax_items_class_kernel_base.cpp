@@ -36,6 +36,7 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableSoftmaxDim(SoftmaxDim::Y);
     k.EnableSoftmaxDim(SoftmaxDim::Z);
     k.EnableSoftmaxDim(SoftmaxDim::FEATURE);
+    k.EnableSoftmaxDim(SoftmaxDim::BATCH);
     k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -53,6 +54,8 @@ std::vector<size_t> SoftmaxItemsClassKernelBase::GetSoftmaxDimGlobalSizes(Softma
             return {out.X().v * out.Y().v, out.Feature().v, out.Batch().v};
         case SoftmaxDim::FEATURE:
             return {out.X().v * out.Z().v, out.Y().v, out.Batch().v};
+        case SoftmaxDim::BATCH:
+            return {out.X().v * out.Z().v, out.Y().v, out.Feature().v};
         default:
             return {};
     }
@@ -70,14 +73,16 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("INPUT0_OTHER0_SIZE", "INPUT0_SIZE_Y"),
                 MakeJitConstant("INPUT0_OTHER1_PITCH", "INPUT0_FEATURE_PITCH"),
                 MakeJitConstant("INPUT0_OTHER2_PITCH", "INPUT0_Z_PITCH"),
+                MakeJitConstant("INPUT0_OTHER3_PITCH", "INPUT0_BATCH_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_PITCH", "INPUT0_X_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_NUM", "INPUT0_SIZE_X"),
                 MakeJitConstant("OUTPUT_OTHER0_PITCH", "OUTPUT_Y_PITCH"),
-                MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_FEATURE_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER3_PITCH", "OUTPUT_BATCH_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_X_PITCH"),
             });
-            idx_order = {"batch", "other1", ndims == 5 ? "other2" : "0", "other0", "cls"};
+            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "other0", "cls"};
             break;
         case SoftmaxDim::Y:
             jit.AddConstants({
@@ -85,14 +90,16 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("INPUT0_OTHER0_SIZE", "INPUT0_SIZE_X"),
                 MakeJitConstant("INPUT0_OTHER1_PITCH", "INPUT0_FEATURE_PITCH"),
                 MakeJitConstant("INPUT0_OTHER2_PITCH", "INPUT0_Z_PITCH"),
+                MakeJitConstant("INPUT0_OTHER3_PITCH", "INPUT0_BATCH_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_PITCH", "INPUT0_Y_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_NUM", "INPUT0_SIZE_Y"),
                 MakeJitConstant("OUTPUT_OTHER0_PITCH", "OUTPUT_X_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_FEATURE_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER3_PITCH", "OUTPUT_BATCH_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_Y_PITCH"),
             });
-            idx_order = {"batch", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
+            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
             break;
         case SoftmaxDim::Z:
             jit.AddConstants({
@@ -100,14 +107,16 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("INPUT0_OTHER0_SIZE", "INPUT0_SIZE_X"),
                 MakeJitConstant("INPUT0_OTHER1_PITCH", "INPUT0_FEATURE_PITCH"),
                 MakeJitConstant("INPUT0_OTHER2_PITCH", "INPUT0_Y_PITCH"),
+                MakeJitConstant("INPUT0_OTHER3_PITCH", "INPUT0_BATCH_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_PITCH", "INPUT0_Z_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_NUM", "INPUT0_SIZE_Z"),
                 MakeJitConstant("OUTPUT_OTHER0_PITCH", "OUTPUT_X_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_FEATURE_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Y_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER3_PITCH", "OUTPUT_BATCH_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_Z_PITCH"),
             });
-            idx_order = {"batch", "other1", "cls", "other2", "other0"};
+            idx_order = {"other3", "other1", "cls", "other2", "other0"};
             break;
         case SoftmaxDim::FEATURE:
             jit.AddConstants({
@@ -115,14 +124,33 @@ JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& 
                 MakeJitConstant("INPUT0_OTHER0_SIZE", "INPUT0_SIZE_X"),
                 MakeJitConstant("INPUT0_OTHER1_PITCH", "INPUT0_Y_PITCH"),
                 MakeJitConstant("INPUT0_OTHER2_PITCH", "INPUT0_Z_PITCH"),
+                MakeJitConstant("INPUT0_OTHER3_PITCH", "INPUT0_BATCH_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_PITCH", "INPUT0_FEATURE_PITCH"),
                 MakeJitConstant("INPUT0_CLASS_NUM", "INPUT0_FEATURE_NUM"),
                 MakeJitConstant("OUTPUT_OTHER0_PITCH", "OUTPUT_X_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_Y_PITCH"),
                 MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER3_PITCH", "OUTPUT_BATCH_PITCH"),
                 MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_FEATURE_PITCH"),
             });
-            idx_order = {"batch", "cls", ndims == 5 ? "other2" : "0", "other1", "other0"};
+            idx_order = {"other3", "cls", ndims == 5 ? "other2" : "0", "other1", "other0"};
+            break;
+        case SoftmaxDim::BATCH:
+            jit.AddConstants({
+                MakeJitConstant("INPUT0_OTHER0_PITCH", "INPUT0_X_PITCH"),
+                MakeJitConstant("INPUT0_OTHER0_SIZE", "INPUT0_SIZE_X"),
+                MakeJitConstant("INPUT0_OTHER1_PITCH", "INPUT0_Y_PITCH"),
+                MakeJitConstant("INPUT0_OTHER2_PITCH", "INPUT0_Z_PITCH"),
+                MakeJitConstant("INPUT0_OTHER3_PITCH", "INPUT0_FEATURE_PITCH"),
+                MakeJitConstant("INPUT0_CLASS_PITCH", "INPUT0_BATCH_PITCH"),
+                MakeJitConstant("INPUT0_CLASS_NUM", "INPUT0_BATCH_NUM"),
+                MakeJitConstant("OUTPUT_OTHER0_PITCH", "OUTPUT_X_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER1_PITCH", "OUTPUT_Y_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER2_PITCH", "OUTPUT_Z_PITCH"),
+                MakeJitConstant("OUTPUT_OTHER3_PITCH", "OUTPUT_FEATURE_PITCH"),
+                MakeJitConstant("OUTPUT_CLASS_PITCH", "OUTPUT_BATCH_PITCH"),
+            });
+            idx_order = {"cls", "other3", ndims == 5 ? "other2" : "0", "other1", "other0"};
             break;
         default:
             break;
