@@ -192,3 +192,81 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
+
+ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
+    MATCHER_SCOPE(GeluFusionWithTanh);
+    // Replaces a sub-graph with a Gelu (Tanh) op
+    // Gaussian Error Linear Unit, TanH based approximation:
+    // 0.5*x*(1 + tanh([sqrt(2/pi)]*[x + 0.044715 * x^3])
+
+    auto input = ngraph::pattern::any_input();
+    auto pow_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto pow = ngraph::pattern::wrap_type<ngraph::opset8::Power>({input, pow_constant});
+
+    auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({pow, mul_constant});
+
+    auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({input, mul});
+
+    auto mul0_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto mul0 = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({add, mul0_constant});
+
+    auto tanh = ngraph::pattern::wrap_type<ngraph::opset8::Tanh>({mul0});
+
+    auto add0_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto add0 = ngraph::pattern::wrap_type<ngraph::opset8::Add>({tanh, add0_constant});
+
+    auto mul1_constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto mul1 = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({add0, mul1_constant});
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto& pattern_to_output = m.get_pattern_value_map();
+        auto x_output = pattern_to_output.at(input);
+
+        auto pow_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(pow_constant).get_node_shared_ptr());
+        auto add0_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(add0_constant).get_node_shared_ptr());
+        auto mul_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto mul0_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(mul0_constant).get_node_shared_ptr());
+        auto mul1_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(mul1_constant).get_node_shared_ptr());
+
+        if (!pow_constant_value || !add0_constant_value || !mul_constant_value || !mul0_constant_value ||
+            !mul1_constant_value) {
+            return false;
+        }
+
+        bool valid_constant_values = op::util::has_constant_value<float>(mul_constant_value, 0.044715) &&
+                                     op::util::has_constant_value<float>(pow_constant_value, 3.0f) &&
+                                     op::util::has_constant_value<float>(add0_constant_value, 1.0f) &&
+                                     op::util::has_constant_value<float>(mul0_constant_value, std::sqrt(2.0 / M_PI)) &&
+                                     op::util::has_constant_value<float>(mul1_constant_value, 0.5f);
+
+        if (!valid_constant_values) {
+            return false;
+        }
+
+        auto gelu = std::make_shared<ngraph::opset8::Gelu>(x_output, op::GeluApproximationMode::TANH);
+
+        gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ngraph::copy_runtime_info(
+            {
+                pattern_to_output.at(pow).get_node_shared_ptr(),
+                pattern_to_output.at(mul).get_node_shared_ptr(),
+                pattern_to_output.at(mul0).get_node_shared_ptr(),
+                pattern_to_output.at(mul1).get_node_shared_ptr(),
+                pattern_to_output.at(tanh).get_node_shared_ptr(),
+                pattern_to_output.at(add).get_node_shared_ptr(),
+                pattern_to_output.at(add0).get_node_shared_ptr(),
+            },
+            gelu);
+        ngraph::replace_node(m.get_match_root(), gelu);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    register_matcher(m, callback);
+}
