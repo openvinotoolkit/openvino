@@ -64,8 +64,7 @@ public:
         for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
 
-        auto dat =
-            generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
+        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0 =
             engine.allocate_memory(layout(T_dat_dt,
                                           format::get_default_format(shape_in[0].size()),
@@ -210,14 +209,6 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_zyx_fsv32,
                                           testing::Values(format::type::b_fs_zyx_fsv16),
                                           testing::Values(std::vector<int>{8, 66, 3, 1, 1}),
                                           testing::Values(std::vector<int>{8, 56, 9, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
-                         gather8_test_i32i32,
-                         testing::Combine(testing::Values(0),
-                                          testing::Values(1),
-                                          testing::Values(format::type::bfyx),
-                                          testing::Values(format::type::bfyx),
-                                          testing::Values(std::vector<int>{4, 3, 2, 1}),
-                                          testing::Values(std::vector<int>{5, 6, 1, 1})));
 INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
@@ -226,7 +217,15 @@ INSTANTIATE_TEST_SUITE_P(gather8_b_fs_yx_fsv4,
                                           testing::Values(format::type::b_fs_yx_fsv4),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
                                           testing::Values(std::vector<int>{3, 5, 1, 1})));
-INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_byxf,
+INSTANTIATE_TEST_SUITE_P(gather8_bfyx,
+                         gather8_test_i32i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(1),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(format::type::bfyx),
+                                          testing::Values(std::vector<int>{4, 3, 2, 1}),
+                                          testing::Values(std::vector<int>{5, 6, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8_byxf,
                          gather8_test_i32i32,
                          testing::Combine(testing::Values(0),
                                           testing::Values(2),
@@ -234,10 +233,20 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_byxf,
                                           testing::Values(format::type::byxf),
                                           testing::Values(std::vector<int>{4, 6, 2, 1}),
                                           testing::Values(std::vector<int>{3, 5, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(gather8_fs_b_yx_fsv32_2,
+                         gather8_test_i32i32,
+                         testing::Combine(testing::Values(0),
+                                          testing::Values(2),
+                                          testing::Values(format::type::fs_b_yx_fsv32),
+                                          testing::Values(format::type::fs_b_yx_fsv32),
+                                          testing::Values(std::vector<int>{4, 6, 2, 3}),
+                                          testing::Values(std::vector<int>{3, 1, 1, 1})));
 
 // Disabled tests for faster CI
 // Remove DISABLED_ prefix to test these cases
-#define FORMAT4D format::type::bfyx, format::type::b_fs_yx_fsv16, format::type::bs_fs_yx_bsv16_fsv16
+#define FORMAT4D                                                                                             \
+    format::type::bfyx, format::type::b_fs_yx_fsv16, format::type::bs_fs_yx_bsv16_fsv16, format::type::byxf, \
+        format::type::yxfb, format::type::fyxb, format::type::fs_b_yx_fsv32
 #define FORMAT5D format::type::bfzyx, format::type::b_fs_zyx_fsv16, format::type::bs_fs_zyx_bsv16_fsv16
 #define FORMAT6D format::type::bfwzyx
 INSTANTIATE_TEST_SUITE_P(DISABLED_gather8_4d_f16i32,

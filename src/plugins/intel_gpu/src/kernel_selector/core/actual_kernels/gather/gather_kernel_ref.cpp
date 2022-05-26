@@ -47,43 +47,8 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
-
-    k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -96,8 +61,17 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
     if (data_tensor.LogicalSize() != 1) {
         // Count the number of "one size" dimensions starting with X to Batch
         size_t one_size_dims = 0;
-        for (auto& i : data_tensor.GetDims()) {
-            if (i.v == 1)
+        auto shape_raw = data_tensor.LogicalDims();
+        auto shape = shape_raw;
+        int shape_idx = 0;
+        for (int i = 0; i < static_cast<int>(Tensor::DataChannelName::COUNT); i++) {
+            int shape_raw_idx =
+                data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
+            if (shape_raw_idx >= 0)
+                shape[shape_idx++] = shape_raw[shape_raw_idx];
+        }
+        for (auto& i : shape) {
+            if (i == 1)
                 one_size_dims++;
             else
                 break;
@@ -204,8 +178,6 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-
-    // int rank = cldnn::format(out_layout.).dimension();
     int rank = params.outputs[0].Dimentions();
     if (rank == 4) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
