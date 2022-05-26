@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
-If you want to install Intel® Distribution of OpenVINO™ toolkit on macOS, there are a few ways to accomplish this. We prepared following options for you: 
+If you want to install Intel® Distribution of OpenVINO™ toolkit on macOS, you may use the following options to accomplish this: 
 
 * [Install OpenVINO Runtime using an Installer](installing-openvino-macos.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
