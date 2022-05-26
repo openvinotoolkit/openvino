@@ -48,7 +48,7 @@ private:
     do {                                                                               \
         ::std::stringstream ss___;                                                     \
         ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                 \
-        std::cout << __func__ << ":" << __LINE__ << " " << ss___.str() << std::endl;   \
+        std::cout << "[ VERBOSE ] " << __func__ << ":" << __LINE__ << " " << ss___.str() << std::endl;   \
     } while (0)
 }   // namespace intel_cpu
 }   // namespace ov
