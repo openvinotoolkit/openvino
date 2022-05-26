@@ -52,6 +52,7 @@
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/common_optimizations/random_uniform_fusion.hpp"
+#include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/common_optimizations/shuffle_channels_fusion.hpp"
@@ -132,6 +133,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
     common_fusions->add_matcher<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+    common_fusions->add_matcher<ngraph::pass::ReduceMerge>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConcatReduceFusion>();
