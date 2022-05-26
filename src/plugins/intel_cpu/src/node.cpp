@@ -515,7 +515,7 @@ void Node::execute(dnnl::stream strm) {
 }
 
 void Node::executeDynamic(dnnl::stream strm) {
-    VERBOSE_LOG("#", getExecIndex(), " ", getName());
+    DEBUG_LOG("#", getExecIndex(), " ", getName());
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
