@@ -284,7 +284,7 @@ void summary_perf(const Graph &graph) {
         else
             perf_by_node[node] = avg;
     }
-    
+
     if (total_avg < 1) return;
 
     std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << std::endl;
@@ -301,10 +301,10 @@ void summary_perf(const Graph &graph) {
                    std::pair<std::string, double>& b){
                 return a.second > b.second;
             });
-        
+
         for (auto& it : A) {
             std::stringstream ss;
-            int percentage = (int)(it.second*100/total_avg);
+            int percentage = static_cast<int>(it.second*100/total_avg);
             if (percentage == 0) break;
             ss << std::setw(10) << std::right << percentage << " % :" << it.first << std::endl;
             std::cout << ss.str();
@@ -320,14 +320,14 @@ void summary_perf(const Graph &graph) {
                 std::pair<NodePtr, double>& b){
             return a.second > b.second;
         });
-        
+
         for (auto& it : A) {
             std::stringstream ss;
             auto percentage = it.second*100/total_avg;
             auto node = it.first;
             if (node->PerfCounter().count() == 0) continue;
             if (node->PerfCounter().avg() < 1) continue;
-            ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  " 
+            ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  "
                << std::setw(8) << std::right  << node->PerfCounter().avg() << "(us)x" << node->PerfCounter().count()
                << " #" << node->getExecIndex()
                << " " << node->getName()
