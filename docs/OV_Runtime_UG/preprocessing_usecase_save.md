@@ -1,7 +1,7 @@
 # Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_UG_Preprocess_Usecase_save}
 
 
-Previous sections covered the topic of the [preprocessing steps](./preprocessing_details.md) and the overview of [Layout](./layout_overview.md) API.
+Previous sections covered the topic of the [preprocessing steps](@ref openvino_docs_OV_UG_Preprocessing_Details) and the overview of [Layout](@ref openvino_docs_OV_UG_Layout_Overview) API.
 
 For many applications, it is also important to minimize read/load time of a model. Therefore, performing integration of preprocessing steps every time on application startup, after `ov::runtime::Core::read_model`, may seem inconvenient. In such cases, once pre and postprocessing steps have been added, it can be useful to store new execution model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
@@ -75,8 +75,8 @@ After this, the application code can load a saved file and stop preprocessing. I
 
 
 ## See Also
-* [Preprocessing Details](./preprocessing_details.md)
-* [Layout API overview](./layout_overview.md)
+* [Preprocessing Details](@ref openvino_docs_OV_UG_Preprocessing_Details)
+* [Layout API overview](@ref openvino_docs_OV_UG_Layout_Overview)
 * [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
 * [Model Caching Overview](./Model_caching_overview.md)
 * The `ov::preprocess::PrePostProcessor` C++ class documentation

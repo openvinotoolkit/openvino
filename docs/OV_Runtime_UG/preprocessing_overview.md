@@ -166,6 +166,6 @@ After this, a `model` will accept `U8` input with `{1, 480, 640, 3}` shape and `
 
 ## Additional Resources
 
-* [Preprocessing Details](./preprocessing_details.md)
-* [Layout API overview](./layout_overview.md)
+* [Preprocessing Details](@ref openvino_docs_OV_UG_Preprocessing_Details)
+* [Layout API overview](@ref openvino_docs_OV_UG_Layout_Overview)
 * <code>ov::preprocess::PrePostProcessor</code> C++ class documentation
