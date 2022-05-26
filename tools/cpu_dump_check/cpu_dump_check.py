@@ -282,12 +282,25 @@ def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
         for prec in MAX_atol:
             print("Max atol {} : {}".format(prec, MAX_atol[prec]))
 
+def compare_dump_file(ieb_file1, ieb_file2, visualize):
+    ieb1 = IEB(ieb_file1)
+    ieb2 = IEB(ieb_file2)
+
+    diff_abs = np.abs(ieb1.value - ieb2.value)
+
+    print("    {} {}    ({:.2e} ~ {:.2e})   @ mean:{:.2e} std:{:.2e} ".format(
+            diff_abs.shape, diff_abs.dtype,
+            np.amin(diff_abs), np.amax(diff_abs), np.mean(diff_abs), np.std(diff_abs)))
+
+    if (visualize):
+        visualize_diff_abs(diff_abs)
+
 def main():
     parser = argparse.ArgumentParser("cpu_cross_check")
     parser.add_argument("-m", type=str, default="", required=True, help="Model file path")
     parser.add_argument("-atol", type=float, default=1e-8, help="absolute error")
     parser.add_argument("-v", action="store_true", help="visualize error")
-    parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders")
+    parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders or files")
     args = parser.parse_args()
 
     print(f"Read model {args.m}...")
@@ -298,39 +311,10 @@ def main():
         dump_tensors(core, model, args.dumps[0])
     else:
         assert(len(args.dumps) == 2)
-        compare_dumps(model, args.atol, args.v, args.dumps[0], args.dumps[1])
-
+        if (os.path.isdir(args.dumps[0])):
+            compare_dumps(model, args.atol, args.v, args.dumps[0], args.dumps[1])
+        else:
+            compare_dump_file(args.dumps[0], args.dumps[1], args.v)
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-commented_code = '''
-    dump_dir = "./cpu_dump"
-    if os.path.isdir(dump_dir):
-        print(f"using dump result from {dump_dir}, (re)move this folder if re-dump is required ...")
-    else:
-        dump_tensors(core, model, )
-
-    index_file = os.path.join(dump_dir, "index.txt")
-    print(f"Checking dumpped tensor index in {index_file}...")
-    dump_tensors = []
-    with open(index_file) as f:
-        for l in f.readlines():
-            l = l.rstrip("\n")
-            di = DumpIndex(l.split(";"))
-            dump_tensors.append(di)
-            #ieb = IEB(di.ieb_file)
-            #print(ieb.value)
-    
-    if (len(dump_tensors) == 0):
-        print("No valid tensor was found!")
-        return
-    
-    print("{} tensors was found!".format(len(dump_tensors)))
-    # find node name in ngraph model and add them to result
-    '''
