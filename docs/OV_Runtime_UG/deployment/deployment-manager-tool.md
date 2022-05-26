@@ -9,11 +9,11 @@ The Deployment Manager is a Python* command-line tool that creates a deployment 
    * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md):
      * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md) section
      * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
-     * Steps for [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
+     * Steps for [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md)
      * Steps for [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
    * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
      * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md)
-     * Steps for the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md)
+     * Steps for the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md)
    * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos.md):
      * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
 
