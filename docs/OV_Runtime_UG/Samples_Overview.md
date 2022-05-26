@@ -72,7 +72,7 @@ The applications include:
 
 ## Media Files Available for Samples
 
-To run the sample applications, you can use images and videos from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample applications, you may use images and videos from [the media files collection.](https://storage.openvinotoolkit.org/data/test_data)
 
 ## Samples that Support Pre-Trained Models
 
@@ -103,7 +103,7 @@ You can also build the sample applications manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode before you continue: `sudo -i`
 
-1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
+1. Navigate to a directory to which you have write access and create a samples build directory. This example uses a directory named `build`:
 ```sh
 mkdir build
 ```
@@ -114,7 +114,7 @@ mkdir build
 cd build
 ```
 
-3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
+3. Run CMake to generate either the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
@@ -128,8 +128,9 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+The sample application binaries can be found in;
+* The release configuration: `<path_to_build_directory>/intel64/Release/`
+* The debug configuration - `<path_to_build_directory>/intel64/Debug/`
 
 ### <a name="build_samples_windows"></a>Build the Sample Applications on Microsoft Windows
 
@@ -138,34 +139,34 @@ The recommended Windows build environment is the following:
 * Microsoft Visual Studio 2019
 * CMake version 3.10 or higher
 
-> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+> **NOTE**: To use Microsoft Visual Studio 2019, it is required to install CMake 3.14 or higher.
 
 To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
 build_samples_msvc.bat
 ```
 
-By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
+By default, the script automatically detects the newest Microsoft Visual Studio version installed on the machine and uses it to build a solution for a sample code
 
 Once the build is completed, you can find sample binaries in the following folders:
 * C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
 * C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
 
-You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
+Generated solution can also be build manually. For example, if you want to build C++ sample binaries in Debug configuration, run the suitable version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
 
 ### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
 
-The officially supported macOS* build environment is the following:
+The officially supported macOS* build environment:
 
 * macOS* 10.15 64-bit or higher
 * Clang* compiler from Xcode* 10.1 or higher
 * CMake* version 3.13 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: To learn how to build samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build the C or C++ sample applications for macOS, go to `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
@@ -209,43 +210,44 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+The sample application binaries can be found in;
+* The release configuration: `<path_to_build_directory>/intel64/Release/`
+* The debug configuration - `<path_to_build_directory>/intel64/Debug/`
 
 ## Get Ready for Running the Sample Applications
 
 ### Get Ready for Running the Sample Applications on Linux*
 
-Before running compiled binary files, make sure your application can find the
+Before running compiled binary files, check if your application can find the
 OpenVINO Runtime libraries.
 Run the `setupvars` script to set all necessary environment variables:
 ```sh
 source <INSTALL_DIR>/setupvars.sh
 ```
 
-**(Optional)**: The OpenVINO environment variables are removed when you close the
-shell. As an option, you can permanently set the environment variables as follows:
+**Optional:** The OpenVINO environment variables are removed when you close the
+shell. You can permanently set the environment variables as follows:
 
 1. Open the `.bashrc` file in `<user_home_directory>`:
 ```sh
 vi <user_home_directory>/.bashrc
 ```
 
-2. Add this line to the end of the file:
+2. Add following line to the end of the file:
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
 ```
 
-3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
-4. To test your change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
-
+3. Press the **Esc** key, type `:wq` and press the **Enter** key to save and close the file.
+4. To test change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
+ 
 You are ready to run sample applications. To learn about how to run a particular
 sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ### Get Ready for Running the Sample Applications on Windows*
 
-Before running compiled binary files, make sure your application can find the
+Before running compiled binary files, check if your application can find the
 OpenVINO Runtime libraries.
 Use the `setupvars` script, which sets all necessary environment variables:
 ```sh
@@ -256,6 +258,7 @@ To debug or run the samples on Windows in Microsoft Visual Studio, make sure you
 have properly configured **Debugging** environment settings for the **Debug**
 and **Release** configurations. Set correct paths to the OpenCV libraries, and
 debug and release versions of the OpenVINO Runtime libraries.
+
 For example, for the **Debug** configuration, go to the project's
 **Configuration Properties** to the **Debugging** category and set the `PATH`
 variable in the **Environment** field to the following:
