@@ -82,6 +82,7 @@ namespace LayerTestsDefinitions {
                 ConfigureNetwork();
                 executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
             }
+            inferRequest = executableNetwork.CreateInferRequest();
             GenerateInputs();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();
@@ -99,6 +100,11 @@ namespace LayerTestsDefinitions {
             s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
+    }
+
+    void MemoryTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
     }
 
     std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
