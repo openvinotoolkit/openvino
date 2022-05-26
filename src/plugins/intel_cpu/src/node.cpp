@@ -56,6 +56,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -514,6 +515,7 @@ void Node::execute(dnnl::stream strm) {
 }
 
 void Node::executeDynamic(dnnl::stream strm) {
+    VERBOSE_LOG("#", getExecIndex(), " ", getName());
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }

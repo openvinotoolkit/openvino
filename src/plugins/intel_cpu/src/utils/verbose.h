@@ -44,8 +44,15 @@ private:
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)
 #define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
+#define VERBOSE_LOG(...)                                        \
+    do {                                                                               \
+        ::std::stringstream ss___;                                                     \
+        ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                 \
+        std::cout << __func__ << ":" << __LINE__ << " " << ss___.str() << std::endl;   \
+    } while (0)
 }   // namespace intel_cpu
 }   // namespace ov
 #else
 #define VERBOSE(...)
+#define VERBOSE_LOG(...)
 #endif // CPU_DEBUG_CAPS
