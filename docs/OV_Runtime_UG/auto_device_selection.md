@@ -141,10 +141,10 @@ openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
 ### Performance Hints
 The `ov::hint::performance_mode` property enables you to specify a performance mode for the plugin to be more efficient for particular use cases.
 
-#### ov::hint::PerformanceMode::THROUGHPUT
+#### THROUGHPUT Mode
 This mode prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, like inference of video feeds or large numbers of images.
 
-#### ov::hint::PerformanceMode::LATENCY
+#### LATENCY Mode
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, like a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 Note that currently the `ov::hint` property is supported by CPU and GPU devices only.
 
@@ -167,7 +167,7 @@ To enable performance hints for your application, use the following code:
 
 ### Model Priority
 
-This property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
+The `ov::hint::model_priority` property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
 
 @sphinxdirective
 
