@@ -11,26 +11,26 @@ You will perform the following steps:
 4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
-This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
+This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit, follow the installation guide suitable for You:
 
 @sphinxdirective
 .. tab:: Linux
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux* <openvino_docs_install_guides_installing_openvino_linux>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux* <openvino_docs_install_guides_installing_openvino_linux>`
 
 .. tab:: Windows
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows* <openvino_docs_install_guides_installing_openvino_windows>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows* <openvino_docs_install_guides_installing_openvino_windows>`
 
 .. tab:: macOS
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS* <openvino_docs_install_guides_installing_openvino_macos>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS* <openvino_docs_install_guides_installing_openvino_macos>`
   
 @endsphinxdirective
 
 ## Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for working with Caffe* models, use the following command: 
+To install OpenVINO Development Tools for use with Caffe* models, run the following command: 
 
 ``` sh
    pip install openvino-dev[caffe]
@@ -38,22 +38,22 @@ To install OpenVINO Development Tools for working with Caffe* models, use the fo
 
 ## Build Samples and Demos
 
-If you have already built the demos and samples, you can skip this section. The build will take about 5-10 minutes, depending on your system.
+If you have already built the demos and samples, you can skip this section.
 
 To build OpenVINO samples:
 
 @sphinxdirective
 .. tab:: Linux
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
+   Open :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Linux*" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Open :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Microsoft Windows* OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
+   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on macOS*" section. 
 
 @endsphinxdirective
 
@@ -61,33 +61,33 @@ To build OpenVINO demos:
 @sphinxdirective
 .. tab:: Linux
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section.
+   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux*" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows* OS" section.
+   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Microsoft Windows* OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS*.
+   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux building steps for macOS*.
 
 @endsphinxdirective
 
 ## <a name="download-models"></a> Step 1: Download the Models
 
-You must have a model that is specific for your inference task. Example model types are:
+For Your inference task You need to have a specific model. Below are presented model type examples:
 
 - Classification (AlexNet, GoogleNet, SqueezeNet, others): Detects one type of element in an image
 - Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
 - Custom: Often based on SSD
 
-Options to find a model suitable for the OpenVINO™ toolkit:
+You can find a model suitable for the OpenVINO™ toolkit by:
 
 - Download public or Intel pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader)
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, etc.
 - Train your own model with machine learning tools
   
-This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
+To find a model to use, You can run one of below commands:
 
 * List the models available in the downloader
 
@@ -103,7 +103,7 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
 * Use Model Downloader to download models.
 
- This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
+ This guide uses `<models_dir>` and `<models_name>` as placeholders for the model directory and model name:
 
 ``` sh
    omz_downloader --name <model_name> --output_dir <models_dir>
@@ -118,11 +118,11 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-section" data-title="Click for an example of downloading the GoogleNet v1 Caffe* model">
+   <div class="collapsible-section" data-title="Click here for an example of downloading the GoogleNet v1 Caffe* model to the `models` folder">
 
 @endsphinxdirective
 
-To download the GoogleNet v1 Caffe* model to the `models` folder:
+<!-- To download the GoogleNet v1 Caffe* model to the `models` folder: -->
 
 @sphinxdirective
 
@@ -146,7 +146,7 @@ To download the GoogleNet v1 Caffe* model to the `models` folder:
 
 @endsphinxdirective
 
-Your screen looks similar to this after the download and shows the paths of downloaded files:
+After download Your screen will look similar to below and show the paths of downloaded files:
 
 @sphinxdirective
 .. tab:: Linux
@@ -205,21 +205,17 @@ Your screen looks similar to this after the download and shows the paths of down
 
 @endsphinxdirective
 
+For the remainder of this guide, OpenVINO™ Model Downloader was used to download pre-trained models. 
+
 ## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
-In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the OpenVINO Runtime with the model.
+To use Your model in the OpenVINO Runtime it's required to be converted into IR (Intermediate Representation) format. To do this You need to run Your trained model throught the Model Optimizer.
 
-Models in the IR format always include an `.xml` and `.bin` file and may also include other files such as `.json` or `.mapping`. Make sure you have these files together in a single directory so the OpenVINO Runtime can find them.
+This tutorial uses the public GoogleNet v1 Caffe* model to run the Image Classification Sample. See the example in the <a href="#download-models">Download Models</a> section of this article to learn how to download this model.
 
-REQUIRED: `model_name.xml`
-REQUIRED: `model_name.bin`
-OPTIONAL: `model_name.json`, `model_name.mapping`, etc.
+The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert it to IR.
 
-This tutorial uses the public GoogleNet v1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
-
-The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
-
-Create an `<ir_dir>` directory to contain the model's Intermediate Representation (IR).
+Create an `<ir_dir>` directory to contain the model's IR.
 
 @sphinxdirective
 .. tab:: Linux
@@ -250,8 +246,6 @@ Generic Model Optimizer script:
    mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
 ```
 
-IR files produced by the script are written to the <ir_dir> directory.
-
 The command with most placeholders filled in and FP16 precision:
 
 @sphinxdirective
@@ -275,22 +269,27 @@ The command with most placeholders filled in and FP16 precision:
 
 @endsphinxdirective
 
+After the conversion IR files produced by the script are written to the <ir_dir> directory. Models in the IR format always include an `.xml` and `.bin` file. In some cases they may also include other files such as `.json` or `.mapping`.
+**Make sure these files are together in a single directory so the OpenVINO Runtime can find them!**
+
+**REQUIRED:** `model_name.xml`, `model_name.bin`
+**OPTIONAL:** `model_name.json`, `model_name.mapping`, etc.
+
 ## <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
 
-Many sources are available from which you can download video media to use the code samples and demo applications. Possibilities include:
+You can download video media to use as the code samples and demo applications from many available sources, like:
 
 - [Pexels](https://pexels.com)
 - [Google Images](https://images.google.com)
 
-As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that you can use for running code samples and demo applications:
+Also, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that you can use for running code samples and demo applications:
 
    - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
    - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
-
-### Run the Image Classification Code Sample
+<!-- ### Run the Image Classification Code Sample -->
 
 To run the **Image Classification** code sample with an input image using the IR model:
 
@@ -316,7 +315,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-2. Go to the code samples release directory created when you built the samples earlier:
+2. Open directory of the code samples release created when you built the samples earlier:
 @sphinxdirective
 .. tab:: Linux
 
@@ -338,7 +337,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
+3. Run the below executable, specifying: the input media file, the IR for your model, and a target device for performing inference:
 
 @sphinxdirective
 .. tab:: Linux
@@ -368,7 +367,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-The following commands run the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
+Below command run the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
    **CPU:**  
 @sphinxdirective
@@ -393,7 +392,7 @@ The following commands run the Image Classification Code Sample using the [dog.b
 @endsphinxdirective
 
    **GPU:**
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS*.
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier in this article. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
@@ -411,7 +410,7 @@ The following commands run the Image Classification Code Sample using the [dog.b
 @endsphinxdirective
 
    **MYRIAD:**
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
+   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier in this article.
 
 @sphinxdirective
 .. tab:: Linux
@@ -434,7 +433,7 @@ The following commands run the Image Classification Code Sample using the [dog.b
 
 @endsphinxdirective
 
-When the sample application is complete, you see the label and confidence for the top 10 categories on the display. Below is a sample output with inference results on CPU:
+Once the sample application is complete, you will see the label and confidence for the top 10 categories on the display. Below is a sample output with inference results on CPU:
 
 @sphinxdirective
 
@@ -468,7 +467,7 @@ When the sample application is complete, you see the label and confidence for th
 
 ## Other Demos/Samples
 
-For more samples and demos, you can visit the samples and demos pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
+For more samples and demos, you may visit pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
 
 [Samples](../OV_Runtime_UG/Samples_Overview.md)
 
