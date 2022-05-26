@@ -126,6 +126,13 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", device_target="CPU"):
     print("infer with dump..")
     req.infer(inputs)
 
+    runtime_func = exec_net.get_runtime_model()
+    xml_path = "runtime_func.xml"
+    bin_path = "runtime_func.bin"
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.run_passes(runtime_func)    
+
 
 def visualize_diff_abs(diff_abs):
     vis_abs = diff_abs
@@ -134,9 +141,15 @@ def visualize_diff_abs(diff_abs):
         vis_abs = vis_abs.reshape(-1,cur_shape[-2],cur_shape[-1])
     
     fig, ax = plt.subplots()
-    im = ax.imshow(vis_abs[0,:,:])
 
-    cur_channel = 0
+    # first channel with diff
+    for cur_channel in range(0, vis_abs.shape[0]):
+        diff_img = vis_abs[cur_channel,:,:]
+        if np.amax(diff_img) > 1e-8:
+            break
+
+    im = ax.imshow(vis_abs[cur_channel,:,:])
+
     def update_channel(val):
         nonlocal cur_channel
         val = int(val)
@@ -149,7 +162,7 @@ def visualize_diff_abs(diff_abs):
         im.set_data(diff_img * 255 / max_diff)
         fig.canvas.draw_idle()
 
-    update_channel(0)
+    update_channel(cur_channel)
 
     ax_ch_slider = plt.axes([0.1, 0.25, 0.0225, 0.63])
     ch_slider = Slider(
