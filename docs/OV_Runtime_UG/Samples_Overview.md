@@ -114,7 +114,7 @@ mkdir build
 cd build
 ```
 
-3. Run CMake to generate either the Make files for release or debug configuration. For example, for C++ samples:
+3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
   - For release configuration:
   ```sh
   cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
