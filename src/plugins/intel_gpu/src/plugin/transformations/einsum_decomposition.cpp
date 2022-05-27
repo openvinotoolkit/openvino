@@ -258,7 +258,7 @@ LabelDimMap compute_label_dim_map(const ngraph::Rank& input_rank,
     const size_t input_rank_length = static_input_rank ? input_rank.get_length() : labels.size();
     NGRAPH_CHECK(input_rank_length >= labels.size());
     const size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
-    NGRAPH_CHECK(num_broadcasted_dims >= 0);
+    NGRAPH_CHECK(num_broadcasted_dims > 0);
 
     LabelDimMap resulted_map;
     size_t current_dim = 0;
