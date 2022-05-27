@@ -42,7 +42,7 @@ Try one of these solutions:
 
 ## Issues with Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs 
 
-<!-- this part was taken from original installing-openvino-config-ivad-vpu.md -->
+<!-- this part was taken from original configurations-for-ivad-vpu.md -->
 
 ### Unable to run inference with the MYRIAD Plugin after running with the HDDL Plugin
 

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-namespace default_opset = ov::opset8;
+namespace default_opset = ov::opset9;
 
 }  // namespace op
 }  // namespace paddle
