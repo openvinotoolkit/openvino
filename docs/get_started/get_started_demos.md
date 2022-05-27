@@ -268,7 +268,7 @@ The command with most placeholders filled in and FP16 precision:
 
 @endsphinxdirective
 
-After the conversion IR files produced by the script are written to the <ir_dir> directory. Models in the IR format always include an `.xml` and `.bin` file. In some cases they may also include other files such as `.json` or `.mapping`.
+After the conversion the OpenVINO IR files (produced by the script) are written to the <ir_dir> directory. Models in the OpenVINO IR format always include an `.xml` and `.bin` files. In some cases they may also include other files, such as `.json` or `.mapping`.
 **Make sure these files are together in a single directory so the OpenVINO Runtime can find them!**
 
 **REQUIRED:** `model_name.xml`, `model_name.bin`
