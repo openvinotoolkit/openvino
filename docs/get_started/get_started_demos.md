@@ -24,7 +24,7 @@ This guide assumes you completed all installation and configuration steps. If yo
 
 .. tab:: macOS
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS* <openvino_docs_install_guides_installing_openvino_macos>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS <openvino_docs_install_guides_installing_openvino_macos>`
   
 @endsphinxdirective
 
