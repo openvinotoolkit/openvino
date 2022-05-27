@@ -16,7 +16,7 @@ This guide assumes you completed all installation and configuration steps. If yo
 @sphinxdirective
 .. tab:: Linux
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux* <openvino_docs_install_guides_installing_openvino_linux>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux <openvino_docs_install_guides_installing_openvino_linux>`
 
 .. tab:: Windows
 
