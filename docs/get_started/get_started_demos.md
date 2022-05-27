@@ -36,7 +36,7 @@ To install OpenVINO Development Tools for use with Caffe models, run the followi
    pip install openvino-dev[caffe]
 ```
 
-## Build Samples and Demos
+## Building Samples and Demos
 
 If you have already built the demos and samples, you can skip this section.
 
