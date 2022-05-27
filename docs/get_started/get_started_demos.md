@@ -210,7 +210,7 @@ For the rest of this guide, OpenVINO™ Model Downloader was used to download pr
 
 To use your model in the OpenVINO Runtime, it's required to be converted into OpenVINO IR (Intermediate Representation) format. To do this it is required to run trained model through the Model Optimizer.
 
-This tutorial uses the public GoogleNet v1 Caffe* model to run the Image Classification Sample. See the example in the <a href="#download-models">Download Models</a> section of this article to learn how to download this model.
+This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classification Sample. See the example in the <a href="#download-models">Download Models</a> section of this article to learn how to download this model.
 
 The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert it to IR.
 
