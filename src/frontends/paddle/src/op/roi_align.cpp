@@ -9,12 +9,19 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
+using AlignedMode = default_opset::ROIAlign::AlignedMode;
+using PoolingMode = default_opset::ROIAlign::PoolingMode;
 NamedOutputs roi_align(const NodeContext& node) {
     const auto data_node = node.get_input("X");
     const auto roi_node = node.get_input("ROIs");
-    // TODO: support 'aligned' feature #82319
     const auto aligned = node.get_attribute("aligned", false);
-    PADDLE_OP_CHECK(node, !aligned, "OpenVINO not support 'aligned' feature!");
+    // Paddle only use 'avg' interpolation mode
+    const auto pooling_mode = PoolingMode::AVG;
+    AlignedMode aligned_mode;
+    if (aligned)
+        aligned_mode = AlignedMode::HALF_PIXEL_FOR_NN;
+    else
+        aligned_mode = AlignedMode::ASYMMETRIC;
 
     // TODO: support multiple batches #83232
     if (data_node.get_partial_shape().rank().is_static() && data_node.get_partial_shape()[0].is_static())
@@ -35,7 +42,6 @@ NamedOutputs roi_align(const NodeContext& node) {
     auto sampling_ratio = node.get_attribute<int>("sampling_ratio", -1);
     sampling_ratio = (sampling_ratio <= 0) ? 0 : sampling_ratio;
 
-    // Paddle only use 'avg' interpolation mode
     return node.default_single_output_mapping({std::make_shared<default_opset::ROIAlign>(data_node,
                                                                                          roi_node,
                                                                                          fake_roisNum_node,
@@ -43,7 +49,8 @@ NamedOutputs roi_align(const NodeContext& node) {
                                                                                          pooled_w,
                                                                                          sampling_ratio,
                                                                                          spatial_scale,
-                                                                                         "avg")},
+                                                                                         pooling_mode,
+                                                                                         aligned_mode)},
                                               {"Out"});
 }
 }  // namespace op
