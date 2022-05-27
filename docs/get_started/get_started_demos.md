@@ -53,7 +53,7 @@ To build OpenVINO samples:
 
 .. tab:: macOS
 
-   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on macOS*" section. 
+   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on macOS" section. 
 
 @endsphinxdirective
 
