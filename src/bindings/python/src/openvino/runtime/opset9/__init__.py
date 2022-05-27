@@ -72,6 +72,7 @@ from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset1.ops import interpolate
+from openvino.runtime.opset9.ops import irdft
 from openvino.runtime.opset8.ops import i420_to_bgr
 from openvino.runtime.opset8.ops import i420_to_rgb
 from openvino.runtime.opset1.ops import less
@@ -97,7 +98,7 @@ from openvino.runtime.opset8.ops import multiclass_nms
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative
-from openvino.runtime.opset5.ops import non_max_suppression
+from openvino.runtime.opset9.ops import non_max_suppression
 from openvino.runtime.opset3.ops import non_zero
 from openvino.runtime.opset1.ops import normalize_l2
 from openvino.runtime.opset1.ops import not_equal
@@ -114,6 +115,7 @@ from openvino.runtime.opset1.ops import psroi_pooling
 from openvino.runtime.opset4.ops import proposal
 from openvino.runtime.opset1.ops import range
 from openvino.runtime.opset8.ops import random_uniform
+from openvino.runtime.opset9.ops import rdft
 from openvino.runtime.opset3.ops import read_value
 from openvino.runtime.opset4.ops import reduce_l1
 from openvino.runtime.opset4.ops import reduce_l2
@@ -132,7 +134,7 @@ from openvino.runtime.opset1.ops import result
 from openvino.runtime.opset1.ops import reverse_sequence
 from openvino.runtime.opset3.ops import rnn_cell
 from openvino.runtime.opset5.ops import rnn_sequence
-from openvino.runtime.opset3.ops import roi_align
+from openvino.runtime.opset9.ops import roi_align
 from openvino.runtime.opset2.ops import roi_pooling
 from openvino.runtime.opset7.ops import roll
 from openvino.runtime.opset5.ops import round

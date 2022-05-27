@@ -35,12 +35,6 @@ std::string to_string(const std::map<std::string, std::reference_wrapper<const O
     return result;
 }
 
-inline std::string generate_result_name(const std::string& onnx_output_name,
-                                        const std::shared_ptr<ov::Node>& result_node) {
-    auto output_index = result_node->input(0).get_source_output().get_index();
-    return onnx_output_name + "/sink_port_" + std::to_string(output_index);
-}
-
 /// \brief      Gets the operator represented by provided node unique identificator.
 ///
 /// \param[in]  node_proto  The node protobuf representation object.
@@ -55,6 +49,16 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
+
+bool common_node_for_all_outputs(const OutputVector& outputs) {
+    const auto first_out_node = outputs.at(0).get_node();
+    bool ret = std::all_of(std::next(std::begin(outputs)),
+                           std::end(outputs),
+                           [first_out_node](const OutputVector::value_type& output) {
+                               return output.get_node() == first_out_node;
+                           });
+    return ret;
+};
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     OperatorsBridge bridge;
@@ -308,9 +312,7 @@ std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        auto ov_result = function->get_output_op(i);
-        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
+        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + "/sink_port_0");
     }
     return function;
 }
@@ -382,6 +384,8 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         return;
     }
 
+    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
+
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
@@ -389,7 +393,20 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        const auto& onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
+            // this is because this setter is called in a loop and the last call is ultimate for a given node
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            if (common_node) {
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
+            } else {
+                // if different outputs are produced by different nodes, then those nodes need to be given
+                // unique friendly names
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
+            }
+        }
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
