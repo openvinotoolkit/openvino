@@ -392,7 +392,7 @@ Command below runs the Image Classification Code Sample using the [dog.bmp](http
 @endsphinxdirective
 
    **GPU:**
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier in this article. Running on GPU is not compatible with macOS*.
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier in this article. Running on GPU is not compatible with macOS.
 
 @sphinxdirective
 .. tab:: Linux
