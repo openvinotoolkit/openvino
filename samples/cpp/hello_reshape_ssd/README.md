@@ -31,7 +31,7 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
+To build the sample, use the instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
 
 ## Running
 
@@ -39,14 +39,14 @@ To build the sample, please use instructions available at [Build the Sample Appl
 hello_reshape_ssd <path_to_model> <path_to_image> <device>
 ```
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- you may use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application, or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -54,25 +54,25 @@ To run the sample, you need specify a model and image:
 
 ### Example
 
-1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
+1. Install openvino-dev Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-2. Download a pre-trained model using:
+2. Download a pre-trained model, using:
 
 ```
 omz_downloader --name person-detection-retail-0013
 ```
 
-3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it using the model converter script:
+3. `person-detection-retail-0013` does not need to be converted, because it is already in an appropriate format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it using the model converter script:
 
 ```
 omz_converter --name <model_name>
 ```
 
-4. Perform inference of `person_detection.bmp` using `person-detection-retail-0013` model on a `GPU`, for example:
+4. Perform inference of `person_detection.bmp`, using `person-detection-retail-0013` model on a `GPU`, for example:
 
 ```
 hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
@@ -111,7 +111,7 @@ Reshape network to the image size = [960x1699]
 [0,1] element, prob = 0.716309,    (852,187)-(983,520)
 The resulting image was saved in the file: hello_reshape_ssd_output.bmp
 
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+This sample is an API example, for any performance measurements use the dedicated benchmark_app tool
 ```
 
 ## See Also
