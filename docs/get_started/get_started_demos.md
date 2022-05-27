@@ -288,7 +288,6 @@ Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several 
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
-<!-- ### Run the Image Classification Code Sample -->
 
 To run the **Image Classification** code sample with an input image using the IR model:
 
