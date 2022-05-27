@@ -28,7 +28,7 @@ This guide assumes you completed all installation and configuration steps. If yo
   
 @endsphinxdirective
 
-## Install OpenVINO Development Tools
+## Installing OpenVINO Development Tools
 
 To install OpenVINO Development Tools for use with Caffe* models, run the following command: 
 
