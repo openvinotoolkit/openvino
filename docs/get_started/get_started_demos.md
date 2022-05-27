@@ -337,7 +337,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-3. Run the below executable, specifying: the input media file, the IR for your model, and a target device for performing inference:
+3. Run the executable below with specified input media file, the OpenVINO IR for your model, and a target device for performing inference:
 
 @sphinxdirective
 .. tab:: Linux
