@@ -118,6 +118,7 @@ class Computation(object):
         if self.network_cache.get(str(input_shapes)) is None:
             function = self.function
             if self.function.is_dynamic():
+                function = function.clone()
                 function.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
             self.network_cache[str(input_shapes)] = function
         else:
