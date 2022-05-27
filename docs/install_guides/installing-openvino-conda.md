@@ -1,28 +1,39 @@
 # Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the Anaconda Cloud.
+This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit through the Anaconda Cloud.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 ## System Requirements
 
-**Software**
+@sphinxdirective
 
- - [Anaconda distribution](https://www.anaconda.com/products/individual/)
+.. tab:: Anaconda Software
 
-**Operating Systems**
+   [Anaconda distribution](https://www.anaconda.com/products/individual/)
 
-| Supported Operating System                                   | [Python Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Ubuntu 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Red Hat Enterprise Linux 8, 64-bit                         | 3.6, 3.7, 3.8, 3.9                                  |
-|   macOS 10.15                                             | 3.6, 3.7, 3.8, 3.9                                  |
-|   Windows 10, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
+.. tab:: Supported Operating Systems with Python Version
+
+   +--------------------------------------+----------------------------------------------------+
+   | Operating System (64-bit)            | [Python Version (64-bit)](https://www.python.org/) |
+   +======================================+====================================================+
+   | macOS 10.15                          | 3.6, 3.7, 3.8, 3.9                                 |
+   +--------------------------------------+----------------------------------------------------+
+   | Red Hat Enterprise Linux 8           | 3.6, 3.7, 3.8, 3.9                                 |
+   +--------------------------------------+----------------------------------------------------+
+   | Ubuntu 18.04 long-term support (LTS) | 3.6, 3.7, 3.8, 3.9                                 |
+   +--------------------------------------+----------------------------------------------------+
+   | Ubuntu 20.04 long-term support (LTS) | 3.6, 3.7, 3.8, 3.9                                 |
+   +--------------------------------------+----------------------------------------------------+
+   | Windows 10                           | 3.6, 3.7, 3.8, 3.9                                 |
+   +--------------------------------------+----------------------------------------------------+  
+
+
+@endsphinxdirective
 
 ## Install OpenVINO Runtime Using the Anaconda Package Manager
 
-1. Set up the Anaconda environment (taking Python 3.7 for example): 
+1. Set up the Anaconda environment (taking Python 3.7 for example): 
    ```sh
    conda create --name py37 python=3.7
    conda activate py37
@@ -32,34 +43,47 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    conda update --all
    ```
 3. Install the Intel® Distribution of OpenVINO™ toolkit:
- - Ubuntu* 20.04 
-   ```sh
-   conda install openvino-ie4py-ubuntu20 -c intel
-   ```
- - Ubuntu* 18.04
-   ```sh
-   conda install openvino-ie4py-ubuntu18 -c intel
-   ```
- - Red Hat Enterprise Linux 8, 64-bit 
-   ```sh
-   conda install openvino-ie4py-rhel8 -c intel
-   ```
- - Windows 10 and macOS
-   ```sh
-   conda install openvino-ie4py -c intel
-   ```
+
+@sphinxdirective
+
+.. tab:: Red Hat Enterprise Linux 8
+
+   .. code-block:: sh
+
+      conda install openvino-ie4py-rhel8 -c intel
+
+.. tab:: Ubuntu 18.04
+
+   .. code-block:: sh
+
+      conda install openvino-ie4py-ubuntu18 -c intel
+
+.. tab:: Ubuntu 20.04
+
+   .. code-block:: sh
+
+      conda install openvino-ie4py-ubuntu20 -c intel
+
+.. tab:: Windows 10 and macOS
+
+   .. code-block:: sh
+
+     conda install openvino-ie4py -c intel
+
+
+@endsphinxdirective
+
 4. Verify the package is installed:
    ```sh
    python -c "from openvino.runtime import Core"
    ```
    If installation was successful, you will not see any error messages (no console output).
 
-Now you can start developing your application.
-
+5. Now, you may start developing your application.
 
 ## What's Next?
 
-Now you may continue with the following tasks:
+Now, you may continue with the following tasks:
 
 * To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 * See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
