@@ -14,6 +14,10 @@ namespace set_1 {
 OutputVector non_max_suppression(const Node& node);
 }  // namespace set_1
 
+namespace set_9 {
+OutputVector non_max_suppression(const Node& node);
+}  // namespace set_9
+
 }  // namespace op
 
 }  // namespace onnx_import
