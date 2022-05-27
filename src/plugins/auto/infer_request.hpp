@@ -41,10 +41,12 @@ public:
     void InferImpl() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
-
+    InferenceEngine::SoIInferRequestInternal& GetSharedRequest() { return _sharedRequest; }
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
                             InferenceEngine::RemoteContext::Ptr ctx);
+    InferenceEngine::SoIInferRequestInternal _sharedRequest;
 };
 
 }  // namespace MultiDevicePlugin

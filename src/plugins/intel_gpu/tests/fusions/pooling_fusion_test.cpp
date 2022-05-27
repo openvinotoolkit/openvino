@@ -597,11 +597,10 @@ TEST_P(pooling_onednn_activation2, basic) {
     auto r = get_input_layout(p).get_spatial_rank();
     ov::Shape kernel(r, 3);
     ov::Strides stride(r, 1);
-    ov::Shape pad(r, 1);
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        pooling("pooling", "input", p.pool_mode, { 1, 1, 3, 3 }, { 1, 1, 1, 1 }),
+        pooling("pooling", "input", p.pool_mode, kernel, stride),
         activation("act", "pooling", activation_func::relu),
         reorder("output_reorder", "act", format::bfyx, data_types::f32)
     );
