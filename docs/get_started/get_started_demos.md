@@ -77,7 +77,7 @@ To build OpenVINO demos:
 
 For inference task you need to have a specific model. Below are presented model type examples:
 
-- Classification (AlexNet, GoogleNet, SqueezeNet, others): Detects one type of element in an image
+- Classification (AlexNet, GoogleNet, SqueezeNet, etc.) - Detects one type of element in an image.
 - Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
 - Custom: Often based on SSD
 
