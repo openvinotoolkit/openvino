@@ -123,7 +123,6 @@ onnx_model_erf_int32
 onnx_model_conv_with_dynamic_batch
 
 # Segmentation fault
-bool_init_and
 onnx_model_fake_quantize_nonconst_inputs_infer
 onnx_model_quantize_linear_const_scale_const_zero_p
 
@@ -430,8 +429,6 @@ onnx_model_max_pool_4d_ceil_strides
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
-# Unsupported primitive of type: ROIAlign
-IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
