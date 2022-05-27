@@ -75,7 +75,7 @@ To build OpenVINO demos:
 
 ## <a name="download-models"></a> Step 1: Download the Models
 
-For Your inference task You need to have a specific model. Below are presented model type examples:
+For inference task you need to have a specific model. Below are presented model type examples:
 
 - Classification (AlexNet, GoogleNet, SqueezeNet, others): Detects one type of element in an image
 - Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
