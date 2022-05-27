@@ -61,7 +61,7 @@ To build OpenVINO demos:
 @sphinxdirective
 .. tab:: Linux
 
-   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux*" section.
+   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux" section.
 
 .. tab:: Windows
 
