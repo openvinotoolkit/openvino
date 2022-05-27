@@ -171,6 +171,12 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        // Issue: 85384 cpuFuncTests-0 sporadically fails in CI
+        // Skip smoke_LoadNetworkAccuracy and smoke_LoadNetwork_MultipleIECores testcase for MULTI and AUTO
+        R"(.*smoke_LoadNetworkAccuracy/targetDevice=MULTI.*)",
+        R"(.*smoke_LoadNetworkAccuracy/targetDevice=AUTO.*)",
+        R"(.*smoke_LoadNetwork_MultipleIECores/targetDevice=MULTI.*)",
+        R"(.*smoke_LoadNetwork_MultipleIECores/targetDevice=AUTO.*)"
     };
 
 #define FIX_62820 0
