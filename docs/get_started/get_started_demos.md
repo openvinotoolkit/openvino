@@ -467,7 +467,7 @@ Once the sample application is complete, the label and confidence for the top 10
 
 ## Other Demos/Samples
 
-For more samples and demos, you may visit pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
+For more samples and demos, visit pages below. You can review samples and demos by complexity or by usage, run the relevant application, and adapt the code for your use.
 
 [Samples](../OV_Runtime_UG/Samples_Overview.md)
 
