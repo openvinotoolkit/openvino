@@ -271,7 +271,9 @@ std::string toString(SoftmaxDim d) {
     switch (d) {
         case SoftmaxDim::X:       return "X";
         case SoftmaxDim::Y:       return "Y";
+        case SoftmaxDim::Z:       return "Z";
         case SoftmaxDim::FEATURE: return "FEATURE";
+        case SoftmaxDim::BATCH:   return "BATCH";
         default: return "";
     }
 }
