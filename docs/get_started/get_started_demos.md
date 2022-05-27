@@ -122,7 +122,6 @@ Run one of the commands below to find a model to use:
 
 @endsphinxdirective
 
-<!-- To download the GoogleNet v1 Caffe* model to the `models` folder: -->
 
 @sphinxdirective
 
