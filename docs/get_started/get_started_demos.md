@@ -85,7 +85,7 @@ Suitable model for the OpenVINO™ toolkit can be find by:
 
 - Download public or Intel pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader).
 - Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
-- Train your own model with machine learning tools
+- Train your own model with machine learning tools.
   
 To find a model to use, You can run one of below commands:
 
