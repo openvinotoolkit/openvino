@@ -214,7 +214,7 @@ This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classifi
 
 The googlenet-v1 model is downloaded in the Caffe format. Use the Model Optimizer to convert it to OpenVINO IR.
 
-Create an `<ir_dir>` directory to contain the model's IR.
+Create an `<ir_dir>` directory to contain the model's OpenVINO IR:
 
 @sphinxdirective
 .. tab:: Linux
