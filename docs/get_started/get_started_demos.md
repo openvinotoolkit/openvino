@@ -204,7 +204,7 @@ After download your screen will look similar to the one below and show the paths
 
 @endsphinxdirective
 
-For the remainder of this guide, OpenVINO™ Model Downloader was used to download pre-trained models. 
+For the rest of this guide, OpenVINO™ Model Downloader was used to download pre-trained models. 
 
 ## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
