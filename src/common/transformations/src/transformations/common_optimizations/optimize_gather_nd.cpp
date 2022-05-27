@@ -22,14 +22,16 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!gather_nd_node)
             return false;
 
-        //auto new_shape = op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0});
-
+        //GatherND
+        //  inputs: data, indices
+        //  outputs: reshaped data at indices
         auto reshape = std::make_shared<ngraph::opset8::Reshape>(gather_nd_node->input_value(0), gather_nd_node->input_value(1), true);
 
         auto gather =
             std::make_shared<ngraph::opset8::Gather>(reshape,
                                         gather_nd_node->input_value(1),
-                                        op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0}));
+                                        op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0}),
+                                        gather_nd_node->get_batch_dims());
 
         gather->set_friendly_name(gather_nd_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_nd_node, {reshape, gather});
