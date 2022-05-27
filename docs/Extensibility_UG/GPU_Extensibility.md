@@ -1,6 +1,6 @@
 # How to Implement Custom GPU Operations {#openvino_docs_Extensibility_UG_GPU}
 
-To enable operations not supported by OpenVINO out of the box, you may need an extension for an OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
+To enable operations not supported by OpenVINO out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
 The GPU codepath abstracts many details about OpenCL. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
 
@@ -31,7 +31,7 @@ $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validati
 ## Configuration File Format <a name="config-file-format"></a>
 
 The configuration file is expected to follow the `.xml` file structure
-with a node of the `CustomLayer` type for every custom operation you provide.
+with a node of the type `CustomLayer` for every custom operation you provide.
 
 The definitions described in the sections below use the following notations:
 
@@ -67,7 +67,7 @@ Notation | Description
 
 | Attribute Name | \#  |Description|
 |-----|-----|-----|
-| `filename`     | (1) | Name of the file containing OpenCL source code. Note that the path is relative to your executable. Multiple source nodes will have their sources concatenated in order. |
+| `filename`     | (1) | Name of the file containing OpenCL source code. The path is relative to your executable. Multiple source nodes will have their sources concatenated in order. |
 
 **Sub-nodes**: None
 
@@ -178,7 +178,7 @@ For an example, see [Example Kernel](#example-kernel).
 | `<TENSOR>_DIMS`| An array of the tensor dimension sizes. Always ordered as `BFYX` |
 | `<TENSOR>_DIMS_SIZE`| The size of the `<TENSOR>_DIMS` array.|
 | `<TENSOR>_TYPE`| The datatype of the tensor: `float`, `half`, or `char`|
-| `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. You can use the tensor format to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
+| `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. You may use the tensor format to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
 | `<TENSOR>_LOWER_PADDING` | An array of padding elements used for the tensor dimensions before they start. Always ordered as BFYX.|
 | `<TENSOR>_LOWER_PADDING_SIZE` | The size of the `<TENSOR>_LOWER_PADDING` array  |
 | `<TENSOR>_UPPER_PADDING`   | An array of padding elements used for the tensor dimensions after they end. Always ordered as BFYX. |
@@ -228,7 +228,7 @@ __kernel void example_relu_kernel(
 ## Debugging Tips<a name="debugging-tips"></a>
 
 * **Using `printf` in the OpenCL™ Kernels**.
-To debug the specific values, you can use `printf` in your kernels.
+To debug the specific values, you may use `printf` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of
