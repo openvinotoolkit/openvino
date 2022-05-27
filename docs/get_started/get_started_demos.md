@@ -145,7 +145,7 @@ Run one of the commands below to find a model to use:
 
 @endsphinxdirective
 
-After download Your screen will look similar to below and show the paths of downloaded files:
+After download your screen will look similar to the one below and show the paths of downloaded files:
 
 @sphinxdirective
 .. tab:: Linux
