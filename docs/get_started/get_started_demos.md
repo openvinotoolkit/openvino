@@ -69,7 +69,7 @@ To build OpenVINO demos:
 
 .. tab:: macOS
 
-   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux building steps for macOS*.
+   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux" section. Use the requirements from "To build OpenVINO samples" above and adapt the Linux building steps for macOS.
 
 @endsphinxdirective
 
