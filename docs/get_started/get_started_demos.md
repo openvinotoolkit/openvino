@@ -65,7 +65,7 @@ To build OpenVINO demos:
 
 .. tab:: Windows
 
-   Open :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Microsoft Windows* OS" section.
+   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
