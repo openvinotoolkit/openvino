@@ -40,7 +40,7 @@ The complete list of supported hardware is available in the [Release Notes](http
    ```sh
    sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
    ```
-3.	Verify that the new repo is properly setup by running the following command:
+3.	Verify that the new repo is properly set up, by running the following command:
    ```sh
    yum repolist | grep -i openvino
    ```
@@ -58,7 +58,7 @@ Intel® Distribution of OpenVINO™ toolkit will be installed in: `/opt/intel/op
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-You can select one of the following procedures according to your need:
+You may select one of the following procedures according to your need:
 
 #### To Install the Latest Version
 
@@ -120,7 +120,7 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 4 (Optional): Install Software Dependencies
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+Once you have installed OpenVINO runtime and also decide to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
 Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
@@ -138,7 +138,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 .. tab:: NCS 2
 
-   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
+   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps in :ref:`NCS2 Setup Guide <ncs guide>`.
    <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
 
 .. tab:: VPU
