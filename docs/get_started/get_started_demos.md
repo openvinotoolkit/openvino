@@ -45,7 +45,7 @@ To build OpenVINO samples:
 @sphinxdirective
 .. tab:: Linux
 
-   Open :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Linux*" section.
+   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Linux" section.
 
 .. tab:: Windows
 
