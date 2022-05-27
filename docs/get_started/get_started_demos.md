@@ -20,7 +20,7 @@ This guide assumes you completed all installation and configuration steps. If yo
 
 .. tab:: Windows
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows* <openvino_docs_install_guides_installing_openvino_windows>`
+   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows <openvino_docs_install_guides_installing_openvino_windows>`
 
 .. tab:: macOS
 
