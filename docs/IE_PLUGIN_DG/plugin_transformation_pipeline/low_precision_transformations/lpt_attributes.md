@@ -33,11 +33,11 @@
 >  - `Quantization alignment` - the attribute defines quantization granularity in runtime: per-channel or per-tensor quantization.
 >  - `Quantization granularity` - the attribute is set by plugin to define quantization granularity: per-channel or per-tensor quantization.
 >
-> `Required` attribute group defines if attribute usage is required to get an optimal model during transformation:
+> `Required` attribute group checks if attribute usage is required to get an optimal model during transformation:
 >  - `Yes` - the attribute is used by all OpenVINO plugins for low-precision optimization.
 >  - `No` - the attribute is used in a specific OpenVINO plugin.
 >
-> `Mutable` attribute group defines if transformation can update an existing attribute:
+> `Mutable` attribute group checks if transformation can update an existing attribute:
 >  - `Yes` - the attribute can be updated by the next transformations in the pipeline. But attribute update order is still important.
 >  - `No` - existing attribute can not be updated by the next transformation. Previous handled transformation has optimized a model according to the current value.
 
@@ -54,4 +54,4 @@ Attributes usage by transformations:
 | IntervalsAlignment        | AlignQuantizationIntervals                        | FakeQuantizeDecompositionTransformation                                                                                           |
 | QuantizationAlignment     | AlignQuantizationParameters                       | FakeQuantizeDecompositionTransformation                                                                                           |
 
-> **Note:** the same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different.
+> **Note:** the same type of attribute instances can be created in different transformations. This approach is the result of the single-responsibility principle of the transformation. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different.
