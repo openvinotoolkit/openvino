@@ -4,7 +4,7 @@
 
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
+This guide is applicable only if you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
 
 Instructions in this guide for configuring your accelerator include:
 1.	Installing the required IEI BSL reset software
@@ -127,6 +127,7 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 ## Additional Resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
+- [Intel Distribution of OpenVINO Toolkit documentation](https://docs.openvino.ai)
 - [Troubleshooting Guide](troubleshooting.md)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide](/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf)
 - [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide](/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf)
