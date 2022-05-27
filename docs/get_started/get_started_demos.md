@@ -49,7 +49,7 @@ To build OpenVINO samples:
 
 .. tab:: Windows
 
-   Open :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Microsoft Windows* OS" section.
 
 .. tab:: macOS
 
