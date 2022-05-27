@@ -89,7 +89,7 @@ Suitable model for the OpenVINO™ toolkit can be find by:
   
 Run one of the commands below to find a model to use:
 
-* List the models available in the downloader
+* List the models available in the downloader:
 
 ``` sh
    omz_info_dumper --print_all
