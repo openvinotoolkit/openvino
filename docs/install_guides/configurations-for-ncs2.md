@@ -4,29 +4,6 @@
 
 .. _ncs guide:
 
-@endsphinxdirective
-
-This page introduces additional configurations for Intel® Neural Compute Stick 2 with Intel® Distribution of OpenVINO™ toolkit on Linux, Raspbian OS and macOS.
-
-## Linux
-
-Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
-
-1. Go to the install_dependencies directory:
-   ```sh
-   cd <INSTALL_DIR>/install_dependencies/
-   ```
-2. Run the `install_NCS_udev_rules.sh` script:
-   ```
-   ./install_NCS_udev_rules.sh
-   ```
-3. You may need to reboot your machine for this to take effect.
-
-You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
-
-@sphinxdirective
-
 .. _ncs guide raspbianos:
 
 .. _ncs guide macos:
@@ -36,12 +13,9 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
 
 @sphinxdirective
 
-To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew](https://brew.sh/), [MacPorts](https://www.macports.org/) or other.
+.. tab:: Linux
 
-For example, to install the `libusb` library using Homebrew, use the following command:
-```sh
-brew install libusb
-```
+   Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
 
    1. Go to the install_dependencies directory:
 
