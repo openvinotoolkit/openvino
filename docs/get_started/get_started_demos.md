@@ -276,7 +276,7 @@ After the conversion the OpenVINO IR files (produced by the script) are written 
 
 ## <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
 
-You can download video media to use as the code samples and demo applications from many available sources, like:
+Video media can be download to use as the code samples and demo applications from many available sources, like:
 
 - [Pexels](https://pexels.com)
 - [Google Images](https://images.google.com)
