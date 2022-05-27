@@ -118,7 +118,7 @@ Run one of the commands below to find a model to use:
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-section" data-title="Click here for an example of downloading the GoogleNet v1 Caffe* model to the `models` folder">
+   <div class="collapsible-section" data-title="Click here for an example of downloading the GoogleNet v1 Caffe model to the `models` folder">
 
 @endsphinxdirective
 
