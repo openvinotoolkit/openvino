@@ -11,7 +11,7 @@ You will perform the following steps:
 4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
-This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit, follow the installation guide suitable for You:
+This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit, follow the, suitable for you, installation guide:
 
 @sphinxdirective
 .. tab:: Linux
