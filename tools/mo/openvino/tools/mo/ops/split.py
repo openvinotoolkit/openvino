@@ -78,8 +78,7 @@ class VariadicSplitBase(Op):
                         node['split_lengths'] = split_lengths
                     delete_out_port(i, node)
                 else:
-                    log.error("Zero dimension on {} branch after Split node {}".format(i, node.id))
-                    return
+                    log.warning("Zero dimension on {} branch after Split node {}".format(i, node.id))
 
         # shape propagation
         idxs, curr_pos = [], 0
