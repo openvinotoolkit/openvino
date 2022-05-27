@@ -850,6 +850,38 @@ def test_roi_pooling():
     assert node.get_output_element_type(0) == Type.f32
 
 
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
+    [
+        ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "half_pixel_for_nn", [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, "avg", "half_pixel", [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, np.float(1), "avg", "half_pixel", [3, 3, 3, 4]),
+    ],
+)
+def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    node = ov.roi_align(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        spatial_scale,
+        mode,
+        aligned_mode,
+    )
+
+    assert node.get_type_name() == "ROIAlign"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
 def test_psroi_pooling():
     inputs = ov.parameter([1, 72, 4, 5], dtype=np.float32)
     coords = ov.parameter([150, 5], dtype=np.float32)
@@ -1973,4 +2005,28 @@ def test_softsign():
     assert node.get_type_name() == "SoftSign"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_rdft():
+    param = ov.parameter([5, 3, 4], name="input")
+    axes = ov.constant(np.array([0, 1]))
+    signal_size = ov.constant(np.array([1, 2]))
+    node = ov.rdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "RDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4, 2]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_irdft():
+    param = ov.parameter([5, 3, 4, 2], name="input")
+    axes = ov.constant(np.array([0, 1]))
+    signal_size = ov.constant(np.array([1, 2]))
+    node = ov.irdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "IRDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4]
     assert node.get_output_element_type(0) == Type.f32

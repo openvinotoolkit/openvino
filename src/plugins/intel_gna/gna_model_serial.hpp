@@ -14,6 +14,7 @@
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna2-model-api.h"
 
+#include "gna_device_allocation.hpp"
 
 /**
  * @brief implements serialization tasks for GNAGraph
@@ -100,11 +101,9 @@ private:
 
     /**
      * save gna graph to an outpus stream
-     * @param basePtr
-     * @param gnaGraphSize
+     * @param allocations
      * @param os
      */
-    void Export(void *basePtr,
-                size_t gnaGraphSize,
+    void Export(const GnaAllocations& allocations,
                 std::ostream &os) const;
 };
