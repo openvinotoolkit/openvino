@@ -81,7 +81,7 @@ For inference task you need to have a specific model. Below are presented model 
 - Object Detection (SSD, YOLO) -- Draws bounding boxes around multiple types of objects in an image.
 - Custom - Often based on SSD.
 
-You can find a model suitable for the OpenVINO™ toolkit by:
+Suitable model for the OpenVINO™ toolkit can be find by:
 
 - Download public or Intel pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader)
 - Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
