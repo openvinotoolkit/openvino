@@ -435,11 +435,13 @@ void Graph::InitDescriptors() {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         node->filterSupportedPrimitiveDescriptors();
 
+#ifdef CPU_DEBUG_CAPS
         DEBUG_LOG("==================");
         for (auto & pd : node->getSupportedPrimitiveDescriptors())
             DEBUG_LOG("#", node->getExecIndex(),
                       " ", node->getName(),
                       "  SupportedPrimitiveDescriptor:\n", pd);
+#endif
     }
 
     for (auto &node : graphNodes) {
