@@ -276,6 +276,9 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
+                            DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                                      " is compatible with parent ", parentPtr->getName(),
+                                      " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                         }
                     }
                 }
@@ -515,7 +518,6 @@ void Node::execute(dnnl::stream strm) {
 }
 
 void Node::executeDynamic(dnnl::stream strm) {
-    DEBUG_LOG("#", getExecIndex(), " ", getName());
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
@@ -523,6 +525,8 @@ void Node::executeDynamic(dnnl::stream strm) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
                 " since the input shapes are not defined.";
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
         executeDynamicImpl(strm);

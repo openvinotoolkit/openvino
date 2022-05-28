@@ -434,6 +434,12 @@ void Graph::InitDescriptors() {
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         node->filterSupportedPrimitiveDescriptors();
+
+        DEBUG_LOG("==================");
+        for (auto & pd : node->getSupportedPrimitiveDescriptors())
+            DEBUG_LOG("#", node->getExecIndex(),
+                      " ", node->getName(),
+                      "  SupportedPrimitiveDescriptor:\n", pd);
     }
 
     for (auto &node : graphNodes) {
@@ -447,6 +453,7 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         node->initOptimalPrimitiveDescriptor();
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n", *node->getSelectedPrimitiveDescriptor());
     }
 }
 
@@ -564,6 +571,7 @@ void Graph::InitEdges() {
     for (auto i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
+        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", static_cast<int>(reorderStatus));
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
@@ -1266,6 +1274,10 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->setOptimized(isOptimized);
+
+    DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
+    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().name(), " ", inDesc.serializeFormat());
+    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().name(), " ", outDesc.serializeFormat());
 
     InsertNode(edge, newReorder, true);
 

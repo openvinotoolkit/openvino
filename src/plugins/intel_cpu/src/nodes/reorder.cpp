@@ -223,6 +223,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
         dnnl::primitive_attr attr;
+        DEBUG_LOG(key.src, "->", key.dest);
         reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
 
         if (!pd)
@@ -347,8 +348,10 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(dnnl::stream strm) {
-    if (isOptimized)
+    if (isOptimized) {
+        DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized");
         return;
+    }
 
     if (canUseNspc2Ncsp) {
         optimizedNspc2Ncsp();
