@@ -233,6 +233,7 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
 }
 
 ov::op::v0::Constant::~Constant() {
+    // guarantee that data is released before femgr
     m_data = nullptr;
     m_femgr = nullptr;
 }

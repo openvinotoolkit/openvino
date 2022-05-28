@@ -31,11 +31,8 @@ std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, 
 
 namespace frontend {
 class FrontEnd;
-}
-
-namespace frontend {
 class FrontEndManager;
-}
+}  // namespace frontend
 
 class ModelAccessor;
 
@@ -109,7 +106,6 @@ public:
     Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
     virtual ~Model() = default;
-
     /// Return the number of outputs for this Model.
     size_t get_output_size() const;
 
