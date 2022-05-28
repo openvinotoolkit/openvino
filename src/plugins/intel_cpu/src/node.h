@@ -5,34 +5,35 @@
 #pragma once
 
 #include <ie_api.h>
-#include <memory>
-#include <vector>
-#include <string>
-#include <cassert>
+#include <nodes/common/blocked_desc_creator.h>
+
 #include <algorithm>
 #include <caseless.hpp>
+#include <cassert>
+#include <ie_precision.hpp>
+#include <memory>
+#include <ngraph/node.hpp>
+#include <ngraph/ops.hpp>
+#include <openvino/itt.hpp>
+#include <string>
+#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <vector>
+
+#include "cache/multi_cache.h"
 #include "cpu_memory.h"
-#include "edge.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
 #include "dnnl_descriptor.h"
-#include "selective_build.h"
+#include "edge.h"
+#include "extension_mngr.h"
+#include "nodes/node_config.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
-#include "extension_mngr.h"
 #include "primitive.h"
-#include "weights_cache.hpp"
-#include <openvino/itt.hpp>
+#include "selective_build.h"
 #include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
-#include <ie_precision.hpp>
-#include <nodes/common/blocked_desc_creator.h>
-#include "cpu_types.h"
-#include "cpu_shape.h"
-#include "nodes/node_config.h"
-#include "cache/multi_cache.h"
-
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
+#include "weights_cache.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -43,13 +44,25 @@ using NodeWeakPtr = std::weak_ptr<Node>;
 
 class PortConfigurator {
 public:
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
-                     bool constant = false, int inPlace = -1) :
-            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
+                     InferenceEngine::Precision prc,
+                     const Shape& shape,
+                     bool constant = false,
+                     int inPlace = -1)
+        : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
+          prc(prc),
+          shape(shape),
+          constant(constant),
+          inPlace(inPlace) {}
 
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
-                     bool constant = false, int inPlace = -1) :
-            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
+                     InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+                     bool constant = false,
+                     int inPlace = -1)
+        : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
+          prc(prc),
+          constant(constant),
+          inPlace(inPlace) {}
 
     ov::intel_cpu::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
     const InferenceEngine::Precision prc;
@@ -58,7 +71,8 @@ public:
     int inPlace = -1;
 
 private:
-    static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(ov::intel_cpu::LayoutType blockedDescType) {
+    static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(
+        ov::intel_cpu::LayoutType blockedDescType) {
         auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
             IE_THROW() << "Cannot find tensor descriptor creator";
@@ -69,7 +83,7 @@ private:
 
 class NodeDesc {
 public:
-    NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
+    NodeDesc(const NodeConfig& conf, impl_desc_type type) : config(conf) {
         implementationType = type;
     }
 
@@ -96,34 +110,41 @@ private:
 
 class Node {
 public:
-    Node(const Node &) = delete;
-    Node & operator = (const Node &) = delete;
+    Node(const Node&) = delete;
+    Node& operator=(const Node&) = delete;
 
     using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
 
 public:
-    template<typename T, int N>
+    template <typename T, int N>
     struct Tag {};
 
     struct PerfCounters {
         PerfCounters(std::string const& name)
-            : execute(openvino::itt::handle(name))
-            , getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors"))
-            , initSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors"))
-            , filterSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<Node, 2>>("Node::filterSupportedPrimitiveDescriptors"))
-            , selectOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<Node, 3>>("Node::selectOptimalPrimitiveDescriptor"))
-            , createPrimitive(openvino::itt::handle<Tag<Node, 4>>("Node::createPrimitive"))
-            , initOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<Node, 5>>("Node::initOptimalPrimitiveDescriptor"))
-        {}
+            : execute(openvino::itt::handle(name)),
+              getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
+              initSupportedPrimitiveDescriptors(
+                  openvino::itt::handle<Tag<Node, 1>>("Node::initSupportedPrimitiveDescriptors")),
+              filterSupportedPrimitiveDescriptors(
+                  openvino::itt::handle<Tag<Node, 2>>("Node::filterSupportedPrimitiveDescriptors")),
+              selectOptimalPrimitiveDescriptor(
+                  openvino::itt::handle<Tag<Node, 3>>("Node::selectOptimalPrimitiveDescriptor")),
+              createPrimitive(openvino::itt::handle<Tag<Node, 4>>("Node::createPrimitive")),
+              initOptimalPrimitiveDescriptor(
+                  openvino::itt::handle<Tag<Node, 5>>("Node::initOptimalPrimitiveDescriptor")) {}
 
-        template<typename NodeType>
+        template <typename NodeType>
         void buildClassCounters(const std::string& type_name) {
             getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
-            initSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
-            filterSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
-            selectOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
+            initSupportedPrimitiveDescriptors =
+                openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
+            filterSupportedPrimitiveDescriptors =
+                openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
+            selectOptimalPrimitiveDescriptor =
+                openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
             createPrimitive = openvino::itt::handle<Tag<NodeType, 4>>(type_name + "::createPrimitive");
-            initOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
+            initOptimalPrimitiveDescriptor =
+                openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
         }
 
         openvino::itt::handle_t execute;
@@ -136,7 +157,7 @@ public:
     };
 
     class NodesFactory;
-    static NodesFactory & factory();
+    static NodesFactory& factory();
 
     virtual ~Node() = default;
 
@@ -146,11 +167,11 @@ public:
     virtual void cleanup();
     void remove();
 
-    const std::vector<EdgeWeakPtr> &getParentEdges() const noexcept {
+    const std::vector<EdgeWeakPtr>& getParentEdges() const noexcept {
         return parentEdges;
     }
 
-    const std::vector<EdgeWeakPtr> &getChildEdges() const noexcept {
+    const std::vector<EdgeWeakPtr>& getChildEdges() const noexcept {
         return childEdges;
     }
 
@@ -187,10 +208,11 @@ public:
 
     bool isFusedWith(Type type) const;
 
-    virtual void addFusedNode(const NodePtr &fusingNode);
+    virtual void addFusedNode(const NodePtr& fusingNode);
 
     virtual void fuseInto(NodePtr& parentNode) {
-        // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input port a node was fused into parent one.
+        // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
+        // port a node was fused into parent one.
         for (int i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgesAtPort(i)[0]->getParent().get() == parentNode.get()) {
                 setFusingPort(i);
@@ -201,7 +223,8 @@ public:
         auto parentFusedNodes = parentNode->getFusedWith();
         if (getFusingPort() < 0 && !parentFusedNodes.empty()) {
             for (int i = 0; i < getParentEdges().size(); i++) {
-                if (getParentEdgesAtPort(i)[0]->getParent().get() == parentFusedNodes[parentFusedNodes.size() - 1].get()) {
+                if (getParentEdgesAtPort(i)[0]->getParent().get() ==
+                    parentFusedNodes[parentFusedNodes.size() - 1].get()) {
                     setFusingPort(i);
                     break;
                 }
@@ -209,7 +232,8 @@ public:
         }
 
         if (getFusingPort() == -1) {
-            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and "
+                       << getName();
         }
 
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
@@ -220,15 +244,15 @@ public:
         fusedWith.clear();
     }
 
-    void mergeWith(const NodePtr &merge) {
+    void mergeWith(const NodePtr& merge) {
         mergedWith.push_back(merge);
     }
 
-    const std::vector <NodePtr> &getMergeWith() {
+    const std::vector<NodePtr>& getMergeWith() {
         return mergedWith;
     }
 
-    const std::vector <NodePtr> &getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() {
         return fusedWith;
     }
 
@@ -240,13 +264,13 @@ public:
         this->fusingPort = fusingPort;
     }
 
-    const std::string &getName() const {
+    const std::string& getName() const {
         return name;
     }
 
     void addOriginalLayer(const std::string& layerName);
 
-    const std::string &getOriginalLayers() const {
+    const std::string& getOriginalLayers() const {
         return originalLayers;
     }
 
@@ -323,7 +347,9 @@ public:
 
     std::string getPrimitiveDescriptorType();
 
-    PerfCount &PerfCounter() { return perfCounter; }
+    PerfCount& PerfCounter() {
+        return perfCounter;
+    }
 
     virtual void setDynamicBatchLim(int lim);
 
@@ -331,7 +357,7 @@ public:
 
     virtual void execute(dnnl::stream strm);
     void executeDynamic(dnnl::stream strm);
-    virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -358,14 +384,15 @@ public:
 
     /**
      * @brief Performs Node initialization based on graph context.
-     * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection information with other nodes)
+     * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection
+     * information with other nodes)
      */
     virtual void init() {}
 
     template <class PD, class D, typename FPD = bool>
-    PD createPrimitiveDescriptor(const dnnl::primitive_attr &attr = dnnl::primitive_attr()) {
+    PD createPrimitiveDescriptor(const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
-                               const std::vector<PortConfig>& selectedDescs) {
+                                  const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
                 return true;
             if (srcDescs.empty() || selectedDescs.empty())
@@ -377,14 +404,14 @@ public:
             return true;
         };
 
-        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+        const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
         for (const auto& desc : descs) {
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
-            while (static_cast<bool>(itpd))  {
+            while (static_cast<bool>(itpd)) {
                 std::vector<MemoryDescPtr> srcDescs;
                 for (size_t i = 0; i < descInputNumbers(desc); i++)
                     srcDescs.push_back(getSrcMemDesc(itpd, i));
@@ -414,11 +441,11 @@ public:
         return execIndex;
     }
 
-    const std::string & getTypeStr() const {
+    const std::string& getTypeStr() const {
         return typeStr;
     }
 
-    void setTypeStr(const std::string &typeStr) {
+    void setTypeStr(const std::string& typeStr) {
         this->typeStr = typeStr;
     }
 
@@ -430,11 +457,11 @@ public:
         return desc.outputNumbers();
     }
 
-    const PerfCounters & perfCounters() const {
+    const PerfCounters& perfCounters() const {
         return profiling;
     }
 
-    PerfCounters & perfCounters() {
+    PerfCounters& perfCounters() {
         return profiling;
     }
 
@@ -523,7 +550,7 @@ public:
         isInQuantizedGraph = flag;
     }
 
-    bool canBePerformedAsScaleShift(const Node *parentNode = nullptr) const;
+    bool canBePerformedAsScaleShift(const Node* parentNode = nullptr) const;
 
     bool isDynamicNode() const {
         return isDynamic;
@@ -548,14 +575,14 @@ public:
     }
 
     /**
-    * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
-    * If node has only scale or shift value, fill missing value with default values
-    * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
-    * @param parentNode
-    * node from which data comes
-    * @return pair of scales and shifts
-    */
-    std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
+     * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
+     * If node has only scale or shift value, fill missing value with default values
+     * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
+     * @param parentNode
+     * node from which data comes
+     * @return pair of scales and shifts
+     */
+    std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node* parentNode) const;
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
@@ -565,7 +592,9 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& postOpsMem);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem);
 
-    virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
+    virtual void appendBinPostOps(dnnl::post_ops& ops,
+                                  const VectorDims& postOpDims,
+                                  std::vector<MemoryPtr>& binaryPostOpsMem);
 
     void setRuntimeCache(MultiCachePtr cache) {
         rtParamsCache = cache;
@@ -578,49 +607,50 @@ protected:
         this->type = type;
     }
 
+    virtual std::string getDNNlString() {
+        if (prim) {
+            return (*prim).impl_info();
+        }
+
+        return "";
+    }
+
     virtual size_t getMaxBatch() const;
 
+    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig& config, size_t idx) const;
+    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig& config, size_t idx) const;
+    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx);
 
-    virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual AttrPtr initPrimitiveAttr() {
+        return nullptr;
+    }
 
-    virtual AttrPtr initPrimitiveAttr() { return nullptr; }
-
-    typedef std::function<DnnlMemoryDescPtr (dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx)>
-            GetPrimitiveMemoryFormatFunc;
+    typedef std::function<DnnlMemoryDescPtr(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx)>
+        GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
     std::vector<Shape> inputShapes;
     std::vector<Shape> outputShapes;
 
-    std::vector <NodePtr> fusedWith;
-    std::vector <NodePtr> mergedWith;
-    std::vector <impl_desc_type> implPriorities;
-    std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    std::vector<NodePtr> fusedWith;
+    std::vector<NodePtr> mergedWith;
+    std::vector<impl_desc_type> implPriorities;
+    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
+    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
-    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache);
+    Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& w_cache);
+    Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr& w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
     bool temporary = false;
     int dynBatchLim = 0;
-    enum class InPlaceType {
-        Unknown,
-        InPlace,
-        NoInPlace
-    };
-    enum class ConstantType {
-        Unknown,
-        Const,
-        NoConst
-    };
+    enum class InPlaceType { Unknown, InPlace, NoInPlace };
+    enum class ConstantType { Unknown, Const, NoConst };
     InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
@@ -642,7 +672,7 @@ protected:
     friend class GraphOptimizer;
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isConfigDefined(const NodeConfig &config) const;
+    bool isConfigDefined(const NodeConfig& config) const;
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
@@ -654,13 +684,15 @@ protected:
 
     /**
      * @brief Auxiliary function to get node input precisions
-     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
+     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are
+     * not initialized yet.
      */
     virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
 
     /**
      * @brief Auxiliary function to get node output precisions
-     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
+     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are
+     * not initialized yet.
      */
     virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
 
@@ -668,10 +700,13 @@ protected:
                               const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType,
                               bool dynBatchSupport = false) {
-        auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
-                             InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
-            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
-            // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        auto fill_port = [](const PortConfigurator& portConfigurator,
+                            const Shape& shape,
+                            InferenceEngine::Precision prc,
+                            std::vector<PortConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape
+            // is not supported by blockedDescCreator. This should be suitable for major of scenarios since almost all
+            // nodes add `ncsp` blockedDescCreator which supports any shape rank.
             if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
                 return false;
 
@@ -688,14 +723,18 @@ protected:
         NodeConfig config;
         for (size_t i = 0; i < inPortConfigs.size(); i++) {
             auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED
+                           ? getOriginalInputPrecisionAtPort(i)
+                           : inPortConfigs[i].prc;
             if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
                 return;
         }
 
         for (size_t i = 0; i < outPortConfigs.size(); i++) {
             auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED
+                           ? getOriginalOutputPrecisionAtPort(i)
+                           : outPortConfigs[i].prc;
             if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
                 return;
         }
@@ -770,16 +809,14 @@ private:
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
     template <class PD, class D, typename FPD>
-    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
+    typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type createPd(DnnlDesriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         std::shared_ptr<FPD> backward_prim_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine, *backward_prim_desc_ptr);
     }
 
     template <class PD, class D, typename FPD>
-    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type
-    createPd(DnnlDesriptor desc) {
+    typename std::enable_if<std::is_same<FPD, bool>::value, PD>::type createPd(DnnlDesriptor desc) {
         std::shared_ptr<D> selected_desc_ptr = desc;
         return PD(*selected_desc_ptr, engine);
     }
@@ -804,24 +841,25 @@ constexpr uint64_t PortMask(int n, T... rest) {
     return PortMask(rest...) | (1 << n);
 }
 
-class Node::NodesFactory : public openvino::cc::Factory<Type,
-                                            Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  const dnnl::engine &,
-                                                  WeightsSharing::Ptr &)> {
+class Node::NodesFactory
+    : public openvino::cc::
+          Factory<Type, Node*(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine&, WeightsSharing::Ptr&)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                 const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache);
+    Node* create(const std::shared_ptr<ngraph::Node>& op,
+                 const dnnl::engine& eng,
+                 const ExtensionManager::Ptr& extMgr,
+                 WeightsSharing::Ptr& w_cache);
 };
 
-template<typename NodeType>
+template <typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
         : NodeType(op, eng, cache) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

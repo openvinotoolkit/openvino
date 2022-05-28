@@ -42,6 +42,38 @@ struct jit_topk_config_params {
     int sort_stride;         // memory stride of adjacent elements in sorting
     int bitonic_idx_cnt;     // the repeatedly counted total number of elements in sorting, which equal the total number of comparison x 2
     int bitonic_k_idx_cnt;   // the counterpart of bitonic_idx_cnt, when sort_index == true
+
+    bool operator!=(const jit_topk_config_params& jcp) {
+        //these 6 params usually changed when model reshaped, we check it first
+        if ( sort_index != jcp.sort_index || algorithm != jcp.algorithm || top_k != jcp.top_k
+            || work_amount != jcp.work_amount || axis_dim != jcp.axis_dim || sort_stride != jcp.sort_stride) {
+            return true;
+        } else if ( mode_max != jcp.mode_max || topk_innermost != jcp.topk_innermost || bubble_inplace != jcp.bubble_inplace
+            || layout != jcp.layout || precision != jcp.precision || data_size != jcp.data_size || blk_size != jcp.blk_size
+            || bitonic_idx_cnt != jcp.bitonic_idx_cnt || bitonic_k_idx_cnt != jcp.bitonic_k_idx_cnt ) {
+            return true;
+        }
+        return false;
+    }
+
+    const jit_topk_config_params& operator=(const jit_topk_config_params& jcp) {
+        mode_max = jcp.mode_max;
+        sort_index = jcp.sort_index;
+        topk_innermost = jcp.topk_innermost;
+        bubble_inplace = jcp.bubble_inplace;
+        layout = jcp.layout;
+        algorithm = jcp.algorithm;
+        precision = jcp.precision;
+        data_size = jcp.data_size;
+        blk_size = jcp.blk_size;
+        top_k = jcp.top_k;
+        work_amount = jcp.work_amount;
+        axis_dim = jcp.axis_dim;
+        sort_stride = jcp.sort_stride;
+        bitonic_idx_cnt = jcp.bitonic_idx_cnt;
+        bitonic_k_idx_cnt = jcp.bitonic_k_idx_cnt;
+        return *this;
+    }
 };
 
 struct jit_topk_call_args {
@@ -111,6 +143,9 @@ private:
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
+    void prepare_JitKernel();
+
+    jit_topk_config_params m_jcp;
 
     bool topk_innermost;
     bool jit_mode;

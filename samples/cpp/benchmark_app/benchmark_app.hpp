@@ -361,6 +361,8 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
+DEFINE_bool(enforcebf16, false, enforce_bf16_message);
+
 /**
  * @brief This function show a help message
  */
@@ -413,4 +415,5 @@ static void show_usage() {
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
     std::cout << "    -imean                     " << input_image_mean_message << std::endl;
     std::cout << "    -inference_only              " << inference_only_message << std::endl;
+    std::cout << "    -enforcebf16 \"<true/false>\"       " << enforce_bf16_message << std::endl;
 }

@@ -11,6 +11,11 @@
 #include <cstring>
 
 namespace dnnl {
+
+const char* kind2str(primitive::kind kind) {
+    return dnnl_prim_kind2str(static_cast<dnnl_primitive_kind_t>(kind));
+}
+
 namespace utils {
 
 const char* fmt2str(memory::format_tag fmt) {

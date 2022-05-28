@@ -390,6 +390,8 @@ std::string Node::getPrimitiveDescriptorType() {
         str_type += t;
     };
 
+    str_type = this->getDNNlString();
+    if (str_type.empty()) {
 #define SEARCH_TYPE(_type)                                          \
     if ((type & impl_desc_type::_type) == impl_desc_type::_type)    \
         add_type(#_type)
@@ -403,6 +405,8 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);
+    SEARCH_TYPE(core);
+    SEARCH_TYPE(vnni);
     SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
     SEARCH_TYPE(avx);
@@ -414,11 +418,13 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
+    }
 
     if (type == impl_desc_type::unknown)
         str_type = "unknown";
     else if (str_type.empty())
         str_type = "undef";
+
 
     // adding layer precision to the performance counters as one of the token
     // currently we treat a layer executing in int8 mode if its input is I8 or U8. if input is U8, we still
@@ -864,11 +870,35 @@ void Node::cleanup() {
 const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+//add by sgui for better amx perf hisign
             impl_desc_type::brgconv_avx512_amx_1x1,
             impl_desc_type::brgconv_avx512_amx,
             impl_desc_type::jit_avx512_amx_dw,
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
+            impl_desc_type::gemm_avx512_amx,
+            impl_desc_type::brgemm_avx512_amx,
+
+            impl_desc_type::brgconv_avx512_vnni_1x1,
+            impl_desc_type::brgconv_avx512_vnni,
+            impl_desc_type::jit_avx512_vnni_dw,
+            impl_desc_type::jit_avx512_vnni_1x1,
+            impl_desc_type::jit_avx512_vnni,
+            impl_desc_type::gemm_avx512_vnni,
+            impl_desc_type::brgemm_avx512_vnni,
+
+            impl_desc_type::brgconv_avx512_core_1x1,
+            impl_desc_type::brgconv_avx512_core,
+            impl_desc_type::jit_avx512_core_dw,
+            impl_desc_type::jit_avx512_core_1x1,
+            impl_desc_type::jit_avx512_core,
+            impl_desc_type::gemm_avx512_core,
+            impl_desc_type::brgemm_avx512_core,
+
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
+
+
             // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
 //            impl_desc_type::brgconv_avx512_1x1,
 //            impl_desc_type::brgconv_avx512,

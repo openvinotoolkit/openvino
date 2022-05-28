@@ -36,6 +36,8 @@
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
+#include "op/com.microsoft/gelu.hpp"
+#include "op/com.microsoft/fusedgemm.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
@@ -82,6 +84,7 @@
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
 #include "op/loop.hpp"
+#include "op/layer_norm.hpp"
 #include "op/lp_norm.hpp"
 #include "op/lp_pool.hpp"
 #include "op/lrn.hpp"
@@ -504,8 +507,12 @@ void OperatorsBridge::_load_initial_state() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Gelu", 1, gelu );
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_norm);
 }
 
 #undef REGISTER_OPERATOR

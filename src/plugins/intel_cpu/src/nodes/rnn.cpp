@@ -110,7 +110,7 @@ const std::map<Precision, Precision> RNN::weightsByLayerPrec {
     {Precision::BF16, Precision::BF16},
     // FP16 and U8 are not supported yet
     // {Precision::FP16, Precision::FP16},
-    // {Precision::U8,   Precision::I8},
+    {Precision::U8,   Precision::I8},
 };
 
 

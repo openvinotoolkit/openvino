@@ -9,6 +9,7 @@
 namespace dnnl {
 
 using primitive_desc_iterator = dnnl::primitive_desc;
+const char* kind2str(primitive::kind kind);
 
 namespace utils {
 

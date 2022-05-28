@@ -70,6 +70,12 @@ protected:
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
 
+    std::string getDNNlString() override {
+        if (execPtr)
+            return  execPtr->getDNNlString();
+        return Node::getDNNlString();
+    }
+
 private:
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;

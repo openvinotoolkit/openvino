@@ -13,6 +13,7 @@
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/frontend/extension.hpp"
 
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
@@ -215,6 +216,14 @@ int main(int argc, char* argv[]) {
             slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
+        {
+            // core.add_extension(ov::frontend::OpExtension<>("LayerNormalization", "LayerNormalization"));
+            // core.add_extension(ov::frontend::ConversionExtension("FusedGemm",
+            //     [](const ov::frontend::NodeContext& node) {
+            //         return ov::OutputVector{ std::make_shared<ov::opset9::FusedGemm>(node.get_input(0)) };
+            // }));
+        }
+
         // Load clDNN Extensions
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Override config if command line parameter is specified
@@ -382,7 +391,8 @@ int main(int argc, char* argv[]) {
                         it_affinity->second = ov::Affinity::NONE;
                     }
                 }
-
+                if (isFlagSetInCommandLine("enforcebf16"))
+                    device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16 ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();

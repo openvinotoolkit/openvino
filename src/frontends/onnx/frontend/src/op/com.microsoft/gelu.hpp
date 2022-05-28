@@ -4,23 +4,14 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector gemm(const Node& node);
+OutputVector gelu(const Node& node);
 }  // namespace set_1
-
-namespace set_6 {
-OutputVector gemm(const Node& node);
-
-}  // namespace set_6
-
 }  // namespace op
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx_import
+}  // namespace ngraph
