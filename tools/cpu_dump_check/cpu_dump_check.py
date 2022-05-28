@@ -100,10 +100,10 @@ class DumpIndex:
         (self.ExecIndex, self.Name, self.OriginalLayers, self.tag, self.itag, self.ieb_file) = args
 
 
-def dump_tensors(core, model, dump_dir = "./cpu_dump", device_target="CPU"):
+def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_target="CPU"):
     os.environ["OV_CPU_BLOB_DUMP_DIR"] = dump_dir
     os.environ["OV_CPU_BLOB_DUMP_FORMAT"] = "BIN"
-    os.environ["OV_CPU_BLOB_DUMP_NODE_PORTS"] = "OUT"
+    os.environ["OV_CPU_BLOB_DUMP_NODE_PORTS"] = dump_ports
     mkdirp(dump_dir)
 
     device_config = {"PERF_COUNT": "NO",
@@ -117,21 +117,24 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", device_target="CPU"):
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()
 
-    print("fill input with random data:")
-    inputs={}
-    for i in exec_net.inputs:
-        inputs[i] = fill_tensors_with_random(i)
-        print(f"  {i}")
+    if len(dump_ports) > 0:
+        print("fill input with random data:")
+        inputs={}
+        for i in exec_net.inputs:
+            inputs[i] = fill_tensors_with_random(i)
+            print(f"  {i}")
 
-    print("infer with dump..")
-    req.infer(inputs)
+        print("infer with dump..")
+        req.infer(inputs)
 
     runtime_func = exec_net.get_runtime_model()
     xml_path = "runtime_func.xml"
     bin_path = "runtime_func.bin"
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
-    pass_manager.run_passes(runtime_func)    
+    pass_manager.run_passes(runtime_func)
+    
+    print(f"{device_target} Runtime model (exec_graph) is serialized to {xml_path}.")
 
 
 def visualize_diff_abs(diff_abs):
@@ -235,6 +238,7 @@ def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
     for f1 in ieb_list1:
         f2 = get_match_ieb_file2(f1)
         if not f2:
+            print("{}[  SKIPPED   ]: not found {} in {} {}".format(Colors.YELLOW, f1[-1], dump_dir2, Colors.END))
             continue
         
         ieb_file1 = f1[-1]
@@ -272,7 +276,7 @@ def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
             if (visualize):
                 visualize_diff_abs(diff_abs)
         else:
-            #print("{}[  OK     ]: {} {} {}".format(prefixOK, f1[-1], f2[-1], Colors.END))
+            print("{}[  OK     ]: {} {} {}".format(Colors.GREEN, f1[-1], f2[-1], Colors.END))
             pass
 
     print("============================================")
@@ -300,6 +304,7 @@ def main():
     parser.add_argument("-m", type=str, default="", required=True, help="Model file path")
     parser.add_argument("-atol", type=float, default=1e-8, help="absolute error")
     parser.add_argument("-v", action="store_true", help="visualize error")
+    parser.add_argument("-p", "--ports", type=str, default="OUT", help="dump ports: OUT | ALL")
     parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders or files")
     args = parser.parse_args()
 
@@ -308,7 +313,7 @@ def main():
     model = core.read_model(args.m)
 
     if len(args.dumps) == 1:
-        dump_tensors(core, model, args.dumps[0])
+        dump_tensors(core, model, args.dumps[0], args.ports)
     else:
         assert(len(args.dumps) == 2)
         if (os.path.isdir(args.dumps[0])):
