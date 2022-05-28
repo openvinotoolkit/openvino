@@ -24,21 +24,20 @@ struct infer_result {
  * @param result_size of the struct
  * @return none
  */
-void infer_result_sort(struct infer_result* results, size_t result_size) {
-    size_t i, j;
-    for (i = 0; i < result_size; ++i) {
-        for (j = i + 1; j < result_size; ++j) {
-            if (results[i].probability < results[j].probability) {
-                struct infer_result temp = results[i];
-                results[i] = results[j];
-                results[j] = temp;
-            } else if (results[i].probability == results[j].probability && results[i].class_id > results[j].class_id) {
-                struct infer_result temp = results[i];
-                results[i] = results[j];
-                results[j] = temp;
-            }
-        }
+int compare(const void* a, const void* b) {
+    const struct infer_result* sa = (const struct infer_result*)a;
+    const struct infer_result* sb = (const struct infer_result*)b;
+    if (sa->probability < sb->probability) {
+        return 1;
+    } else if ((sa->probability == sb->probability) && (sa->class_id > sb->class_id)) {
+        return 1;
+    } else if (sa->probability > sb->probability) {
+        return -1;
     }
+    return 0;
+}
+void infer_result_sort(struct infer_result* results, size_t result_size) {
+    qsort(results, result_size, sizeof(struct infer_result), compare);
 }
 
 /**
@@ -114,6 +113,22 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
+    ov_core_t* core = NULL;
+    ov_model_t* model = NULL;
+    ov_tensor_t* tensor = NULL;
+    ov_preprocess_t* preprocess = NULL;
+    ov_preprocess_input_info_t* input_info = NULL;
+    ov_model_t* new_model = NULL;
+    ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
+    ov_preprocess_input_process_steps_t* input_process = NULL;
+    ov_preprocess_input_model_info_t* p_input_model = NULL;
+    ov_preprocess_output_info_t* output_info = NULL;
+    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
+    ov_compiled_model_t* compiled_model = NULL;
+    ov_infer_request_t* infer_request = NULL;
+    ov_tensor_t* output_tensor = NULL;
+    struct infer_result* results = NULL;
+
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
     CHECK_STATUS(ov_get_version(&version));
@@ -128,12 +143,10 @@ int main(int argc, char** argv) {
     const char* device_name = argv[3];
 
     // -------- Step 1. Initialize OpenVINO Runtime Core --------
-    ov_core_t* core = NULL;
     CHECK_STATUS(ov_core_create("", &core));
 
     // -------- Step 2. Read a model --------
     printf("[INFO] Loading model files: %s\n", input_model);
-    ov_model_t* model = NULL;
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
@@ -155,47 +168,35 @@ int main(int argc, char** argv) {
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
     ov_shape_t input_shape = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
-    ov_tensor_t* tensor = NULL;
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
-    ov_preprocess_t* preprocess = NULL;
     CHECK_STATUS(ov_preprocess_create(model, &preprocess));
-
-    ov_preprocess_input_info_t* input_info = NULL;
     CHECK_STATUS(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
     CHECK_STATUS(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
     ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, tensor_layout));
 
-    ov_preprocess_input_process_steps_t* input_process = NULL;
     CHECK_STATUS(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
     CHECK_STATUS(ov_preprocess_input_resize(input_process, RESIZE_LINEAR));
 
-    ov_preprocess_input_model_info_t* p_input_model = NULL;
     CHECK_STATUS(ov_preprocess_input_get_model_info(input_info, &p_input_model));
     ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
     CHECK_STATUS(ov_preprocess_input_model_set_layout(p_input_model, model_layout));
 
-    ov_preprocess_output_info_t* output_info = NULL;
     CHECK_STATUS(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
-    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
     CHECK_STATUS(ov_preprocess_output_get_tensor_info(output_info, &output_tensor_info));
     CHECK_STATUS(ov_preprocess_output_set_element_type(output_tensor_info, F32));
 
-    ov_model_t* new_model = NULL;
     CHECK_STATUS(ov_preprocess_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
-    ov_compiled_model_t* compiled_model = NULL;
     ov_property_t property;
     CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, &property));
 
     // -------- Step 6. Create an infer request --------
-    ov_infer_request_t* infer_request = NULL;
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
 
     // -------- Step 7. Prepare input --------
@@ -205,11 +206,10 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_infer_request_infer(infer_request));
 
     // -------- Step 9. Process output
-    ov_tensor_t* output_tensor = NULL;
     CHECK_STATUS(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
     // Print classification results
     size_t results_num;
-    struct infer_result* results = tensor_to_infer_result(output_tensor, &results_num);
+    results = tensor_to_infer_result(output_tensor, &results_num);
     infer_result_sort(results, results_num);
     size_t top = 10;
     if (top > results_num) {
