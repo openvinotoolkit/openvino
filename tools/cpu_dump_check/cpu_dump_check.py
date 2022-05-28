@@ -188,8 +188,10 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
         result_exec_id += 1
 
     runtime_func = exec_net.get_runtime_model()
-    xml_path = "runtime_func.xml"
-    bin_path = "runtime_func.bin"
+    base_name = dump_dir.split('/')
+    base_name = base_name[-1].split('\\')
+    xml_path = f"{base_name[-1]}.xml"
+    bin_path = f"{base_name[-1]}.bin"
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(runtime_func)
@@ -262,7 +264,7 @@ def visualize_diff_abs(diff_abs):
 
     plt.show()
 
-def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
+def compare_dumps(model, atol, rtol, visualize, dump_dir1, dump_dir2):
 
     output_tensors = []
     for out in model.outputs:
@@ -311,9 +313,11 @@ def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
             print("Skipped Input_Constant {ieb_file1} vs {ieb_file2}")
             continue
 
-        if not np.allclose(ieb1.value, ieb2.value, atol=atol):
-            diff_abs = np.abs(ieb1.value - ieb2.value)
-            atol_max = np.amax(diff_abs)
+        if not np.allclose(ieb1.value, ieb2.value, atol=atol, rtol=rtol):
+            diff_abs = np.abs(ieb1.value.astype('float32') - ieb2.value.astype('float32'))
+            thresh = atol + rtol * np.abs(ieb2.value)
+            idx = np.where(diff_abs >= thresh)
+            atol_max = np.amax(diff_abs[idx])
 
             if ieb1.value.dtype in MAX_atol:
                 if MAX_atol[ieb1.value.dtype] < atol_max:
@@ -329,9 +333,14 @@ def compare_dumps(model, atol, visualize, dump_dir1, dump_dir2):
             if (np.prod(diff_abs.shape) < 8):
                 info = "{} vs {}".format(ieb1.value.reshape(-1), ieb2.value.reshape(-1))
             
-            print("    {} {}    ({:.2e} ~ {:.2e})   @ mean:{:.2e} std:{:.2e}  detail: {}".format(
+            max_abs = np.amax(diff_abs[idx])
+            max_idx = np.where(diff_abs[idx] >= max_abs)
+            max_org = np.abs(ieb2.value)[idx][max_idx]
+            print("  {} {}  ({:.2e} ~ {:.2e}/{:.2e}={:.2e})  @ mean:{:.2e} std:{:.2e} detail: {}".format(
                     diff_abs.shape, diff_abs.dtype,
-                    np.amin(diff_abs), np.amax(diff_abs), np.mean(diff_abs), np.std(diff_abs), info))
+                    np.amin(diff_abs[idx]), max_abs,
+                    max_org[0], max_abs / (max_org[0] + 0.000001),
+                    np.mean(diff_abs[idx]), np.std(diff_abs[idx]), info))
 
             if (visualize):
                 visualize_diff_abs(diff_abs)
@@ -356,9 +365,14 @@ def compare_dump_file(ieb_file1, ieb_file2, visualize):
     else:
         diff_abs = np.abs(ieb1.value - ieb2.value)
 
-    print("    {} {}    ({:.2e} ~ {:.2e})   @ mean:{:.2e} std:{:.2e} ".format(
+    max_abs = np.amax(diff_abs)
+    max_idx = np.where(diff_abs >= max_abs)
+    max_org = np.abs(ieb2.value)[max_idx]
+    print("  {} {}  ({:.2e} ~ {:.2e}/{:.2e}={:.2e})  @ mean:{:.2e} std:{:.2e} ".format(
             diff_abs.shape, diff_abs.dtype,
-            np.amin(diff_abs), np.amax(diff_abs), np.mean(diff_abs), np.std(diff_abs)))
+            np.amin(diff_abs), max_abs,
+            max_org[0], max_abs / (max_org[0] + 0.00001),
+            np.mean(diff_abs), np.std(diff_abs)))
 
     if (visualize):
         visualize_diff_abs(diff_abs)
@@ -367,6 +381,7 @@ def main():
     parser = argparse.ArgumentParser("cpu_cross_check")
     parser.add_argument("-m", type=str, default="", required=True, help="Model file path")
     parser.add_argument("-atol", type=float, default=1e-8, help="absolute error")
+    parser.add_argument("-rtol", type=float, default=1e-4, help="relative error")
     parser.add_argument("-v", action="store_true", help="visualize error")
     parser.add_argument("-p", "--ports", type=str, default="OUT", help="dump ports: OUT | ALL")
     parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders or files")
@@ -381,7 +396,7 @@ def main():
     else:
         assert(len(args.dumps) == 2)
         if (os.path.isdir(args.dumps[0])):
-            compare_dumps(model, args.atol, args.v, args.dumps[0], args.dumps[1])
+            compare_dumps(model, args.atol, args.rtol, args.v, args.dumps[0], args.dumps[1])
         else:
             compare_dump_file(args.dumps[0], args.dumps[1], args.v)
 
