@@ -71,7 +71,7 @@ void DebugLogEnabled::break_at(const std::string & log) {
     if (p_brk && log.find(p_brk) != std::string::npos) {
         std::cout << "[ DEBUG ] " << " Debug log breakpoint hit" << std::endl;
 #if defined(_MSC_VER)
-        __asm int 3;
+        __debugbreak();
 #else
         asm("int3");
 #endif
