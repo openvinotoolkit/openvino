@@ -5,6 +5,7 @@
 from functools import partial
 from typing import Optional
 
+import numpy as np
 from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import nameable_op
