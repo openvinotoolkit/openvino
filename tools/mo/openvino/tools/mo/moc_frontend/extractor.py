@@ -7,7 +7,7 @@ from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_col
 from openvino.tools.mo.utils.error import Error
 from openvino.pyopenvino import Place
 
-from openvino.frontend import InputModel # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
 import numpy as np
 
@@ -17,6 +17,7 @@ from enum import Enum
 class IOType(Enum):
     Input = 1
     Output = 2
+
 
 def decode_name_with_port(
     input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
@@ -28,33 +29,37 @@ def decode_name_with_port(
     :param node_name: user provided node name
     :return: decoded place in the graph
     """
-    found_nodes = []
-    found_node_names = []
+    found_places = []
+    found_place_names = []
 
     def get_place_by_operation_name(input_model, name, framework, io_type):
         node = input_model.get_place_by_operation_name(name)
         if node and framework == "onnx":
             if io_type == IOType.Input:
-                return node.get_input_port(input_port_index=0).get_producing_port().get_target_tensor()
+                return (
+                    node.get_input_port(input_port_index=0)
+                    .get_producing_port()
+                    .get_target_tensor()
+                )
             else:
                 return node.get_output_port(output_port_index=0).get_target_tensor()
         return node
 
     # find by tensor name
-    node = input_model.get_place_by_tensor_name(node_name)
-    if node:
-        found_node_names.append("Tensor:" + node_name)
-        found_nodes.append(node)
+    place = input_model.get_place_by_tensor_name(node_name)
+    if place:
+        found_place_names.append("Tensor:" + node_name)
+        found_places.append(place)
     else:
         # find by operation name
-        node = get_place_by_operation_name(input_model, node_name, framework, io_type)
+        place = get_place_by_operation_name(input_model, node_name, framework, io_type)
         name = node_name
         if framework == "onnx" and io_type == IOType.Output:
             name = "Tensor:" + name
 
-        if node:
-            found_node_names.append(name)
-            found_nodes.append(node)
+        if place:
+            found_place_names.append(name)
+            found_places.append(place)
 
     def try_get_node(model, name, framework):
         node = model.get_place_by_operation_name(name)
@@ -102,11 +107,11 @@ def decode_name_with_port(
     if match_port:
         name = match.group(1)
         if framework == "onnx":
-            found_node_names.append("Tensor:" + name)
-            found_nodes.append(match_port.get_target_tensor())
+            found_place_names.append("Tensor:" + name)
+            found_places.append(match_port.get_target_tensor())
         else:
-            found_node_names.append(name)
-            found_nodes.append(match_port)
+            found_place_names.append(name)
+            found_places.append(match_port)
 
     regexp_pre = r"(\d+):(.+)"
     match = re.search(regexp_pre, node_name)
@@ -120,22 +125,22 @@ def decode_name_with_port(
     if match_port:
         name = match.group(2)
         if framework == "onnx":
-            found_node_names.append("Tensor:" + name)
-            found_nodes.append(match_port.get_producing_port().get_target_tensor())
+            found_place_names.append("Tensor:" + name)
+            found_places.append(match_port.get_producing_port().get_target_tensor())
         else:
-            found_nodes.append(match_port)
-            found_node_names.append(name)
+            found_places.append(match_port)
+            found_place_names.append(name)
 
-    if len(found_nodes) == 0:
+    if len(found_places) == 0:
         raise_no_node(node_name)
 
     # Check that there is no collision, all found places shall point to same data
-    if not all([n.is_equal_data(found_nodes[0]) for n in found_nodes]):
-        raise_node_name_collision(node_name, found_node_names)
+    if not all([n.is_equal_data(found_places[0]) for n in found_places]):
+        raise_node_name_collision(node_name, found_place_names)
 
     # TODO: Add support for input/output group name and port index here (58562)
     # For new frontends logic shall be extended to additionally support input and output group names
-    return found_nodes[0]
+    return found_places[0]
 
 
 def fe_input_user_data_repack(
@@ -209,7 +214,11 @@ def fe_input_user_data_repack(
                 )
             else:
                 _input_shapes.append(
-                    {"node": node, "shape": shape, "input_name": input_name}
+                    {
+                        "node": node,
+                        "shape": shape,
+                        "input_name": input_name
+                    }
                 )
     elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
