@@ -202,7 +202,7 @@ def fe_input_user_data_repack(
                 if isinstance(input_user_shapes, list)
                 else input_user_shapes[input_name]
             )
-            if input_user_data_types and input_user_data_types.get(input_name) is not None:
+            if isinstance(input_user_data_types, dict) and input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
                 _input_shapes.append(
                     {
