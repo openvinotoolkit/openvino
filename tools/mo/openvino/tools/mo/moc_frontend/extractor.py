@@ -5,10 +5,9 @@ import re
 
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
 from openvino.tools.mo.utils.error import Error
+from openvino.pyopenvino import Place
 
-from openvino.frontend import (
-    InputModel,
-)  # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import InputModel # pylint: disable=no-name-in-module,import-error
 
 import numpy as np
 
@@ -19,10 +18,9 @@ class IOType(Enum):
     Input = 1
     Output = 2
 
-
 def decode_name_with_port(
     input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
-):
+) -> Place or None:
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
     TODO: in future node_name can specify input/output port groups as well as indices (58562)
@@ -33,6 +31,15 @@ def decode_name_with_port(
     found_nodes = []
     found_node_names = []
 
+    def get_place_by_operation_name(input_model, name, framework, io_type):
+        node = input_model.get_place_by_operation_name(name)
+        if node and framework == "onnx":
+            if io_type == IOType.Input:
+                return node.get_input_port(input_port_index=0).get_producing_port().get_target_tensor()
+            else:
+                return node.get_output_port(output_port_index=0).get_target_tensor()
+        return node
+
     # find by tensor name
     node = input_model.get_place_by_tensor_name(node_name)
     if node:
@@ -40,20 +47,12 @@ def decode_name_with_port(
         found_nodes.append(node)
     else:
         # find by operation name
-        node = input_model.get_place_by_operation_name(node_name)
-        if node:
-            name = node_name
-            if framework == "onnx":
-                if io_type == IOType.Input:
-                    node = (
-                        node.get_input_port(input_port_index=0)
-                        .get_producing_port()
-                        .get_target_tensor()
-                    )
-                else:
-                    node = node.get_output_port(output_port_index=0).get_target_tensor()
-                    name = "Tensor:" + node_name
+        node = get_place_by_operation_name(input_model, node_name, framework, io_type)
+        name = node_name
+        if framework == "onnx" and io_type == IOType.Output:
+            name = "Tensor:" + name
 
+        if node:
             found_node_names.append(name)
             found_nodes.append(node)
 
@@ -69,11 +68,11 @@ def decode_name_with_port(
                 return tensor.get_producing_operation()
         return None
 
-    def get_port(match, is_name_match_pre, input_model, framework):
+    def get_port(match, match_starts_with_name, input_model, framework):
         if not match:
             return None
 
-        if is_name_match_pre:
+        if match_starts_with_name:
             name = match.group(1)
             port_index = match.group(2)
         else:
@@ -84,7 +83,7 @@ def decode_name_with_port(
         if node:
             # if regular expression has structure <name>:<port>, get node output port.
             # Otherwise get node input port
-            if is_name_match_pre:
+            if match_starts_with_name:
                 return node.get_output_port(output_port_index=int(port_index))
             else:
                 return node.get_input_port(input_port_index=int(port_index))
@@ -95,7 +94,7 @@ def decode_name_with_port(
     match = re.search(regexp_post, node_name)
     match_port = get_port(
         match=match,
-        is_name_match_pre=True,
+        match_starts_with_name=True,
         input_model=input_model,
         framework=framework,
     )
@@ -113,7 +112,7 @@ def decode_name_with_port(
     match = re.search(regexp_pre, node_name)
     match_port = get_port(
         match=match,
-        is_name_match_pre=False,
+        match_starts_with_name=False,
         input_model=input_model,
         framework=framework,
     )
@@ -144,7 +143,7 @@ def fe_input_user_data_repack(
     input_user_shapes: [None, list, dict, np.ndarray],
     freeze_placeholder: dict,
     framework: str,
-    input_user_data_types=dict(),
+    input_user_data_types=None,
 ):
     """
     Restructures user input cutting request. Splits ports out of node names.
@@ -198,7 +197,7 @@ def fe_input_user_data_repack(
                 if isinstance(input_user_shapes, list)
                 else input_user_shapes[input_name]
             )
-            if input_user_data_types.get(input_name) is not None:
+            if input_user_data_types and input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
                 _input_shapes.append(
                     {

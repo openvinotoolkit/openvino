@@ -51,7 +51,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         :param places An object containing Places and names that will be used for model modification
         """
         for new_input in places:
-            if not 'input_name' in new_input:
+            if 'input_name' not in new_input:
                 continue
             try:
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
