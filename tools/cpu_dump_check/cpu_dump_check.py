@@ -63,6 +63,50 @@ def fill_tensors_with_random(input):
     return Tensor(a)
 
 class IEB:
+    precision_table = {
+        10:(np.float32, 4),
+        40:(np.uint8, 1),
+        50:(np.int8, 1),
+        70:(np.int32, 4),
+        74:(np.uint32, 4),
+        72:(np.int64, 8),
+        73:(np.uint64, 8)
+    }
+
+    @classmethod
+    def dump(cls, ieb_file, nparray):
+        # b'IEB0', 256, 10, 4, 1, 32, 1104, 1104, 0, 0, 0, 255, 0, 0, 0, 72, 156008448, 0, 0
+        fmt = "@4sHBB7IB3BLLLL"
+
+        magic, ver = b'IEB0', 256
+        
+        precision = -1
+        for k,v in IEB.precision_table.items():
+            if (v[0] == nparray.dtype):
+                precision = k
+        
+        assert(precision >= 0)
+
+        ndims = len(nparray.shape)
+        dims = [0 for _ in range(7)]
+        for i, s in enumerate(nparray.shape):
+            dims[i] = s
+        scaling_axis = 255
+        reserved = [0,0,0]
+        data_offset = struct.calcsize(fmt)
+        data_size = np.prod(nparray.shape) * nparray.itemsize
+        scaling_data_offset = 0
+        scaling_data_size = 0
+        header = struct.pack(fmt, magic, ver, precision, ndims,
+                           dims[0], dims[1], dims[2], dims[3], dims[4], dims[5], dims[6],
+                           scaling_axis, reserved[0], reserved[1], reserved[2],
+                           data_offset, data_size, scaling_data_offset, scaling_data_size)
+        
+        with open(ieb_file,"wb") as f:
+            f.write(header)
+            f.write(nparray.tobytes())
+        return
+
     def __init__(self, ieb_file) -> None:
         with open(ieb_file,"rb") as f:
             data = f.read() # bytes
@@ -73,16 +117,8 @@ class IEB:
             self.scaling_axis,
             self.reserved0, self.reserved1, self.reserved2,
             self.data_offset, self.data_size, self.scaling_data_offset, self.scaling_data_size) = header
-            precision_table = {
-                10:(np.float32, 4),
-                40:(np.uint8, 1),
-                50:(np.int8, 1),
-                70:(np.int32, 4),
-                74:(np.uint32, 4),
-                72:(np.int64, 8),
-                73:(np.uint64, 8)
-            }
-            (dtype, type_size, ) = precision_table[self.precision]
+
+            (dtype, type_size, ) = IEB.precision_table[self.precision]
             count = self.data_size//type_size
             
             # recover the data as numpy array
@@ -117,15 +153,28 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()
 
-    if len(dump_ports) > 0:
-        print("fill input with random data:")
-        inputs={}
-        for i in exec_net.inputs:
-            inputs[i] = fill_tensors_with_random(i)
-            print(f"  {i}")
+    print("fill input with random data:")
+    inputs={}
+    for i in exec_net.inputs:
+        inputs[i] = fill_tensors_with_random(i)
+        print(f"  {i}")
 
-        print("infer with dump..")
-        req.infer(inputs)
+    print("infer with dump..")
+    
+    result = req.infer(inputs)
+
+    # dump result as ieb, so even no dump_ports, you can still know
+    # final correctness
+    print("Dump result as ieb...")
+    result_exec_id = 999900
+    for out, value in result.items():
+        ieb_name = os.path.join(dump_dir,
+                         "#{}_{}.ieb".format(
+                                result_exec_id,
+                                "~".join([name.replace(":","_").replace("/","_") for name in out.names])))
+        print("  {}..".format(ieb_name))
+        IEB.dump(ieb_name, value)
+        result_exec_id += 1
 
     runtime_func = exec_net.get_runtime_model()
     xml_path = "runtime_func.xml"
