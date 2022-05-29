@@ -168,10 +168,9 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     print("Dump result as ieb...")
     result_exec_id = 999900
     for out, value in result.items():
-        ieb_name = os.path.join(dump_dir,
-                         "#{}_{}.ieb".format(
-                                result_exec_id,
-                                "~".join([name.replace(":","_").replace("/","_") for name in out.names])))
+        names = [name.replace(":","_").replace("/","_") for name in out.names]
+        names.sort()
+        ieb_name = os.path.join(dump_dir, "#{}_{}.ieb".format(result_exec_id, "~".join(names)))
         print("  {}..".format(ieb_name))
         IEB.dump(ieb_name, value)
         result_exec_id += 1
