@@ -138,12 +138,14 @@ public:
      * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param src_perm
+     * optimization flag; permutation applied to input desc before passing to reorder primitive
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
     NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.

@@ -1268,7 +1268,7 @@ void Graph::RemoveDroppedEdges() {
 }
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
-                                         bool isOptimized) {
+                                         bool isOptimized, const std::vector<int> & src_perm) {
     NodePtr newReorder(new node::Reorder(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
     if (reorderPtr == nullptr) {
@@ -1276,6 +1276,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->setOptimized(isOptimized);
+    reorderPtr->setSrcPermutation(src_perm);
 
     DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
     DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().name(), " ", inDesc.serializeFormat());
