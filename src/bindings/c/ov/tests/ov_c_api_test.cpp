@@ -121,10 +121,10 @@ TEST(ov_c_api_version, api_version) {
 }
 
 class ov_core :public::testing::TestWithParam<std::string>{};
-INSTANTIATE_TEST_CASE_P(device_name, ov_core, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
 class ov_compiled_model :public::testing::TestWithParam<std::string>{};
-INSTANTIATE_TEST_CASE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
     ov_core_t* core = nullptr;
@@ -1233,8 +1233,8 @@ public:
     ov_preprocess_input_model_info_t* input_model;
 };
 
-INSTANTIATE_TEST_CASE_P(device_name, ov_infer_request, ::testing::Values("CPU"));
-INSTANTIATE_TEST_CASE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
 
 TEST_P(ov_infer_request, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
