@@ -15,9 +15,9 @@
 
 .. tab:: Linux
 
-   Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps to be able to work on NCS2:
+   Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps below to be able to work on NCS2:
 
-   1. Go to the install_dependencies directory:
+   1. Go to the `install_dependencies` directory:
 
    .. code-block:: sh
 
@@ -29,9 +29,9 @@
 
       ./install_NCS_udev_rules.sh
 
-   3. You may need to reboot your machine for this to take effect.
+   3. Reboot of your machine may be required for this to take effect.
 
-   You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
+   This completes all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
    Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 .. tab:: Raspbian OS
@@ -76,7 +76,7 @@
 
       make -j2 hello_classification
 
-   c. Download the pre-trained squeezenet1.1 image classification model with the Model Downloader or copy it from the host machine:
+   c. Download the pre-trained `squeezenet1.1` image classification model with the Model Downloader or copy it from the host machine:
 
    .. code-block:: sh
 
@@ -98,7 +98,7 @@
 
    These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
 
-   To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You may build it from the `source code`_ or install it using the macOS package manager you prefer: `Homebrew`_ , `MacPorts`_ or other.
+   To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. It may be build from the `source code`_ or installed by using the macOS package manager you prefer: `Homebrew`_ , `MacPorts`_ or other.
 
    .. _source code: https://github.com/libusb/libusb
 
@@ -112,7 +112,7 @@
 
       brew install libusb
 
-   You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
+   This completes all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
    Proceed to the <a href="openvino_docs_install_guides_installing_openvino_macos.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 
