@@ -184,54 +184,9 @@ char* str_to_char_array(const std::string& str) {
 }
 
 const char* ov_get_error_info(ov_status_e status) {
-    std::string str;
-    switch (status) {
-    case ov_status_e::OK:
-        str = "[SUCCESS] Run without error!";
-        break;
-    case ov_status_e::GENERAL_ERROR:
-        str = "[ERROR] Get GENERAL_ERROR, please check the parameter!";
-        break;
-    case ov_status_e::NOT_IMPLEMENTED:
-        str = "[ERROR] Not implement, please check!";
-        break;
-    case ov_status_e::NETWORK_NOT_LOADED:
-        str = "[ERROR] The network load failed!";
-        break;
-    case ov_status_e::PARAMETER_MISMATCH:
-        str = "[ERROR] The input parameter mismatch, please check!";
-        break;
-    case ov_status_e::NOT_FOUND:
-        str = "[ERROR] Can not find the value!";
-        break;
-    case ov_status_e::OUT_OF_BOUNDS:
-        str = "[ERROR] Out of bounds, please check!";
-        break;
-    case ov_status_e::UNEXPECTED:
-        str = "[ERROR] Run with unexpected error!";
-        break;
-    case ov_status_e::REQUEST_BUSY:
-        str = "[ERROR] The request is busy now!";
-        break;
-    case ov_status_e::RESULT_NOT_READY:
-        str = "[ERROR] The result is not ready now!";
-        break;
-    case ov_status_e::NOT_ALLOCATED:
-        str = "[ERROR] Allocated failed!";
-        break;
-    case ov_status_e::INFER_NOT_STARTED:
-        str = "[ERROR] The inference start with error!";
-        break;
-    case ov_status_e::NETWORK_NOT_READ:
-        str = "[ERROR] The network is not ready now!";
-        break;
-    case ov_status_e::INFER_CANCELLED:
-        str = "[ERROR] The inference is canceled!";
-        break;
-    default:
-        break;
-    }
-    return str_to_char_array(str);
+    if (status > ov_status_e::UNKNOWN_ERROR)
+        return error_infos[ov_status_e::UNKNOWN_ERROR];
+    return error_infos[status];
 }
 
 ov_status_e ov_get_version(ov_version_t *version) {
