@@ -151,9 +151,10 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
+            int input0_rank = static_cast<int>(newParams.inputs[0].LogicalDims().size());
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, static_cast<int>(newParams.inputs[0].LogicalDims().size()))));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, input0_rank)));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, newParams.indices_rank - 1)));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
         }
