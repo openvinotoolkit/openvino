@@ -47,6 +47,6 @@ The "optional" means that if the application does not use the capability enabled
 
 The information above covers granularity aspects of most distribution types. More detailed information is required and provided in the [Local Distribution](local-distribution.md).
 
-> **NOTE**: Depending on target OpenVINO devices, provide proper configuration of deployed machines, using the [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), the [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), the [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or the [Configurations for VPU](../../install_guides/installing-openvino-config-ivad-vpu.md).
+> **NOTE**: Depending on target OpenVINO devices, provide proper configuration of deployed machines, using the [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), the [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), the [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or the [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
 
 [deployment_simplified]: ../../img/deployment_simplified.png
