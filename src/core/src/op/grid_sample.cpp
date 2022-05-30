@@ -55,3 +55,29 @@ std::shared_ptr<Node> op::v9::GridSample::clone_with_new_inputs(const OutputVect
     check_new_args_count(this, new_args);
     return std::make_shared<op::v9::GridSample>(new_args.at(0), new_args.at(1), this->get_attributes());
 }
+
+std::ostream& ov::operator<<(std::ostream& s, const op::v9::GridSample::InterpolationMode& mode) {
+    return s << as_string(mode);
+}
+
+namespace ov {
+template <>
+NGRAPH_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::GridSample::InterpolationMode>::get() {
+    static auto enum_names =
+        EnumNames<op::v9::GridSample::InterpolationMode>("op::v9::GridSample::InterpolationMode",
+                                                         {{"bilinear", op::v9::GridSample::InterpolationMode::BILINEAR},
+                                                          {"bicubic", op::v9::GridSample::InterpolationMode::BICUBIC},
+                                                          {"nearest", op::v9::GridSample::InterpolationMode::NEAREST}});
+    return enum_names;
+}
+
+template <>
+NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSample::PaddingMode>::get() {
+    static auto enum_names =
+        EnumNames<op::v9::GridSample::PaddingMode>("op::v9::GridSample::PaddingMode",
+                                                   {{"zeros", op::v9::GridSample::PaddingMode::ZEROS},
+                                                    {"border", op::v9::GridSample::PaddingMode::BORDER},
+                                                    {"reflection", op::v9::GridSample::PaddingMode::REFLECTION}});
+    return enum_names;
+}
+}  // namespace ov

@@ -18,20 +18,20 @@ class OPENVINO_API GridSample : public Op {
 public:
     OPENVINO_OP("GridSample", "opset9");
     BWDCMP_RTTI_DECLARATION;
+    
+    enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
+    enum class PaddingMode { ZEROS, BORDER, REFLECTION };
+    
     /// \brief A Structure which contains all GridSample attributes
     struct Attributes {
         // A flag which specifies whether to align the grid extrema values with the borders or center points
         // of the input tensor's border pixels.
         bool align_corners = false;
         // Specifies the type of interpolation: `bilinear`, `bicubic`, `nearest`
-        std::string mode = "bilinear";
+        InterpolationMode mode = InterpolationMode::BILINEAR;
         // Specifies how the out-of-bounds coordinates should be handled: `zeros`, `border`, `reflection`
-        std::string padding_mode = "zeros";
+        PaddingMode padding_mode = PaddingMode::ZEROS;
     };
-
-    enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
-
-    enum class PaddingMode { ZEROS, BORDER, REFLECTION };
 
     GridSample() = default;
     /// \brief Constructs a GridSample operation
