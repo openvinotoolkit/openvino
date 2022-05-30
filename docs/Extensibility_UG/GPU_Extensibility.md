@@ -1,6 +1,6 @@
 # How to Implement Custom GPU Operations {#openvino_docs_Extensibility_UG_GPU}
 
-To enable operations not supported by OpenVINO out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
+To enable operations not supported by OpenVINO™ out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
 The GPU codepath abstracts many details about OpenCL. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
 
@@ -44,11 +44,11 @@ Notation | Description
 
 ### CustomLayer Node and Sub-Node Structure
 
-`CustomLayer` node contains the entire configuration for a single custom operation.
+The `CustomLayer` node contains the entire configuration for a single custom operation.
 
 | Attribute Name   |\#    |  Description |
 |-----|-----|-----|
-| `name`           | (1)  | The name of the operation type to be used. This name should be identical to the type used in the IR.|
+| `name`           | (1)  | The name of the operation type to be used. This name should be identical to the type used in the OpenVINO IR.|
 | `type`           | (1)  | Must be `SimpleGPU`.                                                                                |
 | `version`        | (1)  | Must be `1`.                                                                                        |
 
@@ -57,13 +57,13 @@ Notation | Description
 
 ### Kernel Node and Sub-Node Structure
 
-`Kernel` node contains all kernel source code configuration.
+The `Kernel` node contains all kernel source code configuration.
 
 **Sub-nodes**: `Source` (1+), `Define` (0+)
 
 ### Source Node and Sub-Node Structure
 
-`Source` node points to a single OpenCL source file.
+The `Source` node points to a single OpenCL source file.
 
 | Attribute Name | \#  |Description|
 |-----|-----|-----|
@@ -73,7 +73,7 @@ Notation | Description
 
 ### Define Node and Sub-Node Structure
 
-`Define` node configures a single `#&zwj;define` instruction to be added to
+The `Define` node configures a single `#&zwj;define` instruction to be added to
 the sources during compilation (JIT).
 
 | Attribute Name | \#    | Description |
@@ -81,7 +81,7 @@ the sources during compilation (JIT).
 | `name`         | (1)   | The name of the defined JIT. For static constants, this can include the value as well, which is taken as a string. |
 | `param`        | (0/1) | This parameter value is used as the value of this JIT definition.                                          |
 | `type`         | (0/1) | The parameter type. Accepted values: `int`, `float`, and `int[]`, `float[]` for arrays.                    |
-| `default`      | (0/1) | The default value to be used if the specified parameters are missing from the operation in the IR.          |
+| `default`      | (0/1) | The default value to be used if the specified parameters are missing from the operation in the OpenVINO IR.          |
 
 **Sub-nodes:** None
 
@@ -90,37 +90,37 @@ The resulting JIT has the following form:
 
 ### Buffers Node and Sub-Node Structure
 
-`Buffers` node configures all input/output buffers for the OpenCL entry
+The `Buffers` node configures all input/output buffers for the OpenCL entry
 function. No buffers node structure exists.
 
 **Sub-nodes:** `Data` (0+), `Tensor` (1+)
 
 ### Data Node and Sub-Node Structure
 
-`Data` node configures a single input with static data, for example,
+The `Data` node configures a single input with static data, for example,
 weights or biases.
 
 | Attribute Name | \#  | Description |
 |----|-----|------|
-| `name`         | (1) | Name of a blob attached to an operation in the IR             |
-| `arg-index`    | (1) | 0-based index in the entry function arguments to be bound to |
+| `name`         | (1) | Name of a blob attached to an operation in the OpenVINO IR.             |
+| `arg-index`    | (1) | 0-based index in the entry function arguments to be bound to. |
 
 **Sub-nodes**: None
 
 ### Tensor Node and Sub-Node Structure
 
-`Tensor` node configures a single input or output tensor.
+The `Tensor` node configures a single input or output tensor.
 
 | Attribute Name | \#    | Description  |
 |------|-------|-------|
 | `arg-index`    | (1)   | 0-based index in the entry function arguments to be bound to.                                                                          |
-| `type`         | (1)   | `input` or `output`                                                                                                                    |
-| `port-index`   | (1)   | 0-based index in the operation input/output ports in the IR                                                                            |
-| `format`       | (0/1) | Data layout declaration for the tensor. Accepted values: `BFYX`, `BYXF`, `YXFB`, `FYXB`, and same values in all lowercase. Default value: `BFYX` |
+| `type`         | (1)   | `input` or `output`.                                                                                                                    |
+| `port-index`   | (1)   | 0-based index in the operation input/output ports in the OpenVINO IR.                                                                         |
+| `format`       | (0/1) | Data layout declaration for the tensor. Accepted values: `BFYX`, `BYXF`, `YXFB`, `FYXB`(also in lowercase). The default value: `BFYX` |
 
 ### CompilerOptions Node and Sub-Node Structure
 
-`CompilerOptions` node configures the compilation flags for the OpenCL
+The `CompilerOptions` node configures the compilation flags for the OpenCL
 sources.
 
 | Attribute Name | \#  | Description                                        |
@@ -131,20 +131,20 @@ sources.
 
 ### WorkSizes Node and Sub-Node Structure
 
-`WorkSizes` node configures the global/local work sizes to be used when
+The `WorkSizes` node configures the global/local work sizes to be used when
 queuing an OpenCL program for execution.
 
 | Attribute Name      | \#             | Description                                                                 |
 |-----|------|-----|
 | `global`<br>`local` | (0/1)<br>(0/1) | An array of up to three integers or formulas for defining OpenCL work-sizes to be used during execution.<br> The formulas can use the values of the B,F,Y,X dimensions and contain the operators: +,-,/,\*,%. All operators are evaluated in integer arithmetic. <br>Default value: `global=”B*F*Y*X” local=””` |
-| `dim`               | (0/1)          | A tensor to take the work-size from. Accepted values: `input N`, `output`, where `N` is an index of input tensor starting with 0. Default value: `output` |
+| `dim`               | (0/1)          | A tensor to take the work-size from. Accepted values: `input N`, `output`, where `N` is an index of input tensor starting with 0. The default value: `output` |
 
 **Sub-nodes**: None
 
 ## Example Configuration File
 
 The following code sample provides an example configuration file in XML
-format. For information on the configuration file structure, see
+format. For information on the configuration file structure, see the 
 [Configuration File Format](#config-file-format).
 ```xml
 <CustomLayer name="ReLU" type="SimpleGPU" version="1">
@@ -170,12 +170,12 @@ For an example, see [Example Kernel](#example-kernel).
 
 | Name | Value  |
 |---|---|
-| `NUM_INPUTS` | Number of the input tensors bound to this kernel |
-| `GLOBAL_WORKSIZE`  | An array of global work sizes used to execute this kernel |
-| `GLOBAL_WORKSIZE_SIZE` | The size of the `GLOBAL_WORKSIZE` array |
-| `LOCAL_WORKSIZE`  | An array of local work sizes used to execute this kernel  |
-| `LOCAL_WORKSIZE_SIZE`   | The size of the `LOCAL_WORKSIZE` array |
-| `<TENSOR>_DIMS`| An array of the tensor dimension sizes. Always ordered as `BFYX` |
+| `NUM_INPUTS` | Number of the input tensors bound to this kernel. |
+| `GLOBAL_WORKSIZE`  | An array of global work sizes used to execute this kernel. |
+| `GLOBAL_WORKSIZE_SIZE` | The size of the `GLOBAL_WORKSIZE` array. |
+| `LOCAL_WORKSIZE`  | An array of local work sizes used to execute this kernel.  |
+| `LOCAL_WORKSIZE_SIZE`   | The size of the `LOCAL_WORKSIZE` array. |
+| `<TENSOR>_DIMS`| An array of the tensor dimension sizes. Always ordered as `BFYX`. |
 | `<TENSOR>_DIMS_SIZE`| The size of the `<TENSOR>_DIMS` array.|
 | `<TENSOR>_TYPE`| The datatype of the tensor: `float`, `half`, or `char`|
 | `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. You may use the tensor format to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
@@ -220,15 +220,15 @@ __kernel void example_relu_kernel(
 ```
 
 
-> **NOTE**: As described in the previous section, all items like
+> **NOTE**: As described in the previous section, all items such as the 
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
 > OpenVINO for efficiency reasons. See [Debugging
 > Tips](#debugging-tips) for information on debugging the results.
 
 ## Debugging Tips<a name="debugging-tips"></a>
 
-* **Using `printf` in the OpenCL™ Kernels**.
-To debug the specific values, you may use `printf` in your kernels.
+* **Using `printf` in the OpenCL Kernels**.
+To debug the specific values, use `printf` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of
