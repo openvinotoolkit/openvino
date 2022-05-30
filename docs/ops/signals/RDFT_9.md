@@ -39,16 +39,16 @@
 
 **Detailed description**: *RDFT* performs the discrete Fourier transformation of real-valued input tensor with respect to specified axes. Calculations are performed according to the following rules.
 
-For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{q-1}]`, `axes=[k,...,k+q-1]`, and `signal_size=[S_0,...,S_{1-1}]`.
+For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{q-1}]`, `axes=[k,...,k+q-1]`, and `signal_size=[S_0,...,S_{q-1}]`.
 
-Let `D` be an input tensor `A`, taking into account the `signal_size`, and, hence, `D` has the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{1-1}]`.
+Let `D` be an input tensor `A`, taking into account the `signal_size`, and, hence, `D` has the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{q-1}]`.
 
 Next, let
 \f[X=X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+q-1}]\f]
 for all indices `j_0,...,j_{k+q-1}`, be a real-valued input tensor.
 
 Then the transformation RDFT of the tensor `X` is the tensor `Y` of the shape `[B_0, ..., B_{k-1}, S_0 // 2 + 1, ..., S_{r-1} // 2 + 1]`, such that
-\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{q-1}]=\sum\limits_{p_0=0}^{S_0}\cdots\sum\limits_{p_{q-1}=0}^{S_{q-1}}X[n_0,\dots,n_{k-1},j_0,\dots,j_{q-1}]\exp\left(-2\pi i\sum\limits_{b=0}^{q-1}\frac{m_bj_b}{S_b}\right)\f]
+\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{q-1}]=\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{q-1}=0}^{S_{q-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{q-1}]\exp\left(-2\pi i\sum\limits_{b=0}^{q-1}\frac{m_bj_b}{S_b}\right)\f]
 for all indices `n_0,...,n_{k-1}`, `m_0,...,m_{q-1}`.
 
 Calculations for the generic case of axes and signal sizes are similar.
