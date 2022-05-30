@@ -43,7 +43,7 @@ inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case,
     T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
-        test_case.add_input(data);
+        test_case.add_input(npy_array.shape, data);
     else
         test_case.add_expected_output(npy_array.shape, data);
 }

@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/util/nms_base.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/op/op.hpp"
 #include "openvino/op/matrix_nms.hpp"
 
 namespace ngraph {

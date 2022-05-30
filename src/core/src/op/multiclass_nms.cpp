@@ -4,66 +4,95 @@
 
 #include "ngraph/op/multiclass_nms.hpp"
 
-#include <cstring>
-#include <ngraph/validation_util.hpp>
-
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
+#include "multiclass_nms_shape_inference.hpp"
 
 using namespace ngraph;
+using namespace op::util;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::MulticlassNms);
+BWDCMP_RTTI_DEFINITION(op::v8::MulticlassNms);
+BWDCMP_RTTI_DEFINITION(op::v9::MulticlassNms);
 
-op::v8::MulticlassNms::MulticlassNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
+// ------------------------------ V8 ------------------------------
 
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
-    : NmsBase(boxes, scores, m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k),
-      m_attrs{attrs} {
+    : MulticlassNmsBase({boxes, scores}, attrs) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> op::v8::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_MulticlassNms_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(MulticlassNms_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be 2");
+    NODE_VALIDATION_CHECK(this, new_args.size() >= 2, "Number of inputs must be 2 at least");
 
-    return std::make_shared<op::v8::MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
+    return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-void op::v8::MulticlassNms::validate() {
-    NGRAPH_OP_SCOPE(v8_MulticlassNms_validate);
-    NmsBase::validate();
+void op::v8::MulticlassNms::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
+    const auto output_type = get_attrs().output_type;
 
-    NODE_VALIDATION_CHECK(this,
-                          m_attrs.background_class >= -1,
-                          "The 'background_class' must be great or equal -1. Got:",
-                          m_attrs.background_class);
+    validate();
 
-    NODE_VALIDATION_CHECK(this,
-                          m_attrs.nms_eta >= 0.0f && m_attrs.nms_eta <= 1.0f,
-                          "The 'nms_eta' must be in close range [0, 1.0]. Got:",
-                          m_attrs.nms_eta);
+    const auto& boxes_ps = get_input_partial_shape(0);
+    const auto& scores_ps = get_input_partial_shape(1);
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
+                                               {Dimension::dynamic(), 1},
+                                               {Dimension::dynamic()}};
+    shape_infer(this, input_shapes, output_shapes, false, false);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, output_type, output_shapes[1]);
+    set_output_type(2, output_type, output_shapes[2]);
 }
 
-bool ngraph::op::v8::MulticlassNms::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_MulticlassNms_visit_attributes);
+// ------------------------------ V9 ------------------------------
 
-    visitor.on_attribute("sort_result_type", m_attrs.sort_result_type);
-    visitor.on_attribute("output_type", m_attrs.output_type);
-    visitor.on_attribute("nms_top_k", m_attrs.nms_top_k);
-    visitor.on_attribute("keep_top_k", m_attrs.keep_top_k);
-    visitor.on_attribute("sort_result_across_batch", m_attrs.sort_result_across_batch);
-    visitor.on_attribute("iou_threshold", m_attrs.iou_threshold);
-    visitor.on_attribute("score_threshold", m_attrs.score_threshold);
-    visitor.on_attribute("background_class", m_attrs.background_class);
-    visitor.on_attribute("nms_eta", m_attrs.nms_eta);
-    visitor.on_attribute("normalized", m_attrs.normalized);
+op::v9::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
+    : MulticlassNmsBase({boxes, scores}, attrs) {
+    constructor_validate_and_infer_types();
+}
 
-    return true;
+op::v9::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
+                                     const Output<Node>& scores,
+                                     const Output<Node>& roisnum,
+                                     const Attributes& attrs)
+    : MulticlassNmsBase({boxes, scores, roisnum}, attrs) {
+    constructor_validate_and_infer_types();
+}
+
+std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(MulticlassNms_v9_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
+
+    switch (new_args.size()) {
+    case 3:
+        return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    default:
+        return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
+    }
+}
+
+void op::v9::MulticlassNms::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
+    const auto output_type = get_attrs().output_type;
+
+    validate();
+
+    const auto& boxes_ps = get_input_partial_shape(0);
+    const auto& scores_ps = get_input_partial_shape(1);
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    if (get_input_size() == 3) {
+        const auto& roisnum_ps = get_input_partial_shape(2);
+        input_shapes.push_back(roisnum_ps);
+    }
+
+    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
+                                               {Dimension::dynamic(), 1},
+                                               {Dimension::dynamic()}};
+    shape_infer(this, input_shapes, output_shapes, false, false);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, output_type, output_shapes[1]);
+    set_output_type(2, output_type, output_shapes[2]);
 }

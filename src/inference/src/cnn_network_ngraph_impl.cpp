@@ -453,7 +453,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
+                manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertNMS9ToNMSIEInternal>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
