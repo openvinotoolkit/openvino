@@ -25,7 +25,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++](../hello_
 
 ## How It Works
 
-At the beginning, the sample application reads command-line parameters and loads the specified model and input images (or a
+In the beginning, the sample application reads command-line parameters and loads the specified model and input images (or a
 folder with images) to the OpenVINO Runtime plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
 Next, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback,
@@ -73,7 +73,7 @@ Available target devices: <devices>
 ```
 
 > **NOTES**:
-> - By default, samples and demos in OpenVINO Toolkit expect input with BGR channels order. If you trained your model to work with RGB order, it is required to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` channels order. If you trained your model to work with `RGB` order, it is required to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

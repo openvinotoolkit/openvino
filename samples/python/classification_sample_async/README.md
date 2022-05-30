@@ -1,6 +1,6 @@
 # Image Classification Async Python Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
-This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
+This sample demonstrates how to perform inference of image classification models using Asynchronous Inference Request API.  
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -20,17 +20,17 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification Python Sampl
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to OpenVINO Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
+In the beginning, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to OpenVINO Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
+each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Running
 
 Before running the sample, specify a model and an image:
 
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 Run the application with the `-h` option to see the usage message:
 
@@ -59,7 +59,7 @@ Options:
 ```
 
 > **NOTES**:
-> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, it is required to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -132,7 +132,7 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] This sample is an API example. Use the dedicated `benchmark_app` tool for any performance measurements.
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
