@@ -242,8 +242,8 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
         bool valid_constant_values =
             op::util::has_constant_value<float>(pow_constant_value, 3.0f) &&
-            op::util::has_constant_value<float>(mul_0_constant_value, 0.044715, 0.001) &&
-            op::util::has_constant_value<float>(mul_1_constant_value, std::sqrt(2.0 / M_PI), 0.01) &&
+            op::util::has_constant_value<float>(mul_0_constant_value, 0.044715f, 0.001f) &&
+            op::util::has_constant_value<float>(mul_1_constant_value, std::sqrt(2.0f / M_PIf32), 0.01f) &&
             op::util::has_constant_value<float>(mul_2_constant_value, 0.5f) &&
             op::util::has_constant_value<float>(add_1_constant_value, 1.0f);
 

@@ -175,21 +175,21 @@ TEST_F(TransformationTestsF, GeluFusionPatternTooShortDivConstValue) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_equal_const_values) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -236,21 +236,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_params_no_conversion) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0 + 1.0e-8});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f + 1.0e-8f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -270,21 +270,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{2.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{2.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -296,21 +296,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_0_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.04515});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.04515f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -330,21 +330,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_0_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_0_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.4715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.4715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -356,21 +356,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_0_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_1_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.7980868});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.7980868f});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -390,21 +390,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_1_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(10.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(10.0 / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -416,21 +416,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_add_1_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0 +  + 1.0e-8});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f + 1.0e-8f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -450,21 +450,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_add_1_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_add_1_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{2.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{2.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -476,21 +476,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_add_1_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_2_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5 + 1.0e-8});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f + 1.0e-8f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
@@ -510,21 +510,21 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_2_value) {
 TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_2_value) {
     {
         auto input = std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
-        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0});
+        auto pow_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{3.0f});
         auto pow = std::make_shared<opset9::Power>(input, pow_constant);
-        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715});
+        auto mul_0_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.044715f});
         auto mul_0 = std::make_shared<opset9::Multiply>(pow, mul_0_constant);
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
-        auto mul_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0 / M_PI)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(2.0f / M_PIf32)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
 
-        auto add_1_constant =  std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0});
+        auto add_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f});
         auto add_1 =  std::make_shared<opset9::Add>(tanh, add_1_constant);
 
-        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{5.0});
+        auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{5.0f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
         function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
