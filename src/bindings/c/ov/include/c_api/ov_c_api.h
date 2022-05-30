@@ -341,6 +341,12 @@ typedef struct ov_property{
 }ov_property_t;
 
 /**
+ * @brief Print the error info.
+ * @param ov_status_e a status code.
+ */
+OPENVINO_C_API(void) ov_get_last_error_info(ov_status_e status);
+
+/**
  * @brief Get version of OpenVINO.
  * @param ov_version_t a pointer to the version
  * @return Status code of the operation: OK(0) for success.

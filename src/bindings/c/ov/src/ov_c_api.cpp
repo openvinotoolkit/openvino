@@ -183,6 +183,55 @@ char* str_to_char_array(const std::string& str) {
     return char_array;
 }
 
+void ov_get_last_error_info(ov_status_e status) {
+    switch (status) {
+    case ov_status_e::OK:
+        printf("[SUCCESS] Run without error!");
+        break;
+    case ov_status_e::GENERAL_ERROR:
+        printf("[ERROR] Get GENERAL_ERROR, please check the parameter!");
+        break;
+    case ov_status_e::NOT_IMPLEMENTED:
+        printf("[ERROR] Not implement, please check!");
+        break;
+    case ov_status_e::NETWORK_NOT_LOADED:
+        printf("[ERROR] The network load failed!");
+        break;
+    case ov_status_e::PARAMETER_MISMATCH:
+        printf("[ERROR] The input parameter mismatch, please check!");
+        break;
+    case ov_status_e::NOT_FOUND:
+        printf("[ERROR] Can not find the value!");
+        break;
+    case ov_status_e::OUT_OF_BOUNDS:
+        printf("[ERROR] Out of bounds, please check!");
+        break;
+    case ov_status_e::UNEXPECTED:
+        printf("[ERROR] Run with unexpected error!");
+        break;
+    case ov_status_e::REQUEST_BUSY:
+        printf("[ERROR] The request is busy now!");
+        break;
+    case ov_status_e::RESULT_NOT_READY:
+        printf("[ERROR] The result is not ready now!");
+        break;
+    case ov_status_e::NOT_ALLOCATED:
+        printf("[ERROR] Allocated failed!");
+        break;
+    case ov_status_e::INFER_NOT_STARTED:
+        printf("[ERROR] The inference start with error!");
+        break;
+    case ov_status_e::NETWORK_NOT_READ:
+        printf("[ERROR] The network is not ready now!");
+        break;
+    case ov_status_e::INFER_CANCELLED:
+        printf("[ERROR] The inference is canceled!");
+        break;
+    default:
+        break;
+    }
+}
+
 ov_status_e ov_get_version(ov_version_t *version) {
     if (!version) {
         return ov_status_e::GENERAL_ERROR;
