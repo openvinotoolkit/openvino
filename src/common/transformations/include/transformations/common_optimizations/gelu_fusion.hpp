@@ -57,7 +57,7 @@ public:
 /**
  * @ingroup ie_transformation_common_api
  * @brief GeluFusion transformation replaces a sub-graph
- * 0.5*x*(1 + tanh([sqrt(2/pi)]*[x + 0.044715 * x^3] with a Gelu (Tanh) op.
+ * x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3])) with a Gelu (Tanh) op.
  */
 class ngraph::pass::GeluFusionWithTanh : public ngraph::pass::MatcherPass {
 public:

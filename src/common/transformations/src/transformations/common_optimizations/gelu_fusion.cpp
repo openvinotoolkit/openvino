@@ -198,7 +198,7 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     MATCHER_SCOPE(GeluFusionWithTanh);
     // Replaces a sub-graph with a Gelu (Tanh) op
     // Gaussian Error Linear Unit, TanH based approximation:
-    // 0.5*x*(1 + tanh([sqrt(2/pi)]*[x + 0.044715 * x^3])
+    // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
 
     auto input = ngraph::pattern::any_input();
     auto pow_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
@@ -219,6 +219,8 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
     auto mul_2_constant = ngraph::pattern::wrap_type<ngraph::opset9::Constant>();
     auto mul_2 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({add_1, mul_2_constant});
+
+    auto mul_3 = ngraph::pattern::wrap_type<ngraph::opset9::Multiply>({input, mul_2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -260,6 +262,7 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
                 pattern_to_output.at(mul_0).get_node_shared_ptr(),
                 pattern_to_output.at(mul_1).get_node_shared_ptr(),
                 pattern_to_output.at(mul_2).get_node_shared_ptr(),
+                pattern_to_output.at(mul_3).get_node_shared_ptr(),
                 pattern_to_output.at(tanh).get_node_shared_ptr(),
                 pattern_to_output.at(add_0).get_node_shared_ptr(),
                 pattern_to_output.at(add_1).get_node_shared_ptr(),
@@ -269,6 +272,6 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_2, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_3, matcher_name);
     register_matcher(m, callback);
 }

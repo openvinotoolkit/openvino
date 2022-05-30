@@ -192,8 +192,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_equal_const_values) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -226,9 +227,10 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_params_no_conversion) {
         auto mul_2_param = std::make_shared<opset9::Parameter>(element::f32, Shape{1});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_param);
 
-        function = std::make_shared<Function>(NodeVector{mul_2},
-                                              ParameterVector{input, pow_param, mul_0_param, mul_1_param, add_1_param, mul_2_param});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3},
+                                              ParameterVector{input, pow_param, mul_0_param, mul_1_param, add_1_param, mul_2_param});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
@@ -253,8 +255,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -287,8 +290,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
@@ -313,8 +317,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_0_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -347,8 +352,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_0_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
@@ -373,8 +379,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_1_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -407,8 +414,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
@@ -433,8 +441,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_add_1_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -467,8 +476,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_add_1_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
@@ -493,8 +503,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_2_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{0.5f + 1.0e-8f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 
@@ -527,8 +538,9 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_2_value) {
         auto mul_2_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{5.0f});
         auto mul_2 =  std::make_shared<opset9::Multiply>(add_1, mul_2_constant);
 
-        function = std::make_shared<Function>(NodeVector{mul_2}, ParameterVector{input});
+        auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
+        function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
         manager.register_pass<pass::GeluFusionWithTanh>();
     }
 }
