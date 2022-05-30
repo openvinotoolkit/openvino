@@ -86,10 +86,10 @@ public:
         auto last_indices_dim = indices_shape.at(p.indices_rank - 1);
 
         auto count = p.indices_shape.count();
-        
+
         while (unique_indices.size() != count) {
             std::vector<T> indices;
-            for (size_t i = 0; i < last_indices_dim; i++){
+            for (size_t i = 0; i < last_indices_dim; i++) {
                 indices.push_back(generate_random_val<T>(0, data_shape[i] - 1));
             }
 

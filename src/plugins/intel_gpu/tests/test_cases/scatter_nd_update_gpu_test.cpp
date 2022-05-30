@@ -41,6 +41,15 @@ struct scatter_nd_update_basic_test_params
 
 struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
 {
+    format get_default_format(int rank = 4) {
+        if (rank <= 4)
+            return cldnn::format::bfyx;
+        else if (rank == 5)
+            return cldnn::format::bfzyx;
+        else
+            return cldnn::format::bfwzyx;
+    }
+
     template<typename T>
     T generate_random_val(int min, int max, int k = 8) {
         static std::default_random_engine generator(random_seed);
@@ -51,21 +60,33 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
 
         return val;
     }
-    
-    template<typename T>
-    std::vector<T> generate_random_indices(size_t a, int min, int max, int k = 1) 
-    {
-        // srand(time(0));
-        std::vector<T> vec(a);
-        for(int i = 0; i < a; ++i) {
-            // int val = rand() % (max + 1);
-            T val = generate_random_val<T>(min, max, k);
-            if (std::find(vec.begin(), vec.end(), static_cast<T>(val)) == vec.end())
-                vec[i] = val;
-            else
-                --i;
+
+    template <typename T>
+    std::vector<T> generate_unique_indices(const scatter_nd_update_basic_test_params& p) {
+        std::set<std::vector<T>> unique_indices;
+        std::vector<T> result;
+        auto indices_shape = p.indices_size.sizes(get_default_format(p.indices_rank));
+        auto data_shape = p.input_size.sizes(p.input_format);
+        auto last_indices_dim = indices_shape.at(p.indices_rank - 1);
+
+        auto count = p.indices_size.count() / last_indices_dim;
+
+        while (unique_indices.size() != count) {
+            std::vector<T> indices;
+            for (size_t i = 0; i < last_indices_dim; i++) {
+                indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
+            }
+
+            unique_indices.insert(indices);
         }
-        return vec;
+
+        std::for_each(unique_indices.begin(),
+                      unique_indices.end(),
+                      [&](const std::vector<T>& indices) {
+                          result.insert(result.end(), indices.begin(), indices.end());
+                      });
+
+        return result;
     }
 
     template<typename T, typename T_size>
@@ -78,18 +99,25 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
         auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
 
-        std::vector<int> input_vec(params.input_size.sizes().size());
-        for(int i = 0; i < params.input_size.sizes().size(); ++i)
-            input_vec[i] = (int)params.input_size.sizes()[i];
-        std::vector<int> updates_vec(params.updates_size.sizes().size());
-        for(int i = 0; i < params.updates_size.sizes().size(); ++i)
-            updates_vec[i] = (int)params.updates_size.sizes()[i];
-        std::vector<int> indices_vec(params.indices_rank, -1);
-        for(int i = 0; i < params.indices_rank; ++i)
-            indices_vec[i] = (int)params.indices_size.sizes()[i];
+        std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
+        for (int i = 0; i < input_vec.size(); ++i)
+            input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
+        std::reverse(input_vec.begin() + 2, input_vec.end());
+
+        std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
+        for (int i = 0; i < updates_vec.size(); ++i)
+            updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
+        std::reverse(updates_vec.begin() + 2, updates_vec.end());
+
+        std::vector<int> indices_vec(static_cast<int>(cldnn::format::dimension(params.indices_format)));
+        for (size_t i = 0; i < indices_vec.size(); ++i)
+            indices_vec[i] = static_cast<int>(params.indices_size.sizes()[i]);
+        std::reverse(indices_vec.begin() + 2, indices_vec.end());
+        indices_vec.resize(params.indices_rank);
+
 
         auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
-        auto indices_data = generate_random_indices<T>(params.indices_size.count(), 0, 23);
+        auto indices_data = generate_unique_indices<T>(params);
         auto updates_data = generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         set_values(input1, input_data);
@@ -118,25 +146,24 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
 
-        if(params.input_type == data_types::f16)
-        {
+        if (params.input_type == data_types::f16) {
                 std::vector<float> input_data_fp16(params.input_size.count(), -1);
-                for(int i = 0; i < params.input_size.count(); ++i)
-                    input_data_fp16[i] = (float)input_data[i];
+                for (int i = 0; i < params.input_size.count(); ++i)
+                    input_data_fp16[i] = static_cast<float>(input_data[i]);
                 std::vector<float> indices_data_fp16(params.indices_size.count(), -1);
-                for(int i = 0; i < params.indices_size.count(); ++i)
-                    indices_data_fp16[i] = (float)indices_data[i];
+                for (int i = 0; i < params.indices_size.count(); ++i)
+                    indices_data_fp16[i] = static_cast<float>(indices_data[i]);
                 std::vector<float> updates_data_fp16(params.updates_size.count(), -1);
-                for(int i = 0; i < params.updates_size.count(); ++i)
-                    updates_data_fp16[i] = (float)updates_data[i];
-            
+                for (int i = 0; i < params.updates_size.count(); ++i)
+                    updates_data_fp16[i] = static_cast<float>(updates_data[i]);
+
                 auto outputs_ref = std::vector<float>(params.input_size.count());
-                ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data_fp16.data(), 
-                                                                          indices_data_fp16.data(), 
-                                                                          updates_data_fp16.data(), 
-                                                                          outputs_ref.data(), 
-                                                                          ov::Shape(input_vec.begin(), input_vec.end()), 
-                                                                          ov::Shape(indices_vec.begin(), indices_vec.end()), 
+                ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data_fp16.data(),
+                                                                          indices_data_fp16.data(),
+                                                                          updates_data_fp16.data(),
+                                                                          outputs_ref.data(),
+                                                                          ov::Shape(input_vec.begin(), input_vec.end()),
+                                                                          ov::Shape(indices_vec.begin(), indices_vec.end()),
                                                                           ov::Shape(updates_vec.begin(), updates_vec.end()));
 
                 for (size_t i = 0; i < outputs_ref.size(); ++i) {
@@ -147,12 +174,12 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         }
 
         auto outputs_ref = std::vector<T>(params.input_size.count());
-        ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(), 
-                                                          indices_data.data(), 
-                                                          updates_data.data(), 
-                                                          outputs_ref.data(), 
-                                                          ov::Shape(input_vec.begin(), input_vec.end()), 
-                                                          ov::Shape(indices_vec.begin(), indices_vec.end()), 
+        ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(),
+                                                          indices_data.data(),
+                                                          updates_data.data(),
+                                                          outputs_ref.data(),
+                                                          ov::Shape(input_vec.begin(), input_vec.end()),
+                                                          ov::Shape(indices_vec.begin(), indices_vec.end()),
                                                           ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
@@ -164,7 +191,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
 TEST_P(scatter_nd_update_random_test, random)
 {
     auto param = GetParam();
-    if(param.input_type == data_types::u8)
+    if (param.input_type == data_types::u8)
         this->execute<uint8_t, uint8_t>(param);
     else if (param.input_type == data_types::i8)
         this->execute<int8_t, int8_t>(param);
@@ -180,105 +207,237 @@ TEST_P(scatter_nd_update_random_test, random)
         IE_THROW() << "unidentified data type";
 }
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_fp32, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_1,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32, 
+                             { data_types::f32, data_types::f32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
-                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
+                               1 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp32_yx, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32, 
+                             { data_types::f32, data_types::f32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_4d_rank_1,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::f32, data_types::f32,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
-                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
+                               1 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp32_zyx, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f32, data_types::f32, data_types::f32, 
+                             { data_types::f32, data_types::f32, data_types::f32,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
+                               { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_2,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f32, data_types::f32, data_types::f32,
                                format::bfzyx, format::bfyx, format::bfzyx,
-                               format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16,
-                               {48, 24, 3, 3, 10}, {5, 2, 1, 1}, {5, 10, 1, 3, 3},
-                               2 } 
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 3, 3, 10 }, { 5, 2, 1, 1 }, { 5, 10, 1, 3, 3 },
+                               2 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_fp16, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_3,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16, 
-                               format::bfyx, format::bfyx, format::bfyx,
-                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
-                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                             { data_types::f32, data_types::f32, data_types::f32,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 1, 2 }, { 5, 2, 8, 9, 10 },
+                               3 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_fp16, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_fsv16_5d_rank_4,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::f16, data_types::f16, data_types::f16, 
+                             { data_types::f32, data_types::f32, data_types::f32,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 4, 3 }, { 5, 2, 1, 8, 3 },
+                               4 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_4d_rank_1,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
-                               {48, 24, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
+                               1 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv16_i8, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8, 
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
+                               { 48, 24, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_1,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 1, 1, 1 }, { 5, 7, 8, 9, 10 },
+                               1 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_2,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 4, 1, 1 }, { 5, 8, 1, 1, 1 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_3,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 1, 3 }, { 5, 2, 1, 8, 9 },
+                               3 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_fsv16_5d_rank_4,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 4, 3 }, { 5, 2, 1, 8, 3 },
+                               4 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_bsv32_fsv16_4d_rank_1,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::f16, data_types::f16, data_types::f16,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
-                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
+                               1 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_bsv32_fsv32_i8, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp16_bsv32_fsv16_4d_rank_2,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8, 
+                             { data_types::f16, data_types::f16, data_types::f16,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               { 48, 24, 3, 3 },  {3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_bsv32_fsv16_4d_rank_2,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8,
+                               format::bfyx, format::bfyx, format::bfyx,
+                               format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16,
+                               { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_bsv32_fsv32_4d_rank_1,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32,
-                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 6, 1, 1, 1 }, { 3, 1, 1, 1 }, { 3, 1, 1, 1 },
+                               1 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv32_i8, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv32_4d_rank_2,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8, 
+                             { data_types::i8, data_types::i8, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32,
-                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
                          }));
 
-INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fsv16_i8, 
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv32_5d_rank_3,
                          scatter_nd_update_random_test,
-                         testing::ValuesIn( 
+                         testing::ValuesIn(
                              std::vector<scatter_nd_update_basic_test_params>{
-                             { data_types::i8, data_types::i8, data_types::i8, 
+                             { data_types::i8, data_types::i8, data_types::i8,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv32, format::b_fs_yx_fsv32, format::b_fs_zyx_fsv32,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 1, 2 }, { 5, 2, 8, 9, 10 },
+                               3 }
+                         }));
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv16_4d_rank_2,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8,
                                format::bfyx, format::bfyx, format::bfyx,
                                format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16,
-                               {41, 23, 3, 3}, {3, 2, 1, 1}, {3, 3, 1, 3},
-                               2 } 
+                               { 41, 23, 3, 3 }, { 3, 2, 1, 1 }, { 3, 3, 1, 3 },
+                               2 }
                          }));
-                         
+
+INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_i8_fsv16_5d_rank_4,
+                         scatter_nd_update_random_test,
+                         testing::ValuesIn(
+                             std::vector<scatter_nd_update_basic_test_params>{
+                             { data_types::i8, data_types::i8, data_types::i8,
+                               format::bfzyx, format::bfyx, format::bfzyx,
+                               format::b_fs_zyx_fsv16, format::b_fs_yx_fsv16, format::b_fs_zyx_fsv16,
+                               { 6, 7, 8, 9, 10 }, { 5, 2, 3, 3 }, { 5, 2, 8, 9, 3 },
+                               4 }
+                         }));
+
 
 TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     auto& engine = get_test_engine();
@@ -661,7 +820,6 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
         FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
         });
 
     std::vector<float> expected_results = {
@@ -774,7 +932,6 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
         FLOAT16(150.0f), FLOAT16(151.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
         });
 
     std::vector<float> expected_results = {
@@ -858,7 +1015,6 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
         FLOAT16(151.0f), FLOAT16(152.0f),    FLOAT16(153.0f), FLOAT16(154.0f),      FLOAT16(155.0f), FLOAT16(156.0f),   FLOAT16(157.0f), FLOAT16(158.0f),
         FLOAT16(159.0f), FLOAT16(160.0f),    FLOAT16(161.0f), FLOAT16(162.0f),      FLOAT16(163.0f), FLOAT16(164.0f),   FLOAT16(165.0f), FLOAT16(166.0f),
         FLOAT16(167.0f), FLOAT16(168.0f),    FLOAT16(169.0f), FLOAT16(170.0f),      FLOAT16(171.0f), FLOAT16(172.0f),   FLOAT16(173.0f), FLOAT16(174.0f),
-
         });
 
     std::vector<float> expected_results = {
