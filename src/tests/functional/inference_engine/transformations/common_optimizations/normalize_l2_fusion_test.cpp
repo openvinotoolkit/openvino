@@ -32,7 +32,6 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMax) {
         auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
-
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     }
 
@@ -43,6 +42,8 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMax) {
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectExp) {
@@ -62,20 +63,6 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectExp) {
 
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     }
-
-    {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(2));
-        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.f});
-        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
-        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
-    }
 }
 
 TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
@@ -93,20 +80,6 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
 
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    }
-
-    {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(2));
-        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
-        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
-        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto max = std::make_shared<ngraph::opset4::Maximum>(reduce_sum, eps_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(max);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 }
 
@@ -135,6 +108,8 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAdd) {
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectExp) {
@@ -151,22 +126,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectExp) {
         auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
-
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    }
-
-    {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(2));
-        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.9f});
-        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
-        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
-        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 }
 
@@ -183,22 +143,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
-
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    }
-
-    {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(4));
-        auto exp = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
-        auto pow = std::make_shared<ngraph::opset4::Power>(input, exp);
-        auto axes_const = ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(pow, axes_const);
-        auto eps_const = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1, 2});
-        auto add = std::make_shared<ngraph::opset4::Add>(reduce_sum, eps_const);
-        auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(add);
-        auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 }
 
@@ -218,7 +163,6 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMul) {
         auto mul = std::make_shared<ngraph::opset4::Multiply>(input, unsqrt);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
-
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     }
 
@@ -255,6 +199,8 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMulIncorrectSecondExp) {
 
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
@@ -273,7 +219,6 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
         auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
-
         manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     }
 
@@ -287,6 +232,8 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPowerIncorrectPowerExp) {
