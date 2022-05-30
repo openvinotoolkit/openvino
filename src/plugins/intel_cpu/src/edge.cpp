@@ -527,8 +527,21 @@ EdgePtr Edge::getBaseEdge(int look) {
     int outputNum = getOutputNum();
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
+        // in case of parentConfig requiring upstream-inplace and childConfig supports downstream-inplace
+        // must further check whether childConfig also supports upstream inplace,
+        // if so, we can safely inplace as upstream
+        auto down_stream_inplace = childConfig.inConfs[outputNum].inPlace();
+        int up_stream_inplace = -1;
+        if (down_stream_inplace >= 0)
+            up_stream_inplace = childConfig.outConfs[down_stream_inplace].inPlace();
+
+        if ((up_stream_inplace >= 0) && (look & LOOK_UP)) {
+            look = LOOK_UP;
+        } else {
+            DEBUG_LOG(*this, " Danger: Inplace assumption will be broken!");
             inputNum = getInputNum();
             return getParent()->getChildEdgeAt(inputNum);
+        }
     }
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {
