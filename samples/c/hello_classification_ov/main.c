@@ -48,7 +48,7 @@ void infer_result_sort(struct infer_result* results, size_t result_size) {
  * @return struct infer_result
  */
 struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size) {
-    ov_shape_t output_shape = {-1, -1, -1, -1};
+    ov_shape_t output_shape = {0};
     ov_status_e status = ov_tensor_get_shape(tensor, &output_shape);
     if (status != OK)
         return NULL;

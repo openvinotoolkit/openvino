@@ -54,6 +54,11 @@
 #endif
 
 /**
+ * Max dimension of shape
+ */
+#define MAX_DIMENSION 8
+
+/**
  * @struct ov_call_back_t
  * @brief Completion callback definition about the function and args
  */
@@ -271,12 +276,12 @@ typedef char ov_layout_t[4];
 /**
  * @struct ov_shape_t
  */
-typedef size_t ov_shape_t[4];
+typedef size_t ov_shape_t[MAX_DIMENSION];
 
 /**
  * @struct ov_PartialShape_t
  */
-typedef const char* ov_partial_shape_t[4];
+typedef const char* ov_partial_shape_t[MAX_DIMENSION];
 
 /**
  * @enum ov_performance_mode_e
@@ -957,6 +962,12 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_out_tensor(const ov_infer_reque
  * @param infer_request A pointer to the ov_infer_request_t.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_request);
+
+/**
+ * @brief Cancels inference request.
+ * @param infer_request A pointer to the ov_infer_request_t.
+ */
+OPENVINO_C_API(ov_status_e) ov_infer_request_cancel(ov_infer_request_t* infer_request);
 
 /**
  * @brief Starts inference of specified input(s) in asynchronous mode.
