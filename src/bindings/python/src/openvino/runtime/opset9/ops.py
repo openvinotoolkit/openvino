@@ -9,6 +9,7 @@ import numpy as np
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
+from openvino.runtime.utils.input_validation import check_valid_attributes
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
@@ -190,3 +191,27 @@ def irdft(
         inputs = as_nodes(data, axes, signal_size)
 
     return _get_node_factory_opset9().create("IRDFT", inputs)
+
+
+@nameable_op
+def grid_sample(
+        data: NodeInput,
+        grid: NodeInput,
+        attributes: dict, 
+        name: Optional[str] = None
+) -> Node:
+    """Return a node which performs GridSample operation.
+
+    :param data: Tensor with data.
+    :param axes: Tensor with grid values (normalized input coordinates).
+    :param attributes: A dictionary containing GridSample's attributes.
+    :return: A new GridSample node.
+    """
+    requirements = [
+        ("align_corners", False, np.bool_, None),
+        ("mode", False, np.str_, None),
+        ("padding_mode", False, np.str_, None),
+    ]
+
+    check_valid_attributes("GridSample", attributes, requirements)
+    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)

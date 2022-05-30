@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    Attributes m_attributes;
+    Attributes m_attributes = {};
 };
 }  // namespace v9
 

@@ -2076,3 +2076,15 @@ def test_irdft():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 2, 4]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_grid_sample():
+    img = ov.parameter([1, 3, 100, 100], name="image")
+    grid = ov.parameter([1, 10, 10, 2], name="grid")
+
+    node = ov.grid_sample(img, grid, dict())
+
+    assert node.get_type_name() == "GridSample"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 3, 10, 10]
+    assert node.get_output_element_type(0) == Type.f32
