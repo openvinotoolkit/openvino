@@ -49,6 +49,9 @@ public:
     void setOptimized(bool isOptimized) {
         this->isOptimized = isOptimized;
     }
+    bool getOptimized() {
+        return this->isOptimized;
+    }
 
     void setDynamicBatchLim(int lim) override;
 

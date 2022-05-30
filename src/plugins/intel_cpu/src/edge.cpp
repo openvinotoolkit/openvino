@@ -7,6 +7,7 @@
 #include "dnnl_extension_utils.h"
 #include <blob_factory.hpp>
 #include "nodes/input.h"
+#include "nodes/reorder.h"
 
 using namespace dnnl;
 namespace ov {
@@ -105,7 +106,11 @@ bool Edge::enforceReorder() {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
-            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN))
+            if ((p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN)) &&
+                p_edge_peer->getOutputPortDesc()->isCompatible(*p_edge_peer->getInputPortDesc()))
+                canBeInPlaceConflicts = true;
+            else if ((p_edge_peer->getChild()->getType() == Type::Reorder) &&
+                     std::dynamic_pointer_cast<ov::intel_cpu::node::Reorder>(p_edge_peer->getChild())->getOptimized())
                 canBeInPlaceConflicts = true;
         }
     }
