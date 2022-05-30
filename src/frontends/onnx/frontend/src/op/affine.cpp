@@ -25,11 +25,8 @@ OutputVector affine(const Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("beta"), "\"beta\" attribute is required.");
 
     const auto data = inputs[0];
-    const auto alpha = node.get_attribute_value<float>("alpha");
-    const auto beta = node.get_attribute_value<float>("beta");
-
-    const auto alpha_const = default_opset::Constant::create(data.get_element_type(), Shape{}, {alpha});
-    const auto beta_const = default_opset::Constant::create(data.get_element_type(), Shape{}, {beta});
+    const auto alpha_const = node.get_attribute_as_constant<float>("alpha", data.get_element_type());
+    const auto beta_const = node.get_attribute_as_constant<float>("beta", data.get_element_type());
 
     return {
         std::make_shared<default_opset::Add>(std::make_shared<default_opset::Multiply>(data, alpha_const), beta_const)};
