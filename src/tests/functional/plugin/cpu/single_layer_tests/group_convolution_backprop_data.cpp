@@ -304,7 +304,7 @@ const InferenceEngine::SizeVector numGroups_Blocked = {2, 4};
 
 /* ============= GroupConvolution params (nspc layout) ============= */
 const InferenceEngine::SizeVector numOutChannels_nspc = {64};
-const InferenceEngine::SizeVector numGroups_nspc = {2, 4};
+const InferenceEngine::SizeVector numGroups_nspc = {2};
 
 /* ============= GroupConvolution params (DW) ============= */
 const InferenceEngine::SizeVector numOutChannels_DW = {32};
