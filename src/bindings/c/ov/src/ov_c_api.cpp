@@ -183,6 +183,12 @@ char* str_to_char_array(const std::string& str) {
     return char_array;
 }
 
+const char* ov_get_error_info(ov_status_e status) {
+    if (status > ov_status_e::UNKNOWN_ERROR)
+        return error_infos[ov_status_e::UNKNOWN_ERROR];
+    return error_infos[status];
+}
+
 ov_status_e ov_get_version(ov_version_t *version) {
     if (!version) {
         return ov_status_e::GENERAL_ERROR;

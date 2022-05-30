@@ -120,23 +120,43 @@ typedef struct {
  */
 typedef enum {
     OK = 0,
-    GENERAL_ERROR = -1,
-    NOT_IMPLEMENTED = -2,
-    NETWORK_NOT_LOADED = -3,
-    PARAMETER_MISMATCH = -4,
-    NOT_FOUND = -5,
-    OUT_OF_BOUNDS = -6,
+    GENERAL_ERROR = 1,
+    NOT_IMPLEMENTED = 2,
+    NETWORK_NOT_LOADED = 3,
+    PARAMETER_MISMATCH = 4,
+    NOT_FOUND = 5,
+    OUT_OF_BOUNDS = 6,
     /*
      * @brief exception not of std::exception derived type was thrown
      */
-    UNEXPECTED = -7,
-    REQUEST_BUSY = -8,
-    RESULT_NOT_READY = -9,
-    NOT_ALLOCATED = -10,
-    INFER_NOT_STARTED = -11,
-    NETWORK_NOT_READ = -12,
-    INFER_CANCELLED = -13,
+    UNEXPECTED = 7,
+    REQUEST_BUSY = 8,
+    RESULT_NOT_READY = 9,
+    NOT_ALLOCATED = 10,
+    INFER_NOT_STARTED = 11,
+    NETWORK_NOT_READ = 12,
+    INFER_CANCELLED = 13,
+    UNKNOWN_ERROR = 14,
 } ov_status_e;
+
+/**
+ * @variable global value for error info
+ */
+char const* error_infos[15] = {"[SUCCESS] Return value is OK!",
+                               "[ERROR] Get general error, please check!",
+                               "[ERROR] Not implement, please check!",
+                               "[ERROR] The network load failed!",
+                               "[ERROR] The input parameter mismatch, please check!",
+                               "[ERROR] Can not find the value!",
+                               "[ERROR] Out of bounds, please check!",
+                               "[ERROR] Run with unexpected error!",
+                               "[ERROR] The request is busy now!",
+                               "[ERROR] The result is not ready now!",
+                               "[ERROR] Allocated failed!",
+                               "[ERROR] The inference start with error!",
+                               "[ERROR] The network is not ready now!",
+                               "[ERROR] The inference is canceled!",
+                               "[ERROR] Unknown value!"};
 
 /**
  * @struct ov_version_t
@@ -339,6 +359,12 @@ typedef struct ov_property{
     ov_property_value value;
     struct ov_property* next;
 }ov_property_t;
+
+/**
+ * @brief Print the error info.
+ * @param ov_status_e a status code.
+ */
+OPENVINO_C_API(const char*) ov_get_error_info(ov_status_e status);
 
 /**
  * @brief Get version of OpenVINO.
