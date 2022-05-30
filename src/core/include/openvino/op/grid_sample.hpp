@@ -29,17 +29,9 @@ public:
         std::string padding_mode = "zeros";
     };
 
-    enum class InterpolationMode {
-        BILINEAR,
-        BICUBIC,
-        NEAREST
-    };
+    enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
 
-    enum class PaddingMode {
-        ZEROS,
-        BORDER,
-        REFLECTION
-    };
+    enum class PaddingMode { ZEROS, BORDER, REFLECTION };
 
     GridSample() = default;
     /// \brief Constructs a GridSample operation

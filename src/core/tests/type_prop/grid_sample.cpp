@@ -64,7 +64,7 @@ TEST(type_prop, grid_sample_incorrect_last_dim_in_grid) {
     EXPECT_THROW(opset9::GridSample(data, grid, opset9::GridSample::Attributes{}), ov::NodeValidationFailure);
 }
 
-TEST(type_prop, grid_sample_all_dynamic_grid) {
+TEST(type_prop, grid_sample_all_dimensions_dynamic_in_grid) {
     const auto data = make_shared<opset9::Parameter>(element::i32, PartialShape{1, 3, 224, 224});
     const auto grid = make_shared<opset9::Parameter>(
         element::f32,
@@ -72,7 +72,7 @@ TEST(type_prop, grid_sample_all_dynamic_grid) {
     EXPECT_THROW(opset9::GridSample(data, grid, opset9::GridSample::Attributes{}), ov::NodeValidationFailure);
 }
 
-TEST(type_prop, grid_sample_all_dynamic_data) {
+TEST(type_prop, grid_sample_all_dimensions_dynamic_in_data) {
     const auto data = make_shared<opset9::Parameter>(
         element::f16,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
