@@ -338,7 +338,11 @@ def compare_dump_file(ieb_file1, ieb_file2, visualize):
     ieb1 = IEB(ieb_file1)
     ieb2 = IEB(ieb_file2)
 
-    diff_abs = np.abs(ieb1.value - ieb2.value)
+    if ieb1.value.shape != ieb2.value.shape :
+        print(" Shape mismatch {} != {} , will compare in flatten.".format(ieb1.value.shape, ieb2.value.shape))
+        diff_abs = np.abs(ieb1.value.reshape(-1) - ieb2.value.reshape(-1))
+    else:
+        diff_abs = np.abs(ieb1.value - ieb2.value)
 
     print("    {} {}    ({:.2e} ~ {:.2e})   @ mean:{:.2e} std:{:.2e} ".format(
             diff_abs.shape, diff_abs.dtype,
