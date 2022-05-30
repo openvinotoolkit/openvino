@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/grid_sample.hpp"
+#include "grid_sample_shape_inference.hpp"
 
 #include "itt.hpp"
 
@@ -44,9 +45,9 @@ void op::v9::GridSample::validate_and_infer_types() {
                           "The batch dimension in the input data tensor's shape doesn't match the batch dimension in "
                           "the grid tensor's shape.");
 
-    set_output_type(0,
-                    get_input_element_type(0),
-                    PartialShape{data_shape[0], data_shape[1], grid_shape[1], grid_shape[2]});
+    std::vector<PartialShape> out_shapes;
+    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v9::GridSample::clone_with_new_inputs(const OutputVector& new_args) const {
