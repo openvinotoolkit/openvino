@@ -62,6 +62,17 @@ def fill_tensors_with_random(input):
     a = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
     return Tensor(a)
 
+def fill_tensors_from_image(input, input_file):
+    dtype = get_dtype(input.get_element_type())
+    shape = input.get_shape()
+
+    data = np.load(input_file, allow_pickle=True)
+    for itm in data.files:
+        print(itm)
+        print(data[itm])
+
+    return Tensor(data[data.files[0]].astype(dtype).reshape(shape))
+
 class IEB:
     precision_table = {
         10:(np.float32, 4),
@@ -146,6 +157,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
                 "AFFINITY": "CORE",
                 "PERFORMANCE_HINT_NUM_REQUESTS":0,
                 "PERFORMANCE_HINT":"",
+                "INFERENCE_PRECISION_HINT": "f32",
                 "NUM_STREAMS":1,
                 "INFERENCE_NUM_THREADS":1}
 
