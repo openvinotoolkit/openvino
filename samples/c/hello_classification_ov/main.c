@@ -102,7 +102,6 @@ void print_model_input_output_info(ov_model_t* model) {
 #define CHECK_STATUS(return_status)                                                      \
     if (return_status != OK) {                                                           \
         fprintf(stderr, "[ERROR] return status %d, line %d\n", return_status, __LINE__); \
-        ov_get_last_error_info(return_status);                                           \
         goto err;                                                                        \
     }
 

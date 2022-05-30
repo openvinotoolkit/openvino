@@ -344,7 +344,7 @@ typedef struct ov_property{
  * @brief Print the error info.
  * @param ov_status_e a status code.
  */
-OPENVINO_C_API(void) ov_get_last_error_info(ov_status_e status);
+OPENVINO_C_API(const char*) ov_get_error_info(ov_status_e status);
 
 /**
  * @brief Get version of OpenVINO.
