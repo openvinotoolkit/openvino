@@ -138,6 +138,12 @@ private:
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
 
+    // custom_list
+    // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
+    // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
+    bool is_mixed_layout(program_node const& prev, program_node const& next,
+                         bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
+
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);

@@ -385,6 +385,29 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(node);
     }
 
+    // This pass removed reorder if it is between quantize and convolution.
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node_ptr = *itr++;
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1 ||
+            node_ptr->get_output_layout().get_spatial_rank() != 3)
+            continue;
+
+        auto& usr = node_ptr->get_users().front();
+        auto& dep = node_ptr->get_dependency(0);
+        auto& node = node_ptr->as<reorder>();
+
+        if (lo.get_optimization_attributes().use_onednn_impls && dep.is_type<quantize>() && usr->is_type<convolution>()) {
+            dep.merge_output_padding(node.get_output_layout().data_padding);
+
+            LOG_NODE_REMOVAL(node.id());
+            p.replace_all_usages(node, dep);
+            p.add_optimized_primitive_info(node.id());
+            p.remove_all_connections(node);
+            p.remove_if_dangling(node);
+        }
+    }
+
     // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32. (no case for onednn)
     auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) -> bool {
         if (node->get_users().size() != 1)

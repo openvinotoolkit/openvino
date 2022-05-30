@@ -8,6 +8,7 @@
 #include <string>
 
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include <ie_performance_hints.hpp>
@@ -46,6 +47,11 @@ struct Config {
                                                     1,                                                                  // # of threads
                                                     InferenceEngine::IStreamsExecutor::Config::ANY}),                   // preferred core type
                                           enable_loop_unrolling(true) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
+            task_exec_config._streams = 1;
+        }
+
         adjustKeyMapValues();
     }
 
