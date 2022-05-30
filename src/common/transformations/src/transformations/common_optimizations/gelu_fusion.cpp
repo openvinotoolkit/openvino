@@ -267,6 +267,6 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul1, matcher_name);
     register_matcher(m, callback);
 }
