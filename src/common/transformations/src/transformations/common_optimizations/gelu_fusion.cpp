@@ -225,24 +225,24 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
         auto pow_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
             pattern_to_output.at(pow_constant).get_node_shared_ptr());
-        auto add0_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
-            pattern_to_output.at(add0_constant).get_node_shared_ptr());
         auto mul_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
             pattern_to_output.at(mul_constant).get_node_shared_ptr());
         auto mul0_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
             pattern_to_output.at(mul0_constant).get_node_shared_ptr());
         auto mul1_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
             pattern_to_output.at(mul1_constant).get_node_shared_ptr());
+        auto add0_constant_value = std::dynamic_pointer_cast<ngraph::opset8::Constant>(
+            pattern_to_output.at(add0_constant).get_node_shared_ptr());
 
         if (!pow_constant_value || !add0_constant_value || !mul_constant_value || !mul0_constant_value ||
             !mul1_constant_value) {
             return false;
         }
 
-        bool valid_constant_values = op::util::has_constant_value<float>(mul_constant_value, 0.044715) &&
+        bool valid_constant_values = op::util::has_constant_value<float>(mul_constant_value, 0.044715, 0.001) &&
                                      op::util::has_constant_value<float>(pow_constant_value, 3.0f) &&
                                      op::util::has_constant_value<float>(add0_constant_value, 1.0f) &&
-                                     op::util::has_constant_value<float>(mul0_constant_value, std::sqrt(2.0 / M_PI)) &&
+                                     op::util::has_constant_value<float>(mul0_constant_value, std::sqrt(2.0 / M_PI), 0.01) &&
                                      op::util::has_constant_value<float>(mul1_constant_value, 0.5f);
 
         if (!valid_constant_values) {
