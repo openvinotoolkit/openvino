@@ -92,8 +92,8 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     uint idx[INDICES_MAX_DIM] = {0};
     uint rmd_idx = dim2;
     for (int i = 0; i < INDICES_RANK - 1; ++i) {
-        idx[i] = rmd_idx / indicesND[INPUT1_DIMS - INDICES_RANK + i];
-        rmd_idx %= indicesND[INPUT1_DIMS - INDICES_RANK + i];
+        idx[i] = rmd_idx / indicesND[1 + i];
+        rmd_idx %= indicesND[1 + i];
     }
     
     uint out[INDICES_MAX_DIM] = {0};
