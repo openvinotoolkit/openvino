@@ -110,7 +110,8 @@ bool Edge::enforceReorder() {
                 p_edge_peer->getOutputPortDesc()->isCompatible(*p_edge_peer->getInputPortDesc()))
                 canBeInPlaceConflicts = true;
             else if ((p_edge_peer->getChild()->getType() == Type::Reorder) &&
-                     std::dynamic_pointer_cast<ov::intel_cpu::node::Reorder>(p_edge_peer->getChild())->getOptimized())
+                     std::dynamic_pointer_cast<ov::intel_cpu::node::Reorder>(p_edge_peer->getChild())->getOptimized() &&
+                     inPlace(LOOK_DOWN))
                 canBeInPlaceConflicts = true;
         }
     }
