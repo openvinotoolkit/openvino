@@ -242,3 +242,40 @@ def test_gelu_tanh_operator_with_array():
     expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
 
     assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+@pytest.mark.parametrize(
+    "numpy_type",
+    [
+        np.float64,
+        np.float32,
+        np.float16,
+    ],
+)
+def test_softsign_with_parameters(numpy_type):
+    data = np.random.rand(4, 2).astype(numpy_type)
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    param = ng.parameter(data.shape, numpy_type, name="Data")
+    result = runtime.computation(ng.softsign(param, "SoftSign"), param)(data)
+
+    assert np.allclose(result, expected, 1e-6, 1e-3)
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    [
+        np.float64,
+        np.float32,
+        np.float16,
+    ],
+)
+def test_softsign_with_array(data_type):
+    data = np.random.rand(32, 5).astype(data_type)
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    result = runtime.computation(ng.softsign(data, "SoftSign"))()
+
+    assert np.allclose(result, expected, 1e-6, 1e-6)

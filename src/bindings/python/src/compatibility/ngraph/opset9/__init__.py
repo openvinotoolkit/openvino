@@ -72,6 +72,7 @@ from ngraph.opset4.ops import hswish
 from ngraph.opset7.ops import idft
 from ngraph.opset8.ops import if_op
 from ngraph.opset1.ops import interpolate
+from ngraph.opset9.ops import irdft
 from ngraph.opset8.ops import i420_to_bgr
 from ngraph.opset8.ops import i420_to_rgb
 from ngraph.opset1.ops import less
@@ -97,7 +98,7 @@ from ngraph.opset8.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative
-from ngraph.opset5.ops import non_max_suppression
+from ngraph.opset9.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
 from ngraph.opset1.ops import normalize_l2
 from ngraph.opset1.ops import not_equal
@@ -114,6 +115,7 @@ from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
 from ngraph.opset8.ops import random_uniform
 from ngraph.opset1.ops import range
+from ngraph.opset9.ops import rdft
 from ngraph.opset3.ops import read_value
 from ngraph.opset4.ops import reduce_l1
 from ngraph.opset4.ops import reduce_l2
@@ -132,7 +134,7 @@ from ngraph.opset1.ops import result
 from ngraph.opset1.ops import reverse_sequence
 from ngraph.opset3.ops import rnn_cell
 from ngraph.opset5.ops import rnn_sequence
-from ngraph.opset3.ops import roi_align
+from ngraph.opset9.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
 from ngraph.opset7.ops import roll
 from ngraph.opset5.ops import round
@@ -149,6 +151,7 @@ from ngraph.opset1.ops import sinh
 from ngraph.opset8.ops import slice
 from ngraph.opset8.ops import softmax
 from ngraph.opset4.ops import softplus
+from ngraph.opset9.ops import softsign
 from ngraph.opset2.ops import space_to_batch
 from ngraph.opset1.ops import space_to_depth
 from ngraph.opset1.ops import split

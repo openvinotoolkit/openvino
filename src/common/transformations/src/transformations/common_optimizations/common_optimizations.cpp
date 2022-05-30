@@ -14,6 +14,7 @@
 #include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "itt.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -80,10 +81,11 @@
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
+#include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
@@ -151,7 +153,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::ConvertMinimum>();
     decomp->add_matcher<ngraph::pass::ConvertSubtract>();
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
@@ -160,6 +161,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    decomp->add_matcher<ngraph::pass::SoftSignDecomposition>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
@@ -197,6 +199,8 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+    manager.register_pass<ngraph::pass::ConvertROIAlign3To9, false>();
+    manager.register_pass<ngraph::pass::ConvertROIAlign9To3>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

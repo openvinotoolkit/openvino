@@ -1,42 +1,49 @@
 # Get Started with Sample and Demo Applications {#openvino_docs_get_started_get_started_demos}
 
-## Introduction
+This guide will walk you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
 
-This section guides you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
-You will perform the following steps:
+This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
+
+After that, you will perform the following steps:
 
 1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
-3. <a href="download-media">Download media files to run inference on.</a>
-4. <a href="run-image-classification">Run inference on the sample and see the results:</a>
-    - <a href="run-image-classification">Image Classification Code Sample</a>
+3. <a href="#download-media">Download media files to run inference on.</a>
+4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
+    - <a href="#run-image-classification">Image Classification Code Sample</a>
 
-This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:
+## <a name="prerequisites"></a>Prerequisites
+
+### Install OpenVINO Runtime
+
+If you have not yet installed and configured the toolkit, see the following guides:
 
 @sphinxdirective
 .. tab:: Linux
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux* <openvino_docs_install_guides_installing_openvino_linux>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux <openvino_docs_install_guides_installing_openvino_linux>`
 
 .. tab:: Windows
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows* <openvino_docs_install_guides_installing_openvino_windows>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows <openvino_docs_install_guides_installing_openvino_windows>`
 
 .. tab:: macOS
 
-   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS* <openvino_docs_install_guides_installing_openvino_macos>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS <openvino_docs_install_guides_installing_openvino_macos>`
   
 @endsphinxdirective
 
-## Install OpenVINO Development Tools
+### Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for working with Caffe* models, use the following command: 
+To install OpenVINO Development Tools for working with Caffe models, use the following command: 
 
 ``` sh
    pip install openvino-dev[caffe]
 ```
 
-## Build Samples and Demos
+For more detailed steps, see [Install OpenVINO™ Development Tools](../install_guides/installing-model-dev-tools.md)
+
+### Build Samples and Demos
 
 If you have already built the demos and samples, you can skip this section. The build will take about 5-10 minutes, depending on your system.
 
@@ -45,31 +52,33 @@ To build OpenVINO samples:
 @sphinxdirective
 .. tab:: Linux
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux*" section.
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS*" section. 
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS" section. 
 
 @endsphinxdirective
 
 To build OpenVINO demos:
+
 @sphinxdirective
+
 .. tab:: Linux
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux" section.
 
 .. tab:: Windows
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows* OS" section.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
-   Go to the :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS*.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS.
 
 @endsphinxdirective
 
@@ -122,7 +131,7 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
 @endsphinxdirective
 
-To download the GoogleNet v1 Caffe* model to the `models` folder:
+To download the GoogleNet v1 Caffe model to the `models` folder:
 
 @sphinxdirective
 
@@ -222,6 +231,7 @@ The googlenet-v1 model is downloaded in the Caffe* format. You must use the Mode
 Create an `<ir_dir>` directory to contain the model's Intermediate Representation (IR).
 
 @sphinxdirective
+
 .. tab:: Linux
 
    .. code-block:: sh
@@ -255,6 +265,7 @@ IR files produced by the script are written to the <ir_dir> directory.
 The command with most placeholders filled in and FP16 precision:
 
 @sphinxdirective
+
 .. tab:: Linux
 
    .. code-block:: sh

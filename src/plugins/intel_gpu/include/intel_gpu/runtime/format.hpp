@@ -77,6 +77,8 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
                                                 ///< for user provided formats.
+        b_fs_yx_fsv2,
+        b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         b_fs_yx_fsv16,                          ///< format used for blocked convolution
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
@@ -94,7 +96,6 @@ struct format {
         bs_fs_zyx_bsv32_fsv32,                  ///< format used for big batches (batch and features blocked by 32)
         bs_fs_zyx_bsv32_fsv16,                  ///< format used for big batches (batch blocked by 32, features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         bs_xs_xsv8_bsv8,                        ///< format used only for fully connected
         bs_xs_xsv8_bsv16,                       ///< format used only for fully connected
         bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
@@ -161,8 +162,11 @@ struct format {
         os_is_yx_osa2_isa8_osv8_isv2,
         os_is_yx_osa2_isa8_osv16_isv2,
         os_is_yx_osa2_isa8_osv16_isv4,
+        os_is_yx_isa8_osv8_isv2,
+        is_os_yx_isa8_osv8_isv2,
         is_os_yx_isa2_osa8_isv8_osv2,
         is_os_yx_isa4_osa8_isv8_osv4,
+        is_os_yx_osa4_isa8_osv8_isv4,
         is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
         is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
         os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
@@ -200,6 +204,7 @@ struct format {
         g_os_is_yx_osv16_isv4,
         g_os_is_zyx_osv16_isv16,
         g_is_os_yx_isv16_osv16,
+        g_os_is_yx_isa8_osv8_isv2,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
@@ -210,6 +215,8 @@ struct format {
         g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
         g_os_is_yx_isv16_osv16,
+        g_os_is_yx_osv8_isv2,
+        g_os_is_yx_osv8_isv4,
         gs_oi_yxs_gsv4_yxsv4,
         gs_oi_yxs_gsv16_yxsv4,
         gs_oi_yxs_gsv32_yxsv4,
