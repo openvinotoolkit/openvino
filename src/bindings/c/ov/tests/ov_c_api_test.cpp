@@ -81,7 +81,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
 
 void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
 {
-    ov_shape_t shape;
+    ov_shape_t shape = {0};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
     size_t channels = shape[1];
     size_t width = shape[3];
@@ -1113,7 +1113,7 @@ protected:
         EXPECT_NE(nullptr, model);
 
         in_tensor_name = nullptr;
-        ov_shape_t tensor_shape;
+        ov_shape_t tensor_shape = {0};
         ov_element_type_e tensor_type;
         get_tensor_info(model, true, 0, &in_tensor_name, tensor_shape, &tensor_type);
 
@@ -1271,7 +1271,7 @@ TEST_P(ov_infer_request, infer) {
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
     char *out_tensor_name = nullptr;
-    ov_shape_t tensor_shape;
+    ov_shape_t tensor_shape = {0};
     ov_element_type_e tensor_type;
     get_tensor_info(model, false, 0, &out_tensor_name, tensor_shape, &tensor_type);
 
@@ -1279,6 +1279,12 @@ TEST_P(ov_infer_request, infer) {
     EXPECT_NE(nullptr, output_tensor);
 
     ov_name_free(out_tensor_name);
+}
+
+TEST_P(ov_infer_request, cancel) {
+    OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
+
+    OV_EXPECT_OK(ov_infer_request_cancel(infer_request));
 }
 
 TEST_P(ov_infer_request_ppp, infer_ppp) {
@@ -1396,7 +1402,7 @@ TEST(ov_tensor, ov_tensor_get_shape) {
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    ov_shape_t shape_res;
+    ov_shape_t shape_res = {0};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
     OV_EXPECT_ARREQ(shape, shape_res);
 
@@ -1412,7 +1418,7 @@ TEST(ov_tensor, ov_tensor_set_shape) {
 
     ov_shape_t shape_update = {10, 20, 30, 40};
     OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
-    ov_shape_t shape_res;
+    ov_shape_t shape_res = {0};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
     OV_EXPECT_ARREQ(shape_update, shape_res);
 
@@ -1441,7 +1447,7 @@ static size_t product(const std::vector<size_t>& dims) {
 
 size_t calculate_size(ov_shape_t shape) {
     std::vector<size_t> tmp_shape;
-    std::copy_if(shape, shape + 4,
+    std::copy_if(shape, shape + MAX_DIMENSION,
                  std::back_inserter(tmp_shape),
                  [](size_t x) { return x != 0;});
     return product(tmp_shape);

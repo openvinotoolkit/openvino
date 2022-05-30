@@ -523,7 +523,7 @@ ov_status_e ov_node_get_tensor_shape(ov_output_node_list_t* nodes, size_t idx,
 
     try {
         auto shape = nodes->output_nodes[idx].object->get_shape();
-        if (shape.size() > 4) {
+        if (shape.size() > MAX_DIMENSION) {
             return ov_status_e::GENERAL_ERROR;
         }
         std::copy_n(shape.begin(), shape.size(), tensor_shape);
@@ -590,7 +590,9 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     }
     try {
         std::vector<ngraph::Dimension> shape;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < MAX_DIMENSION; i++) {
+            if (partial_shape[i] == nullptr)
+                break;
             std::string dim = partial_shape[i];
             if (dim == "?" || dim == "-1") {
                 shape.push_back(ov::Dimension::dynamic());
@@ -903,7 +905,7 @@ ov_status_e ov_preprocess_build(const ov_preprocess_t* preprocess,
     return ov_status_e::OK;
 }
 
-ov::AnyMap property2Map(const ov_property_t *property) {
+ov::AnyMap property_map(const ov_property_t *property) {
     ov::AnyMap config;
     while (property) {
         switch (property->key) {
@@ -999,7 +1001,7 @@ ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_m
     }
 
     try {
-        ov::AnyMap config = property2Map(property);
+        ov::AnyMap config = property_map(property);
         compiled_model->object->set_property(config);
     } CATCH_OV_EXCEPTIONS
 
@@ -1124,6 +1126,18 @@ ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
     return ov_status_e::OK;
 }
 
+ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request) {
+    if (!infer_request) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        infer_request->object->cancel();
+    } CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
     if (!infer_request) {
         return ov_status_e::GENERAL_ERROR;
@@ -1155,7 +1169,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request,
     }
 
     try {
-        auto func = [=](std::exception_ptr ex) {
+        auto func = [callback](std::exception_ptr ex) {
             callback->callback_func(callback->args);
         };
         infer_request->object->set_callback(func);
@@ -1212,7 +1226,7 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + 4,
+        std::copy_if(shape, shape + MAX_DIMENSION,
                      std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0; });
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
@@ -1229,7 +1243,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const o
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + 4,
+        std::copy_if(shape, shape + MAX_DIMENSION,
                      std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0; });
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
@@ -1243,7 +1257,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     }
     try {
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + 4,
+        std::copy_if(shape, shape + MAX_DIMENSION,
                      std::back_inserter(tmp_shape),
                      [](size_t x) { return x != 0;});
         tensor->object->set_shape(tmp_shape);
@@ -1257,6 +1271,9 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     }
     try {
         auto tmp_shape = tensor->object->get_shape();
+        if (tmp_shape.size() > MAX_DIMENSION) {
+            return ov_status_e::GENERAL_ERROR;
+        }
         std::copy_if(tmp_shape.begin(), tmp_shape.end(),
                      *shape,
                      [](size_t x) { return x != 0;});
