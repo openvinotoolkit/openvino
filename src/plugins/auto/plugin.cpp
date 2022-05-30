@@ -16,7 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_auto/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -69,6 +69,7 @@ namespace {
                     res.push_back(ov::hint::model_priority.name());
                     res.push_back(ov::hint::allow_auto_batching.name());
                     res.push_back(ov::log::level.name());
+                    res.push_back(ov::intel_auto::device_bind_buffer.name());
                     return res;
                 }();
 }  // namespace
@@ -458,7 +459,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_config = multiNetworkConfig;
     multiSContext->_needPerfCounters = enablePerfCounters;
     multiSContext->_core = GetCore();
-    auto impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
+    IExecutableNetworkInternal::Ptr impl;
+    auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
+    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
+        impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
+    else
+        impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
@@ -801,6 +807,14 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.second == PluginConfigParams::NO) {
                 context->_batchingDisabled = true;
                 continue;
+            }
+        } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
+            if (kvp.second == PluginConfigParams::YES ||
+                kvp.second == PluginConfigParams::NO) {
+                continue;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);

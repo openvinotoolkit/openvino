@@ -28,9 +28,12 @@ public:
     virtual ~BinderMultiSchedule();
 
 protected:
+    void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
 
 protected:
     static thread_local SoInfer                               _sharedRequest;
+    static std::atomic_bool                                   _disableBind;
 };
 }  // namespace MultiDevicePlugin
