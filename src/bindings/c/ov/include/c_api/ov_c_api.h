@@ -140,25 +140,6 @@ typedef enum {
 } ov_status_e;
 
 /**
- * @variable global value for error info
- */
-char const* error_infos[15] = {"[SUCCESS] Return value is OK!",
-                               "[ERROR] Get general error, please check!",
-                               "[ERROR] Not implement, please check!",
-                               "[ERROR] The network load failed!",
-                               "[ERROR] The input parameter mismatch, please check!",
-                               "[ERROR] Can not find the value!",
-                               "[ERROR] Out of bounds, please check!",
-                               "[ERROR] Run with unexpected error!",
-                               "[ERROR] The request is busy now!",
-                               "[ERROR] The result is not ready now!",
-                               "[ERROR] Allocated failed!",
-                               "[ERROR] The inference start with error!",
-                               "[ERROR] The network is not ready now!",
-                               "[ERROR] The inference is canceled!",
-                               "[ERROR] Unknown value!"};
-
-/**
  * @struct ov_version_t
  */
 typedef struct ov_version {

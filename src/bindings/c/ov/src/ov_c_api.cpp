@@ -76,6 +76,27 @@ struct ov_tensor {
 };
 
 /**
+ * @variable global value for error info
+ */
+char const* error_infos[] = {
+    "no error.",
+    "general error!",
+    "not implement!",
+    "network load failed!",
+    "input parameter mismatch!",
+    "cannot find the value!",
+    "out of bounds!",
+    "run with unexpected error!",
+    "request is busy now!",
+    "result is not ready now!",
+    "allocated failed!",
+    "inference start with error!",
+    "network is not ready now!",
+    "inference is canceled!",
+    "unknown value!",
+};
+
+/**
  * @struct mem_stringbuf
  * @brief This struct puts memory buffer to stringbuf.
  */
@@ -117,35 +138,35 @@ struct mem_istream: virtual mem_stringbuf, std::istream {
 };
 
 std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
-                {ov_performance_mode_e::UNDEFINED_MODE, ov::hint::PerformanceMode::UNDEFINED},
-                {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
-                {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
-                {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
+    {ov_performance_mode_e::UNDEFINED_MODE, ov::hint::PerformanceMode::UNDEFINED},
+    {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
+    {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
+    {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
 std::map<ov_preprocess_resize_algorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
-                {ov_preprocess_resize_algorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
-                {ov_preprocess_resize_algorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
-                {ov_preprocess_resize_algorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
+    {ov_preprocess_resize_algorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
+    {ov_preprocess_resize_algorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
+    {ov_preprocess_resize_algorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
 
 std::map<ov_element_type_e, ov::element::Type> element_type_map = {
-                {ov_element_type_e::UNDEFINED, ov::element::undefined},
-                {ov_element_type_e::DYNAMIC, ov::element::dynamic},
-                {ov_element_type_e::BOOLEAN, ov::element::boolean},
-                {ov_element_type_e::BF16, ov::element::bf16},
-                {ov_element_type_e::F16, ov::element::f16},
-                {ov_element_type_e::F32, ov::element::f32},
-                {ov_element_type_e::F64, ov::element::f64},
-                {ov_element_type_e::I4, ov::element::i4},
-                {ov_element_type_e::I8, ov::element::i8},
-                {ov_element_type_e::I16, ov::element::i16},
-                {ov_element_type_e::I32, ov::element::i32},
-                {ov_element_type_e::I64, ov::element::i64},
-                {ov_element_type_e::U1, ov::element::u1},
-                {ov_element_type_e::U4, ov::element::u4},
-                {ov_element_type_e::U8, ov::element::u8},
-                {ov_element_type_e::U16, ov::element::u16},
-                {ov_element_type_e::U32, ov::element::u32},
-                {ov_element_type_e::U64, ov::element::u64}};
+    {ov_element_type_e::UNDEFINED, ov::element::undefined},
+    {ov_element_type_e::DYNAMIC, ov::element::dynamic},
+    {ov_element_type_e::BOOLEAN, ov::element::boolean},
+    {ov_element_type_e::BF16, ov::element::bf16},
+    {ov_element_type_e::F16, ov::element::f16},
+    {ov_element_type_e::F32, ov::element::f32},
+    {ov_element_type_e::F64, ov::element::f64},
+    {ov_element_type_e::I4, ov::element::i4},
+    {ov_element_type_e::I8, ov::element::i8},
+    {ov_element_type_e::I16, ov::element::i16},
+    {ov_element_type_e::I32, ov::element::i32},
+    {ov_element_type_e::I64, ov::element::i64},
+    {ov_element_type_e::U1, ov::element::u1},
+    {ov_element_type_e::U4, ov::element::u4},
+    {ov_element_type_e::U8, ov::element::u8},
+    {ov_element_type_e::U16, ov::element::u16},
+    {ov_element_type_e::U32, ov::element::u32},
+    {ov_element_type_e::U64, ov::element::u64}};
 
 ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
