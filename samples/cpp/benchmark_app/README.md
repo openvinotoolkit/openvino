@@ -10,7 +10,7 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-> **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application, or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> **NOTE**: By default, samples, tools and demos in OpenVINO™ Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with the `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
@@ -25,8 +25,8 @@ A number of execution steps is defined by one of the following parameters:
 * Predefined duration if `-niter` and `-t` are not specified. Predefined duration value depends on a device.
 
 During the execution, the application calculates latency (if applicable) and overall throughput:
-* By default, the median latency value is reported
-* Throughput is calculated as overall_inference_time/number_of_processed_requests. The throughput value also depends on batch size.
+* By default, the median latency value is reported.
+* Throughput is calculated as `overall_inference_time`/`number_of_processed_requests`. The value of throughput also depends on batch size.
 
 The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
 enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
@@ -43,17 +43,17 @@ The application also saves executable graph information serialized to an XML fil
 
 ## Run the Tool
 
-The benchmark_app usually produces optimal performance for any device out of the box.
+The `benchmark_app` usually produces optimal performance for any device out of the box.
 
-**In most cases, you don't need to play the app options explicitly, and the plain device name is enough.** For example, for CPU:
+**In most cases, you do not need to play the app options explicitly, and the plain device name is enough.** For example, for CPU:
 ```sh
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it still may be sub-optimal for some cases, especially for very small networks. You will find more details in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
+However, it still may be sub-optimal for some cases, especially for very small networks. You will find more details in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
-As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md), it is preferable to use the FP16 IR for the model.
-Also if latency of the CPU inference on the multi-socket machines is of concern, you might refer to the same
+As explained in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md), for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md), it is preferable to use the `FP16` OpenVINO IR for the model.
+Also if latency of the CPU inference on multi-socket machines is of concern, you might refer to the same
 [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
@@ -139,22 +139,22 @@ Example: -imean data[255,255,255],info[255,255,255]
 
 Running the application with an empty list of the options yields the usage message given above and an error message.
 
-Application supports topologies with one or more inputs. If a topology is not data-sensitive, you may skip the input parameter. In this case, inputs are filled with random values.
+Application supports topologies with one or more inputs. If a topology is not data-sensitive, you may skip the input parameter. In such a case, inputs are filled with random values.
 If a model has only image input(s), provide a folder with images or a path to an image as input.
 If a model has some specific input(s) (not images), prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the tool, you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE:** Before running the tool with a trained model, make sure the model is converted to the OpenVINO IR (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ## Examples of Running the Tool
 
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices.  The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
 
-> **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, make sure that it is configured in your OS environment.
+> **NOTE**: Access to the Internet is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, make sure that it is configured in your OS environment.
 
 1. Install OpenVINO Development Tools to work with Caffe models:
 
@@ -162,18 +162,18 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev[caffe]
    ```
 
-2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` script with specifying the model name and directory to download the model to:
+2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` script, specifying the model name and directory to download the model to:
 
    ```sh
    omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
+3. Convert the model to the OpenVINO IR format. Run Model Optimizer, using the `mo` command with the path to the model, model format and output directory to generate the OpenVINO IR files:
 
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 
-4. Run the tool with specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+4. Run the tool, specifying the `dog.bmp` file as an input image, the OpenVINO IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh

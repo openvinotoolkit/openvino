@@ -22,10 +22,11 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](
 
 ## How It Works
 
-At startup, the sample application reads command line parameters, loads the specified model and an
+At startup, the sample application reads command-line parameters, loads the specified model and an
 image in the `NV12` color format to an OpenVINO Runtime plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in `.labels` file near the model to get pretty output.
 
-For more information, refer to the explicit description of [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
+For more information, refer to the explicit description of
+each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Building
 
@@ -33,10 +34,10 @@ To build the sample, use the instructions available at [Build the Sample Applica
 
 ## Running
 
-Before running the sample, specify the model and the image:
+Before running the sample, specify a model and an image:
 
 - you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in [test-data](https://storage.openvinotoolkit.org/data/test_data) storage.
+- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 The sample accepts an uncompressed image in the `NV12` color format. To run the sample, you need to
 convert your `BGR`/`RGB` image to `NV12`. To do this, use one of the widely available tools such
@@ -61,18 +62,18 @@ hello_nv12_input_classification <path_to_model> <path_to_image> <image_size> <de
 >   buffer size is 640x720.
 >
 > - By default, this sample expects that model input has `BGR` order of channels. If you trained your
->   model to work with `RGB` order, you need to reconvert your model, using Model Optimizer tool
+>   model to work with `RGB` order, you need to reconvert your model, using Model Optimizer 
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
->   refer to **When to Reverse Input Channels** section of
+>   refer to the **When to Reverse Input Channels** section of
 >   [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure that the model is converted to OpenVINO Intermediate Representation format (\*.xml + \*.bin) by using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
 
-1. Install openvino-dev Python package to use Open Model Zoo Tools:
+1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
@@ -83,7 +84,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name alexnet
 ```
 
-3. If a model is not in OpenVINO IR or ONNX format, it must be converted with the Model Converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 omz_converter --name alexnet
@@ -134,7 +135,8 @@ classid probability
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data Storage](https://storage.openvinotoolkit.org/data/test_data).

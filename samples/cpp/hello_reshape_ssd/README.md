@@ -1,6 +1,6 @@
 # Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection models, using [input reshape feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
+This sample demonstrates how to do synchronous inference of object detection models using [input reshape feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
 Models with only 1 input and output are supported.
 
 The following C++ API is used in the application:
@@ -23,10 +23,11 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](
 
 ## How It Works
 
-Upon the start-up the sample application reads command line parameters, loads specified network and image to the Inference
+Upon the start-up the sample application reads command-line parameters, loads specified network and image to the Inference
 Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image and output data to the standard output stream.
 
-For more information, refer to the explicit description of [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
+For more information, refer to the explicit description of
+each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Building
 
@@ -34,10 +35,10 @@ To build the sample, use the instructions available at [Build the Sample Applica
 
 ## Running
 
-Before running the sample, specify the model and the image:
+Before running the sample, specify a model and an image:
 
 - you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in [test-data](https://storage.openvinotoolkit.org/data/test_data) storage.
+- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 To run the sample, use the following script:
 
@@ -46,15 +47,15 @@ hello_reshape_ssd <path_to_model> <path_to_image> <device>
 ```
 
 > **NOTES**:
-> - By default, OpenVINO Toolkit Samples and Demos expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (\*.onnx) that do not require preprocessing.
 
 ### Example
 
-1. Install openvino-dev Python package to use Open Model Zoo Tools:
+1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
 
 ```
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
@@ -66,13 +67,13 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name person-detection-retail-0013
 ```
 
-3. `person-detection-retail-0013` does not need to be converted, because it is already in an appropriate format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it, using the Model Converter:
+3. The `person-detection-retail-0013` model does not need to be converted, since it is already in an appropriate format, so you can skip this step. If you want to use another model that is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 omz_converter --name <model_name>
 ```
 
-4. Perform inference of `person_detection.bmp`, using `person-detection-retail-0013` model on a `GPU`, for example:
+4. Perform inference of the `person_detection.bmp` image, using the `person-detection-retail-0013` model on a `GPU`, for example:
 
 ```
 hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
@@ -116,7 +117,8 @@ This sample is an API example, for any performance measurements use the dedicate
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data Storage](https://storage.openvinotoolkit.org/data/test_data).

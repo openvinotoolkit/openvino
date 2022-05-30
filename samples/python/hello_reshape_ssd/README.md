@@ -1,6 +1,6 @@
 # Hello Reshape SSD Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection models, using the [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
+This sample demonstrates how to do synchronous inference of object detection models using the [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -24,14 +24,15 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification Python Sampl
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to OpenVINO Runtime plugin, performs synchronous inference, and processes output data.  
 As a result, the program creates an output image, logging each step in a standard output stream.
 
-For more information, refer to the explicit description of [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
+For more information, refer to the explicit description of
+each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Running
 
-Before running the sample, specify the model and the image:
+Before running the sample, specify a model and an image:
 
 - you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in [test-data](https://storage.openvinotoolkit.org/data/test_data) storage.
+- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 To run the sample, use the following script:
 
@@ -40,11 +41,11 @@ python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 ```
 
 > **NOTES**:
-> - By default, OpenVINO Toolkit samples and demos expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - Before running the sample with a trained model, make sure that the model is converted to OpenVINO Intermediate Representation format (\*.xml + \*.bin) by using [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
 
@@ -59,7 +60,7 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name ssdlite_mobilenet_v2
 ```
 
-3. If a model is not in OpenVINO IR or ONNX format, it must be converted with the Model Converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 omz_converter --name ssdlite_mobilenet_v2
@@ -88,10 +89,11 @@ The sample application logs each step in a standard output stream and creates an
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data Storage](https://storage.openvinotoolkit.org/data/test_data).
 
 <!-- [openvino.runtime.Model.reshape]:
 [openvino.runtime.Model.input]:
