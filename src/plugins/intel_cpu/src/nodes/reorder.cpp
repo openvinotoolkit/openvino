@@ -359,7 +359,9 @@ void Reorder::optimizedNspc2Ncsp() {
 
 void Reorder::execute(dnnl::stream strm) {
     if (isOptimized) {
-        DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized");
+        DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
+                   " input @", getParentEdgeAt(0)->getMemory().GetData(),
+                   " output @", getChildEdgeAt(0)->getMemory().GetData());
         return;
     }
 

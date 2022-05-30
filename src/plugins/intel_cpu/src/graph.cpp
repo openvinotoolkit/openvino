@@ -802,8 +802,7 @@ void Graph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::CreatePrimitives");
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getTypeStr(), " ", algToString(node->getAlgorithm()),
-                  " ", node->getName(), " ", node->getOriginalLayers());
+        DEBUG_LOG(*node);
         node->createPrimitive();
     }
 }
@@ -967,6 +966,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     } else {
         node->execute(stream);
     }
+    DEBUG_LOG(*node);
 }
 
 void Graph::Infer(InferRequestBase* request) {

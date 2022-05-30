@@ -249,6 +249,8 @@ void Edge::reuse(MemoryPtr ptr) {
         return;
     memoryPtr = ptr;
     status = Status::Allocated;
+
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
 }
 
 int Edge::getInputNum() const {
@@ -275,6 +277,7 @@ void Edge::allocate(const void* mem_ptr) {
     memoryPtr.reset(new Memory(parentPtr->getEngine()));
 
     memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
 }
 
@@ -325,6 +328,7 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
         auto ptr = weightsCache->findOrCreate(name(), alloc, false);
         memoryPtr = *ptr;
+        DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
         status = Status::Allocated;
     } else {
@@ -433,8 +437,10 @@ MemoryPtr &Edge::getMemoryPtr() {
         auto sharedEdgeParent = sharedEdge->getParent();
         if (sharedEdgeParent->isConstant()) {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->GetData());
+            DEBUG_LOG(*this, " const sharedEdge with ", *sharedEdge);
         } else {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->getDnnlMemoryMngr());
+            DEBUG_LOG(*this, " sharedEdge with ", *sharedEdge);
         }
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
@@ -445,6 +451,7 @@ MemoryPtr &Edge::getMemoryPtr() {
 
 void Edge::sharedMemFrom(const EdgePtr &edge) {
     memoryFromEdge = edge;
+    DEBUG_LOG(*this, " sharedMemFrom ", *edge);
     status = Status::NotAllocated;
 }
 
@@ -476,12 +483,15 @@ EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
 void Edge::init() {
     if (status != Status::NeedAllocation && status != Status::Uninitialized)
         return;
+    DEBUG_LOG(*this);
     EdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
+        DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
     } else {
         if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
+            DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
             return;
         }
         sharedMemFrom(edgePtr);
@@ -517,8 +527,8 @@ EdgePtr Edge::getBaseEdge(int look) {
     int outputNum = getOutputNum();
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
-        inputNum = getInputNum();
-        return getParent()->getChildEdgeAt(inputNum);
+            inputNum = getInputNum();
+            return getParent()->getChildEdgeAt(inputNum);
     }
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {

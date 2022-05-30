@@ -50,11 +50,13 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
 class NodeDesc;
 class MemoryDesc;
 class Node;
+class Edge;
 
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
+std::ostream & operator<<(std::ostream & os, const Edge& edge);
 
 }   // namespace intel_cpu
 }   // namespace ov

@@ -6,6 +6,7 @@
 
 #include "debug_capabilities.h"
 #include "node.h"
+#include "edge.h"
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
@@ -112,11 +113,23 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     os << "    ImplementationType: " << impl_type_to_string(desc.getImplementationType()) << std::endl;
     for (auto & conf : desc.getConfig().inConfs) {
-        os << "    inConfs: " << *conf.getMemDesc() << std::endl;
+        os << "    inConfs: " << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
+        if (conf.constant()) os << " constant";
+        os << std::endl;
     }
     for (auto & conf : desc.getConfig().outConfs) {
-        os << "    outConfs: " << *conf.getMemDesc() << std::endl;
+        os << "    outConfs: " << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
+        if (conf.constant()) os << " constant";
+        os << std::endl;
     }
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const Edge& edge) {
+    os << edge.getParent()->getName() << "[" << edge.getInputNum() << "]->"
+       << edge.getChild()->getName() << "[" << edge.getOutputNum() << "]";
     return os;
 }
 
@@ -154,8 +167,8 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     int num_output_port = 0;
     for (auto wptr : node.getChildEdges()) {
         auto edge = wptr.lock();
-        if (num_output_port < edge->getInputNum())
-            num_output_port = edge->getInputNum();
+        if (num_output_port < edge->getInputNum() + 1)
+            num_output_port = edge->getInputNum() + 1;
     }
 
     if (num_output_port) {
@@ -169,23 +182,27 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                 if (ptr) {
                     auto desc = &(ptr->getDesc());
                     auto shape_str = desc->getShape().toString();
+                    replace_all(shape_str, " ", "");
                     leftside << comma << desc->getPrecision().name()
                                 << "_" << desc->serializeFormat()
-                                << "_" << shape_str;
+                                << "_" << shape_str
+                                << "_" << ptr->GetData();
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
                 }
             }
-
             if (!b_ouputed && nodeDesc && i < nodeDesc->getConfig().outConfs.size()) {
                 auto desc = nodeDesc->getConfig().outConfs[i].getMemDesc();
                 auto shape_str = desc->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
+                replace_all(shape_str, " ", "");
                 leftside << comma << desc->getPrecision().name()
                             << "_" << desc->serializeFormat()
                             << "_" << shape_str;
-            } else {
+                b_ouputed = true;
+            }
+            if (!b_ouputed) {
                 leftside << comma << "???";
             }
             comma = ",";
@@ -235,8 +252,8 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             comma = ",";
         }
     }
-    leftside << "  " << node_id(node) <<  " = ";
-    os << node.getExecIndex() << ":" << std::right << std::setw(align_col) << leftside.str();
+    leftside << "  " << node_id(node) << " = ";
+    os << "#" << node.getExecIndex() << " :" << std::right << std::setw(align_col) << leftside.str();
     os << std::left << node.getTypeStr();
     if (node.getAlgorithm() != Algorithm::Default)
         os << "." << algToString(node.getAlgorithm());
