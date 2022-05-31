@@ -12,7 +12,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
