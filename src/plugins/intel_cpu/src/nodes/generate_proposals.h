@@ -45,11 +45,11 @@ private:
     const int OUTPUT_SCORES {1};
     const int OUTPUT_ROI_NUM {2};
 
-    float min_size_;
-    int pre_nms_topn_;
-    int post_nms_topn_;
-    float nms_thresh_;
-    float coordinates_offset_;
+    float min_size_ = 0.f;
+    int pre_nms_topn_ = 0;
+    int post_nms_topn_ = 0;
+    float nms_thresh_ = 0.f;
+    float coordinates_offset_ = 0.f;
 
     std::vector<int> roi_indices_;
 };

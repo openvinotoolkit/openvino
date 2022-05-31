@@ -296,15 +296,14 @@ GenerateProposals::GenerateProposals
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op)) {
-        auto proposalAttrs = proposalOp->get_attrs();
+    auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op);
+    auto proposalAttrs = proposalOp->get_attrs();
 
-        min_size_ = proposalAttrs.min_size;
-        nms_thresh_ = proposalAttrs.nms_threshold;
-        pre_nms_topn_ = proposalAttrs.pre_nms_count;
-        post_nms_topn_ = proposalAttrs.post_nms_count;
-        coordinates_offset_ = proposalAttrs.normalized ? 0 : 1.0;
-    }
+    min_size_ = proposalAttrs.min_size;
+    nms_thresh_ = proposalAttrs.nms_threshold;
+    pre_nms_topn_ = proposalAttrs.pre_nms_count;
+    post_nms_topn_ = proposalAttrs.post_nms_count;
+    coordinates_offset_ = proposalAttrs.normalized ? 0.f : 1.f;
 
     roi_indices_.resize(post_nms_topn_);
 }
