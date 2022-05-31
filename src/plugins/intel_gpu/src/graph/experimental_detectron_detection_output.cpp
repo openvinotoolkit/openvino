@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "experimental_detectron_detection_output_inst.hpp"
-#include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 primitive_type_id experimental_detectron_detection_output::type_id() {

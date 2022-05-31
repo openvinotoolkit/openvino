@@ -35,8 +35,6 @@ const std::vector<float> scores{0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 
 
 const std::vector<float> im_info{16.0f, 12.0f, 1.0f};
 
-
-
 template <typename T>
 std::vector<T> getValues(const std::vector<float>& values) {
     std::vector<T> result(values.begin(), values.end());
@@ -169,7 +167,8 @@ public:
             EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
             for (size_t coord = 0; coord < 4; ++coord) {
                 const auto roi_idx = i * 4 + coord;
-                EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
+                    << "i=" << i << ", coord=" << coord;
             }
 
             EXPECT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
@@ -189,8 +188,7 @@ TEST_P(experimental_detectron_detection_output_test_f16, basic) {
 }
 
 template <typename T>
-std::vector<ExperimentalDetectronDetectionOutputParams<T>>
-getExperimentalDetectronDetectionOutputParams() {
+std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetectronDetectionOutputParams() {
     std::vector<ExperimentalDetectronDetectionOutputParams<T>> params = {
         {
             0.01000000074505806f,        // score_threshold
@@ -201,11 +199,9 @@ getExperimentalDetectronDetectionOutputParams() {
             5,                           // max_detections_per_image
             true,                        // class_agnostic_box_regression
             {10.0f, 10.0f, 5.0f, 5.0f},  // deltas_weights
-            getValues<T>({4.8929863f, 0.892986298f, 12.0f, 12.1070137f,
-                          0.0f, 0.892986298f, 10.1070137f, 12.1070137f,
-                          0.0f, 0.0f, 0.0f, 0.0f,
-                          0.0f, 0.0f, 0.0f, 0.0f,
-                          0.0f, 0.0f, 0.0f, 0.0f}),
+            getValues<T>({4.8929863f,  0.892986298f, 12.0f, 12.1070137f, 0.0f, 0.892986298f, 10.1070137f,
+                          12.1070137f, 0.0f,         0.0f,  0.0f,        0.0f, 0.0f,         0.0f,
+                          0.0f,        0.0f,         0.0f,  0.0f,        0.0f, 0.0f}),
             std::vector<int32_t>{0, 1, 0, 0, 0},
             getValues<T>({0.8f, 0.9f, 0.0f, 0.0f, 0.0f}),
         },
