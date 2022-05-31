@@ -56,8 +56,10 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
 #else
         const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
 #endif
-        const int trans_offset = deformable_group_idx * 2 * offset_size;
-
+        const int trans_offset = b * INPUT1_BATCH_PITCH + deformable_group_idx * 2 * offset_size;
+#if DEFORMABLE_MASK_ENABLED
+        const int mask_offset = b * INPUT2_BATCH_PITCH + deformable_group_idx * offset_size;
+#endif
         for (uint j = 0; j < FILTER_SIZE_Y ; ++j)
         {
             const int input_offset_y = input_y + j * DILATION_SIZE_Y;
@@ -79,8 +81,7 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
                 const bool y_is_out_of_boundaries = transformed_y >= INPUT0_SIZE_Y || transformed_y < 0;
 #endif
 #if DEFORMABLE_MASK_ENABLED
-                const int mask_idx = deformable_group_idx * INPUT2_FEATURE_NUM / DEFORMABLE_GROUPS * INPUT2_FEATURE_PITCH +
-                                        ((j * FILTER_SIZE_X + i) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
+                const int mask_idx = mask_offset + ((j * FILTER_SIZE_X + i) * OUTPUT_SIZE_Y + y) * OUTPUT_SIZE_X + x;
 #endif
                 uint ifm = c;
                 uint filter_idx = GET_FILTER_INDEX(FILTER, conv_group, f, ifm, j, i);
