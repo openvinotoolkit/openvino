@@ -409,7 +409,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
         auto add_0 = std::make_shared<opset9::Add>(input, mul_0);
 
         constexpr float pi = 3.141592653589793238462643383279502884f;
-        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(10.0 / pi)});
+        auto mul_1_constant = std::make_shared<opset9::Constant>(element::f32, Shape{1}, std::vector<float>{std::sqrt(10.0f / pi)});
         auto mul_1 =  std::make_shared<opset9::Multiply>(add_0, mul_1_constant);
 
         auto tanh =  std::make_shared<opset9::Tanh>(mul_1);
