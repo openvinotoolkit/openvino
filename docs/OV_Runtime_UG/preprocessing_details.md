@@ -1,4 +1,4 @@
-Pre-processing API - Details {#openvino_docs_OV_UG_Preprocessing_Details}
+# Preprocessing API - details {#openvino_docs_OV_UG_Preprocessing_Details}
 
 The purpose of this article is to present details on preprocessing API, such as its capabilities and post-processing.
 
