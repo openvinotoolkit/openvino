@@ -310,7 +310,7 @@ Since the auto-vectorized version is faster, it makes sense to enable it for the
      out[W*H*c + W*h + w] = src[W2*H2*c2 + W2*h2 + w2];
    }
    ```
-This code performs the same as the initial kernel above (scalar) due to branching overhead. If you replace min/max expression `w = min(w, W-1);` with `if (w >= W) return;`, runtime increases up to 2x against to code without branching (initial version).<br>
+This code performs the same as the initial kernel above (scalar) due to branching overhead. If the `w = min(w, W-1);` min/max expression is replaced with the `if (w >= W) return;`, runtime increases up to 2x against to code without branching (initial version).<br>
 If branching is inevitable for your element-based kernel, it is recommended to change the scheme to line-based. See the kernel variant below:
 ```cpp
 // Line-wise version
@@ -333,8 +333,8 @@ __kernel void reorg(const __global half* restrict src, __global half* restrict o
 }
 ```
 This decreases the execution time up to 40% against the best performing vectorized kernel without early exits (initial version).
-7. Reuse computations among work items by using line-based kernels or sharing values though `__local` memory.
-8. Improve data access locality. Most of custom kernels are memory bound while convolution and fully connected layers are hardware-implemented. The code below demonstrates a further optimized version of the `reorg` kernel unrolled by `stride`:
+7. Reuse computations among work items by using line-based kernels or sharing values through the `__local` memory.
+8. Improve data access locality. Most of custom kernels are memory bound while convolution and fully connected layers are hardware-implemented. The code below demonstrates a further optimized version of the `reorg` kernel unrolled by the `stride`:
    ```cpp
    // Unrolled line-wise version
    __kernel void reorg_unrolled_by_stride(const __global half* restrict src, __global half* restrict dst,
@@ -352,11 +352,11 @@ This decreases the execution time up to 40% against the best performing vectoriz
            dst[W*H*C2*(stride_y*stride+stride_x) + W*H*c2 + W*h + w] = src[W2*H2*c2 + W2*h*stride + W2*stride_y + w2 + stride_x];
    }
    ```
-`scr` data in this case loaded only once. As the result, the cycle count drops up to 45% against the line-wise version.
+The `scr` data in this case is loaded only once. As the result, the cycle count drops up to 45% against the line-wise version.
 
-9. Copy data from `__dlobal` to `__local` or `__private` memory if the data is accessed more than once. Access to `__dlobal` memory is orders of magnitude slower than access to `__local`/`__private` due to statically scheduled pipeline, which stalls completely on memory access without any prefetch. The same recommendation is applicable for scalar load/store from/to a `__blobal` pointer since work-group copying could be done in a vector fashion.
+9. Copy data from the `__dlobal` to the `__local` or `__private` memory if the data is accessed more than once. Access to the `__dlobal` memory is orders of magnitude slower than access to the `__local`/`__private` due to statically scheduled pipeline, which stalls completely on memory access without any prefetch. The same recommendation is applicable for scalar load/store from/to the `__blobal` pointer since work-group copying could be done in a vector fashion.
 
-10. Use a manual DMA extension. Local (on-chip) memory throughput is up to 24x higher than DDR throughput. Starting from OpenVINO™ 2020.1, VPU OpenCL features manual-DMA kernel extension to copy sub-tensor used by work group into local memory and performing compute without DDR evolved. Here is the simple GRN kernel implementation that runs over DDR. Local size is in the form (width of the input tensor, 1, 1) to define a large enough work group to get code automatically vectorized and unrolled, while global size is (width of the input tensor, height of the input tensor, 1):
+10. Use a manual DMA extension. Local (on-chip) memory throughput is up to 24x higher than DDR throughput. Starting from OpenVINO 2020.1, VPU OpenCL features manual-DMA kernel extension to copy sub-tensor used by work group into local memory and performing compute without DDR evolved. Here is the simple GRN kernel implementation that runs over DDR. Local size is in the form (width of the input tensor, 1, 1) to define a large enough work group to get code automatically vectorized and unrolled, while global size is (width of the input tensor, height of the input tensor, 1):
    ```cpp
    __kernel void grn_NCHW(
      __global const half* restrict src_data,
@@ -381,7 +381,7 @@ This decreases the execution time up to 40% against the best performing vectoriz
    }
    ```
 
-This kernel can be rewritten to introduce special data binding `__dma_preload` and `__dma_postwrite intrinsics`. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName`, and `__dma_postwrite_kernelName`.  Kernel `__dma_preload_kernelName` for a particular work group `n` is guaranteed to be executed before the `n`-th work group itself, while `__dma_postwrite_kernelName` is guaranteed to be executed after a corresponding work group. You may define one of those functions to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
+This kernel can be rewritten to introduce the `__dma_preload` and `__dma_postwrite intrinsics` special data binding. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName`, and `__dma_postwrite_kernelName`.  The `__dma_preload_kernelName` kernel for a particular work group `n` is guaranteed to be executed before the `n`-th work group itself, while the `__dma_postwrite_kernelName` is guaranteed to be executed after a corresponding work group. One of those functions may be defined to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
 
    ```cpp
    __kernel void __dma_preload_grn_NCHW(
@@ -540,7 +540,7 @@ __kernel void grn_NCHW(
 }
 ```
 
-> **NOTE:** The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup because it is completely limited by memory usage.
+> **NOTE:** The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup since it is completely limited by memory usage.
 
 An alternative method to using DMA is to use work item copy extension. Those functions are executed inside a kernel and require work groups equal to single work item.
 

@@ -25,7 +25,7 @@ Custom operations, which are not included in the list, are not recognized by Ope
 
 2. A new user operation that was created for some specific model topology by the author of the model, using framework extension capabilities.
 
-Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations, allowing you to plug in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
+Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations, that allow plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
 
 Defining a new custom operation basically consists of two parts:
 
