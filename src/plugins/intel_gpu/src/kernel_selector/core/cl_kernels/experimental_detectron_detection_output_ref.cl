@@ -15,7 +15,7 @@
 #else
 #    define HALF_ONE (INPUT_TYPE2)(0.5f)
 #    define ZERO     0.0f
-#    define ONE      1.0h
+#    define ONE      1.0f
 #endif
 
 #define ZERO2 (INPUT_TYPE2)(ZERO)
@@ -25,7 +25,7 @@
 
 #define DELTA_WEIGHTS (INPUT_TYPE4)(DELTA_WEIGHT_X, DELTA_WEIGHT_Y, DELTA_WEIGHT_LOG_W, DELTA_WEIGHT_LOG_H)
 
-#define MAX_DELTA_LOG_SIZE (INPUT_TYPE2)(TO_INPUT0_TYPE(MAX_DELTA_LOG_WH)
+#define MAX_DELTA_LOG_SIZE (INPUT_TYPE2)(TO_INPUT0_TYPE(MAX_DELTA_LOG_WH))
 
 typedef struct __attribute__((packed)) {
     INPUT_TYPE score __attribute__((aligned(4)));
@@ -142,7 +142,7 @@ KERNEL(eddo_ref_stage_0)
         const int offset = NUM_CLASSES * roi_idx + class_idx;
 
         // width & height of box
-        INPUT_TYPE2 box_size = (box.hi - box.lo + COORDINATE_OFFSET).s10;
+        INPUT_TYPE2 box_size = (box.hi - box.lo + COORDINATE_OFFSET);
 
         // center location of box
         const INPUT_TYPE2 center = box.lo + HALF_ONE * box_size;
@@ -152,7 +152,7 @@ KERNEL(eddo_ref_stage_0)
         // new center location according to deltas (dx, dy)
         const INPUT_TYPE2 new_center = delta.lo * box_size + center;
         // new width & height according to deltas d(log w), d(log h)
-        const INPUT_TYPE2 new_size = exp(min(delta.hi, MAX_DELTA_LOG_SIZE))) * box_size;
+        const INPUT_TYPE2 new_size = exp(min(delta.hi, MAX_DELTA_LOG_SIZE)) * box_size;
 
         // update upper-left corner and lower-right corners respectively
         INPUT_TYPE4 new_box =
@@ -267,31 +267,6 @@ KERNEL(eddo_ref_stage_1)
     *detection_count = total_detections_num;
 }
 
-#    if 0
-KERNEL(eddo_ref_stage_1_ideas)
-(const __global INPUT_TYPE* refined_scores,
- const __global INPUT_TYPE* refined_boxes,
- const __global INPUT_TYPE* refined_box_areas,
- uint roi_count,
- __global ScoreClassIndex* score_class_index_map,
- __global uint* detection_count) {
-    size_t total_detections_num = 0;
-    // FIXME: figure out how to parallelize this!!!
-    for (int class_idx = 0; class_idx < NUM_CLASSES; ++class_idx) {
-        FUNC_CALL(nms_cf)(&refined_scores[roi_count * class_idx],
-               &refined_boxes[roi_count * 4 * class_idx],
-               &refined_box_areas[roi_count * class_idx],
-               class_idx,
-               roi_count,
-               &score_class_index_map[total_detections_num],
-               detection_count);
-        total_detections_num += *detection_count;
-    }
-
-    *detection_count = total_detections_num;
-}
-#    endif
-
 #endif /* EDDO_STAGE_1_NMS */
 
 #ifdef EDDO_STAGE_2_TOPK
@@ -332,3 +307,15 @@ KERNEL(eddo_ref_stage_3)
 }
 
 #endif /* EDDO_STAGE_3_COPY_OUTPUT */
+
+#undef INPUT_TYPE
+#undef INPUT_TYPE2
+#undef INPUT_TYPE4
+#undef HALF_ONE
+#undef ZERO
+#undef ONE
+#undef ZERO2
+#undef ZERO4
+#undef COORDINATE_OFFSET
+#undef DELTA_WEIGHTS
+#undef MAX_DELTA_LOG_SIZE
