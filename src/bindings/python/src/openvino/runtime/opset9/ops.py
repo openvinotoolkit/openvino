@@ -207,7 +207,7 @@ def multiclass_nms(
         keep_top_k: Optional[int] = -1,
         background_class: Optional[int] = -1,
         nms_eta: Optional[float] = 1.0,
-        normalized: Optional[bool] = True
+        normalized: Optional[bool] = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
