@@ -1,6 +1,6 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Windows from Docker Image {#openvino_docs_install_guides_installing_openvino_docker_windows}
 
-This guide provides steps for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows and using the Docker image on different devices.
+This guide provides instruction for creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Windows, and using the Docker image on different devices.
 
 ## <a name="system-requirments"></a>System Requirements
 
@@ -18,8 +18,8 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 
 .. tab:: Host Operating Systems
 
-   * Windows 10 (64-bit) Pro, Enterprise, Education (1607 Anniversary Update, Build 14393 or later)
-   * Windows Server 2016 or higher
+   * Windows 10 (64-bit) Pro, Enterprise, Education (1607 Anniversary Update, Build 14393 or later),
+   * Windows Server 2016 or higher.
 
 
 @endsphinxdirective
@@ -45,14 +45,14 @@ There are two ways to install OpenVINO with Docker. You may choose either of the
 
 ### Using a prebuilt image
 
-#### 1. Get a prebuilt image from provided sources.
+**Step 1**: Get a prebuilt image from provided sources.
 
-You may find prebuilt images on:
+Prebuilt images can be find on:
 
-- [Docker Hub](https://hub.docker.com/u/openvino)
-- [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino)
+- [Docker Hub](https://hub.docker.com/u/openvino),
+- [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino).
 
-#### 2. Run the image on different devices.
+**Step 2**: Run the image on different devices.
 
 @sphinxdirective
 
@@ -82,7 +82,7 @@ You may find prebuilt images on:
       
       docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
    
-   where
+   where:
    - `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` is a reserved interface class GUID for a GPU device.
    - `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` is the path to OpenCL driver home directory. To find it on your PC, run the `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
    - `C:\tmp` is the folder with the copy of `OpenCL.dll` from your `C:\Windows\System32` host folder.
@@ -104,11 +104,11 @@ You may find prebuilt images on:
 
 ### Build a Docker image manually
 
-#### 1. Preparing a Dockerfile
+**Step 1**: Preparing a Dockerfile
 
 You may use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your settings via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
 
-#### 2. Configuring the Docker Image for Different Devices
+**Step 2**: Configuring the Docker Image for Different Devices
 
 @sphinxdirective
 
@@ -127,7 +127,7 @@ You may use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
       RUN SETX /M PATH "C:\Program Files\CMake\Bin;%PATH%"
    
-   In case of proxy issues, please add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
+   In case of proxy issues, add the `ARG HTTPS_PROXY` and `-Proxy %%HTTPS_PROXY%` settings to the `powershell.exe` command to the Dockerfile. Then build a Docker image:
 
    .. code-block:: sh
       docker build . -t <image_name> `
@@ -154,7 +154,7 @@ You may use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
             --remove Microsoft.VisualStudio.Component.Windows10SDK.14393 `
             --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
 
-   In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
+   In case of proxy issues, use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
 
 .. tab:: Configuring the Image for GPU
 
@@ -195,7 +195,7 @@ You may use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
 
 @endsphinxdirective
 
-#### 3. Running the Docker Image on Different Devices
+**Step 3**: Running the Docker Image on Different Devices
 
 @sphinxdirective
 
@@ -228,7 +228,7 @@ You may use the [available Dockerfiles on GitHub](https://github.com/openvinotoo
    
       docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
 
-   where
+   where:
 
    - `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` is a reserved interface class GUID for a GPU device.
    - `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` is the path to OpenCL driver home directory. To find it on your PC, run the `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
