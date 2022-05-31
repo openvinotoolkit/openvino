@@ -3,12 +3,14 @@
 
 import numpy as np
 import pytest
+
 from openvino.runtime import PartialShape, Dimension, Model
 from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.utils.types import make_constant_node
 
-import openvino.runtime.opset9 as ov
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
+import openvino.runtime.opset9 as ov
 from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
@@ -1818,7 +1820,33 @@ def test_multiclass_nms():
     scores_data = scores_data.reshape([1, 2, 6])
     score = ov.constant(scores_data, dtype=np.float)
 
-    nms_node = ov.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
+    nms_node = ov.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
+                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
+                                 nms_eta=1.0)
+
+    assert nms_node.get_type_name() == "MulticlassNms"
+    assert nms_node.get_output_size() == 3
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert nms_node.get_output_element_type(0) == Type.f32
+    assert nms_node.get_output_element_type(1) == Type.i32
+    assert nms_node.get_output_element_type(2) == Type.i32
+
+    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
+                            [7.25, 0.47, 12.28, 17.77]],
+                           [[4.06, 5.15, 16.11, 18.40],
+                            [9.66, 3.36, 18.57, 13.26]],
+                           [[6.50, 7.00, 13.33, 17.63],
+                            [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
+    box = ov.constant(boxes_data, dtype=np.float)
+    scores_data = np.array([[0.34, 0.66],
+                            [0.45, 0.61],
+                            [0.39, 0.59]]).astype("float32")
+    score = ov.constant(scores_data, dtype=np.float)
+    rois_num_data = np.array([3]).astype("int32")
+    roisnum = ov.constant(rois_num_data, dtype=np.int)
+    nms_node = ov.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
 
@@ -1855,6 +1883,51 @@ def test_matrix_nms():
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
+
+
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
+    [
+        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expected_shape):
+    boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    node = ov.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64))
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
+
+
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "soft_nms_sigma", "expected_shape"),
+    [
+        ([1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, expected_shape):
+    boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    max_output_boxes = make_constant_node(max_output_boxes, np.int64)
+    iou_threshold = make_constant_node(iou_threshold, np.float32)
+    score_threshold = make_constant_node(score_threshold, np.float32)
+    soft_nms_sigma = make_constant_node(soft_nms_sigma, np.float32)
+
+    node = ov.non_max_suppression(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma)
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
 
 
 def test_slice():
