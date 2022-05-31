@@ -130,13 +130,15 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     if (memory.get_engine() != this)
-        throw std::runtime_error("trying to reinterpret buffer allocated by a different engine");
+        IE_THROW() << "trying to reinterpret buffer allocated by a different engine";
 
     if (new_layout.format.is_image() && !memory.get_layout().format.is_image())
-        throw std::runtime_error("trying to reinterpret non-image buffer as image");
+        IE_THROW() << "trying to reinterpret non-image buffer as image : " << memory.get_layout().format.to_string()
+                   << " --> " << new_layout.format.to_string();
 
     if (!new_layout.format.is_image() && memory.get_layout().format.is_image())
-        throw std::runtime_error("trying to reinterpret image buffer as non-image buffer");
+        IE_THROW() << "trying to reinterpret image buffer as non-image buffer : "
+                   << memory.get_layout().format.to_string() << " --> " << new_layout.format.to_string();
 
     try {
         if (new_layout.format.is_image_2d()) {
