@@ -90,6 +90,85 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
     }
 
     template<typename T, typename T_size>
+    void execute_fp16(const scatter_nd_update_basic_test_params& params)
+    {
+        auto& engine = get_test_engine();
+
+        auto input1 = engine.allocate_memory({ params.input_type, params.input_format, params.input_size });
+        auto input2 = engine.allocate_memory({ params.indices_type, params.indices_format, params.indices_size });
+        auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
+
+        std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
+        for (int i = 0; i < input_vec.size(); ++i)
+            input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
+        std::reverse(input_vec.begin() + 2, input_vec.end());
+
+        std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
+        for (int i = 0; i < updates_vec.size(); ++i)
+            updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
+        std::reverse(updates_vec.begin() + 2, updates_vec.end());
+
+        std::vector<int> indices_vec(static_cast<int>(cldnn::format::dimension(params.indices_format)));
+        for (size_t i = 0; i < indices_vec.size(); ++i)
+            indices_vec[i] = static_cast<int>(params.indices_size.sizes()[i]);
+        std::reverse(indices_vec.begin() + 2, indices_vec.end());
+        indices_vec.resize(params.indices_rank);
+
+        auto input_data_fp16 = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto indices_data_fp16 = generate_unique_indices<T>(params);
+        auto updates_data_fp16 = generate_random_1d<T>(params.updates_size.count(), -127, 127);
+
+        std::vector<float> input_data(params.input_size.count());
+        for (int i = 0; i < params.input_size.count(); ++i)
+            input_data[i] = static_cast<float>(input_data_fp16[i]);
+        std::vector<float> indices_data(params.indices_size.count());
+        for (int i = 0; i < params.indices_size.count(); ++i)
+            indices_data[i] = static_cast<float>(indices_data_fp16[i]);
+        std::vector<float> updates_data(params.updates_size.count());
+        for (int i = 0; i < params.updates_size.count(); ++i)
+            updates_data[i] = static_cast<float>(updates_data_fp16[i]);
+
+        set_values(input1, input_data_fp16);
+        set_values(input2, indices_data_fp16);
+        set_values(input3, updates_data_fp16);
+
+        // execute scatter_nd_update
+        topology topology(
+            input_layout("InputData", input1->get_layout()),
+            input_layout("InputIndices", input2->get_layout()),
+            input_layout("InputUpdates", input3->get_layout()),
+            reorder("reorder1", "InputData", params.input_result_format, params.input_type),
+            reorder("reorder2", "InputIndices", params.indices_result_format, params.indices_type),
+            reorder("reorder3", "InputUpdates", params.updates_result_format, params.updates_type),
+            scatter_nd_update("scatter_nd_update", "reorder1", "reorder2", "reorder3", params.indices_rank),
+            reorder("out", "scatter_nd_update", params.input_format, params.input_type)
+        );
+
+        network network(engine, topology);
+
+        network.set_input_data("InputData", input1);
+        network.set_input_data("InputIndices", input2);
+        network.set_input_data("InputUpdates", input3);
+
+        auto outputs = network.execute();
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
+
+        auto outputs_ref = std::vector<float>(params.input_size.count());
+        ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data.data(),
+                                                                  indices_data.data(),
+                                                                  updates_data.data(),
+                                                                  outputs_ref.data(),
+                                                                  ov::Shape(input_vec.begin(), input_vec.end()),
+                                                                  ov::Shape(indices_vec.begin(), indices_vec.end()),
+                                                                  ov::Shape(updates_vec.begin(), updates_vec.end()));
+
+        for (size_t i = 0; i < outputs_ref.size(); ++i) {
+            EXPECT_EQ(outputs_ref[i], float16_to_float32(outputs_ptr[i]));
+        }
+    }
+
+    template<typename T>
     void execute(const scatter_nd_update_basic_test_params& params)
     {
         // create input, indices, updates using params
@@ -114,7 +193,6 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             indices_vec[i] = static_cast<int>(params.indices_size.sizes()[i]);
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
-
 
         auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data = generate_unique_indices<T>(params);
@@ -144,34 +222,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
 
         auto outputs = network.execute();
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
-
-        if (params.input_type == data_types::f16) {
-                std::vector<float> input_data_fp16(params.input_size.count(), -1);
-                for (int i = 0; i < params.input_size.count(); ++i)
-                    input_data_fp16[i] = static_cast<float>(input_data[i]);
-                std::vector<float> indices_data_fp16(params.indices_size.count(), -1);
-                for (int i = 0; i < params.indices_size.count(); ++i)
-                    indices_data_fp16[i] = static_cast<float>(indices_data[i]);
-                std::vector<float> updates_data_fp16(params.updates_size.count(), -1);
-                for (int i = 0; i < params.updates_size.count(); ++i)
-                    updates_data_fp16[i] = static_cast<float>(updates_data[i]);
-
-                auto outputs_ref = std::vector<float>(params.input_size.count());
-                ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data_fp16.data(),
-                                                                          indices_data_fp16.data(),
-                                                                          updates_data_fp16.data(),
-                                                                          outputs_ref.data(),
-                                                                          ov::Shape(input_vec.begin(), input_vec.end()),
-                                                                          ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                                          ov::Shape(updates_vec.begin(), updates_vec.end()));
-
-                for (size_t i = 0; i < outputs_ref.size(); ++i) {
-                    EXPECT_EQ(outputs_ref[i], float16_to_float32(outputs_ptr[i]));
-                }
-
-            return;
-        }
+        cldnn::mem_lock<T> outputs_ptr(output, get_test_stream());
 
         auto outputs_ref = std::vector<T>(params.input_size.count());
         ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(),
@@ -192,17 +243,17 @@ TEST_P(scatter_nd_update_random_test, random)
 {
     auto param = GetParam();
     if (param.input_type == data_types::u8)
-        this->execute<uint8_t, uint8_t>(param);
+        this->execute<uint8_t>(param);
     else if (param.input_type == data_types::i8)
-        this->execute<int8_t, int8_t>(param);
+        this->execute<int8_t>(param);
     else if (param.input_type == data_types::i32)
-        this->execute<int32_t, int32_t>(param);
+        this->execute<int32_t>(param);
     else if (param.input_type == data_types::i64)
-        this->execute<int64_t, int64_t>(param);
+        this->execute<int64_t>(param);
     else if (param.input_type == data_types::f16)
-        this->execute<FLOAT16, uint16_t>(param);
+        this->execute_fp16<FLOAT16, uint16_t>(param);
     else if (param.input_type == data_types::f32)
-        this->execute<float, float>(param);
+        this->execute<float>(param);
     else
         IE_THROW() << "unidentified data type";
 }
